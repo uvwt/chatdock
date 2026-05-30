@@ -104,6 +104,56 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, ChatResponse{Answer: answer, Session: session})
 }
 
+func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
+	var input ChatRequest
+	if err := readJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	input.Message = strings.TrimSpace(input.Message)
+	if input.Message == "" {
+		writeError(w, http.StatusBadRequest, fmt.Errorf("message is empty"))
+		return
+	}
+
+	_, cfg, history, err := a.store.AppendUserMessage(input.SessionID, input.Message)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, ErrSessionNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err)
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, fmt.Errorf("streaming is not supported"))
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	answer, err := a.client.Stream(r.Context(), cfg, history, func(delta string) error {
+		return writeSSE(w, flusher, "delta", map[string]string{"content": delta})
+	})
+	if err != nil {
+		_ = writeSSE(w, flusher, "error", map[string]string{"message": err.Error()})
+		return
+	}
+
+	session, err := a.store.AppendAssistantMessage(input.SessionID, answer)
+	if err != nil {
+		_ = writeSSE(w, flusher, "error", map[string]string{"message": err.Error()})
+		return
+	}
+	_ = writeSSE(w, flusher, "done", map[string]any{"session": session})
+}
+
 func readJSON(r *http.Request, out any) error {
 	defer r.Body.Close()
 	return json.NewDecoder(io.LimitReader(r.Body, 2<<20)).Decode(out)
@@ -117,4 +167,19 @@ func writeJSONResponse(w http.ResponseWriter, status int, value any) {
 
 func writeError(w http.ResponseWriter, status int, err error) {
 	writeJSONResponse(w, status, map[string]any{"error": err.Error()})
+}
+
+func writeSSE(w http.ResponseWriter, flusher http.Flusher, event string, value any) error {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "event: %s\n", event); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "data: %s\n\n", raw); err != nil {
+		return err
+	}
+	flusher.Flush()
+	return nil
 }

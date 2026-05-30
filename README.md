@@ -10,8 +10,9 @@
 - OpenAI Chat Completions 兼容接口
 - 可配置 Base URL / API Key / Model / System Prompt
 - 可配置最近上下文消息数，用来控制 token 消耗
-- 可配置思考提示开关，并可隐藏 `<think>...</think>` 思考内容
+- 可通过请求参数控制思考开关，并可隐藏 `<think>...</think>` 思考内容
 - 会话创建、列表、删除、消息持久化
+- 流式输出聊天响应
 
 ## 项目结构
 

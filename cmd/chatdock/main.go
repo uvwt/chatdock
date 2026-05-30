@@ -19,7 +19,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Printf("ChatDock listening on %s", cfg.Addr)
 	if err := app.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}

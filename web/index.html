@@ -74,11 +74,11 @@
       <div><label>上下文消息数</label><input id="max_context_messages" type="number" min="1" max="100" /></div>
       <div><label>Temperature</label><input id="temperature" type="number" min="0" max="2" step="0.1" /></div>
     </div>
-    <label class="check-row"><input id="enable_thinking" type="checkbox" /> 启用思考提示</label>
+    <label class="check-row"><input id="enable_thinking" type="checkbox" /> 启用模型思考</label>
     <label class="check-row"><input id="hide_thinking" type="checkbox" /> 自动隐藏 &lt;think&gt; 思考内容</label>
     <br />
     <button onclick="saveConfig()">保存设置</button>
-    <p class="hint">省 token 核心：只带最近 N 条上下文 + 固定系统提示词。思考开关是通用提示方案；部分本地模型是否真正关闭 thinking，取决于模型服务是否支持。</p>
+    <p class="hint">省 token 核心：只带最近 N 条上下文 + 固定系统提示词。思考开关会通过 chat_template_kwargs.enable_thinking 传给模型接口；是否生效取决于模型服务是否支持该参数。</p>
   </section>
 </div>
 <script>
@@ -172,19 +172,77 @@ async function sendMsg() {
   input.value = '';
   busy = true;
   send.disabled = true;
-  messages.innerHTML += '<div class="msg user">' + escapeHtml(text) + '</div><div class="msg assistant" id="thinking">思考中...</div>';
+
+  const assistantId = 'assistant-' + Date.now();
+  messages.innerHTML += '<div class="msg user">' + escapeHtml(text) + '</div><div class="msg assistant" id="' + assistantId + '"></div>';
+  const assistantEl = document.getElementById(assistantId);
   messages.scrollTop = messages.scrollHeight;
+
   try {
-    const out = await api('/api/chat', {method:'POST', body: JSON.stringify({session_id: current, message: text})});
-    await renderSession(out.session);
-    await loadSessions();
+    const res = await fetch('/api/chat/stream', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({session_id: current, message: text})
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || res.statusText);
+    }
+
+    let finalSession = null;
+    await readSSE(res, (event, data) => {
+      if (event === 'delta') {
+        assistantEl.textContent += data.content || '';
+        messages.scrollTop = messages.scrollHeight;
+      } else if (event === 'done') {
+        finalSession = data.session;
+      } else if (event === 'error') {
+        throw new Error(data.message || 'stream error');
+      }
+    });
+
+    if (finalSession) {
+      await renderSession(finalSession);
+      await loadSessions();
+    }
   } catch (e) {
-    const t = document.getElementById('thinking');
-    if (t) t.textContent = '错误：' + e.message;
+    assistantEl.textContent = '错误：' + e.message;
   } finally {
     busy = false;
     send.disabled = false;
   }
+}
+
+async function readSSE(res, onEvent) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const {value, done} = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, {stream: true});
+    const parts = buffer.split('\n\n');
+    buffer = parts.pop() || '';
+    for (const part of parts) {
+      const event = parseSSE(part);
+      if (event) onEvent(event.event, event.data);
+    }
+  }
+  if (buffer.trim()) {
+    const event = parseSSE(buffer);
+    if (event) onEvent(event.event, event.data);
+  }
+}
+
+function parseSSE(block) {
+  let event = 'message';
+  const dataLines = [];
+  for (const line of block.split('\n')) {
+    if (line.startsWith('event:')) event = line.slice(6).trim();
+    if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+  }
+  if (!dataLines.length) return null;
+  return {event, data: JSON.parse(dataLines.join('\n'))};
 }
 
 input.addEventListener('keydown', e => {

@@ -1,8 +1,11 @@
 package chatdock
 
 import (
+	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -33,7 +36,23 @@ func NewApp(cfg ServerConfig) (*App, error) {
 }
 
 func (a *App) ListenAndServe() error {
-	return a.server.ListenAndServe()
+	listener, err := net.Listen("tcp", a.cfg.Addr)
+	if err != nil {
+		return fmt.Errorf("listen %s failed: %w", a.cfg.Addr, err)
+	}
+
+	log.Printf("ChatDock listening on %s", displayListenURL(a.cfg.Addr))
+	return a.server.Serve(listener)
+}
+
+func displayListenURL(addr string) string {
+	if strings.HasPrefix(addr, ":") {
+		return "http://127.0.0.1" + addr
+	}
+	if strings.HasPrefix(addr, "0.0.0.0:") {
+		return "http://127.0.0.1:" + strings.TrimPrefix(addr, "0.0.0.0:")
+	}
+	return "http://" + addr
 }
 
 func (a *App) routes() http.Handler {
@@ -47,6 +66,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/sessions/{id}", a.handleGetSession)
 	mux.HandleFunc("DELETE /api/sessions/{id}", a.handleDeleteSession)
 	mux.HandleFunc("POST /api/chat", a.handleChat)
+	mux.HandleFunc("POST /api/chat/stream", a.handleChatStream)
 
 	fileServer := http.FileServer(http.Dir(a.cfg.WebDir))
 	mux.Handle("/", fileServer)
