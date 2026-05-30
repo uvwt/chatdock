@@ -3,37 +3,125 @@ package chatdock
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
+const defaultPromptName = "default"
+
 type Store struct {
-	mu       sync.RWMutex
-	dataDir  string
-	modelCfg ModelConfig
-	sessions map[string]*Session
+	mu           sync.RWMutex
+	dataDir      string
+	activePrompt string
+	modelCfg     ModelConfig
+	sessions     map[string]*Session
 }
 
 func NewStore(dataDir string) (*Store, error) {
 	store := &Store{
-		dataDir:  dataDir,
-		sessions: make(map[string]*Session),
+		dataDir:      dataDir,
+		activePrompt: defaultPromptName,
+		sessions:     make(map[string]*Session),
 	}
 
-	if err := os.MkdirAll(store.sessionsDir(), 0o755); err != nil {
+	if err := store.migrateLegacyData(); err != nil {
 		return nil, err
 	}
-	if err := store.loadModelConfig(); err != nil {
-		return nil, err
-	}
-	if err := store.loadSessions(); err != nil {
+	if err := store.loadPromptLocked(defaultPromptName); err != nil {
 		return nil, err
 	}
 	return store, nil
+}
+
+func (s *Store) ActivePrompt() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.activePrompt
+}
+
+func (s *Store) ListPrompts() (PromptResponse, error) {
+	s.mu.RLock()
+	active := s.activePrompt
+	s.mu.RUnlock()
+
+	prompts, err := s.listPrompts(active)
+	if err != nil {
+		return PromptResponse{}, err
+	}
+	return PromptResponse{Active: active, Prompts: prompts}, nil
+}
+
+func (s *Store) CreatePrompt(input CreatePromptRequest) (PromptResponse, error) {
+	name, err := normalizePromptName(input.Name)
+	if err != nil {
+		return PromptResponse{}, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, err := os.Stat(s.promptDir(name)); err == nil {
+		return PromptResponse{}, fmt.Errorf("prompt already exists: %s", name)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return PromptResponse{}, err
+	}
+
+	cfg := s.modelCfg
+	if strings.TrimSpace(cfg.BaseURL) == "" {
+		cfg = DefaultModelConfig()
+	}
+	cfg.SystemPrompt = strings.TrimSpace(input.SystemPrompt)
+	if cfg.SystemPrompt == "" {
+		cfg.SystemPrompt = DefaultModelConfig().SystemPrompt
+	}
+	cfg = NormalizeModelConfig(cfg)
+
+	if err := os.MkdirAll(s.promptSessionsDir(name), 0o755); err != nil {
+		return PromptResponse{}, err
+	}
+	if err := writeJSON(s.promptConfigPath(name), cfg); err != nil {
+		return PromptResponse{}, err
+	}
+
+	if err := s.loadPromptLocked(name); err != nil {
+		return PromptResponse{}, err
+	}
+	prompts, err := s.listPromptsLocked()
+	if err != nil {
+		return PromptResponse{}, err
+	}
+	return PromptResponse{Active: s.activePrompt, Prompts: prompts}, nil
+}
+
+func (s *Store) SelectPrompt(input SelectPromptRequest) (PromptResponse, error) {
+	name, err := normalizePromptName(input.Name)
+	if err != nil {
+		return PromptResponse{}, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, err := os.Stat(s.promptDir(name)); errors.Is(err, os.ErrNotExist) {
+		return PromptResponse{}, fmt.Errorf("prompt not found: %s", name)
+	} else if err != nil {
+		return PromptResponse{}, err
+	}
+	if err := s.loadPromptLocked(name); err != nil {
+		return PromptResponse{}, err
+	}
+	prompts, err := s.listPromptsLocked()
+	if err != nil {
+		return PromptResponse{}, err
+	}
+	return PromptResponse{Active: s.activePrompt, Prompts: prompts}, nil
 }
 
 func (s *Store) GetModelConfig() ModelConfig {
@@ -157,7 +245,71 @@ func (s *Store) AppendAssistantMessage(sessionID string, content string) (*Sessi
 	return cloneSession(session), nil
 }
 
-func (s *Store) loadModelConfig() error {
+func (s *Store) migrateLegacyData() error {
+	if err := os.MkdirAll(s.promptsRoot(), 0o755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(s.promptSessionsDir(defaultPromptName), 0o755); err != nil {
+		return err
+	}
+
+	legacyConfig := filepath.Join(s.dataDir, "config.json")
+	if _, err := os.Stat(s.promptConfigPath(defaultPromptName)); errors.Is(err, os.ErrNotExist) {
+		if _, err := os.Stat(legacyConfig); err == nil {
+			if err := copyFile(legacyConfig, s.promptConfigPath(defaultPromptName)); err != nil {
+				return err
+			}
+		} else if errors.Is(err, os.ErrNotExist) {
+			if err := writeJSON(s.promptConfigPath(defaultPromptName), DefaultModelConfig()); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+
+	legacySessions := filepath.Join(s.dataDir, "sessions")
+	entries, err := os.ReadDir(legacySessions)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		dst := filepath.Join(s.promptSessionsDir(defaultPromptName), entry.Name())
+		if _, err := os.Stat(dst); err == nil {
+			continue
+		} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		if err := copyFile(filepath.Join(legacySessions, entry.Name()), dst); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Store) loadPromptLocked(name string) error {
+	name, err := normalizePromptName(name)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(s.promptSessionsDir(name), 0o755); err != nil {
+		return err
+	}
+	s.activePrompt = name
+	s.sessions = make(map[string]*Session)
+	if err := s.loadModelConfigLocked(); err != nil {
+		return err
+	}
+	return s.loadSessionsLocked()
+}
+
+func (s *Store) loadModelConfigLocked() error {
 	path := s.configPath()
 	raw, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
@@ -174,7 +326,7 @@ func (s *Store) loadModelConfig() error {
 	return nil
 }
 
-func (s *Store) loadSessions() error {
+func (s *Store) loadSessionsLocked() error {
 	entries, err := os.ReadDir(s.sessionsDir())
 	if err != nil {
 		return err
@@ -199,20 +351,116 @@ func (s *Store) loadSessions() error {
 	return nil
 }
 
+func (s *Store) listPrompts(active string) ([]PromptSpace, error) {
+	entries, err := os.ReadDir(s.promptsRoot())
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]PromptSpace, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		item, err := s.promptSummary(entry.Name(), active)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Name == defaultPromptName {
+			return true
+		}
+		if items[j].Name == defaultPromptName {
+			return false
+		}
+		return items[i].UpdatedAt.After(items[j].UpdatedAt)
+	})
+	return items, nil
+}
+
+func (s *Store) listPromptsLocked() ([]PromptSpace, error) {
+	return s.listPrompts(s.activePrompt)
+}
+
+func (s *Store) promptSummary(name string, active string) (PromptSpace, error) {
+	info, err := os.Stat(s.promptDir(name))
+	if err != nil {
+		return PromptSpace{}, err
+	}
+	createdAt := info.ModTime()
+	updatedAt := info.ModTime()
+	if cfgInfo, err := os.Stat(s.promptConfigPath(name)); err == nil {
+		createdAt = cfgInfo.ModTime()
+		updatedAt = cfgInfo.ModTime()
+	}
+	count := 0
+	entries, err := os.ReadDir(s.promptSessionsDir(name))
+	if err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json") {
+				count++
+				if sessionInfo, err := entry.Info(); err == nil && sessionInfo.ModTime().After(updatedAt) {
+					updatedAt = sessionInfo.ModTime()
+				}
+			}
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return PromptSpace{}, err
+	}
+	return PromptSpace{Name: name, Active: name == active, CreatedAt: createdAt, UpdatedAt: updatedAt, Count: count}, nil
+}
+
 func (s *Store) saveSessionLocked(session *Session) error {
 	return writeJSON(s.sessionPath(session.ID), session)
 }
 
+func (s *Store) promptsRoot() string {
+	return filepath.Join(s.dataDir, "prompts")
+}
+
+func (s *Store) promptDir(name string) string {
+	return filepath.Join(s.promptsRoot(), name)
+}
+
+func (s *Store) promptConfigPath(name string) string {
+	return filepath.Join(s.promptDir(name), "config.json")
+}
+
+func (s *Store) promptSessionsDir(name string) string {
+	return filepath.Join(s.promptDir(name), "sessions")
+}
+
 func (s *Store) configPath() string {
-	return filepath.Join(s.dataDir, "config.json")
+	return s.promptConfigPath(s.activePrompt)
 }
 
 func (s *Store) sessionsDir() string {
-	return filepath.Join(s.dataDir, "sessions")
+	return s.promptSessionsDir(s.activePrompt)
 }
 
 func (s *Store) sessionPath(id string) string {
 	return filepath.Join(s.sessionsDir(), id+".json")
+}
+
+func normalizePromptName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", fmt.Errorf("prompt name is empty")
+	}
+	if !utf8.ValidString(name) {
+		return "", fmt.Errorf("prompt name is invalid")
+	}
+	if name == "." || name == ".." || strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		return "", fmt.Errorf("prompt name cannot contain path separators")
+	}
+	for _, r := range name {
+		if r < 32 || r == 127 {
+			return "", fmt.Errorf("prompt name contains control characters")
+		}
+	}
+	return name, nil
 }
 
 func writeJSON(path string, value any) error {
@@ -224,6 +472,24 @@ func writeJSON(path string, value any) error {
 		return err
 	}
 	return os.WriteFile(path, append(raw, '\n'), 0o600)
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
 }
 
 func cloneSession(session *Session) *Session {

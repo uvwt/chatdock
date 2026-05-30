@@ -85,7 +85,7 @@ func (c *ChatClient) Complete(ctx context.Context, cfg ModelConfig, history []Me
 	return content, nil
 }
 
-func (c *ChatClient) Stream(ctx context.Context, cfg ModelConfig, history []Message, onDelta func(string) error) (string, error) {
+func (c *ChatClient) Stream(ctx context.Context, cfg ModelConfig, history []Message, onDelta func(StreamDelta) error) (string, error) {
 	messages := BuildChatMessages(cfg, history)
 	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/chat/completions"
 
@@ -141,16 +141,22 @@ func (c *ChatClient) Stream(ctx context.Context, cfg ModelConfig, history []Mess
 		}
 
 		delta, err := parseStreamDelta(data)
-		if err != nil || delta == "" {
+		if err != nil || delta.Empty() {
 			continue
 		}
 
-		visible := filter.Push(delta)
+		if delta.ReasoningContent != "" && !cfg.HideThinking {
+			if err := onDelta(StreamDelta{ReasoningContent: delta.ReasoningContent}); err != nil {
+				return full.String(), err
+			}
+		}
+
+		visible := filter.Push(delta.Content)
 		if visible == "" {
 			continue
 		}
 		full.WriteString(visible)
-		if err := onDelta(visible); err != nil {
+		if err := onDelta(StreamDelta{Content: visible}); err != nil {
 			return full.String(), err
 		}
 	}
@@ -161,30 +167,37 @@ func (c *ChatClient) Stream(ctx context.Context, cfg ModelConfig, history []Mess
 	visible := filter.Flush()
 	if visible != "" {
 		full.WriteString(visible)
-		if err := onDelta(visible); err != nil {
+		if err := onDelta(StreamDelta{Content: visible}); err != nil {
 			return full.String(), err
 		}
 	}
 	return strings.TrimSpace(full.String()), nil
 }
 
+type StreamDelta struct {
+	Content          string `json:"content,omitempty"`
+	ReasoningContent string `json:"reasoning_content,omitempty"`
+}
+
+func (d StreamDelta) Empty() bool {
+	return d.Content == "" && d.ReasoningContent == ""
+}
+
 type streamChunk struct {
 	Choices []struct {
-		Delta struct {
-			Content string `json:"content"`
-		} `json:"delta"`
+		Delta StreamDelta `json:"delta"`
 	} `json:"choices"`
 }
 
-func parseStreamDelta(data string) (string, error) {
+func parseStreamDelta(data string) (StreamDelta, error) {
 	var chunk streamChunk
 	if err := json.Unmarshal([]byte(data), &chunk); err != nil {
-		return "", err
+		return StreamDelta{}, err
 	}
 	if len(chunk.Choices) == 0 {
-		return "", nil
+		return StreamDelta{}, nil
 	}
-	return chunk.Choices[0].Delta.Content, nil
+	return chunk.Choices[0].Delta, nil
 }
 
 func BuildChatMessages(cfg ModelConfig, history []Message) []map[string]string {

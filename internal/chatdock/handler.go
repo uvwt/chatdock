@@ -38,6 +38,43 @@ func (a *App) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, ToPublicModelConfig(cfg))
 }
 
+func (a *App) handleListPrompts(w http.ResponseWriter, r *http.Request) {
+	result, err := a.store.ListPrompts()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, result)
+}
+
+func (a *App) handleCreatePrompt(w http.ResponseWriter, r *http.Request) {
+	var input CreatePromptRequest
+	if err := readJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := a.store.CreatePrompt(input)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, result)
+}
+
+func (a *App) handleSelectPrompt(w http.ResponseWriter, r *http.Request) {
+	var input SelectPromptRequest
+	if err := readJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := a.store.SelectPrompt(input)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, result)
+}
+
 func (a *App) handleListSessions(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, a.store.ListSessions())
 }
@@ -139,8 +176,8 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 
-	answer, err := a.client.Stream(r.Context(), cfg, history, func(delta string) error {
-		return writeSSE(w, flusher, "delta", map[string]string{"content": delta})
+	answer, err := a.client.Stream(r.Context(), cfg, history, func(delta StreamDelta) error {
+		return writeSSE(w, flusher, "delta", delta)
 	})
 	if err != nil {
 		if isClientCanceled(r.Context(), err) && strings.TrimSpace(answer) != "" {
