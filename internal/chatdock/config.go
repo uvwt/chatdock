@@ -9,6 +9,8 @@ func DefaultModelConfig() ModelConfig {
 		SystemPrompt:       "你是 ChatDock，一个简洁、直接、节省 token 的私人 AI 助手。默认用中文回答。",
 		MaxContextMessages: 12,
 		Temperature:        0.7,
+		EnableThinking:     false,
+		HideThinking:       true,
 	}
 }
 
@@ -39,5 +41,7 @@ func ToPublicModelConfig(cfg ModelConfig) PublicModelConfig {
 		SystemPrompt:       cfg.SystemPrompt,
 		MaxContextMessages: cfg.MaxContextMessages,
 		Temperature:        cfg.Temperature,
+		EnableThinking:     cfg.EnableThinking,
+		HideThinking:       cfg.HideThinking,
 	}
 }

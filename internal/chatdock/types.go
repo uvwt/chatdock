@@ -15,6 +15,8 @@ type ModelConfig struct {
 	SystemPrompt       string  `json:"system_prompt"`
 	MaxContextMessages int     `json:"max_context_messages"`
 	Temperature        float64 `json:"temperature"`
+	EnableThinking     bool    `json:"enable_thinking"`
+	HideThinking       bool    `json:"hide_thinking"`
 }
 
 type PublicModelConfig struct {
@@ -24,6 +26,8 @@ type PublicModelConfig struct {
 	SystemPrompt       string  `json:"system_prompt"`
 	MaxContextMessages int     `json:"max_context_messages"`
 	Temperature        float64 `json:"temperature"`
+	EnableThinking     bool    `json:"enable_thinking"`
+	HideThinking       bool    `json:"hide_thinking"`
 }
 
 type Message struct {

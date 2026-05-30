@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -67,7 +68,12 @@ func (c *ChatClient) Complete(ctx context.Context, cfg ModelConfig, history []Me
 	if len(output.Choices) == 0 {
 		return "", fmt.Errorf("empty model response")
 	}
-	return strings.TrimSpace(output.Choices[0].Message.Content), nil
+
+	content := strings.TrimSpace(output.Choices[0].Message.Content)
+	if cfg.HideThinking {
+		content = StripThinkingContent(content)
+	}
+	return content, nil
 }
 
 func BuildChatMessages(cfg ModelConfig, history []Message) []map[string]string {
@@ -82,8 +88,9 @@ func BuildChatMessages(cfg ModelConfig, history []Message) []map[string]string {
 	}
 
 	messages := make([]map[string]string, 0, maxMessages+1)
-	if strings.TrimSpace(cfg.SystemPrompt) != "" {
-		messages = append(messages, map[string]string{"role": "system", "content": cfg.SystemPrompt})
+	systemPrompt := buildSystemPrompt(cfg)
+	if strings.TrimSpace(systemPrompt) != "" {
+		messages = append(messages, map[string]string{"role": "system", "content": systemPrompt})
 	}
 
 	for _, item := range history[start:] {
@@ -93,4 +100,40 @@ func BuildChatMessages(cfg ModelConfig, history []Message) []map[string]string {
 		messages = append(messages, map[string]string{"role": item.Role, "content": item.Content})
 	}
 	return messages
+}
+
+func buildSystemPrompt(cfg ModelConfig) string {
+	parts := []string{}
+	if prompt := strings.TrimSpace(cfg.SystemPrompt); prompt != "" {
+		parts = append(parts, prompt)
+	}
+
+	if cfg.EnableThinking {
+		parts = append(parts, "复杂问题可以进行必要推理，但最终回答要简洁，不要暴露冗长思考过程。")
+	} else {
+		parts = append(parts, "请直接给出最终回答，不要输出 <think>...</think>、思考过程、草稿或隐藏推理。")
+	}
+	return strings.Join(parts, "\n\n")
+}
+
+var thinkBlockRegexp = regexp.MustCompile(`(?is)<think>.*?</think>`)
+
+func StripThinkingContent(content string) string {
+	content = thinkBlockRegexp.ReplaceAllString(content, "")
+	lower := strings.ToLower(content)
+	for {
+		start := strings.Index(lower, "<think>")
+		if start < 0 {
+			break
+		}
+		end := strings.Index(lower[start:], "</think>")
+		if end < 0 {
+			content = content[:start]
+			break
+		}
+		end = start + end + len("</think>")
+		content = content[:start] + content[end:]
+		lower = strings.ToLower(content)
+	}
+	return strings.TrimSpace(content)
 }

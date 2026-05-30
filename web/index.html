@@ -33,6 +33,8 @@
     label { display: block; color: #cbd5e1; font-size: 13px; margin: 14px 0 6px; }
     .hint { color: #64748b; font-size: 12px; line-height: 1.5; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .check-row { display: flex; gap: 8px; align-items: center; margin-top: 12px; color: #cbd5e1; font-size: 13px; }
+    .check-row input { width: auto; }
     .empty { color: #64748b; text-align: center; margin-top: 15vh; }
     @media (max-width: 980px) { .app { grid-template-columns: 220px 1fr; } .settings { display:none; } }
   </style>
@@ -72,9 +74,11 @@
       <div><label>上下文消息数</label><input id="max_context_messages" type="number" min="1" max="100" /></div>
       <div><label>Temperature</label><input id="temperature" type="number" min="0" max="2" step="0.1" /></div>
     </div>
+    <label class="check-row"><input id="enable_thinking" type="checkbox" /> 启用思考提示</label>
+    <label class="check-row"><input id="hide_thinking" type="checkbox" /> 自动隐藏 &lt;think&gt; 思考内容</label>
     <br />
     <button onclick="saveConfig()">保存设置</button>
-    <p class="hint">省 token 核心：只带最近 N 条上下文 + 固定系统提示词。后续可以加摘要压缩、MCP 工具、定时任务。</p>
+    <p class="hint">省 token 核心：只带最近 N 条上下文 + 固定系统提示词。思考开关是通用提示方案；部分本地模型是否真正关闭 thinking，取决于模型服务是否支持。</p>
   </section>
 </div>
 <script>
@@ -99,6 +103,8 @@ async function loadConfig() {
   system_prompt.value = c.system_prompt || '';
   max_context_messages.value = c.max_context_messages || 12;
   temperature.value = c.temperature ?? 0.7;
+  enable_thinking.checked = !!c.enable_thinking;
+  hide_thinking.checked = c.hide_thinking !== false;
 }
 
 async function saveConfig() {
@@ -109,6 +115,8 @@ async function saveConfig() {
     system_prompt: system_prompt.value,
     max_context_messages: Number(max_context_messages.value || 12),
     temperature: Number(temperature.value || 0.7),
+    enable_thinking: enable_thinking.checked,
+    hide_thinking: hide_thinking.checked,
   })});
   api_key.value = '';
   await loadConfig();
