@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ChatDock</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0b1020; color: #e5e7eb; }
+    .app { display: grid; grid-template-columns: 260px 1fr 340px; height: 100vh; }
+    aside, .settings { border-right: 1px solid #1f2937; background: #0f172a; overflow: auto; }
+    .settings { border-right: 0; border-left: 1px solid #1f2937; padding: 16px; }
+    .brand { padding: 18px 16px; font-weight: 800; font-size: 22px; }
+    .sub { color: #94a3b8; font-size: 12px; margin-top: 4px; font-weight: 400; }
+    button { background: #2563eb; color: white; border: 0; border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+    button.secondary { background: #1f2937; }
+    button.danger { background: #991b1b; }
+    button:disabled { opacity: .6; cursor: wait; }
+    .new { margin: 0 12px 12px; width: calc(100% - 24px); }
+    .session { padding: 12px 14px; border-top: 1px solid #1f2937; cursor: pointer; color: #cbd5e1; }
+    .session:hover, .session.active { background: #172554; color: #fff; }
+    .session-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .session-meta { color: #64748b; font-size: 12px; margin-top: 4px; }
+    main { display: flex; flex-direction: column; min-width: 0; }
+    .topbar { height: 56px; padding: 14px 18px; border-bottom: 1px solid #1f2937; display: flex; align-items: center; justify-content: space-between; }
+    .messages { flex: 1; overflow: auto; padding: 22px; }
+    .msg { max-width: 900px; margin: 0 auto 16px; padding: 14px 16px; border-radius: 14px; line-height: 1.7; white-space: pre-wrap; }
+    .user { background: #1d4ed8; color: white; }
+    .assistant { background: #111827; border: 1px solid #263244; }
+    .composer { border-top: 1px solid #1f2937; padding: 14px; display: flex; gap: 10px; }
+    textarea, input { width: 100%; border-radius: 10px; border: 1px solid #334155; background: #020617; color: #e5e7eb; padding: 10px; outline: none; }
+    textarea { min-height: 54px; max-height: 160px; resize: vertical; }
+    label { display: block; color: #cbd5e1; font-size: 13px; margin: 14px 0 6px; }
+    .hint { color: #64748b; font-size: 12px; line-height: 1.5; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .empty { color: #64748b; text-align: center; margin-top: 15vh; }
+    @media (max-width: 980px) { .app { grid-template-columns: 220px 1fr; } .settings { display:none; } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">ChatDock<div class="sub">自用轻量 AI 对话中控</div></div>
+    <button class="new" onclick="newSession()">+ 新会话</button>
+    <div id="sessions"></div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div id="title">未选择会话</div>
+      <button class="danger" onclick="deleteCurrent()">删除</button>
+    </div>
+    <div id="messages" class="messages"><div class="empty">创建一个会话，然后开始聊天。</div></div>
+    <div class="composer">
+      <textarea id="input" placeholder="输入消息。Enter 发送，Shift+Enter 换行。"></textarea>
+      <button id="send" onclick="sendMsg()">发送</button>
+    </div>
+  </main>
+
+  <section class="settings">
+    <h2 style="margin:0 0 8px">设置</h2>
+    <div class="hint">兼容 OpenAI Chat Completions 的接口。比如 OpenAI、OpenRouter、One API、New API、Ollama OpenAI 兼容接口。</div>
+    <label>Base URL</label>
+    <input id="base_url" placeholder="https://api.openai.com/v1" />
+    <label>API Key</label>
+    <input id="api_key" placeholder="留空表示不修改" type="password" />
+    <label>Model</label>
+    <input id="model" placeholder="gpt-4o-mini" />
+    <label>System Prompt</label>
+    <textarea id="system_prompt" style="min-height:130px"></textarea>
+    <div class="row">
+      <div><label>上下文消息数</label><input id="max_context_messages" type="number" min="1" max="100" /></div>
+      <div><label>Temperature</label><input id="temperature" type="number" min="0" max="2" step="0.1" /></div>
+    </div>
+    <br />
+    <button onclick="saveConfig()">保存设置</button>
+    <p class="hint">省 token 核心：只带最近 N 条上下文 + 固定系统提示词。后续可以加摘要压缩、MCP 工具、定时任务。</p>
+  </section>
+</div>
+<script>
+let current = null;
+let busy = false;
+
+async function api(path, opt={}) {
+  const res = await fetch(path, {headers: {'Content-Type':'application/json'}, ...opt});
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+function fmtTime(value) { try { return new Date(value).toLocaleString(); } catch { return ''; } }
+
+async function loadConfig() {
+  const c = await api('/api/config');
+  base_url.value = c.base_url || '';
+  api_key.value = '';
+  api_key.placeholder = c.has_api_key ? '已保存，留空不修改' : '未设置';
+  model.value = c.model || '';
+  system_prompt.value = c.system_prompt || '';
+  max_context_messages.value = c.max_context_messages || 12;
+  temperature.value = c.temperature ?? 0.7;
+}
+
+async function saveConfig() {
+  await api('/api/config', {method:'POST', body: JSON.stringify({
+    base_url: base_url.value,
+    api_key: api_key.value,
+    model: model.value,
+    system_prompt: system_prompt.value,
+    max_context_messages: Number(max_context_messages.value || 12),
+    temperature: Number(temperature.value || 0.7),
+  })});
+  api_key.value = '';
+  await loadConfig();
+  alert('已保存');
+}
+
+async function loadSessions() {
+  const list = await api('/api/sessions');
+  sessions.innerHTML = list.map(s => '<div class="session ' + (current===s.id?'active':'') + '" onclick="openSession(\'' + s.id + '\')">' +
+    '<div class="session-title">' + escapeHtml(s.title) + '</div>' +
+    '<div class="session-meta">' + s.count + ' 条 · ' + fmtTime(s.updated_at) + '</div>' +
+  '</div>').join('');
+}
+
+async function newSession() {
+  const s = await api('/api/sessions', {method:'POST', body:'{}'});
+  current = s.id;
+  await loadSessions();
+  await renderSession(s);
+}
+
+async function openSession(id) {
+  current = id;
+  const s = await api('/api/sessions/' + id);
+  await loadSessions();
+  await renderSession(s);
+}
+
+async function deleteCurrent() {
+  if (!current || !confirm('确定删除当前会话？')) return;
+  await api('/api/sessions/' + current, {method:'DELETE'});
+  current = null;
+  title.textContent = '未选择会话';
+  messages.innerHTML = '<div class="empty">创建一个会话，然后开始聊天。</div>';
+  await loadSessions();
+}
+
+async function renderSession(s) {
+  title.textContent = s.title || '新会话';
+  if (!s.messages || s.messages.length === 0) {
+    messages.innerHTML = '<div class="empty">这个会话还没有消息。</div>';
+    return;
+  }
+  messages.innerHTML = s.messages.map(m => '<div class="msg ' + m.role + '">' + escapeHtml(m.content) + '</div>').join('');
+  messages.scrollTop = messages.scrollHeight;
+}
+
+async function sendMsg() {
+  if (busy) return;
+  if (!current) await newSession();
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  busy = true;
+  send.disabled = true;
+  messages.innerHTML += '<div class="msg user">' + escapeHtml(text) + '</div><div class="msg assistant" id="thinking">思考中...</div>';
+  messages.scrollTop = messages.scrollHeight;
+  try {
+    const out = await api('/api/chat', {method:'POST', body: JSON.stringify({session_id: current, message: text})});
+    await renderSession(out.session);
+    await loadSessions();
+  } catch (e) {
+    const t = document.getElementById('thinking');
+    if (t) t.textContent = '错误：' + e.message;
+  } finally {
+    busy = false;
+    send.disabled = false;
+  }
+}
+
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+});
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+loadConfig();
+loadSessions();
+</script>
+</body>
+</html>

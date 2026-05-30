@@ -1,0 +1,10 @@
+# build
+/chatdock
+bin/
+
+# runtime data
+data/
+
+# local env
+.env
+.DS_Store
