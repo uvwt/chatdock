@@ -7,27 +7,38 @@
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0b1020; color: #e5e7eb; }
-    .app { display: grid; grid-template-columns: 260px 1fr 340px; height: 100vh; }
+    .app { display: grid; grid-template-columns: 260px 1fr 340px; height: 100vh; transition: grid-template-columns .18s ease; }
+    .app.sidebar-collapsed { grid-template-columns: 64px 1fr 340px; }
     aside, .settings { border-right: 1px solid #1f2937; background: #0f172a; overflow: auto; }
+    aside { overflow-x: hidden; }
     .settings { border-right: 0; border-left: 1px solid #1f2937; padding: 16px; }
-    .brand { padding: 18px 16px; font-weight: 800; font-size: 22px; }
+    .sidebar-head { display: flex; align-items: center; gap: 8px; padding: 14px 12px 12px 16px; }
+    .brand { min-width: 0; flex: 1; font-weight: 800; font-size: 22px; line-height: 1.1; white-space: nowrap; overflow: hidden; }
+    .brand-text { display: inline-block; }
     .sub { color: #94a3b8; font-size: 12px; margin-top: 4px; font-weight: 400; }
     button { background: #2563eb; color: white; border: 0; border-radius: 10px; padding: 10px 12px; cursor: pointer; }
     button.secondary { background: #1f2937; }
     button.danger { background: #991b1b; }
     button:disabled { opacity: .6; cursor: wait; }
-    .new { margin: 0 12px 12px; width: calc(100% - 24px); }
+    .sidebar-toggle { flex: 0 0 34px; width: 34px; height: 34px; padding: 0; border-radius: 12px; background: #1f2937; font-size: 18px; line-height: 34px; }
+    .new { margin: 0 12px 12px; width: calc(100% - 24px); white-space: nowrap; overflow: hidden; }
     .session { padding: 12px 14px; border-top: 1px solid #1f2937; cursor: pointer; color: #cbd5e1; }
     .session:hover, .session.active { background: #172554; color: #fff; }
     .session-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .session-meta { color: #64748b; font-size: 12px; margin-top: 4px; }
     main { display: flex; flex-direction: column; min-width: 0; }
-    .topbar { height: 56px; padding: 14px 18px; border-bottom: 1px solid #1f2937; display: flex; align-items: center; justify-content: space-between; }
+    .topbar { height: 56px; padding: 14px 18px; border-bottom: 1px solid #1f2937; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .top-left { min-width: 0; display: flex; align-items: center; gap: 10px; }
+    #title { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mobile-menu { display: none; background: #1f2937; width: 38px; height: 38px; padding: 0; border-radius: 12px; font-size: 20px; line-height: 38px; }
+    .sidebar-mask { display: none; }
     .messages { flex: 1; overflow: auto; padding: 22px; }
     .msg { max-width: 900px; margin: 0 auto 16px; padding: 14px 16px; border-radius: 14px; line-height: 1.7; white-space: pre-wrap; }
     .user { background: #1d4ed8; color: white; }
     .assistant { background: #111827; border: 1px solid #263244; }
     .composer { border-top: 1px solid #1f2937; padding: 14px; display: flex; gap: 10px; }
+    .quick-control, .stream-control { flex: 0 0 auto; min-width: 68px; }
+    .stream-control[hidden] { display: none; }
     textarea, input { width: 100%; border-radius: 10px; border: 1px solid #334155; background: #020617; color: #e5e7eb; padding: 10px; outline: none; }
     textarea { min-height: 54px; max-height: 160px; resize: vertical; }
     label { display: block; color: #cbd5e1; font-size: 13px; margin: 14px 0 6px; }
@@ -36,25 +47,72 @@
     .check-row { display: flex; gap: 8px; align-items: center; margin-top: 12px; color: #cbd5e1; font-size: 13px; }
     .check-row input { width: auto; }
     .empty { color: #64748b; text-align: center; margin-top: 15vh; }
-    @media (max-width: 980px) { .app { grid-template-columns: 220px 1fr; } .settings { display:none; } }
+    .app.sidebar-collapsed .sidebar-head { padding-left: 15px; padding-right: 15px; }
+    .app.sidebar-collapsed .brand { flex: 0 0 0; width: 0; }
+    .app.sidebar-collapsed .brand-text,
+    .app.sidebar-collapsed .sub,
+    .app.sidebar-collapsed .new-label,
+    .app.sidebar-collapsed #sessions { display: none; }
+    .app.sidebar-collapsed .new { width: 40px; margin: 0 12px 12px; padding-left: 0; padding-right: 0; }
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 220px 1fr; }
+      .app.sidebar-collapsed { grid-template-columns: 64px 1fr; }
+      .settings { display:none; }
+    }
+    @media (max-width: 720px) {
+      html, body { height: 100%; overflow: hidden; }
+      .app, .app.sidebar-collapsed { display: block; height: 100dvh; }
+      main { height: 100dvh; }
+      .topbar { height: 52px; padding: 8px 10px; }
+      .top-left { flex: 1; }
+      .mobile-menu { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 38px; }
+      .topbar .danger { flex: 0 0 auto; padding: 9px 10px; }
+      aside { position: fixed; z-index: 30; left: 0; top: 0; bottom: 0; width: min(86vw, 320px); transform: translateX(-102%); transition: transform .18s ease; box-shadow: 0 18px 60px rgba(0,0,0,.45); }
+      .app:not(.sidebar-collapsed) aside { transform: translateX(0); }
+      .app.sidebar-collapsed aside { transform: translateX(-102%); }
+      .app.sidebar-collapsed .brand { flex: 1; width: auto; }
+      .app.sidebar-collapsed .brand-text,
+      .app.sidebar-collapsed .sub,
+      .app.sidebar-collapsed .new-label,
+      .app.sidebar-collapsed #sessions { display: block; }
+      .app.sidebar-collapsed .new { width: calc(100% - 24px); padding: 10px 12px; }
+      .sidebar-mask.show { display: block; position: fixed; inset: 0; z-index: 20; background: rgba(2, 6, 23, .58); backdrop-filter: blur(2px); }
+      .messages { padding: 12px 10px; }
+      .msg { max-width: none; margin: 0 0 10px; padding: 12px 13px; border-radius: 12px; font-size: 15px; line-height: 1.65; }
+      .composer { padding: 10px; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+      .composer textarea { flex: 1 1 100%; min-height: 48px; max-height: 36dvh; font-size: 16px; }
+      .composer button { flex: 1 1 0; min-width: 64px; padding: 10px 8px; }
+      .quick-control, .stream-control { min-width: 0; }
+      .row { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-<div class="app">
+<div id="sidebarMask" class="sidebar-mask" onclick="closeSidebarOnMobile()"></div>
+<div class="app" id="app">
   <aside>
-    <div class="brand">ChatDock<div class="sub">自用轻量 AI 对话中控</div></div>
-    <button class="new" onclick="newSession()">+ 新会话</button>
+    <div class="sidebar-head">
+      <div class="brand"><span class="brand-text">ChatDock</span><div class="sub">自用轻量 AI 对话中控</div></div>
+      <button id="sidebarToggle" class="sidebar-toggle" onclick="toggleSidebar()" title="折叠侧栏" aria-label="折叠侧栏">‹</button>
+    </div>
+    <button class="new" onclick="newSession()" title="新会话">+ <span class="new-label">新会话</span></button>
     <div id="sessions"></div>
   </aside>
 
   <main>
     <div class="topbar">
-      <div id="title">未选择会话</div>
+      <div class="top-left">
+        <button class="mobile-menu" onclick="toggleSidebar()" title="会话列表" aria-label="会话列表">☰</button>
+        <div id="title">未选择会话</div>
+      </div>
       <button class="danger" onclick="deleteCurrent()">删除</button>
     </div>
     <div id="messages" class="messages"><div class="empty">创建一个会话，然后开始聊天。</div></div>
     <div class="composer">
       <textarea id="input" placeholder="输入消息。Enter 发送，Shift+Enter 换行。"></textarea>
+      <button id="continueBtn" class="secondary quick-control" onclick="sendQuickMessage('继续')" title="自动发送继续">继续</button>
+      <button id="pauseStream" class="secondary stream-control" onclick="toggleStreamPause()" hidden disabled>暂停</button>
+      <button id="stopStream" class="danger stream-control" onclick="stopStreaming()" hidden disabled>中断</button>
       <button id="send" onclick="sendMsg()">发送</button>
     </div>
   </main>
@@ -84,6 +142,10 @@
 <script>
 let current = null;
 let busy = false;
+let activeAbortController = null;
+let activeAssistantEl = null;
+let streamPaused = false;
+let pendingDelta = '';
 
 async function api(path, opt={}) {
   const res = await fetch(path, {headers: {'Content-Type':'application/json'}, ...opt});
@@ -93,6 +155,38 @@ async function api(path, opt={}) {
 }
 
 function fmtTime(value) { try { return new Date(value).toLocaleString(); } catch { return ''; } }
+
+function initSidebar() {
+  const saved = localStorage.getItem('chatdock.sidebarCollapsed');
+  const collapsed = saved == null ? isMobileViewport() : saved === '1';
+  setSidebarCollapsed(collapsed);
+  window.addEventListener('resize', syncSidebarMask);
+}
+
+function toggleSidebar() {
+  setSidebarCollapsed(!app.classList.contains('sidebar-collapsed'));
+}
+
+function setSidebarCollapsed(collapsed) {
+  app.classList.toggle('sidebar-collapsed', collapsed);
+  sidebarToggle.textContent = collapsed ? '›' : '‹';
+  sidebarToggle.title = collapsed ? '展开侧栏' : '折叠侧栏';
+  sidebarToggle.setAttribute('aria-label', sidebarToggle.title);
+  localStorage.setItem('chatdock.sidebarCollapsed', collapsed ? '1' : '0');
+  syncSidebarMask();
+}
+
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 720px)').matches;
+}
+
+function syncSidebarMask() {
+  sidebarMask.classList.toggle('show', isMobileViewport() && !app.classList.contains('sidebar-collapsed'));
+}
+
+function closeSidebarOnMobile() {
+  if (isMobileViewport()) setSidebarCollapsed(true);
+}
 
 async function loadConfig() {
   const c = await api('/api/config');
@@ -136,6 +230,7 @@ async function newSession() {
   current = s.id;
   await loadSessions();
   await renderSession(s);
+  closeSidebarOnMobile();
 }
 
 async function openSession(id) {
@@ -143,6 +238,7 @@ async function openSession(id) {
   const s = await api('/api/sessions/' + id);
   await loadSessions();
   await renderSession(s);
+  closeSidebarOnMobile();
 }
 
 async function deleteCurrent() {
@@ -164,6 +260,51 @@ async function renderSession(s) {
   messages.scrollTop = messages.scrollHeight;
 }
 
+function setStreamControls(active) {
+  pauseStream.hidden = !active;
+  stopStream.hidden = !active;
+  pauseStream.disabled = !active;
+  stopStream.disabled = !active;
+  stopStream.textContent = '中断';
+  send.disabled = active;
+  continueBtn.disabled = active;
+  if (!active) {
+    activeAbortController = null;
+    activeAssistantEl = null;
+    streamPaused = false;
+    pendingDelta = '';
+    pauseStream.textContent = '暂停';
+    pauseStream.title = '暂停显示输出';
+    pauseStream.setAttribute('aria-label', pauseStream.title);
+  }
+}
+
+function toggleStreamPause() {
+  if (!busy) return;
+  streamPaused = !streamPaused;
+  pauseStream.textContent = streamPaused ? '继续' : '暂停';
+  pauseStream.title = streamPaused ? '继续显示输出' : '暂停显示输出';
+  pauseStream.setAttribute('aria-label', pauseStream.title);
+  if (!streamPaused && pendingDelta && activeAssistantEl) {
+    activeAssistantEl.textContent += pendingDelta;
+    pendingDelta = '';
+    messages.scrollTop = messages.scrollHeight;
+  }
+}
+
+function stopStreaming() {
+  if (!busy || !activeAbortController) return;
+  stopStream.disabled = true;
+  stopStream.textContent = '中断中';
+  activeAbortController.abort();
+}
+
+function sendQuickMessage(text) {
+  if (busy) return;
+  input.value = text;
+  sendMsg();
+}
+
 async function sendMsg() {
   if (busy) return;
   if (!current) await newSession();
@@ -171,18 +312,21 @@ async function sendMsg() {
   if (!text) return;
   input.value = '';
   busy = true;
-  send.disabled = true;
+  activeAbortController = new AbortController();
+  setStreamControls(true);
 
   const assistantId = 'assistant-' + Date.now();
   messages.innerHTML += '<div class="msg user">' + escapeHtml(text) + '</div><div class="msg assistant" id="' + assistantId + '"></div>';
   const assistantEl = document.getElementById(assistantId);
+  activeAssistantEl = assistantEl;
   messages.scrollTop = messages.scrollHeight;
 
   try {
     const res = await fetch('/api/chat/stream', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({session_id: current, message: text})
+      body: JSON.stringify({session_id: current, message: text}),
+      signal: activeAbortController.signal
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -192,8 +336,13 @@ async function sendMsg() {
     let finalSession = null;
     await readSSE(res, (event, data) => {
       if (event === 'delta') {
-        assistantEl.textContent += data.content || '';
-        messages.scrollTop = messages.scrollHeight;
+        const content = data.content || '';
+        if (streamPaused) {
+          pendingDelta += content;
+        } else {
+          assistantEl.textContent += content;
+          messages.scrollTop = messages.scrollHeight;
+        }
       } else if (event === 'done') {
         finalSession = data.session;
       } else if (event === 'error') {
@@ -202,14 +351,25 @@ async function sendMsg() {
     });
 
     if (finalSession) {
+      pendingDelta = '';
       await renderSession(finalSession);
       await loadSessions();
     }
   } catch (e) {
-    assistantEl.textContent = '错误：' + e.message;
+    if (activeAbortController && activeAbortController.signal.aborted) {
+      if (pendingDelta) {
+        assistantEl.textContent += pendingDelta;
+        pendingDelta = '';
+      }
+      assistantEl.textContent += (assistantEl.textContent ? '\n\n' : '') + '【已中断】';
+      messages.scrollTop = messages.scrollHeight;
+      await loadSessions().catch(() => {});
+    } else {
+      assistantEl.textContent = '错误：' + e.message;
+    }
   } finally {
     busy = false;
-    send.disabled = false;
+    setStreamControls(false);
   }
 }
 
@@ -253,6 +413,7 @@ function escapeHtml(value) {
   return String(value || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 }
 
+initSidebar();
 loadConfig();
 loadSessions();
 </script>

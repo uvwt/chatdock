@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -142,6 +143,9 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 		return writeSSE(w, flusher, "delta", map[string]string{"content": delta})
 	})
 	if err != nil {
+		if isClientCanceled(r.Context(), err) && strings.TrimSpace(answer) != "" {
+			_, _ = a.store.AppendAssistantMessage(input.SessionID, strings.TrimSpace(answer)+"\n\n【已中断】")
+		}
 		_ = writeSSE(w, flusher, "error", map[string]string{"message": err.Error()})
 		return
 	}
@@ -152,6 +156,10 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = writeSSE(w, flusher, "done", map[string]any{"session": session})
+}
+
+func isClientCanceled(ctx context.Context, err error) bool {
+	return errors.Is(ctx.Err(), context.Canceled) || errors.Is(err, context.Canceled)
 }
 
 func readJSON(r *http.Request, out any) error {
