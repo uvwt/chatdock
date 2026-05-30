@@ -10,10 +10,11 @@ import (
 )
 
 type App struct {
-	cfg    ServerConfig
-	store  *Store
-	client *ChatClient
-	server *http.Server
+	cfg       ServerConfig
+	store     *Store
+	client    *ChatClient
+	mcpClient *MCPClient
+	server    *http.Server
 }
 
 func NewApp(cfg ServerConfig) (*App, error) {
@@ -23,9 +24,10 @@ func NewApp(cfg ServerConfig) (*App, error) {
 	}
 
 	app := &App{
-		cfg:    cfg,
-		store:  store,
-		client: NewChatClient(),
+		cfg:       cfg,
+		store:     store,
+		client:    NewChatClient(),
+		mcpClient: NewMCPClient(),
 	}
 	app.server = &http.Server{
 		Addr:              cfg.Addr,
@@ -64,6 +66,10 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/prompts", a.handleListPrompts)
 	mux.HandleFunc("POST /api/prompts", a.handleCreatePrompt)
 	mux.HandleFunc("POST /api/prompts/select", a.handleSelectPrompt)
+	mux.HandleFunc("GET /api/mcp-config", a.handleGetMCPConfig)
+	mux.HandleFunc("POST /api/mcp-config", a.handleSaveMCPConfig)
+	mux.HandleFunc("GET /api/mcp/tools", a.handleListMCPTools)
+	mux.HandleFunc("POST /api/mcp/call", a.handleCallMCPTool)
 	mux.HandleFunc("GET /api/sessions", a.handleListSessions)
 	mux.HandleFunc("POST /api/sessions", a.handleCreateSession)
 	mux.HandleFunc("GET /api/sessions/{id}", a.handleGetSession)

@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -122,6 +123,50 @@ func (s *Store) SelectPrompt(input SelectPromptRequest) (PromptResponse, error) 
 		return PromptResponse{}, err
 	}
 	return PromptResponse{Active: s.activePrompt, Prompts: prompts}, nil
+}
+
+func (s *Store) GetMCPConfig() (string, error) {
+	s.mu.RLock()
+	path := s.mcpConfigPath()
+	s.mu.RUnlock()
+
+	raw, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		content := DefaultMCPConfig()
+		return content, writeRawFile(path, content)
+	}
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
+}
+
+func (s *Store) SaveMCPConfig(content string) (string, error) {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		content = DefaultMCPConfig()
+	}
+	var probe any
+	if err := json.Unmarshal([]byte(content), &probe); err != nil {
+		return "", fmt.Errorf("mcp config must be valid json: %w", err)
+	}
+	var pretty bytes.Buffer
+	if err := json.Indent(&pretty, []byte(content), "", "  "); err != nil {
+		return "", err
+	}
+	content = pretty.String() + "\n"
+
+	s.mu.RLock()
+	path := s.mcpConfigPath()
+	s.mu.RUnlock()
+	return content, writeRawFile(path, content)
+}
+
+func DefaultMCPConfig() string {
+	return `{
+  "servers": {}
+}
+`
 }
 
 func (s *Store) GetModelConfig() ModelConfig {
@@ -428,12 +473,20 @@ func (s *Store) promptConfigPath(name string) string {
 	return filepath.Join(s.promptDir(name), "config.json")
 }
 
+func (s *Store) promptMCPConfigPath(name string) string {
+	return filepath.Join(s.promptDir(name), "mcp.json")
+}
+
 func (s *Store) promptSessionsDir(name string) string {
 	return filepath.Join(s.promptDir(name), "sessions")
 }
 
 func (s *Store) configPath() string {
 	return s.promptConfigPath(s.activePrompt)
+}
+
+func (s *Store) mcpConfigPath() string {
+	return s.promptMCPConfigPath(s.activePrompt)
 }
 
 func (s *Store) sessionsDir() string {
@@ -461,6 +514,13 @@ func normalizePromptName(name string) (string, error) {
 		}
 	}
 	return name, nil
+}
+
+func writeRawFile(path string, content string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(content), 0o600)
 }
 
 func writeJSON(path string, value any) error {

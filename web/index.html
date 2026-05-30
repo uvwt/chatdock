@@ -76,6 +76,8 @@
     .stream-control[hidden] { display: none; }
     textarea, input { width: 100%; border-radius: 10px; border: 1px solid #334155; background: #020617; color: #e5e7eb; padding: 10px; outline: none; }
     textarea { min-height: 54px; max-height: 160px; resize: vertical; }
+    .mcp-editor { min-height: 190px; max-height: 360px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; line-height: 1.55; }
+    .settings-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
     label { display: block; color: #cbd5e1; font-size: 13px; margin: 14px 0 6px; }
     .hint { color: #64748b; font-size: 12px; line-height: 1.5; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -223,9 +225,14 @@
     </div>
     <label class="check-row"><input id="enable_thinking" type="checkbox" /> 启用模型思考</label>
     <label class="check-row"><input id="hide_thinking" type="checkbox" /> 自动隐藏 &lt;think&gt; 思考内容</label>
-    <br />
-    <button onclick="saveConfig()">保存设置</button>
-    <p class="hint">省 token 核心：只带最近 N 条上下文 + 固定系统提示词。思考开关会通过 chat_template_kwargs.enable_thinking 传给模型接口；是否生效取决于模型服务是否支持该参数。</p>
+    <label>MCP 配置（当前提示词空间的 mcp.json）</label>
+    <textarea id="mcp_config" class="mcp-editor" spellcheck="false" placeholder='{"servers": {}}'></textarea>
+    <div class="settings-actions">
+      <button onclick="saveConfig()">保存模型设置</button>
+      <button class="secondary" onclick="saveMCPConfig()">保存 MCP 配置</button>
+      <button class="secondary" onclick="loadMCPConfig()">重新加载 MCP</button>
+    </div>
+    <p class="hint">省 token 核心：只带最近 N 条上下文 + 固定系统提示词。思考开关会通过 chat_template_kwargs.enable_thinking 传给模型接口；是否生效取决于模型服务是否支持该参数。MCP 配置按提示词空间独立保存到 mcp.json。</p>
   </section>
 </div>
 <script>
@@ -315,6 +322,25 @@ async function loadConfig() {
   temperature.value = c.temperature ?? 0.7;
   enable_thinking.checked = !!c.enable_thinking;
   hide_thinking.checked = c.hide_thinking !== false;
+}
+
+async function loadMCPConfig() {
+  const c = await api('/api/mcp-config');
+  const fallback = ['{', '  "servers": {}', '}'].join('\n') + '\n';
+  mcp_config.value = c.content || fallback;
+}
+
+async function saveMCPConfig() {
+  const content = mcp_config.value || '';
+  try {
+    JSON.parse(content || '{}');
+  } catch (e) {
+    alert('MCP 配置不是合法 JSON：' + e.message);
+    return;
+  }
+  const c = await api('/api/mcp-config', {method:'POST', body: JSON.stringify({content})});
+  mcp_config.value = c.content || content;
+  alert('MCP 配置已保存');
 }
 
 async function saveConfig() {
@@ -772,6 +798,7 @@ async function selectPrompt(name) {
   messages.innerHTML = '<div class="empty">已切换提示词空间。创建或选择一个会话。</div>';
   await loadPrompts();
   await loadConfig();
+  await loadMCPConfig();
   await loadSessions();
   closeSidebarOnMobile();
 }
@@ -787,6 +814,7 @@ async function createPromptSpace() {
   messages.innerHTML = '<div class="empty">已创建并切换到新提示词空间。</div>';
   await loadPrompts();
   await loadConfig();
+  await loadMCPConfig();
   await loadSessions();
   closeSidebarOnMobile();
 }
@@ -795,6 +823,7 @@ initTheme();
 initSidebar();
 loadPrompts();
 loadConfig();
+loadMCPConfig();
 loadSessions();
 </script>
 </body>

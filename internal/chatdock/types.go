@@ -52,6 +52,18 @@ type PromptResponse struct {
 	Prompts []PromptSpace `json:"prompts"`
 }
 
+type MCPConfigResponse struct {
+	Content string `json:"content"`
+}
+
+type SaveMCPConfigRequest struct {
+	Content string `json:"content"`
+}
+
+type MCPToolsResponse struct {
+	Tools []MCPTool `json:"tools"`
+}
+
 type Message struct {
 	Role      string    `json:"role"`
 	Content   string    `json:"content"`
