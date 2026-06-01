@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -120,6 +121,24 @@ func (a *App) handleListMCPTools(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, MCPToolsResponse{Tools: tools})
 }
 
+func (a *App) handleTestMCPServer(w http.ResponseWriter, r *http.Request) {
+	cfg, err := a.activeMCPConfig()
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	serverName := strings.TrimSpace(r.URL.Query().Get("server"))
+	if serverName == "" {
+		serverName = "agentdock"
+	}
+	tools, err := a.mcpClient.ListServerTools(r.Context(), cfg, serverName)
+	if err != nil {
+		writeJSONResponse(w, http.StatusBadGateway, map[string]any{"ok": false, "server": serverName, "error": err.Error()})
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true, "server": serverName, "tool_count": len(tools), "tools": tools})
+}
+
 func (a *App) handleCallMCPTool(w http.ResponseWriter, r *http.Request) {
 	var input MCPToolCallRequest
 	if err := readJSON(r, &input); err != nil {
@@ -165,6 +184,82 @@ func (a *App) handleGetSession(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, session)
 }
 
+func (a *App) handleSessionRoute(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/sessions/")
+	path = strings.Trim(path, "/")
+	if path == "" {
+		writeError(w, http.StatusNotFound, ErrSessionNotFound)
+		return
+	}
+	parts := strings.Split(path, "/")
+	id := parts[0]
+	if len(parts) == 1 {
+		switch r.Method {
+		case http.MethodGet:
+			r.SetPathValue("id", id)
+			a.handleGetSession(w, r)
+		case http.MethodDelete:
+			r.SetPathValue("id", id)
+			a.handleDeleteSession(w, r)
+		default:
+			writeError(w, http.StatusMethodNotAllowed, fmt.Errorf("method not allowed"))
+		}
+		return
+	}
+	if len(parts) == 2 && parts[1] == "rename" && r.Method == http.MethodPost {
+		r.SetPathValue("id", id)
+		a.handleRenameSession(w, r)
+		return
+	}
+	if len(parts) == 2 && parts[1] == "export" && r.Method == http.MethodGet {
+		r.SetPathValue("id", id)
+		a.handleExportSession(w, r)
+		return
+	}
+	writeError(w, http.StatusNotFound, ErrSessionNotFound)
+}
+
+func (a *App) handleRenameSession(w http.ResponseWriter, r *http.Request) {
+	var input RenameSessionRequest
+	if err := readJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	session, err := a.store.RenameSession(r.PathValue("id"), input.Title)
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, ErrSessionNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, session)
+}
+
+func (a *App) handleExportSession(w http.ResponseWriter, r *http.Request) {
+	session, ok := a.store.GetSession(r.PathValue("id"))
+	if !ok {
+		writeError(w, http.StatusNotFound, ErrSessionNotFound)
+		return
+	}
+	format := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format")))
+	if format == "" || format == "md" || format == "markdown" {
+		filename := safeDownloadName(session.Title, session.ID) + ".md"
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+		_, _ = io.WriteString(w, sessionToMarkdown(session))
+		return
+	}
+	if format == "json" {
+		filename := safeDownloadName(session.Title, session.ID) + ".json"
+		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+		writeJSONResponse(w, http.StatusOK, session)
+		return
+	}
+	writeError(w, http.StatusBadRequest, fmt.Errorf("unsupported export format: %s", format))
+}
+
 func (a *App) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	if ok := a.store.DeleteSession(r.PathValue("id")); !ok {
 		writeError(w, http.StatusNotFound, ErrSessionNotFound)
@@ -196,7 +291,7 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	answer, err := a.client.Complete(r.Context(), cfg, history)
+	answer, err := a.completeWithOptionalTools(r.Context(), cfg, history)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err)
 		return
@@ -244,8 +339,8 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 
-	answer, err := a.client.Stream(r.Context(), cfg, history, func(delta StreamDelta) error {
-		return writeSSE(w, flusher, "delta", delta)
+	answer, err := a.streamWithOptionalTools(r.Context(), cfg, history, func(event string, value any) error {
+		return writeSSE(w, flusher, event, value)
 	})
 	if err != nil {
 		if isClientCanceled(r.Context(), err) && strings.TrimSpace(answer) != "" {
@@ -261,6 +356,34 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = writeSSE(w, flusher, "done", map[string]any{"session": session})
+}
+
+func (a *App) completeWithOptionalTools(ctx context.Context, cfg ModelConfig, history []Message) (string, error) {
+	mcpCfg, err := a.activeMCPConfig()
+	if err != nil || len(mcpCfg.Servers) == 0 {
+		return a.client.Complete(ctx, cfg, history)
+	}
+	tools, err := a.mcpClient.ListTools(ctx, mcpCfg)
+	if err != nil || len(tools) == 0 {
+		return a.client.Complete(ctx, cfg, history)
+	}
+	return a.client.CompleteWithMCPTools(ctx, cfg, history, tools, func(name string, args map[string]any) (any, error) {
+		return a.mcpClient.CallTool(ctx, mcpCfg, name, args)
+	})
+}
+
+func (a *App) streamWithOptionalTools(ctx context.Context, cfg ModelConfig, history []Message, emit func(string, any) error) (string, error) {
+	mcpCfg, err := a.activeMCPConfig()
+	if err != nil || len(mcpCfg.Servers) == 0 {
+		return a.client.Stream(ctx, cfg, history, func(delta StreamDelta) error { return emit("delta", delta) })
+	}
+	tools, err := a.mcpClient.ListTools(ctx, mcpCfg)
+	if err != nil || len(tools) == 0 {
+		return a.client.Stream(ctx, cfg, history, func(delta StreamDelta) error { return emit("delta", delta) })
+	}
+	return a.client.CompleteWithMCPToolsEvents(ctx, cfg, history, tools, func(name string, args map[string]any) (any, error) {
+		return a.mcpClient.CallTool(ctx, mcpCfg, name, args)
+	}, emit)
 }
 
 func isClientCanceled(ctx context.Context, err error) bool {
@@ -295,4 +418,57 @@ func writeSSE(w http.ResponseWriter, flusher http.Flusher, event string, value a
 	}
 	flusher.Flush()
 	return nil
+}
+
+func sessionToMarkdown(session *Session) string {
+	var b strings.Builder
+	title := strings.TrimSpace(session.Title)
+	if title == "" {
+		title = session.ID
+	}
+	b.WriteString("# ")
+	b.WriteString(title)
+	b.WriteString("\n\n")
+	b.WriteString("- ID: ")
+	b.WriteString(session.ID)
+	b.WriteString("\n- Created: ")
+	b.WriteString(session.CreatedAt.Format(time.RFC3339))
+	b.WriteString("\n- Updated: ")
+	b.WriteString(session.UpdatedAt.Format(time.RFC3339))
+	b.WriteString("\n\n")
+	for _, msg := range session.Messages {
+		role := strings.TrimSpace(msg.Role)
+		if role == "" {
+			role = "message"
+		}
+		b.WriteString("## ")
+		b.WriteString(strings.ToUpper(role[:1]))
+		if len(role) > 1 {
+			b.WriteString(role[1:])
+		}
+		if !msg.CreatedAt.IsZero() {
+			b.WriteString(" · ")
+			b.WriteString(msg.CreatedAt.Format(time.RFC3339))
+		}
+		b.WriteString("\n\n")
+		b.WriteString(strings.TrimSpace(msg.Content))
+		b.WriteString("\n\n")
+	}
+	return b.String()
+}
+
+var downloadNameRegexp = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
+
+func safeDownloadName(title string, fallback string) string {
+	name := strings.Trim(downloadNameRegexp.ReplaceAllString(strings.TrimSpace(title), "-"), "-._")
+	if name == "" {
+		name = strings.Trim(downloadNameRegexp.ReplaceAllString(fallback, "-"), "-._")
+	}
+	if name == "" {
+		name = "chatdock-session"
+	}
+	if len(name) > 80 {
+		name = name[:80]
+	}
+	return name
 }

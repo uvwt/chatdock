@@ -247,6 +247,31 @@ func (s *Store) DeleteSession(id string) bool {
 	return true
 }
 
+func (s *Store) RenameSession(id string, title string) (*Session, error) {
+	title = strings.TrimSpace(strings.ReplaceAll(title, "\n", " "))
+	if title == "" {
+		return nil, fmt.Errorf("session title is empty")
+	}
+	runes := []rune(title)
+	if len(runes) > 80 {
+		title = string(runes[:80])
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, ok := s.sessions[id]
+	if !ok {
+		return nil, ErrSessionNotFound
+	}
+	session.Title = title
+	session.UpdatedAt = time.Now()
+	if err := s.saveSessionLocked(session); err != nil {
+		return nil, err
+	}
+	return cloneSession(session), nil
+}
+
 func (s *Store) AppendUserMessage(sessionID string, content string) (*Session, ModelConfig, []Message, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

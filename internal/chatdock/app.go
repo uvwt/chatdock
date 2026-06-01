@@ -69,11 +69,11 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/mcp-config", a.handleGetMCPConfig)
 	mux.HandleFunc("POST /api/mcp-config", a.handleSaveMCPConfig)
 	mux.HandleFunc("GET /api/mcp/tools", a.handleListMCPTools)
+	mux.HandleFunc("GET /api/mcp/test", a.handleTestMCPServer)
 	mux.HandleFunc("POST /api/mcp/call", a.handleCallMCPTool)
 	mux.HandleFunc("GET /api/sessions", a.handleListSessions)
 	mux.HandleFunc("POST /api/sessions", a.handleCreateSession)
-	mux.HandleFunc("GET /api/sessions/{id}", a.handleGetSession)
-	mux.HandleFunc("DELETE /api/sessions/{id}", a.handleDeleteSession)
+	mux.HandleFunc("/api/sessions/", a.handleSessionRoute)
 	mux.HandleFunc("POST /api/chat", a.handleChat)
 	mux.HandleFunc("POST /api/chat/stream", a.handleChatStream)
 

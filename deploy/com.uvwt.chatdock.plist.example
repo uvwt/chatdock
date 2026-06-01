@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.uvwt.chatdock</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/xx/agentdock-runtime/workspace/Project/chatdock/bin/chatdock</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>CHATDOCK_ADDR</key><string>127.0.0.1:8720</string>
+    <key>CHATDOCK_DATA</key><string>/Users/xx/chatdock-data</string>
+    <key>CHATDOCK_WEB</key><string>/Users/xx/agentdock-runtime/workspace/Project/chatdock/web</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>/Users/xx/chatdock-data/chatdock.out.log</string>
+  <key>StandardErrorPath</key><string>/Users/xx/chatdock-data/chatdock.err.log</string>
+</dict>
+</plist>

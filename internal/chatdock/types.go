@@ -86,6 +86,10 @@ type SessionSummary struct {
 	Count     int       `json:"count"`
 }
 
+type RenameSessionRequest struct {
+	Title string `json:"title"`
+}
+
 type ChatRequest struct {
 	SessionID string `json:"session_id"`
 	Message   string `json:"message"`

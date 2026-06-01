@@ -1,0 +1,14 @@
+services:
+  chatdock:
+    build: .
+    image: chatdock:local
+    container_name: chatdock
+    restart: unless-stopped
+    environment:
+      CHATDOCK_ADDR: :8720
+      CHATDOCK_DATA: /data
+      CHATDOCK_WEB: /app/web
+    ports:
+      - "127.0.0.1:8720:8720"
+    volumes:
+      - ./data:/data
