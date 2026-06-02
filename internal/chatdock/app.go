@@ -1,11 +1,13 @@
 package chatdock
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -15,6 +17,8 @@ type App struct {
 	client    *ChatClient
 	mcpClient *MCPClient
 	server    *http.Server
+	runningMu sync.Mutex
+	running   map[string]bool
 }
 
 func NewApp(cfg ServerConfig) (*App, error) {
@@ -28,6 +32,7 @@ func NewApp(cfg ServerConfig) (*App, error) {
 		store:     store,
 		client:    NewChatClient(),
 		mcpClient: NewMCPClient(),
+		running:   make(map[string]bool),
 	}
 	app.server = &http.Server{
 		Addr:              cfg.Addr,
@@ -44,7 +49,76 @@ func (a *App) ListenAndServe() error {
 	}
 
 	log.Printf("ChatDock listening on %s", displayListenURL(a.cfg.Addr))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go a.runScheduler(ctx)
 	return a.server.Serve(listener)
+}
+
+func (a *App) runScheduler(ctx context.Context) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			a.runDueScheduledTasks()
+		}
+	}
+}
+
+func (a *App) runDueScheduledTasks() {
+	tasks, err := a.store.DueScheduledTasks(time.Now())
+	if err != nil {
+		log.Printf("scheduled task scan failed: %v", err)
+		return
+	}
+	for _, task := range tasks {
+		a.startScheduledTask(task.ID, false)
+	}
+}
+
+func (a *App) startScheduledTask(id string, manual bool) {
+	key := strings.TrimSpace(id)
+	if key == "" {
+		return
+	}
+	a.runningMu.Lock()
+	if a.running[key] {
+		a.runningMu.Unlock()
+		return
+	}
+	a.running[key] = true
+	a.runningMu.Unlock()
+
+	go func() {
+		defer func() {
+			a.runningMu.Lock()
+			delete(a.running, key)
+			a.runningMu.Unlock()
+		}()
+		if _, err := a.executeScheduledTask(context.Background(), key, manual); err != nil {
+			log.Printf("scheduled task %s failed: %v", key, err)
+		}
+	}()
+}
+
+func (a *App) executeScheduledTask(ctx context.Context, id string, manual bool) (ScheduledTaskRunResponse, error) {
+	startedAt := time.Now()
+	run, err := a.store.PrepareScheduledTaskRun(id, manual, startedAt)
+	if err != nil {
+		return ScheduledTaskRunResponse{}, err
+	}
+	answer, runErr := a.completeWithOptionalTools(ctx, run.Config, run.History)
+	result, finishErr := a.store.FinishScheduledTaskRun(run.PromptName, run.Task.ID, run.SessionID, answer, startedAt, manual, runErr)
+	if finishErr != nil {
+		return ScheduledTaskRunResponse{}, finishErr
+	}
+	if runErr != nil {
+		return result, runErr
+	}
+	return result, nil
 }
 
 func displayListenURL(addr string) string {
@@ -74,6 +148,9 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/skills", a.handleListSkills)
 	mux.HandleFunc("POST /api/skills", a.handleCreateSkill)
 	mux.HandleFunc("/api/skills/", a.handleSkillRoute)
+	mux.HandleFunc("GET /api/scheduled-tasks", a.handleListScheduledTasks)
+	mux.HandleFunc("POST /api/scheduled-tasks", a.handleCreateScheduledTask)
+	mux.HandleFunc("/api/scheduled-tasks/", a.handleScheduledTaskRoute)
 	mux.HandleFunc("GET /api/sessions", a.handleListSessions)
 	mux.HandleFunc("POST /api/sessions", a.handleCreateSession)
 	mux.HandleFunc("/api/sessions/", a.handleSessionRoute)

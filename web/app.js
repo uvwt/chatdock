@@ -10,6 +10,7 @@ let pendingReasoning = '';
 let activeAnswerBuffer = '';
 let activeReasoningBuffer = '';
 let skillItems = [];
+let scheduledTaskItems = [];
 
 async function api(path, opt={}) {
   const res = await fetch(path, {headers: {'Content-Type':'application/json'}, ...opt});
@@ -154,6 +155,124 @@ async function deleteSkill(id) {
   const data = await api('/api/skills/' + encodeURIComponent(id), {method:'DELETE'});
   skillItems = data.skills || [];
   renderSkills();
+}
+
+
+async function loadScheduledTasks() {
+  const data = await api('/api/scheduled-tasks');
+  scheduledTaskItems = data.tasks || [];
+  renderScheduledTasks();
+}
+
+function renderScheduledTasks() {
+  if (!scheduledTaskItems.length) {
+    scheduledTasks.innerHTML = '<div class="hint">暂无定时任务。任务会按当前提示词空间运行，并把结果写入专属会话。</div>';
+    return;
+  }
+  scheduledTasks.innerHTML = scheduledTaskItems.map(t => '<div class="task-card">' +
+    '<div class="task-head">' +
+      '<div><div class="task-name">' + escapeHtml(t.title || '未命名任务') + (t.running ? ' · 运行中' : '') + '</div>' +
+      '<div class="task-desc">' + escapeHtml((t.prompt || '').slice(0, 120) || '无提示内容') + '</div></div>' +
+      '<div class="task-actions">' +
+        '<button class="secondary small" onclick="runScheduledTaskNow(\'' + escapeHtml(t.id) + '\')" ' + (t.running ? 'disabled' : '') + '>立即运行</button>' +
+        '<button class="secondary small" onclick="editScheduledTask(\'' + escapeHtml(t.id) + '\')">编辑</button>' +
+        '<button class="danger small" onclick="deleteScheduledTask(\'' + escapeHtml(t.id) + '\')">删除</button>' +
+      '</div>' +
+    '</div>' +
+    '<label class="task-toggle"><input type="checkbox" ' + (t.enabled ? 'checked' : '') + ' onchange="toggleScheduledTask(\'' + escapeHtml(t.id) + '\', this.checked)" /> 启用</label>' +
+    '<div class="task-meta">' + scheduleSummary(t) + '</div>' +
+    (t.last_error ? '<div class="task-error">上次错误：' + escapeHtml(t.last_error) + '</div>' : '') +
+  '</div>').join('');
+}
+
+function scheduleSummary(t) {
+  const next = t.next_run_at ? fmtTime(t.next_run_at) : '未计划';
+  const last = t.last_run_at ? fmtTime(t.last_run_at) : '未运行';
+  let plan = '一次性：' + (t.run_at ? fmtTime(t.run_at) : next);
+  if (t.schedule_type === 'daily') plan = '每天 ' + (t.time_of_day || '--:--');
+  if (t.schedule_type === 'interval') plan = '每 ' + (t.interval_minutes || 0) + ' 分钟';
+  return escapeHtml(plan + ' · 下次：' + next + ' · 上次：' + last);
+}
+
+function findScheduledTask(id) {
+  return scheduledTaskItems.find(t => t.id === id) || null;
+}
+
+function defaultRunAtValue() {
+  const d = new Date(Date.now() + 60 * 60 * 1000);
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+async function editScheduledTask(id) {
+  if (busy) return;
+  const existing = id ? findScheduledTask(id) : null;
+  const titleValue = prompt(existing ? '任务标题：' : '新任务标题：', existing ? existing.title : '');
+  if (!titleValue || !titleValue.trim()) return;
+  const promptValue = prompt('任务提示词：', existing ? (existing.prompt || '') : '');
+  if (!promptValue || !promptValue.trim()) return;
+  const typeValue = (prompt('调度类型：once / daily / interval', existing ? existing.schedule_type : 'once') || '').trim().toLowerCase();
+  if (!['once', 'daily', 'interval'].includes(typeValue)) {
+    alert('调度类型只能是 once、daily 或 interval');
+    return;
+  }
+  const payload = {title: titleValue.trim(), prompt: promptValue.trim(), enabled: existing ? !!existing.enabled : true, schedule_type: typeValue};
+  if (typeValue === 'once') {
+    const value = prompt('运行时间（本地时间，格式 2026-06-02T09:30）：', existing && existing.run_at ? existing.run_at.slice(0, 16) : defaultRunAtValue());
+    if (!value || !value.trim()) return;
+    payload.run_at = value.trim();
+  } else if (typeValue === 'daily') {
+    const value = prompt('每天运行时间（HH:MM）：', existing ? (existing.time_of_day || '09:00') : '09:00');
+    if (!value || !value.trim()) return;
+    payload.time_of_day = value.trim();
+  } else {
+    const value = prompt('间隔分钟数：', existing && existing.interval_minutes ? String(existing.interval_minutes) : '60');
+    const minutes = Number(value || 0);
+    if (!Number.isFinite(minutes) || minutes <= 0) {
+      alert('间隔分钟数必须大于 0');
+      return;
+    }
+    payload.interval_minutes = Math.floor(minutes);
+  }
+  const data = await api(existing ? '/api/scheduled-tasks/' + encodeURIComponent(existing.id) : '/api/scheduled-tasks', {method: existing ? 'PUT' : 'POST', body: JSON.stringify(payload)});
+  scheduledTaskItems = data.tasks || [];
+  renderScheduledTasks();
+}
+
+async function toggleScheduledTask(id, enabled) {
+  const existing = findScheduledTask(id);
+  if (!existing) return;
+  const payload = {title: existing.title, prompt: existing.prompt, enabled: !!enabled, schedule_type: existing.schedule_type, run_at: existing.run_at || '', time_of_day: existing.time_of_day || '', interval_minutes: existing.interval_minutes || 0};
+  const data = await api('/api/scheduled-tasks/' + encodeURIComponent(id), {method:'PUT', body: JSON.stringify(payload)});
+  scheduledTaskItems = data.tasks || [];
+  renderScheduledTasks();
+}
+
+async function deleteScheduledTask(id) {
+  const existing = findScheduledTask(id);
+  if (!existing || !confirm('确定删除定时任务「' + existing.title + '」？')) return;
+  const data = await api('/api/scheduled-tasks/' + encodeURIComponent(id), {method:'DELETE'});
+  scheduledTaskItems = data.tasks || [];
+  renderScheduledTasks();
+}
+
+async function runScheduledTaskNow(id) {
+  const existing = findScheduledTask(id);
+  if (!existing || !confirm('立即运行定时任务「' + existing.title + '」？')) return;
+  try {
+    const result = await api('/api/scheduled-tasks/' + encodeURIComponent(id) + '/run', {method:'POST', body:'{}'});
+    await loadScheduledTasks();
+    await loadSessions();
+    if (result.session && result.session.id) {
+      current = result.session.id;
+      await renderSession(result.session);
+      await loadSessions();
+    }
+    alert('定时任务已运行');
+  } catch (e) {
+    await loadScheduledTasks().catch(() => {});
+    alert('运行失败：' + e.message);
+  }
 }
 
 async function saveMCPConfig() {
@@ -466,6 +585,7 @@ async function selectPrompt(name) {
   await loadConfig();
   await loadMCPConfig();
   await loadSkills();
+  await loadScheduledTasks();
   await loadSessions();
   closeSidebarOnMobile();
 }
@@ -483,6 +603,7 @@ async function createPromptSpace() {
   await loadConfig();
   await loadMCPConfig();
   await loadSkills();
+  await loadScheduledTasks();
   await loadSessions();
   closeSidebarOnMobile();
 }
@@ -493,4 +614,5 @@ loadPrompts();
 loadConfig();
 loadMCPConfig();
 loadSkills();
+loadScheduledTasks();
 loadSessions();

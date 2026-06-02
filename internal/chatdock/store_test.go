@@ -3,6 +3,7 @@ package chatdock
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestStoreSessionRenameAndExport(t *testing.T) {
@@ -56,5 +57,36 @@ func TestStoreSkillsInjectedIntoChatConfig(t *testing.T) {
 	prompt := buildSystemPrompt(cfg)
 	if !strings.Contains(prompt, "# 已启用技能") || !strings.Contains(prompt, "指出风险并给出修改建议") {
 		t.Fatalf("skill not injected into system prompt: %s", prompt)
+	}
+}
+
+func TestStoreScheduledTaskLifecycle(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	runAt := time.Now().Add(time.Hour).Format("2006-01-02T15:04")
+	created, err := store.CreateScheduledTask(ScheduledTaskRequest{Title: "日报", Prompt: "总结今天", Enabled: true, ScheduleType: "once", RunAt: runAt})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(created.Tasks) != 1 || created.Tasks[0].ID == "" || created.Tasks[0].NextRunAt.IsZero() {
+		t.Fatalf("unexpected created tasks: %#v", created.Tasks)
+	}
+
+	updated, err := store.UpdateScheduledTask(created.Tasks[0].ID, ScheduledTaskRequest{Title: "日报", Prompt: "总结今天", Enabled: true, ScheduleType: "interval", IntervalMinutes: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Tasks[0].ScheduleType != "interval" || updated.Tasks[0].IntervalMinutes != 5 {
+		t.Fatalf("unexpected updated tasks: %#v", updated.Tasks)
+	}
+
+	deleted, err := store.DeleteScheduledTask(created.Tasks[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(deleted.Tasks) != 0 {
+		t.Fatalf("unexpected deleted tasks: %#v", deleted.Tasks)
 	}
 }

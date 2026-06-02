@@ -71,6 +71,11 @@
       <button class="secondary small" onclick="editSkill()">新增技能</button>
     </div>
     <div id="skills" class="skills-list"><div class="hint">正在加载技能...</div></div>
+    <div class="settings-block-head">
+      <label>定时任务（当前提示词空间）</label>
+      <button class="secondary small" onclick="editScheduledTask()">新增任务</button>
+    </div>
+    <div id="scheduledTasks" class="tasks-list"><div class="hint">正在加载定时任务...</div></div>
     <label>MCP 配置（当前提示词空间的 mcp.json）</label>
     <textarea id="mcp_config" class="mcp-editor" spellcheck="false" placeholder='{"servers": {}}'></textarea>
     <div class="settings-actions">

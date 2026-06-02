@@ -524,6 +524,10 @@ func (s *Store) skillsPath() string {
 	return filepath.Join(s.promptDir(s.activePrompt), "skills.json")
 }
 
+func (s *Store) scheduledTasksPath() string {
+	return filepath.Join(s.promptDir(s.activePrompt), "scheduled_tasks.json")
+}
+
 func (s *Store) sessionsDir() string {
 	return s.promptSessionsDir(s.activePrompt)
 }
