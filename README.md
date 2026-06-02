@@ -12,6 +12,7 @@ ChatDock 是一个自用的轻量 AI 对话中控台，目标是：提示词可�
 - 可通过 `chat_template_kwargs.enable_thinking` 控制模型思考开关。
 - 可隐藏 `<think>...</think>` 思考内容。
 - 提示词空间：每个空间独立保存模型配置、MCP 配置和会话。
+- 技能：每个提示词空间可维护一组可开关的补充系统指令，发送消息时自动注入当前模型请求。
 - 会话创建、列表、删除、重命名、搜索、Markdown 导出。
 - 无 MCP 工具时保留真正流式输出；启用 MCP 工具时通过 SSE 输出工具调用事件和最终回答。
 - MCP HTTP JSON-RPC 客户端：支持 `tools/list`、`tools/call`、Bearer token、server 超时、工具列表缓存、工具 allow/deny/confirm 规则。
@@ -61,6 +62,8 @@ make check
 `make check` 会执行：`fmt-check`、`go vet ./...`、`go test ./...`、`go build`。
 
 ## MCP 配置示例
+
+技能按提示词空间保存到 `data/prompts/<name>/skills.json`，适合放可复用的工作方式、输出格式、代码审查规则、写作规范等。只有启用的技能会在发送消息时追加到 system prompt 后面，不会写入会话消息正文。
 
 MCP 配置按提示词空间保存到 `data/prompts/<name>/mcp.json`。示例：
 

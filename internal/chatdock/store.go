@@ -293,7 +293,13 @@ func (s *Store) AppendUserMessage(sessionID string, content string) (*Session, M
 		return nil, ModelConfig{}, nil, err
 	}
 
-	return cloneSession(session), s.modelCfg, cloneMessages(session.Messages), nil
+	cfg := s.modelCfg
+	skills, err := s.enabledSkillsLocked()
+	if err != nil {
+		return nil, ModelConfig{}, nil, err
+	}
+	cfg.Skills = skills
+	return cloneSession(session), cfg, cloneMessages(session.Messages), nil
 }
 
 func (s *Store) AppendAssistantMessage(sessionID string, content string) (*Session, error) {
@@ -512,6 +518,10 @@ func (s *Store) configPath() string {
 
 func (s *Store) mcpConfigPath() string {
 	return s.promptMCPConfigPath(s.activePrompt)
+}
+
+func (s *Store) skillsPath() string {
+	return filepath.Join(s.promptDir(s.activePrompt), "skills.json")
 }
 
 func (s *Store) sessionsDir() string {

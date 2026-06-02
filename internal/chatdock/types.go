@@ -13,6 +13,7 @@ type ModelConfig struct {
 	APIKey             string  `json:"api_key,omitempty"`
 	Model              string  `json:"model"`
 	SystemPrompt       string  `json:"system_prompt"`
+	Skills             []Skill `json:"-"`
 	MaxContextMessages int     `json:"max_context_messages"`
 	Temperature        float64 `json:"temperature"`
 	EnableThinking     bool    `json:"enable_thinking"`
@@ -62,6 +63,27 @@ type SaveMCPConfigRequest struct {
 
 type MCPToolsResponse struct {
 	Tools []MCPTool `json:"tools"`
+}
+
+type Skill struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Content     string    `json:"content"`
+	Enabled     bool      `json:"enabled"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type SaveSkillRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Content     string `json:"content"`
+	Enabled     bool   `json:"enabled"`
+}
+
+type SkillResponse struct {
+	Skills []Skill `json:"skills"`
 }
 
 type Message struct {

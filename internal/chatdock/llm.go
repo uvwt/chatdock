@@ -227,7 +227,36 @@ func BuildChatMessages(cfg ModelConfig, history []Message) []map[string]string {
 }
 
 func buildSystemPrompt(cfg ModelConfig) string {
-	return strings.TrimSpace(cfg.SystemPrompt)
+	base := strings.TrimSpace(cfg.SystemPrompt)
+	skills := buildEnabledSkillsPrompt(cfg.Skills)
+	if base == "" {
+		return skills
+	}
+	if skills == "" {
+		return base
+	}
+	return base + "\n\n" + skills
+}
+
+func buildEnabledSkillsPrompt(skills []Skill) string {
+	items := make([]string, 0, len(skills))
+	for _, skill := range skills {
+		name := strings.TrimSpace(skill.Name)
+		content := strings.TrimSpace(skill.Content)
+		if !skill.Enabled || name == "" || content == "" {
+			continue
+		}
+		desc := strings.TrimSpace(skill.Description)
+		header := "## " + name
+		if desc != "" {
+			header += "\n" + desc
+		}
+		items = append(items, header+"\n"+content)
+	}
+	if len(items) == 0 {
+		return ""
+	}
+	return "# 已启用技能\n\n以下技能是当前会话必须遵循的补充指令。\n\n" + strings.Join(items, "\n\n")
 }
 
 var thinkBlockRegexp = regexp.MustCompile(`(?is)<think>.*?</think>`)

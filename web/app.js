@@ -9,6 +9,7 @@ let pendingDelta = '';
 let pendingReasoning = '';
 let activeAnswerBuffer = '';
 let activeReasoningBuffer = '';
+let skillItems = [];
 
 async function api(path, opt={}) {
   const res = await fetch(path, {headers: {'Content-Type':'application/json'}, ...opt});
@@ -90,6 +91,69 @@ async function loadMCPConfig() {
   const c = await api('/api/mcp-config');
   const fallback = ['{', '  "servers": {}', '}'].join('\n') + '\n';
   mcp_config.value = c.content || fallback;
+}
+
+async function loadSkills() {
+  const data = await api('/api/skills');
+  skillItems = data.skills || [];
+  renderSkills();
+}
+
+function renderSkills() {
+  if (!skillItems.length) {
+    skills.innerHTML = '<div class="hint">暂无技能。技能会作为当前提示词空间的补充系统指令注入模型请求。</div>';
+    return;
+  }
+  skills.innerHTML = skillItems.map(s => '<div class="skill-card">' +
+    '<div class="skill-head">' +
+      '<div><div class="skill-name">' + escapeHtml(s.name || '未命名技能') + '</div>' +
+      '<div class="skill-desc">' + escapeHtml(s.description || '无描述') + '</div></div>' +
+      '<div class="skill-actions">' +
+        '<button class="secondary small" onclick="editSkill(\'' + escapeHtml(s.id) + '\')">编辑</button>' +
+        '<button class="danger small" onclick="deleteSkill(\'' + escapeHtml(s.id) + '\')">删除</button>' +
+      '</div>' +
+    '</div>' +
+    '<label class="skill-toggle"><input type="checkbox" ' + (s.enabled ? 'checked' : '') + ' onchange="toggleSkill(\'' + escapeHtml(s.id) + '\', this.checked)" /> 启用</label>' +
+  '</div>').join('');
+}
+
+function findSkill(id) {
+  return skillItems.find(s => s.id === id) || null;
+}
+
+async function editSkill(id) {
+  if (busy) return;
+  const existing = id ? findSkill(id) : null;
+  const name = prompt(existing ? '技能名称：' : '新技能名称：', existing ? existing.name : '');
+  if (!name || !name.trim()) return;
+  const description = prompt('技能描述（可选）：', existing ? (existing.description || '') : '');
+  const content = prompt('技能内容：', existing ? (existing.content || '') : '');
+  if (!content || !content.trim()) return;
+  const payload = {name: name.trim(), description: description || '', content: content.trim(), enabled: existing ? !!existing.enabled : true};
+  const data = await api(existing ? '/api/skills/' + encodeURIComponent(existing.id) : '/api/skills', {method: existing ? 'PUT' : 'POST', body: JSON.stringify(payload)});
+  skillItems = data.skills || [];
+  renderSkills();
+}
+
+async function toggleSkill(id, enabled) {
+  const existing = findSkill(id);
+  if (!existing) return;
+  const data = await api('/api/skills/' + encodeURIComponent(id), {method:'PUT', body: JSON.stringify({
+    name: existing.name,
+    description: existing.description || '',
+    content: existing.content || '',
+    enabled: !!enabled,
+  })});
+  skillItems = data.skills || [];
+  renderSkills();
+}
+
+async function deleteSkill(id) {
+  const existing = findSkill(id);
+  if (!existing || !confirm('确定删除技能「' + existing.name + '」？')) return;
+  const data = await api('/api/skills/' + encodeURIComponent(id), {method:'DELETE'});
+  skillItems = data.skills || [];
+  renderSkills();
 }
 
 async function saveMCPConfig() {
@@ -401,6 +465,7 @@ async function selectPrompt(name) {
   await loadPrompts();
   await loadConfig();
   await loadMCPConfig();
+  await loadSkills();
   await loadSessions();
   closeSidebarOnMobile();
 }
@@ -417,6 +482,7 @@ async function createPromptSpace() {
   await loadPrompts();
   await loadConfig();
   await loadMCPConfig();
+  await loadSkills();
   await loadSessions();
   closeSidebarOnMobile();
 }
@@ -426,4 +492,5 @@ initSidebar();
 loadPrompts();
 loadConfig();
 loadMCPConfig();
+loadSkills();
 loadSessions();

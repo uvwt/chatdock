@@ -66,6 +66,11 @@
     </div>
     <label class="check-row"><input id="enable_thinking" type="checkbox" /> 启用模型思考</label>
     <label class="check-row"><input id="hide_thinking" type="checkbox" /> 自动隐藏 &lt;think&gt; 思考内容</label>
+    <div class="settings-block-head">
+      <label>技能（当前提示词空间）</label>
+      <button class="secondary small" onclick="editSkill()">新增技能</button>
+    </div>
+    <div id="skills" class="skills-list"><div class="hint">正在加载技能...</div></div>
     <label>MCP 配置（当前提示词空间的 mcp.json）</label>
     <textarea id="mcp_config" class="mcp-editor" spellcheck="false" placeholder='{"servers": {}}'></textarea>
     <div class="settings-actions">

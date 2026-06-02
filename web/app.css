@@ -12,6 +12,7 @@
     button { background: #2563eb; color: white; border: 0; border-radius: 10px; padding: 10px 12px; cursor: pointer; }
     button.secondary { background: #1f2937; }
     button.danger { background: #991b1b; }
+    button.small { padding: 6px 9px; border-radius: 8px; font-size: 12px; }
     button:disabled { opacity: .6; cursor: wait; }
     .sidebar-toggle { flex: 0 0 34px; width: 34px; height: 34px; padding: 0; border-radius: 12px; background: #1f2937; font-size: 18px; line-height: 34px; }
     .new { margin: 0 12px 12px; width: calc(100% - 24px); white-space: nowrap; overflow: hidden; }
@@ -71,6 +72,16 @@
     textarea { min-height: 54px; max-height: 160px; resize: vertical; }
     .mcp-editor { min-height: 190px; max-height: 360px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; line-height: 1.55; }
     .settings-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+    .settings-block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
+    .settings-block-head label { margin: 0; }
+    .skills-list { display: grid; gap: 8px; margin-top: 8px; }
+    .skill-card { border: 1px solid #1f2937; border-radius: 12px; padding: 10px; background: #111827; }
+    .skill-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .skill-name { font-weight: 700; color: #e2e8f0; overflow-wrap: anywhere; }
+    .skill-desc { color: #94a3b8; font-size: 12px; margin-top: 4px; line-height: 1.45; overflow-wrap: anywhere; }
+    .skill-actions { display: flex; gap: 6px; flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; }
+    .skill-toggle { display: flex; gap: 6px; align-items: center; color: #cbd5e1; font-size: 12px; margin: 8px 0 0; }
+    .skill-toggle input { width: auto; }
     label { display: block; color: #cbd5e1; font-size: 13px; margin: 14px 0 6px; }
     .hint { color: #64748b; font-size: 12px; line-height: 1.5; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -101,6 +112,10 @@
     body.theme-light .prompt-add,
     body.theme-light button.secondary { background: #e2e8f0; color: #0f172a; }
     body.theme-light .prompt-box { background: #f8fafc; border-color: #e2e8f0; }
+    body.theme-light .skill-card { background: #f8fafc; border-color: #e2e8f0; }
+    body.theme-light .skill-name { color: #0f172a; }
+    body.theme-light .skill-desc { color: #64748b; }
+    body.theme-light .skill-toggle { color: #334155; }
     body.theme-light .prompt-box label { color: #64748b; }
     body.theme-light select,
     body.theme-light textarea,
