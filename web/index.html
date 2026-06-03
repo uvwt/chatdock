@@ -83,6 +83,7 @@
       <button class="secondary" onclick="saveMCPConfig()">保存 MCP 配置</button>
       <button class="secondary" onclick="loadMCPConfig()">重新加载 MCP</button>
       <button class="secondary" onclick="testMCP()">测试 MCP</button>
+      <button class="secondary" onclick="setAuthToken()">设置访问 Token</button>
     </div>
     <p class="hint">省 token 核心：只带最近 N 条上下文 + 固定系统提示词。思考开关会通过 chat_template_kwargs.enable_thinking 传给模型接口；是否生效取决于模型服务是否支持该参数。MCP 配置按提示词空间独立保存到 mcp.json。</p>
   </section>

@@ -2,9 +2,7 @@ package chatdock
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -317,19 +315,16 @@ func (s *Store) withPromptLocked(name string, fn func() error) error {
 }
 
 func (s *Store) loadScheduledTasksLocked() ([]ScheduledTask, error) {
-	raw, err := os.ReadFile(s.scheduledTasksPath())
-	if errors.Is(err, os.ErrNotExist) {
-		tasks := []ScheduledTask{}
-		return tasks, s.saveScheduledTasksLocked(tasks)
-	}
+	raw, ok, err := s.getPromptRawLocked(s.activePrompt, "scheduled_tasks")
 	if err != nil {
 		return nil, err
 	}
-	if len(strings.TrimSpace(string(raw))) == 0 {
-		return []ScheduledTask{}, nil
+	if !ok || strings.TrimSpace(raw) == "" {
+		tasks := []ScheduledTask{}
+		return tasks, s.saveScheduledTasksLocked(tasks)
 	}
 	var tasks []ScheduledTask
-	if err := json.Unmarshal(raw, &tasks); err != nil {
+	if err := json.Unmarshal([]byte(raw), &tasks); err != nil {
 		return nil, fmt.Errorf("scheduled tasks config must be valid json: %w", err)
 	}
 	for i := range tasks {
@@ -344,7 +339,7 @@ func (s *Store) loadScheduledTasksLocked() ([]ScheduledTask, error) {
 
 func (s *Store) saveScheduledTasksLocked(tasks []ScheduledTask) error {
 	sortScheduledTasks(tasks)
-	return writeJSON(s.scheduledTasksPath(), tasks)
+	return s.setPromptJSONLocked(s.activePrompt, "scheduled_tasks", tasks)
 }
 
 func sortScheduledTasks(tasks []ScheduledTask) {
@@ -505,4 +500,129 @@ func cloneScheduledTasks(tasks []ScheduledTask) []ScheduledTask {
 	out := make([]ScheduledTask, len(tasks))
 	copy(out, tasks)
 	return out
+}
+
+type DueScheduledTask struct {
+	PromptName string
+	Task       ScheduledTask
+}
+
+func (s *Store) DueScheduledTasksAllPrompts(now time.Time) ([]DueScheduledTask, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	previous := s.activePrompt
+	prompts, err := s.listPromptNamesLocked()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]DueScheduledTask, 0)
+	for _, prompt := range prompts {
+		if err := s.loadPromptLocked(prompt); err != nil {
+			return nil, err
+		}
+		tasks, err := s.loadScheduledTasksLocked()
+		if err != nil {
+			return nil, err
+		}
+		for _, task := range tasks {
+			if !task.Enabled || task.Running || task.NextRunAt.IsZero() || task.NextRunAt.After(now) {
+				continue
+			}
+			out = append(out, DueScheduledTask{PromptName: prompt, Task: task})
+		}
+	}
+	if previous != "" {
+		if err := s.loadPromptLocked(previous); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+func (s *Store) PrepareScheduledTaskRunInPrompt(promptName string, id string, manual bool, now time.Time) (ScheduledTaskRun, error) {
+	promptName, err := normalizePromptName(promptName)
+	if err != nil {
+		return ScheduledTaskRun{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var run ScheduledTaskRun
+	err = s.withPromptLocked(promptName, func() error {
+		prepared, err := s.prepareScheduledTaskRunLocked(id, manual, now)
+		if err != nil {
+			return err
+		}
+		run = prepared
+		return nil
+	})
+	if err != nil {
+		return ScheduledTaskRun{}, err
+	}
+	return run, nil
+}
+
+func (s *Store) prepareScheduledTaskRunLocked(id string, manual bool, now time.Time) (ScheduledTaskRun, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return ScheduledTaskRun{}, fmt.Errorf("scheduled task id is empty")
+	}
+	tasks, err := s.loadScheduledTasksLocked()
+	if err != nil {
+		return ScheduledTaskRun{}, err
+	}
+	index := -1
+	for i, task := range tasks {
+		if task.ID == id {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		return ScheduledTaskRun{}, fmt.Errorf("scheduled task not found: %s", id)
+	}
+	task := tasks[index]
+	if task.Running {
+		return ScheduledTaskRun{}, fmt.Errorf("scheduled task is already running: %s", task.Title)
+	}
+	if !manual {
+		if !task.Enabled {
+			return ScheduledTaskRun{}, fmt.Errorf("scheduled task is disabled: %s", task.Title)
+		}
+		if task.NextRunAt.IsZero() || task.NextRunAt.After(now) {
+			return ScheduledTaskRun{}, fmt.Errorf("scheduled task is not due: %s", task.Title)
+		}
+	}
+	if strings.TrimSpace(task.SessionID) == "" {
+		session := &Session{ID: NewID(), Title: "定时任务：" + task.Title, CreatedAt: now, UpdatedAt: now, Messages: []Message{}}
+		s.sessions[session.ID] = session
+		if err := s.saveSessionLocked(session); err != nil {
+			return ScheduledTaskRun{}, err
+		}
+		task.SessionID = session.ID
+	}
+	session, ok := s.sessions[task.SessionID]
+	if !ok {
+		return ScheduledTaskRun{}, ErrSessionNotFound
+	}
+	message := strings.TrimSpace(task.Prompt)
+	session.Messages = append(session.Messages, Message{Role: "user", Content: message, CreatedAt: now})
+	session.UpdatedAt = now
+	if err := s.saveSessionLocked(session); err != nil {
+		return ScheduledTaskRun{}, err
+	}
+	task.Running = true
+	task.UpdatedAt = now
+	tasks[index] = task
+	if err := s.saveScheduledTasksLocked(tasks); err != nil {
+		return ScheduledTaskRun{}, err
+	}
+	cfg := s.modelCfg
+	skills, err := s.enabledSkillsLocked()
+	if err != nil {
+		return ScheduledTaskRun{}, err
+	}
+	cfg.Skills = skills
+	return ScheduledTaskRun{Task: task, PromptName: s.activePrompt, SessionID: task.SessionID, Config: cfg, History: cloneMessages(session.Messages)}, nil
 }

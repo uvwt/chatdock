@@ -12,8 +12,20 @@ let activeReasoningBuffer = '';
 let skillItems = [];
 let scheduledTaskItems = [];
 
+function authHeaders(extra={}) {
+  const token = localStorage.getItem('chatdock.authToken') || '';
+  return token ? {'Authorization':'Bearer ' + token, ...extra} : extra;
+}
+
+function authURL(path) {
+  const token = localStorage.getItem('chatdock.authToken') || '';
+  if (!token) return path;
+  const sep = path.includes('?') ? '&' : '?';
+  return path + sep + 'token=' + encodeURIComponent(token);
+}
+
 async function api(path, opt={}) {
-  const res = await fetch(path, {headers: {'Content-Type':'application/json'}, ...opt});
+  const res = await fetch(path, {...opt, headers: authHeaders({'Content-Type':'application/json', ...(opt.headers || {})})});
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || res.statusText);
   return data;
@@ -341,7 +353,7 @@ async function renameCurrent() {
 
 function exportCurrent() {
   if (!current) return;
-  window.open('/api/sessions/' + current + '/export?format=md', '_blank');
+  window.open(authURL('/api/sessions/' + current + '/export?format=md'), '_blank');
 }
 
 async function deleteCurrent() {
@@ -471,7 +483,7 @@ async function sendMsg() {
   try {
     const res = await fetch('/api/chat/stream', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: authHeaders({'Content-Type': 'application/json'}),
       body: JSON.stringify({session_id: current, message: text}),
       signal: activeAbortController.signal
     });
@@ -606,6 +618,16 @@ async function createPromptSpace() {
   await loadScheduledTasks();
   await loadSessions();
   closeSidebarOnMobile();
+}
+
+
+function setAuthToken() {
+  const currentToken = localStorage.getItem('chatdock.authToken') || '';
+  const next = prompt('ChatDock 访问 Token（留空表示清除）：', currentToken);
+  if (next === null) return;
+  if (next.trim()) localStorage.setItem('chatdock.authToken', next.trim());
+  else localStorage.removeItem('chatdock.authToken');
+  alert(next.trim() ? 'Token 已保存到浏览器本地' : 'Token 已清除');
 }
 
 initTheme();

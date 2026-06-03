@@ -5,7 +5,7 @@ ChatDock 是一个自用的轻量 AI 对话中控台，目标是：提示词可�
 ## 当前功能
 
 - Go 后端，静态网页前端，无前端构建链。
-- JSON 文件存储，默认不引入数据库。
+- SQLite 单文件存储，默认数据文件为 `chatdock.sqlite`。
 - OpenAI Chat Completions 兼容接口。
 - 可配置 Base URL / API Key / Model / System Prompt。
 - 可配置最近上下文消息数，用来控制 token 消耗。
@@ -26,7 +26,6 @@ chatdock/
 ├── internal/chatdock/     # 后端核心代码
 ├── web/                   # 静态前端：index.html + app.css + app.js + markdown.js + mcp.js
 ├── deploy/                # launchd 示例
-├── data/                  # 运行时数据，git 忽略
 ├── Dockerfile
 ├── compose.yaml
 ├── Makefile
@@ -49,8 +48,9 @@ http://127.0.0.1:8720
 
 ```bash
 CHATDOCK_ADDR=:8720
-CHATDOCK_DATA=data
+CHATDOCK_DATA=~/.config/chatdock   # 可选；默认使用系统用户配置目录下的 chatdock
 CHATDOCK_WEB=web
+CHATDOCK_AUTH_TOKEN=your-token    # 可选；设置后 API 需要 Bearer Token
 ```
 
 ## 构建与验证
@@ -62,19 +62,27 @@ make check
 
 `make check` 会执行：`fmt-check`、`go vet ./...`、`go test ./...`、`go build`。
 
-## MCP 配置示例
+## 数据存储
 
-技能按提示词空间保存到 `data/prompts/<name>/skills.json`，适合放可复用的工作方式、输出格式、代码审查规则、写作规范等。只有启用的技能会在发送消息时追加到 system prompt 后面，不会写入会话消息正文。
+ChatDock 使用 SQLite 作为持久化存储，默认数据库路径为：
 
-定时任务按提示词空间保存到 `data/prompts/<name>/scheduled_tasks.json`。当前支持：
+```text
+<用户配置目录>/chatdock/chatdock.sqlite
+```
+
+也可以用 `CHATDOCK_DATA` 指定数据目录。旧版 JSON 数据首次启动时会自动迁移进 SQLite：`config.json`、`mcp.json`、`skills.json`、`scheduled_tasks.json` 和 `sessions/*.json` 都会导入数据库。旧 JSON 文件不会被自动删除，可作为迁移备份。
+
+技能、MCP 配置、定时任务和会话都按提示词空间隔离保存到 SQLite。技能适合放可复用的工作方式、输出格式、代码审查规则、写作规范等；只有启用的技能会在发送消息时追加到 system prompt 后面，不会写入会话消息正文。
+
+定时任务当前支持：
 
 - `once`：一次性任务，到点运行后自动禁用。
 - `daily`：每日固定 `HH:MM` 运行。
 - `interval`：按分钟间隔循环运行。
 
-服务启动后内置调度器每 30 秒扫描一次到期任务。每个任务第一次运行时会创建一个“定时任务：<标题>”专属会话，之后运行结果持续追加到该会话。前端也提供“立即运行”按钮，便于手动验证任务提示词。
+服务启动后内置调度器每 30 秒扫描一次所有提示词空间的到期任务。每个任务第一次运行时会创建一个“定时任务：<标题>”专属会话，之后运行结果持续追加到该会话。前端也提供“立即运行”按钮，便于手动验证任务提示词。
 
-MCP 配置按提示词空间保存到 `data/prompts/<name>/mcp.json`。示例：
+## MCP 配置示例
 
 ```json
 {
@@ -127,7 +135,15 @@ launchctl load ~/Library/LaunchAgents/com.uvwt.chatdock.plist
 
 ## 安全边界
 
-ChatDock 默认按“本机私用工具”设计，不建议公网裸奔。API Key、MCP token、会话内容和系统提示词都会落在本地数据目录中；虽然文件以 `0600` 写入，但仍应避免把数据目录提交到 Git 或暴露给非可信用户。
+ChatDock 默认按“本机私用工具”设计，不建议公网裸奔。API Key、MCP token、会话内容和系统提示词都会落在本地 SQLite 数据库中，应避免把数据目录提交到 Git 或暴露给非可信用户。
+
+如果设置了 `CHATDOCK_AUTH_TOKEN`，除静态页面资源外的 API 都需要：
+
+```text
+Authorization: Bearer <token>
+```
+
+前端右侧设置区提供“设置访问 Token”按钮，会把 token 保存到浏览器 localStorage。
 
 ## 后续可继续增强
 

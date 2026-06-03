@@ -2,9 +2,7 @@ package chatdock
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -139,19 +137,16 @@ func (s *Store) enabledSkillsLocked() ([]Skill, error) {
 }
 
 func (s *Store) loadSkillsLocked() ([]Skill, error) {
-	raw, err := os.ReadFile(s.skillsPath())
-	if errors.Is(err, os.ErrNotExist) {
-		skills := []Skill{}
-		return skills, s.saveSkillsLocked(skills)
-	}
+	raw, ok, err := s.getPromptRawLocked(s.activePrompt, "skills")
 	if err != nil {
 		return nil, err
 	}
-	if len(strings.TrimSpace(string(raw))) == 0 {
-		return []Skill{}, nil
+	if !ok || strings.TrimSpace(raw) == "" {
+		skills := []Skill{}
+		return skills, s.saveSkillsLocked(skills)
 	}
 	var skills []Skill
-	if err := json.Unmarshal(raw, &skills); err != nil {
+	if err := json.Unmarshal([]byte(raw), &skills); err != nil {
 		return nil, fmt.Errorf("skills config must be valid json: %w", err)
 	}
 	sortSkills(skills)
@@ -160,7 +155,7 @@ func (s *Store) loadSkillsLocked() ([]Skill, error) {
 
 func (s *Store) saveSkillsLocked(skills []Skill) error {
 	sortSkills(skills)
-	return writeJSON(s.skillsPath(), skills)
+	return s.setPromptJSONLocked(s.activePrompt, "skills", skills)
 }
 
 func sortSkills(skills []Skill) {

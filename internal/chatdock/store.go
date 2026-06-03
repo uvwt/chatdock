@@ -1,7 +1,7 @@
 package chatdock
 
 import (
-	"bytes"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const defaultPromptName = "default"
@@ -20,25 +22,64 @@ const defaultPromptName = "default"
 type Store struct {
 	mu           sync.RWMutex
 	dataDir      string
+	dbPath       string
+	db           *sql.DB
 	activePrompt string
 	modelCfg     ModelConfig
 	sessions     map[string]*Session
 }
 
 func NewStore(dataDir string) (*Store, error) {
+	if strings.TrimSpace(dataDir) == "" {
+		dataDir = "data"
+	}
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		return nil, err
+	}
+	dbPath := filepath.Join(dataDir, "chatdock.sqlite")
+	db, err := sql.Open("sqlite3", dbPath+"?_foreign_keys=on&_busy_timeout=5000")
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(1)
 	store := &Store{
 		dataDir:      dataDir,
+		dbPath:       dbPath,
+		db:           db,
 		activePrompt: defaultPromptName,
 		sessions:     make(map[string]*Session),
 	}
-
+	if err := store.initSQLite(); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	if err := store.migrateLegacyData(); err != nil {
+		_ = db.Close()
 		return nil, err
 	}
 	if err := store.loadPromptLocked(defaultPromptName); err != nil {
+		_ = db.Close()
 		return nil, err
 	}
 	return store, nil
+}
+
+func (s *Store) initSQLite() error {
+	stmts := []string{
+		`PRAGMA journal_mode = WAL`,
+		`PRAGMA synchronous = NORMAL`,
+		`CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS prompts (name TEXT PRIMARY KEY, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS prompt_kv (prompt TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(prompt, key), FOREIGN KEY(prompt) REFERENCES prompts(name) ON DELETE CASCADE)`,
+		`CREATE TABLE IF NOT EXISTS sessions (prompt TEXT NOT NULL, id TEXT NOT NULL, json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(prompt, id), FOREIGN KEY(prompt) REFERENCES prompts(name) ON DELETE CASCADE)`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_prompt_updated ON sessions(prompt, updated_at DESC)`,
+	}
+	for _, stmt := range stmts {
+		if _, err := s.db.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Store) ActivePrompt() string {
@@ -68,12 +109,18 @@ func (s *Store) CreatePrompt(input CreatePromptRequest) (PromptResponse, error) 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, err := os.Stat(s.promptDir(name)); err == nil {
-		return PromptResponse{}, fmt.Errorf("prompt already exists: %s", name)
-	} else if !errors.Is(err, os.ErrNotExist) {
+	exists, err := s.promptExistsLocked(name)
+	if err != nil {
 		return PromptResponse{}, err
 	}
+	if exists {
+		return PromptResponse{}, fmt.Errorf("prompt already exists: %s", name)
+	}
 
+	now := time.Now()
+	if err := s.insertPromptLocked(name, now); err != nil {
+		return PromptResponse{}, err
+	}
 	cfg := s.modelCfg
 	if strings.TrimSpace(cfg.BaseURL) == "" {
 		cfg = DefaultModelConfig()
@@ -83,11 +130,10 @@ func (s *Store) CreatePrompt(input CreatePromptRequest) (PromptResponse, error) 
 		cfg.SystemPrompt = DefaultModelConfig().SystemPrompt
 	}
 	cfg = NormalizeModelConfig(cfg)
-
-	if err := os.MkdirAll(s.promptSessionsDir(name), 0o755); err != nil {
+	if err := s.setPromptJSONLocked(name, "config", cfg); err != nil {
 		return PromptResponse{}, err
 	}
-	if err := writeJSON(s.promptConfigPath(name), cfg); err != nil {
+	if err := s.setPromptRawLocked(name, "mcp", DefaultMCPConfig()); err != nil {
 		return PromptResponse{}, err
 	}
 
@@ -110,10 +156,12 @@ func (s *Store) SelectPrompt(input SelectPromptRequest) (PromptResponse, error) 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, err := os.Stat(s.promptDir(name)); errors.Is(err, os.ErrNotExist) {
-		return PromptResponse{}, fmt.Errorf("prompt not found: %s", name)
-	} else if err != nil {
+	exists, err := s.promptExistsLocked(name)
+	if err != nil {
 		return PromptResponse{}, err
+	}
+	if !exists {
+		return PromptResponse{}, fmt.Errorf("prompt not found: %s", name)
 	}
 	if err := s.loadPromptLocked(name); err != nil {
 		return PromptResponse{}, err
@@ -126,19 +174,18 @@ func (s *Store) SelectPrompt(input SelectPromptRequest) (PromptResponse, error) 
 }
 
 func (s *Store) GetMCPConfig() (string, error) {
-	s.mu.RLock()
-	path := s.mcpConfigPath()
-	s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	raw, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
-		content := DefaultMCPConfig()
-		return content, writeRawFile(path, content)
-	}
+	content, ok, err := s.getPromptRawLocked(s.activePrompt, "mcp")
 	if err != nil {
 		return "", err
 	}
-	return string(raw), nil
+	if !ok || strings.TrimSpace(content) == "" {
+		content = DefaultMCPConfig()
+		return content, s.setPromptRawLocked(s.activePrompt, "mcp", content)
+	}
+	return content, nil
 }
 
 func (s *Store) SaveMCPConfig(content string) (string, error) {
@@ -150,16 +197,14 @@ func (s *Store) SaveMCPConfig(content string) (string, error) {
 	if err := json.Unmarshal([]byte(content), &probe); err != nil {
 		return "", fmt.Errorf("mcp config must be valid json: %w", err)
 	}
-	var pretty bytes.Buffer
-	if err := json.Indent(&pretty, []byte(content), "", "  "); err != nil {
+	pretty, err := prettyJSON(content)
+	if err != nil {
 		return "", err
 	}
-	content = pretty.String() + "\n"
 
-	s.mu.RLock()
-	path := s.mcpConfigPath()
-	s.mu.RUnlock()
-	return content, writeRawFile(path, content)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return pretty, s.setPromptRawLocked(s.activePrompt, "mcp", pretty)
 }
 
 func DefaultMCPConfig() string {
@@ -184,7 +229,7 @@ func (s *Store) SaveModelConfig(next ModelConfig) (ModelConfig, error) {
 	}
 
 	s.modelCfg = NormalizeModelConfig(next)
-	return s.modelCfg, writeJSON(s.configPath(), s.modelCfg)
+	return s.modelCfg, s.setPromptJSONLocked(s.activePrompt, "config", s.modelCfg)
 }
 
 func (s *Store) ListSessions() []SessionSummary {
@@ -243,7 +288,8 @@ func (s *Store) DeleteSession(id string) bool {
 		return false
 	}
 	delete(s.sessions, id)
-	_ = os.Remove(s.sessionPath(id))
+	_, _ = s.db.Exec(`DELETE FROM sessions WHERE prompt = ? AND id = ?`, s.activePrompt, id)
+	_ = s.touchPromptLocked(s.activePrompt, time.Now())
 	return true
 }
 
@@ -322,51 +368,130 @@ func (s *Store) AppendAssistantMessage(sessionID string, content string) (*Sessi
 }
 
 func (s *Store) migrateLegacyData() error {
-	if err := os.MkdirAll(s.promptsRoot(), 0o755); err != nil {
+	migrated, err := s.metaValue("json_migrated")
+	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(s.promptSessionsDir(defaultPromptName), 0o755); err != nil {
-		return err
+	if migrated == "1" {
+		return s.ensurePromptLocked(defaultPromptName)
 	}
 
-	legacyConfig := filepath.Join(s.dataDir, "config.json")
-	if _, err := os.Stat(s.promptConfigPath(defaultPromptName)); errors.Is(err, os.ErrNotExist) {
-		if _, err := os.Stat(legacyConfig); err == nil {
-			if err := copyFile(legacyConfig, s.promptConfigPath(defaultPromptName)); err != nil {
+	if err := s.ensurePromptLocked(defaultPromptName); err != nil {
+		return err
+	}
+	legacyRoot := filepath.Join(s.dataDir, "prompts")
+	if entries, err := os.ReadDir(legacyRoot); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				if err := s.importPromptDir(entry.Name(), filepath.Join(legacyRoot, entry.Name())); err != nil {
+					return err
+				}
+			}
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err := s.importLegacyDefaultFiles(); err != nil {
+		return err
+	}
+	return s.setMetaValue("json_migrated", "1")
+}
+
+func (s *Store) importLegacyDefaultFiles() error {
+	if _, ok, err := s.getPromptRawLocked(defaultPromptName, "config"); err != nil {
+		return err
+	} else if !ok {
+		legacyConfig := filepath.Join(s.dataDir, "config.json")
+		if raw, err := os.ReadFile(legacyConfig); err == nil {
+			if err := s.setPromptRawLocked(defaultPromptName, "config", string(raw)); err != nil {
 				return err
 			}
 		} else if errors.Is(err, os.ErrNotExist) {
-			if err := writeJSON(s.promptConfigPath(defaultPromptName), DefaultModelConfig()); err != nil {
+			if err := s.setPromptJSONLocked(defaultPromptName, "config", DefaultModelConfig()); err != nil {
 				return err
 			}
 		} else {
 			return err
 		}
 	}
-
 	legacySessions := filepath.Join(s.dataDir, "sessions")
-	entries, err := os.ReadDir(legacySessions)
-	if errors.Is(err, os.ErrNotExist) {
+	if entries, err := os.ReadDir(legacySessions); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+				continue
+			}
+			if err := s.importSessionFile(defaultPromptName, filepath.Join(legacySessions, entry.Name())); err != nil {
+				return err
+			}
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
+func (s *Store) importPromptDir(name string, dir string) error {
+	name, err := normalizePromptName(name)
+	if err != nil {
 		return nil
 	}
+	if err := s.ensurePromptLocked(name); err != nil {
+		return err
+	}
+	if raw, err := os.ReadFile(filepath.Join(dir, "config.json")); err == nil {
+		if err := s.setPromptRawLocked(name, "config", string(raw)); err != nil {
+			return err
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if raw, err := os.ReadFile(filepath.Join(dir, "mcp.json")); err == nil {
+		if err := s.setPromptRawLocked(name, "mcp", string(raw)); err != nil {
+			return err
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if raw, err := os.ReadFile(filepath.Join(dir, "skills.json")); err == nil {
+		if err := s.setPromptRawLocked(name, "skills", string(raw)); err != nil {
+			return err
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if raw, err := os.ReadFile(filepath.Join(dir, "scheduled_tasks.json")); err == nil {
+		if err := s.setPromptRawLocked(name, "scheduled_tasks", string(raw)); err != nil {
+			return err
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	sessionsDir := filepath.Join(dir, "sessions")
+	if entries, err := os.ReadDir(sessionsDir); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+				continue
+			}
+			if err := s.importSessionFile(name, filepath.Join(sessionsDir, entry.Name())); err != nil {
+				return err
+			}
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
+func (s *Store) importSessionFile(prompt string, path string) error {
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
-			continue
-		}
-		dst := filepath.Join(s.promptSessionsDir(defaultPromptName), entry.Name())
-		if _, err := os.Stat(dst); err == nil {
-			continue
-		} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-		if err := copyFile(filepath.Join(legacySessions, entry.Name()), dst); err != nil {
-			return err
-		}
+	var session Session
+	if err := json.Unmarshal(raw, &session); err != nil || session.ID == "" {
+		return nil
 	}
-	return nil
+	return s.saveSessionForPromptLocked(prompt, &session)
 }
 
 func (s *Store) loadPromptLocked(name string) error {
@@ -374,7 +499,7 @@ func (s *Store) loadPromptLocked(name string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(s.promptSessionsDir(name), 0o755); err != nil {
+	if err := s.ensurePromptLocked(name); err != nil {
 		return err
 	}
 	s.activePrompt = name
@@ -386,16 +511,15 @@ func (s *Store) loadPromptLocked(name string) error {
 }
 
 func (s *Store) loadModelConfigLocked() error {
-	path := s.configPath()
-	raw, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
-		s.modelCfg = DefaultModelConfig()
-		return writeJSON(path, s.modelCfg)
-	}
+	raw, ok, err := s.getPromptRawLocked(s.activePrompt, "config")
 	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(raw, &s.modelCfg); err != nil {
+	if !ok || strings.TrimSpace(raw) == "" {
+		s.modelCfg = DefaultModelConfig()
+		return s.setPromptJSONLocked(s.activePrompt, "config", s.modelCfg)
+	}
+	if err := json.Unmarshal([]byte(raw), &s.modelCfg); err != nil {
 		return err
 	}
 	s.modelCfg = NormalizeModelConfig(s.modelCfg)
@@ -403,46 +527,47 @@ func (s *Store) loadModelConfigLocked() error {
 }
 
 func (s *Store) loadSessionsLocked() error {
-	entries, err := os.ReadDir(s.sessionsDir())
+	rows, err := s.db.Query(`SELECT json FROM sessions WHERE prompt = ? ORDER BY updated_at DESC`, s.activePrompt)
 	if err != nil {
 		return err
 	}
-
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
-			continue
-		}
-		raw, err := os.ReadFile(filepath.Join(s.sessionsDir(), entry.Name()))
-		if err != nil {
+	defer rows.Close()
+	for rows.Next() {
+		var raw string
+		if err := rows.Scan(&raw); err != nil {
 			return err
 		}
 		var session Session
-		if err := json.Unmarshal(raw, &session); err != nil {
+		if err := json.Unmarshal([]byte(raw), &session); err != nil {
 			return err
 		}
 		if session.ID != "" {
 			s.sessions[session.ID] = &session
 		}
 	}
-	return nil
+	return rows.Err()
 }
 
 func (s *Store) listPrompts(active string) ([]PromptSpace, error) {
-	entries, err := os.ReadDir(s.promptsRoot())
+	rows, err := s.db.Query(`SELECT name, created_at, updated_at FROM prompts`)
 	if err != nil {
 		return nil, err
 	}
-
-	items := make([]PromptSpace, 0, len(entries))
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
+	defer rows.Close()
+	items := []PromptSpace{}
+	for rows.Next() {
+		var name, createdRaw, updatedRaw string
+		if err := rows.Scan(&name, &createdRaw, &updatedRaw); err != nil {
+			return nil, err
 		}
-		item, err := s.promptSummary(entry.Name(), active)
+		item, err := s.promptSummaryFromDB(name, active, createdRaw, updatedRaw)
 		if err != nil {
 			return nil, err
 		}
 		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	sort.Slice(items, func(i, j int) bool {
 		if items[i].Name == defaultPromptName {
@@ -456,84 +581,152 @@ func (s *Store) listPrompts(active string) ([]PromptSpace, error) {
 	return items, nil
 }
 
+func (s *Store) listPromptNamesLocked() ([]string, error) {
+	rows, err := s.db.Query(`SELECT name FROM prompts`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
 func (s *Store) listPromptsLocked() ([]PromptSpace, error) {
 	return s.listPrompts(s.activePrompt)
 }
 
-func (s *Store) promptSummary(name string, active string) (PromptSpace, error) {
-	info, err := os.Stat(s.promptDir(name))
-	if err != nil {
+func (s *Store) promptSummaryFromDB(name string, active string, createdRaw string, updatedRaw string) (PromptSpace, error) {
+	createdAt := parseDBTime(createdRaw)
+	updatedAt := parseDBTime(updatedRaw)
+	var count int
+	var latest sql.NullString
+	if err := s.db.QueryRow(`SELECT COUNT(*), MAX(updated_at) FROM sessions WHERE prompt = ?`, name).Scan(&count, &latest); err != nil {
 		return PromptSpace{}, err
 	}
-	createdAt := info.ModTime()
-	updatedAt := info.ModTime()
-	if cfgInfo, err := os.Stat(s.promptConfigPath(name)); err == nil {
-		createdAt = cfgInfo.ModTime()
-		updatedAt = cfgInfo.ModTime()
-	}
-	count := 0
-	entries, err := os.ReadDir(s.promptSessionsDir(name))
-	if err == nil {
-		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json") {
-				count++
-				if sessionInfo, err := entry.Info(); err == nil && sessionInfo.ModTime().After(updatedAt) {
-					updatedAt = sessionInfo.ModTime()
-				}
-			}
+	if latest.Valid {
+		if t := parseDBTime(latest.String); t.After(updatedAt) {
+			updatedAt = t
 		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return PromptSpace{}, err
 	}
 	return PromptSpace{Name: name, Active: name == active, CreatedAt: createdAt, UpdatedAt: updatedAt, Count: count}, nil
 }
 
 func (s *Store) saveSessionLocked(session *Session) error {
-	return writeJSON(s.sessionPath(session.ID), session)
+	return s.saveSessionForPromptLocked(s.activePrompt, session)
 }
 
-func (s *Store) promptsRoot() string {
-	return filepath.Join(s.dataDir, "prompts")
+func (s *Store) saveSessionForPromptLocked(prompt string, session *Session) error {
+	if session == nil || strings.TrimSpace(session.ID) == "" {
+		return fmt.Errorf("session id is empty")
+	}
+	if session.CreatedAt.IsZero() {
+		session.CreatedAt = time.Now()
+	}
+	if session.UpdatedAt.IsZero() {
+		session.UpdatedAt = session.CreatedAt
+	}
+	raw, err := json.MarshalIndent(session, "", "  ")
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	if err := s.ensurePromptLocked(prompt); err != nil {
+		return err
+	}
+	_, err = s.db.Exec(`INSERT INTO sessions(prompt, id, json, created_at, updated_at) VALUES(?, ?, ?, ?, ?)
+ON CONFLICT(prompt, id) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at`, prompt, session.ID, string(raw)+"\n", formatDBTime(session.CreatedAt), formatDBTime(session.UpdatedAt))
+	if err != nil {
+		return err
+	}
+	return s.touchPromptLocked(prompt, now)
 }
 
-func (s *Store) promptDir(name string) string {
-	return filepath.Join(s.promptsRoot(), name)
+func (s *Store) promptExistsLocked(name string) (bool, error) {
+	var value string
+	err := s.db.QueryRow(`SELECT name FROM prompts WHERE name = ?`, name).Scan(&value)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
-func (s *Store) promptConfigPath(name string) string {
-	return filepath.Join(s.promptDir(name), "config.json")
+func (s *Store) ensurePromptLocked(name string) error {
+	exists, err := s.promptExistsLocked(name)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+	return s.insertPromptLocked(name, time.Now())
 }
 
-func (s *Store) promptMCPConfigPath(name string) string {
-	return filepath.Join(s.promptDir(name), "mcp.json")
+func (s *Store) insertPromptLocked(name string, now time.Time) error {
+	_, err := s.db.Exec(`INSERT OR IGNORE INTO prompts(name, created_at, updated_at) VALUES(?, ?, ?)`, name, formatDBTime(now), formatDBTime(now))
+	return err
 }
 
-func (s *Store) promptSessionsDir(name string) string {
-	return filepath.Join(s.promptDir(name), "sessions")
+func (s *Store) touchPromptLocked(name string, now time.Time) error {
+	_, err := s.db.Exec(`UPDATE prompts SET updated_at = ? WHERE name = ?`, formatDBTime(now), name)
+	return err
 }
 
-func (s *Store) configPath() string {
-	return s.promptConfigPath(s.activePrompt)
+func (s *Store) getPromptRawLocked(prompt string, key string) (string, bool, error) {
+	var value string
+	err := s.db.QueryRow(`SELECT value FROM prompt_kv WHERE prompt = ? AND key = ?`, prompt, key).Scan(&value)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return value, true, nil
 }
 
-func (s *Store) mcpConfigPath() string {
-	return s.promptMCPConfigPath(s.activePrompt)
+func (s *Store) setPromptRawLocked(prompt string, key string, value string) error {
+	if err := s.ensurePromptLocked(prompt); err != nil {
+		return err
+	}
+	now := time.Now()
+	_, err := s.db.Exec(`INSERT INTO prompt_kv(prompt, key, value, updated_at) VALUES(?, ?, ?, ?)
+ON CONFLICT(prompt, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`, prompt, key, value, formatDBTime(now))
+	if err != nil {
+		return err
+	}
+	return s.touchPromptLocked(prompt, now)
 }
 
-func (s *Store) skillsPath() string {
-	return filepath.Join(s.promptDir(s.activePrompt), "skills.json")
+func (s *Store) setPromptJSONLocked(prompt string, key string, value any) error {
+	raw, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return err
+	}
+	return s.setPromptRawLocked(prompt, key, string(raw)+"\n")
 }
 
-func (s *Store) scheduledTasksPath() string {
-	return filepath.Join(s.promptDir(s.activePrompt), "scheduled_tasks.json")
+func (s *Store) metaValue(key string) (string, error) {
+	var value string
+	err := s.db.QueryRow(`SELECT value FROM meta WHERE key = ?`, key).Scan(&value)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return value, err
 }
 
-func (s *Store) sessionsDir() string {
-	return s.promptSessionsDir(s.activePrompt)
-}
-
-func (s *Store) sessionPath(id string) string {
-	return filepath.Join(s.sessionsDir(), id+".json")
+func (s *Store) setMetaValue(key string, value string) error {
+	_, err := s.db.Exec(`INSERT INTO meta(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
+	return err
 }
 
 func normalizePromptName(name string) (string, error) {
@@ -589,6 +782,32 @@ func copyFile(src, dst string) error {
 	defer out.Close()
 	_, err = io.Copy(out, in)
 	return err
+}
+
+func prettyJSON(content string) (string, error) {
+	var value any
+	if err := json.Unmarshal([]byte(content), &value); err != nil {
+		return "", err
+	}
+	raw, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(raw) + "\n", nil
+}
+
+func formatDBTime(t time.Time) string {
+	if t.IsZero() {
+		t = time.Now()
+	}
+	return t.Format(time.RFC3339Nano)
+}
+
+func parseDBTime(value string) time.Time {
+	if t, err := time.Parse(time.RFC3339Nano, value); err == nil {
+		return t.Local()
+	}
+	return time.Now()
 }
 
 func cloneSession(session *Session) *Session {

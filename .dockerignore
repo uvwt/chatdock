@@ -1,0 +1,9 @@
+.git
+.gitignore
+bin
+chatdock
+data
+*.sqlite
+*.sqlite-*
+.env
+.DS_Store

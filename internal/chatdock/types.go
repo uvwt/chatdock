@@ -3,9 +3,10 @@ package chatdock
 import "time"
 
 type ServerConfig struct {
-	Addr    string
-	DataDir string
-	WebDir  string
+	Addr      string
+	DataDir   string
+	WebDir    string
+	AuthToken string
 }
 
 type ModelConfig struct {

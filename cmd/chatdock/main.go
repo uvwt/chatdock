@@ -9,9 +9,10 @@ import (
 
 func main() {
 	cfg := chatdock.ServerConfig{
-		Addr:    getenv("CHATDOCK_ADDR", ":8720"),
-		DataDir: getenv("CHATDOCK_DATA", "data"),
-		WebDir:  getenv("CHATDOCK_WEB", "web"),
+		Addr:      getenv("CHATDOCK_ADDR", ":8720"),
+		DataDir:   getenv("CHATDOCK_DATA", defaultDataDir()),
+		WebDir:    getenv("CHATDOCK_WEB", "web"),
+		AuthToken: os.Getenv("CHATDOCK_AUTH_TOKEN"),
 	}
 
 	app, err := chatdock.NewApp(cfg)
@@ -29,4 +30,11 @@ func getenv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func defaultDataDir() string {
+	if dir, err := os.UserConfigDir(); err == nil && dir != "" {
+		return dir + "/chatdock"
+	}
+	return "data"
 }

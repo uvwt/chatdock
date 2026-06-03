@@ -250,7 +250,7 @@ func (a *App) handleScheduledTaskRoute(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(path, "/")
 	id := parts[0]
 	if len(parts) == 2 && parts[1] == "run" && r.Method == http.MethodPost {
-		result, err := a.executeScheduledTask(r.Context(), id, true)
+		result, err := a.executeScheduledTask(r.Context(), a.store.ActivePrompt(), id, true)
 		if err != nil {
 			writeError(w, http.StatusBadGateway, err)
 			return

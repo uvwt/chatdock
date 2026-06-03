@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -49,6 +50,7 @@ func (a *App) ListenAndServe() error {
 	}
 
 	log.Printf("ChatDock listening on %s", displayListenURL(a.cfg.Addr))
+	log.Printf("ChatDock data dir: %s", a.cfg.DataDir)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go a.runScheduler(ctx)
@@ -69,18 +71,18 @@ func (a *App) runScheduler(ctx context.Context) {
 }
 
 func (a *App) runDueScheduledTasks() {
-	tasks, err := a.store.DueScheduledTasks(time.Now())
+	tasks, err := a.store.DueScheduledTasksAllPrompts(time.Now())
 	if err != nil {
 		log.Printf("scheduled task scan failed: %v", err)
 		return
 	}
 	for _, task := range tasks {
-		a.startScheduledTask(task.ID, false)
+		a.startScheduledTask(task.PromptName, task.Task.ID, false)
 	}
 }
 
-func (a *App) startScheduledTask(id string, manual bool) {
-	key := strings.TrimSpace(id)
+func (a *App) startScheduledTask(promptName string, id string, manual bool) {
+	key := strings.TrimSpace(promptName) + ":" + strings.TrimSpace(id)
 	if key == "" {
 		return
 	}
@@ -98,15 +100,15 @@ func (a *App) startScheduledTask(id string, manual bool) {
 			delete(a.running, key)
 			a.runningMu.Unlock()
 		}()
-		if _, err := a.executeScheduledTask(context.Background(), key, manual); err != nil {
+		if _, err := a.executeScheduledTask(context.Background(), promptName, id, manual); err != nil {
 			log.Printf("scheduled task %s failed: %v", key, err)
 		}
 	}()
 }
 
-func (a *App) executeScheduledTask(ctx context.Context, id string, manual bool) (ScheduledTaskRunResponse, error) {
+func (a *App) executeScheduledTask(ctx context.Context, promptName string, id string, manual bool) (ScheduledTaskRunResponse, error) {
 	startedAt := time.Now()
-	run, err := a.store.PrepareScheduledTaskRun(id, manual, startedAt)
+	run, err := a.store.PrepareScheduledTaskRunInPrompt(promptName, id, manual, startedAt)
 	if err != nil {
 		return ScheduledTaskRunResponse{}, err
 	}
@@ -160,7 +162,7 @@ func (a *App) routes() http.Handler {
 	fileServer := http.FileServer(http.Dir(a.cfg.WebDir))
 	mux.Handle("/", fileServer)
 
-	return logRequest(mux)
+	return logRequest(a.authMiddleware(mux))
 }
 
 func logRequest(next http.Handler) http.Handler {
@@ -169,4 +171,38 @@ func logRequest(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		log.Printf("%s %s %s", r.Method, r.URL.Path, time.Since(start).Round(time.Millisecond))
 	})
+}
+
+func (a *App) authMiddleware(next http.Handler) http.Handler {
+	token := strings.TrimSpace(a.cfg.AuthToken)
+	if token == "" {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" || strings.HasPrefix(r.URL.Path, "/app.") || strings.HasPrefix(r.URL.Path, "/markdown.js") || strings.HasPrefix(r.URL.Path, "/mcp.js") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		got := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+		if got == "" {
+			got = strings.TrimSpace(r.URL.Query().Get("token"))
+		}
+		if got != token {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func RemoveLegacyRuntimeArtifacts(repoDir string) error {
+	for _, name := range []string{"chatdock", "bin"} {
+		path := repoDir + string(os.PathSeparator) + name
+		if err := os.RemoveAll(path); err != nil {
+			return err
+		}
+	}
+	return nil
 }
