@@ -12,16 +12,14 @@ type ServerConfig struct {
 }
 
 type AuthStatusResponse struct {
-	Enabled       bool   `json:"enabled"`
-	LoginEnabled  bool   `json:"login_enabled"`
-	Username      string `json:"username,omitempty"`
-	TokenFallback bool   `json:"token_fallback"`
+	Enabled      bool   `json:"enabled"`
+	LoginEnabled bool   `json:"login_enabled"`
+	Username     string `json:"username,omitempty"`
 }
 
 type AuthLoginRequest struct {
 	Username   string `json:"username"`
 	Credential string `json:"credential"`
-	Token      string `json:"token"`
 }
 
 type AuthLoginResponse struct {

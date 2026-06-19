@@ -370,7 +370,7 @@ func TestAuthLoginWithCredential(t *testing.T) {
 	}
 }
 
-func TestAuthLoginTokenFallback(t *testing.T) {
+func TestAuthLoginRequiresConfiguredCredential(t *testing.T) {
 	webDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(webDir, "index.html"), []byte("<!doctype html><title>ChatDock</title>"), 0o644); err != nil {
 		t.Fatal(err)
@@ -385,15 +385,8 @@ func TestAuthLoginTokenFallback(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewReader([]byte(`{"credential":"server-token"}`)))
 	w := httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
-	if w.Code != http.StatusOK {
-		t.Fatalf("fallback login status %d: %s", w.Code, w.Body.String())
-	}
-	var login AuthLoginResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &login); err != nil {
-		t.Fatal(err)
-	}
-	if login.Token != "server-token" {
-		t.Fatalf("fallback token mismatch: %#v", login)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("login without configured credential status %d, want 503", w.Code)
 	}
 }
 

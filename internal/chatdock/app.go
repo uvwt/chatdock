@@ -185,10 +185,9 @@ func (a *App) routes() http.Handler {
 func (a *App) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(a.cfg.AuthUsername)
 	writeJSONResponse(w, http.StatusOK, AuthStatusResponse{
-		Enabled:       strings.TrimSpace(a.cfg.AuthToken) != "",
-		LoginEnabled:  username != "" && strings.TrimSpace(a.cfg.AuthCredential) != "",
-		Username:      username,
-		TokenFallback: strings.TrimSpace(a.cfg.AuthToken) != "",
+		Enabled:      strings.TrimSpace(a.cfg.AuthToken) != "",
+		LoginEnabled: username != "" && strings.TrimSpace(a.cfg.AuthCredential) != "",
+		Username:     username,
 	})
 }
 
@@ -207,21 +206,15 @@ func (a *App) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 
 	username := strings.TrimSpace(a.cfg.AuthUsername)
 	credential := strings.TrimSpace(a.cfg.AuthCredential)
-	if username != "" && credential != "" {
-		if subtle.ConstantTimeCompare([]byte(input.Username), []byte(username)) == 1 && subtle.ConstantTimeCompare([]byte(input.Credential), []byte(credential)) == 1 {
-			writeJSONResponse(w, http.StatusOK, AuthLoginResponse{OK: true, Token: token, Username: username})
-			return
-		}
-		writeError(w, http.StatusUnauthorized, fmt.Errorf("invalid login"))
+	if username == "" || credential == "" {
+		writeError(w, http.StatusServiceUnavailable, fmt.Errorf("login is not configured"))
 		return
 	}
-
-	// 兼容旧部署：尚未配置账号口令时，允许把现有访问令牌作为登录凭据。
-	if subtle.ConstantTimeCompare([]byte(strings.TrimSpace(input.Token)), []byte(token)) == 1 || subtle.ConstantTimeCompare([]byte(strings.TrimSpace(input.Credential)), []byte(token)) == 1 {
-		writeJSONResponse(w, http.StatusOK, AuthLoginResponse{OK: true, Token: token})
+	if subtle.ConstantTimeCompare([]byte(input.Username), []byte(username)) == 1 && subtle.ConstantTimeCompare([]byte(input.Credential), []byte(credential)) == 1 {
+		writeJSONResponse(w, http.StatusOK, AuthLoginResponse{OK: true, Token: token, Username: username})
 		return
 	}
-	writeError(w, http.StatusUnauthorized, fmt.Errorf("invalid token"))
+	writeError(w, http.StatusUnauthorized, fmt.Errorf("invalid login"))
 }
 
 func (a *App) webHandler() http.Handler {

@@ -76,7 +76,7 @@ async function submitLogin(event) {
   const errorBox = document.getElementById('loginError');
   if (errorBox) errorBox.textContent = '';
   try {
-    const data = await api('/api/auth/login', {method:'POST', body: JSON.stringify({username, credential, token: credential})});
+    const data = await api('/api/auth/login', {method:'POST', body: JSON.stringify({username, credential})});
     if (data.token) localStorage.setItem('chatdock.authToken', data.token);
     await refreshAfterLogin();
   } catch (e) {
