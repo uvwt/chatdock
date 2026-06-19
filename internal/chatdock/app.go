@@ -1,15 +1,20 @@
 package chatdock
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"strings"
 	"sync"
 	"time"
+
+	webui "chatdock/web"
 )
 
 type App struct {
@@ -137,6 +142,14 @@ func (a *App) routes() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /api/health", a.handleHealth)
+	mux.HandleFunc("GET /api/setup/status", a.handleSetupStatus)
+	mux.HandleFunc("POST /api/setup/init", a.handleSetupInit)
+	mux.HandleFunc("GET /api/model-providers", a.handleListModelProviders)
+	mux.HandleFunc("POST /api/model-providers/test", a.handleTestModelProvider)
+	mux.HandleFunc("GET /api/workspaces", a.handleListWorkspaces)
+	mux.HandleFunc("/api/workspaces/", a.handleWorkspaceRoute)
+	mux.HandleFunc("GET /api/data/status", a.handleDataStatus)
+	mux.HandleFunc("GET /api/system/status", a.handleSystemStatus)
 	mux.HandleFunc("GET /api/config", a.handleGetConfig)
 	mux.HandleFunc("POST /api/config", a.handleSaveConfig)
 	mux.HandleFunc("GET /api/prompts", a.handleListPrompts)
@@ -145,6 +158,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/mcp-config", a.handleGetMCPConfig)
 	mux.HandleFunc("POST /api/mcp-config", a.handleSaveMCPConfig)
 	mux.HandleFunc("GET /api/mcp/tools", a.handleListMCPTools)
+	mux.HandleFunc("GET /api/mcp/status", a.handleMCPStatus)
 	mux.HandleFunc("GET /api/mcp/test", a.handleTestMCPServer)
 	mux.HandleFunc("POST /api/mcp/call", a.handleCallMCPTool)
 	mux.HandleFunc("GET /api/skills", a.handleListSkills)
@@ -159,10 +173,68 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /api/chat", a.handleChat)
 	mux.HandleFunc("POST /api/chat/stream", a.handleChatStream)
 
-	fileServer := http.FileServer(http.Dir(a.cfg.WebDir))
-	mux.Handle("/", fileServer)
+	mux.Handle("/", a.webHandler())
 
 	return logRequest(a.authMiddleware(mux))
+}
+
+func (a *App) webHandler() http.Handler {
+	var webFS fs.FS
+	if dir := strings.TrimSpace(a.cfg.WebDir); dir != "" {
+		webFS = os.DirFS(dir)
+	} else {
+		embedded, err := fs.Sub(webui.Dist, "dist")
+		if err != nil {
+			log.Printf("embedded web dist unavailable: %v", err)
+			return http.NotFoundHandler()
+		}
+		webFS = embedded
+	}
+	return spaFileServer(webFS)
+}
+
+func spaFileServer(webFS fs.FS) http.Handler {
+	fileServer := http.FileServer(http.FS(webFS))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 前端路由只接管页面路径；API/MCP 路由缺失时必须保持后端 404，不能回落成 index.html。
+		if isBackendRoute(r.URL.Path) {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.NotFound(w, r)
+			return
+		}
+
+		name := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
+		if name == "." || name == "" {
+			name = "index.html"
+		}
+		if file, err := webFS.Open(name); err == nil {
+			stat, statErr := file.Stat()
+			_ = file.Close()
+			if statErr == nil && !stat.IsDir() {
+				fileServer.ServeHTTP(w, r)
+				return
+			}
+		}
+		if path.Ext(name) != "" {
+			http.NotFound(w, r)
+			return
+		}
+
+		index, err := fs.ReadFile(webFS, "index.html")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		http.ServeContent(w, r, "index.html", time.Time{}, bytes.NewReader(index))
+	})
+}
+
+func isBackendRoute(requestPath string) bool {
+	return requestPath == "/api" || strings.HasPrefix(requestPath, "/api/") || requestPath == "/mcp" || strings.HasPrefix(requestPath, "/mcp/")
 }
 
 func logRequest(next http.Handler) http.Handler {
@@ -179,7 +251,7 @@ func (a *App) authMiddleware(next http.Handler) http.Handler {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" || strings.HasPrefix(r.URL.Path, "/app.") || strings.HasPrefix(r.URL.Path, "/markdown.js") || strings.HasPrefix(r.URL.Path, "/mcp.js") {
+		if !isBackendRoute(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}

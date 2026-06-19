@@ -1,8 +1,16 @@
+FROM node:22-bookworm-slim AS web-build
+WORKDIR /src/web
+COPY web/package*.json ./
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+COPY web/ ./
+RUN npm run build
+
 FROM golang:1.22-bookworm AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+COPY --from=web-build /src/web/dist ./web/dist
 RUN CGO_ENABLED=1 go build -buildvcs=false -o /out/chatdock ./cmd/chatdock
 
 FROM debian:bookworm-slim
@@ -12,10 +20,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -r -u 10001 -g nogroup chatdock
 COPY --from=build /out/chatdock /app/chatdock
-COPY web /app/web
 ENV CHATDOCK_ADDR=:8720
 ENV CHATDOCK_DATA=/data
-ENV CHATDOCK_WEB=/app/web
 RUN mkdir -p /data && chown -R chatdock:nogroup /data /app
 USER chatdock
 VOLUME ["/data"]

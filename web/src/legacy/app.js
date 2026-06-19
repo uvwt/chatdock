@@ -11,6 +11,9 @@ let activeAnswerBuffer = '';
 let activeReasoningBuffer = '';
 let skillItems = [];
 let scheduledTaskItems = [];
+let workspaceItems = [];
+let providerItems = [];
+let dataStatusCache = null;
 
 function authHeaders(extra={}) {
   const token = localStorage.getItem('chatdock.authToken') || '';
@@ -32,6 +35,150 @@ async function api(path, opt={}) {
 }
 
 function fmtTime(value) { try { return new Date(value).toLocaleString(); } catch { return ''; } }
+
+function fmtBytes(value) {
+  const n = Number(value || 0);
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+function switchSettingsModule(name) {
+  document.querySelectorAll('.module-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.module === name));
+  document.querySelectorAll('.module-view').forEach(view => view.classList.toggle('active', view.dataset.moduleView === name));
+  if (name === 'tools') loadMCPStatus();
+  if (name === 'data') loadDataStatus();
+  if (name === 'security') loadSystemStatus();
+}
+
+async function refreshProductState() {
+  await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
+}
+
+async function loadSetupStatus() {
+  const s = await api('/api/setup/status');
+  if (!setupBanner) return;
+  if (s.needs_setup) {
+    setupBanner.classList.remove('ok');
+    setupBanner.innerHTML = '<div><b>首次配置未完成</b><div class="hint">请配置模型供应商和默认工作空间，完成后即可开始对话。</div></div>' +
+      '<button class="small" onclick="runSetupWizard()">开始引导</button>';
+    setupBanner.classList.add('show');
+  } else {
+    setupBanner.innerHTML = '<div><b>系统已就绪</b><div class="hint">当前工作空间：' + escapeHtml(s.active_workspace || '-') + ' · 数据目录：' + escapeHtml(s.data_dir || '-') + '</div></div>';
+    setupBanner.classList.add('show', 'ok');
+  }
+}
+
+async function runSetupWizard() {
+  const workspaceName = prompt('默认工作空间名称：', 'default');
+  if (workspaceName === null) return;
+  const baseURL = prompt('模型 Base URL：', base_url.value || 'https://api.openai.com/v1');
+  if (baseURL === null) return;
+  const modelName = prompt('默认模型：', model.value || 'gpt-4o-mini');
+  if (modelName === null) return;
+  const apiKeyValue = prompt('API Key（可留空）：', '');
+  if (apiKeyValue === null) return;
+  const systemPromptValue = prompt('默认 System Prompt：', system_prompt.value || '你是 ChatDock，本地优先 AI 工作台。默认用中文回答。');
+  await api('/api/setup/init', {method:'POST', body: JSON.stringify({workspace_name: workspaceName || 'default', base_url: baseURL || '', model: modelName || '', api_key: apiKeyValue || '', system_prompt: systemPromptValue || ''})});
+  await loadPrompts();
+  await loadConfig();
+  await refreshProductState();
+  alert('初始化完成');
+}
+
+async function loadWorkspaces() {
+  const data = await api('/api/workspaces');
+  workspaceItems = data.workspaces || [];
+  renderWorkspaces();
+}
+
+function renderWorkspaces() {
+  if (!workspaceCards) return;
+  if (!workspaceItems.length) {
+    workspaceCards.innerHTML = '<div class="empty compact">还没有工作空间，请创建第一个工作空间。</div>';
+    return;
+  }
+  workspaceCards.innerHTML = workspaceItems.map(ws => '<div class="product-card ' + (ws.active ? 'active' : '') + '">' +
+    '<div class="product-card-head"><div><b>' + escapeHtml(ws.name) + '</b><div class="hint">' + escapeHtml(ws.description || '') + '</div></div><span class="badge">' + (ws.active ? '当前' : '可切换') + '</span></div>' +
+    '<div class="product-meta">模型：' + escapeHtml(ws.model || '-') + ' · 会话 ' + (ws.session_count || 0) + ' · 技能 ' + (ws.enabled_skill_count || 0) + '/' + (ws.skill_count || 0) + ' · 任务 ' + (ws.task_count || 0) + '</div>' +
+    (!ws.active ? '<button class="secondary small" onclick="selectPrompt(\'' + escapeHtml(ws.id) + '\')">切换到此工作空间</button>' : '') +
+  '</div>').join('');
+}
+
+async function loadModelProviders() {
+  const data = await api('/api/model-providers');
+  providerItems = data.providers || [];
+  renderModelProviders();
+}
+
+function renderModelProviders() {
+  if (!providerCards) return;
+  if (!providerItems.length) {
+    providerCards.innerHTML = '<div class="empty compact">还没有模型供应商配置。</div>';
+    return;
+  }
+  providerCards.innerHTML = providerItems.map(p => '<div class="product-card">' +
+    '<div class="product-card-head"><div><b>' + escapeHtml(p.name || p.id) + '</b><div class="hint">' + escapeHtml(p.base_url || '-') + '</div></div><span class="badge">' + escapeHtml(p.type || 'openai') + '</span></div>' +
+    '<div class="product-meta">默认模型：' + escapeHtml(p.default_model || '-') + ' · Key：' + (p.has_api_key ? escapeHtml(p.api_key_masked || '******') : '未设置') + ' · 工作空间：' + escapeHtml(p.workspace_name || '-') + '</div>' +
+  '</div>').join('');
+}
+
+async function testModelProvider() {
+  try {
+    const data = await api('/api/model-providers/test', {method:'POST', body:'{}'});
+    alert(data.ok ? '模型连接正常：' + (data.model || '') : '模型连接失败：' + (data.error || 'unknown'));
+  } catch (e) {
+    alert('模型连接失败：' + e.message);
+  }
+}
+
+async function showPromptPreview() {
+  const workspaceID = promptSelector.value || 'default';
+  const data = await api('/api/workspaces/' + encodeURIComponent(workspaceID) + '/prompt-preview');
+  promptPreview.hidden = false;
+  promptPreview.textContent = data.content || '(空)';
+}
+
+async function loadDataStatus() {
+  const data = await api('/api/data/status');
+  dataStatusCache = data;
+  if (!dataStatus) return;
+  dataStatus.innerHTML = [
+    ['数据目录', data.data_dir || '-'],
+    ['数据库', data.database_path || '-'],
+    ['数据库大小', fmtBytes(data.database_size_bytes)],
+    ['工作空间', String(data.workspace_count || 0)],
+    ['会话', String(data.session_count || 0)],
+    ['WAL', data.wal_enabled ? '启用' : '未检测到'],
+  ].map(item => '<div class="stat-card"><div class="stat-label">' + escapeHtml(item[0]) + '</div><div class="stat-value">' + escapeHtml(item[1]) + '</div></div>').join('');
+}
+
+async function loadSystemStatus() {
+  const data = await api('/api/system/status');
+  if (!systemStatus) return;
+  systemStatus.innerHTML = '<div class="product-card"><div class="product-card-head"><div><b>ChatDock</b><div class="hint">' + escapeHtml(data.addr || '') + '</div></div><span class="badge">' + (data.ok ? 'healthy' : 'unknown') + '</span></div>' +
+    '<div class="product-meta">Web：' + escapeHtml(data.web_dir || '-') + ' · DB：' + escapeHtml(data.database || '-') + ' · 当前工作空间：' + escapeHtml((data.setup || {}).active_workspace || '-') + '</div></div>';
+}
+
+async function loadMCPStatus() {
+  if (!mcpStatusCards) return;
+  mcpStatusCards.innerHTML = '<div class="hint">正在检测 MCP Server...</div>';
+  try {
+    const data = await api('/api/mcp/status');
+    const servers = data.servers || [];
+    if (!servers.length) {
+      mcpStatusCards.innerHTML = '<div class="empty compact">尚未配置 MCP Server。添加后可在这里查看状态、权限和确认规则。</div>';
+      return;
+    }
+    mcpStatusCards.innerHTML = servers.map(s => '<div class="product-card">' +
+      '<div class="product-card-head"><div><b>' + escapeHtml(s.name) + '</b><div class="hint">' + escapeHtml(s.url || '-') + '</div></div><span class="badge ' + (String(s.last_status).startsWith('ok') ? 'ok' : 'warn') + '">' + escapeHtml(s.last_status || 'unknown') + '</span></div>' +
+      '<div class="product-meta">allow ' + s.allow_count + ' · deny ' + s.deny_count + ' · confirm ' + s.confirm_count + ' · token ' + (s.has_token ? '已配置' : '无') + '</div>' +
+      (s.last_error ? '<div class="task-error">' + escapeHtml(s.last_error) + '</div>' : '') +
+    '</div>').join('');
+  } catch (e) {
+    mcpStatusCards.innerHTML = '<div class="task-error">MCP 状态检测失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
 
 function initTheme() {
   const saved = localStorage.getItem('chatdock.theme') || 'night';
@@ -113,11 +260,13 @@ async function loadSkills() {
 }
 
 function renderSkills() {
-  if (!skillItems.length) {
+  const q = ((document.getElementById('skillSearch') || {}).value || '').trim().toLowerCase();
+  const list = q ? skillItems.filter(s => [s.name, s.description, s.content].some(v => String(v || '').toLowerCase().includes(q))) : skillItems;
+  if (!list.length) {
     skills.innerHTML = '<div class="hint">暂无技能。技能会作为当前提示词空间的补充系统指令注入模型请求。</div>';
     return;
   }
-  skills.innerHTML = skillItems.map(s => '<div class="skill-card">' +
+  skills.innerHTML = list.map(s => '<div class="skill-card">' +
     '<div class="skill-head">' +
       '<div><div class="skill-name">' + escapeHtml(s.name || '未命名技能') + '</div>' +
       '<div class="skill-desc">' + escapeHtml(s.description || '无描述') + '</div></div>' +
@@ -177,15 +326,18 @@ async function loadScheduledTasks() {
 }
 
 function renderScheduledTasks() {
-  if (!scheduledTaskItems.length) {
+  const q = ((document.getElementById('taskSearch') || {}).value || '').trim().toLowerCase();
+  const list = q ? scheduledTaskItems.filter(t => [t.title, t.prompt, t.schedule_type, t.last_status, t.last_error].some(v => String(v || '').toLowerCase().includes(q))) : scheduledTaskItems;
+  if (!list.length) {
     scheduledTasks.innerHTML = '<div class="hint">暂无定时任务。任务会按当前提示词空间运行，并把结果写入专属会话。</div>';
     return;
   }
-  scheduledTasks.innerHTML = scheduledTaskItems.map(t => '<div class="task-card">' +
+  scheduledTasks.innerHTML = list.map(t => '<div class="task-card">' +
     '<div class="task-head">' +
       '<div><div class="task-name">' + escapeHtml(t.title || '未命名任务') + (t.running ? ' · 运行中' : '') + '</div>' +
       '<div class="task-desc">' + escapeHtml((t.prompt || '').slice(0, 120) || '无提示内容') + '</div></div>' +
       '<div class="task-actions">' +
+        '<span class="badge ' + taskStatusClass(t) + '">' + taskStatusLabel(t) + '</span>' +
         '<button class="secondary small" onclick="runScheduledTaskNow(\'' + escapeHtml(t.id) + '\')" ' + (t.running ? 'disabled' : '') + '>立即运行</button>' +
         '<button class="secondary small" onclick="editScheduledTask(\'' + escapeHtml(t.id) + '\')">编辑</button>' +
         '<button class="danger small" onclick="deleteScheduledTask(\'' + escapeHtml(t.id) + '\')">删除</button>' +
@@ -195,6 +347,20 @@ function renderScheduledTasks() {
     '<div class="task-meta">' + scheduleSummary(t) + '</div>' +
     (t.last_error ? '<div class="task-error">上次错误：' + escapeHtml(t.last_error) + '</div>' : '') +
   '</div>').join('');
+}
+
+function taskStatusLabel(t) {
+  if (t.running) return '运行中';
+  if (t.last_status === 'success') return '成功';
+  if (t.last_status === 'failed') return '失败';
+  return t.enabled ? '已启用' : '已暂停';
+}
+
+function taskStatusClass(t) {
+  if (t.running) return 'warn';
+  if (t.last_status === 'success') return 'ok';
+  if (t.last_status === 'failed') return 'danger-badge';
+  return t.enabled ? 'ok' : 'warn';
 }
 
 function scheduleSummary(t) {
@@ -275,6 +441,7 @@ async function runScheduledTaskNow(id) {
     const result = await api('/api/scheduled-tasks/' + encodeURIComponent(id) + '/run', {method:'POST', body:'{}'});
     await loadScheduledTasks();
     await loadSessions();
+refreshProductState();
     if (result.session && result.session.id) {
       current = result.session.id;
       await renderSession(result.session);
@@ -297,6 +464,7 @@ async function saveMCPConfig() {
   }
   const c = await api('/api/mcp-config', {method:'POST', body: JSON.stringify({content})});
   mcp_config.value = c.content || content;
+  await loadMCPStatus().catch(() => {});
   alert('MCP 配置已保存');
 }
 
@@ -313,6 +481,7 @@ async function saveConfig() {
   })});
   api_key.value = '';
   await loadConfig();
+  await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadSystemStatus()]);
   alert('已保存');
 }
 
@@ -592,7 +761,8 @@ async function selectPrompt(name) {
   await api('/api/prompts/select', {method:'POST', body: JSON.stringify({name})});
   current = null;
   title.textContent = '未选择会话';
-  messages.innerHTML = '<div class="empty">已切换提示词空间。创建或选择一个会话。</div>';
+  messages.innerHTML = '<div class="empty">已切换工作空间。创建或选择一个会话。</div>';
+  await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
   await loadPrompts();
   await loadConfig();
   await loadMCPConfig();
@@ -604,13 +774,14 @@ async function selectPrompt(name) {
 
 async function createPromptSpace() {
   if (busy) return;
-  const name = prompt('新提示词空间名称：');
+  const name = prompt('新工作空间名称：');
   if (!name || !name.trim()) return;
   const systemPrompt = prompt('系统提示词内容：', system_prompt.value || '');
   await api('/api/prompts', {method:'POST', body: JSON.stringify({name: name.trim(), system_prompt: systemPrompt || ''})});
   current = null;
   title.textContent = '未选择会话';
-  messages.innerHTML = '<div class="empty">已创建并切换到新提示词空间。</div>';
+  messages.innerHTML = '<div class="empty">已创建并切换到新工作空间。</div>';
+  await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
   await loadPrompts();
   await loadConfig();
   await loadMCPConfig();
@@ -638,3 +809,4 @@ loadMCPConfig();
 loadSkills();
 loadScheduledTasks();
 loadSessions();
+refreshProductState();

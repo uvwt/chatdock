@@ -4,92 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ChatDock</title>
-  <link rel="stylesheet" href="/app.css">
 </head>
 <body>
-<div id="sidebarMask" class="sidebar-mask" onclick="closeSidebarOnMobile()"></div>
-<div class="app" id="app">
-  <aside>
-    <div class="sidebar-head">
-      <div class="brand"><span class="brand-text">ChatDock</span><div class="sub">自用轻量 AI 对话中控</div></div>
-      <button id="sidebarToggle" class="sidebar-toggle" onclick="toggleSidebar()" title="折叠侧栏" aria-label="折叠侧栏">‹</button>
-    </div>
-    <div class="prompt-box">
-      <label>系统提示词空间</label>
-      <div class="prompt-row">
-        <select id="promptSelector" onchange="selectPrompt(this.value)"></select>
-        <button class="prompt-add" onclick="createPromptSpace()" title="新建提示词空间">+</button>
-      </div>
-    </div>
-    <input id="sessionSearch" class="session-search" placeholder="搜索会话" oninput="loadSessions()" />
-    <button class="new" onclick="newSession()" title="新会话">+ <span class="new-label">新会话</span></button>
-    <div id="sessions"></div>
-  </aside>
-
-  <main>
-    <div class="topbar">
-      <div class="top-left">
-        <button class="mobile-menu" onclick="toggleSidebar()" title="会话列表" aria-label="会话列表">☰</button>
-        <div id="title">未选择会话</div>
-      </div>
-      <div class="top-actions">
-        <button id="themeToggle" class="theme-toggle" onclick="toggleTheme()" title="切换白天/夜晚">夜晚</button>
-        <button class="secondary" onclick="renameCurrent()">重命名</button>
-        <button class="secondary" onclick="exportCurrent()">导出</button>
-        <button class="danger" onclick="deleteCurrent()">删除</button>
-      </div>
-    </div>
-    <div id="messages" class="messages"><div class="empty">创建一个会话，然后开始聊天。</div></div>
-    <div class="composer">
-      <textarea id="input" placeholder="输入消息。Enter 发送，Shift+Enter 换行。"></textarea>
-      <button id="continueBtn" class="secondary quick-control" onclick="sendQuickMessage('继续')" title="自动发送继续">继续</button>
-      <button id="pauseStream" class="secondary stream-control" onclick="toggleStreamPause()" hidden disabled>暂停</button>
-      <button id="stopStream" class="danger stream-control" onclick="stopStreaming()" hidden disabled>中断</button>
-      <button id="send" onclick="sendMsg()">发送</button>
-    </div>
-  </main>
-
-  <section class="settings">
-    <h2 style="margin:0 0 8px">设置</h2>
-    <div class="hint">兼容 OpenAI Chat Completions 的接口。比如 OpenAI、OpenRouter、One API、New API、Ollama OpenAI 兼容接口。</div>
-    <label>Base URL</label>
-    <input id="base_url" placeholder="https://api.openai.com/v1" />
-    <label>API Key</label>
-    <input id="api_key" placeholder="留空表示不修改" type="password" />
-    <label>Model</label>
-    <input id="model" placeholder="gpt-4o-mini" />
-    <label>System Prompt</label>
-    <textarea id="system_prompt" style="min-height:130px"></textarea>
-    <div class="row">
-      <div><label>上下文消息数</label><input id="max_context_messages" type="number" min="1" max="100" /></div>
-      <div><label>Temperature</label><input id="temperature" type="number" min="0" max="2" step="0.1" /></div>
-    </div>
-    <label class="check-row"><input id="enable_thinking" type="checkbox" /> 启用模型思考</label>
-    <label class="check-row"><input id="hide_thinking" type="checkbox" /> 自动隐藏 &lt;think&gt; 思考内容</label>
-    <div class="settings-block-head">
-      <label>技能（当前提示词空间）</label>
-      <button class="secondary small" onclick="editSkill()">新增技能</button>
-    </div>
-    <div id="skills" class="skills-list"><div class="hint">正在加载技能...</div></div>
-    <div class="settings-block-head">
-      <label>定时任务（当前提示词空间）</label>
-      <button class="secondary small" onclick="editScheduledTask()">新增任务</button>
-    </div>
-    <div id="scheduledTasks" class="tasks-list"><div class="hint">正在加载定时任务...</div></div>
-    <label>MCP 配置（当前提示词空间的 mcp.json）</label>
-    <textarea id="mcp_config" class="mcp-editor" spellcheck="false" placeholder='{"servers": {}}'></textarea>
-    <div class="settings-actions">
-      <button onclick="saveConfig()">保存模型设置</button>
-      <button class="secondary" onclick="saveMCPConfig()">保存 MCP 配置</button>
-      <button class="secondary" onclick="loadMCPConfig()">重新加载 MCP</button>
-      <button class="secondary" onclick="testMCP()">测试 MCP</button>
-      <button class="secondary" onclick="setAuthToken()">设置访问 Token</button>
-    </div>
-    <p class="hint">省 token 核心：只带最近 N 条上下文 + 固定系统提示词。思考开关会通过 chat_template_kwargs.enable_thinking 传给模型接口；是否生效取决于模型服务是否支持该参数。MCP 配置按提示词空间独立保存到 mcp.json。</p>
-  </section>
-</div>
-<script src="/markdown.js"></script>
-<script src="/mcp.js"></script>
-<script src="/app.js"></script>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

@@ -11,7 +11,7 @@ func main() {
 	cfg := chatdock.ServerConfig{
 		Addr:      getenv("CHATDOCK_ADDR", ":8720"),
 		DataDir:   getenv("CHATDOCK_DATA", defaultDataDir()),
-		WebDir:    getenv("CHATDOCK_WEB", "web"),
+		WebDir:    os.Getenv("CHATDOCK_WEB"),
 		AuthToken: os.Getenv("CHATDOCK_AUTH_TOKEN"),
 	}
 

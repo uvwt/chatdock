@@ -85,6 +85,28 @@ func (c *ChatClient) Complete(ctx context.Context, cfg ModelConfig, history []Me
 	return content, nil
 }
 
+func (c *ChatClient) TestModelProvider(ctx context.Context, cfg ModelConfig) error {
+	cfg = NormalizeModelConfig(cfg)
+	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/models"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	if apiKey := strings.TrimSpace(cfg.APIKey); apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return nil
+	}
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	return fmt.Errorf("model provider test failed: %s: %s", resp.Status, string(respBody))
+}
+
 func (c *ChatClient) Stream(ctx context.Context, cfg ModelConfig, history []Message, onDelta func(StreamDelta) error) (string, error) {
 	messages := BuildChatMessages(cfg, history)
 	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/chat/completions"

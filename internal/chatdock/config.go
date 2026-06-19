@@ -4,6 +4,7 @@ import "strings"
 
 func DefaultModelConfig() ModelConfig {
 	return ModelConfig{
+		ProviderID:         "provider_default",
 		BaseURL:            "https://api.openai.com/v1",
 		Model:              "gpt-4o-mini",
 		SystemPrompt:       "你是 ChatDock，一个简洁、直接、节省 token 的私人 AI 助手。默认用中文回答。",
@@ -16,8 +17,12 @@ func DefaultModelConfig() ModelConfig {
 
 func NormalizeModelConfig(cfg ModelConfig) ModelConfig {
 	cfg.BaseURL = strings.TrimSpace(cfg.BaseURL)
+	cfg.ProviderID = strings.TrimSpace(cfg.ProviderID)
 	cfg.Model = strings.TrimSpace(cfg.Model)
 
+	if cfg.ProviderID == "" {
+		cfg.ProviderID = "provider_default"
+	}
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "https://api.openai.com/v1"
 	}
@@ -35,6 +40,7 @@ func NormalizeModelConfig(cfg ModelConfig) ModelConfig {
 
 func ToPublicModelConfig(cfg ModelConfig) PublicModelConfig {
 	return PublicModelConfig{
+		ProviderID:         cfg.ProviderID,
 		BaseURL:            cfg.BaseURL,
 		HasAPIKey:          strings.TrimSpace(cfg.APIKey) != "",
 		Model:              cfg.Model,

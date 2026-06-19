@@ -10,6 +10,7 @@ type ServerConfig struct {
 }
 
 type ModelConfig struct {
+	ProviderID         string  `json:"provider_id,omitempty"`
 	BaseURL            string  `json:"base_url"`
 	APIKey             string  `json:"api_key,omitempty"`
 	Model              string  `json:"model"`
@@ -22,6 +23,7 @@ type ModelConfig struct {
 }
 
 type PublicModelConfig struct {
+	ProviderID         string  `json:"provider_id,omitempty"`
 	BaseURL            string  `json:"base_url"`
 	HasAPIKey          bool    `json:"has_api_key"`
 	Model              string  `json:"model"`
@@ -98,6 +100,7 @@ type ScheduledTask struct {
 	IntervalMinutes int        `json:"interval_minutes,omitempty"`
 	NextRunAt       time.Time  `json:"next_run_at"`
 	LastRunAt       *time.Time `json:"last_run_at,omitempty"`
+	LastStatus      string     `json:"last_status,omitempty"`
 	LastError       string     `json:"last_error,omitempty"`
 	SessionID       string     `json:"session_id,omitempty"`
 	Running         bool       `json:"running"`

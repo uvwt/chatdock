@@ -4,7 +4,7 @@ ChatDock 是一个自用的轻量 AI 对话中控台，目标是：提示词可�
 
 ## 当前功能
 
-- Go 后端，静态网页前端，无前端构建链。
+- Go 后端 + Vite/React 前端，生产构建后通过 `//go:embed` 嵌入最终 Go 二进制。
 - SQLite 单文件存储，默认数据文件为 `chatdock.sqlite`。
 - OpenAI Chat Completions 兼容接口。
 - 可配置 Base URL / API Key / Model / System Prompt。
@@ -24,7 +24,11 @@ ChatDock 是一个自用的轻量 AI 对话中控台，目标是：提示词可�
 chatdock/
 ├── cmd/chatdock/          # 程序入口
 ├── internal/chatdock/     # 后端核心代码
-├── web/                   # 静态前端：index.html + app.css + app.js + markdown.js + mcp.js
+├── web/                   # Vite/React 前端源码、构建脚本和 Go embed 包
+│   ├── src/               # 前端源码；legacy/ 保留当前 UI 逻辑，后续可逐步 React 化
+│   ├── dist/              # 生产构建产物，由 make web-build 生成，不提交
+│   ├── embed.go           # //go:embed dist，供 Go 后端托管
+│   └── package.json
 ├── deploy/                # launchd 示例
 ├── Dockerfile
 ├── compose.yaml
@@ -49,18 +53,29 @@ http://127.0.0.1:8720
 ```bash
 CHATDOCK_ADDR=:8720
 CHATDOCK_DATA=~/.config/chatdock   # 可选；默认使用系统用户配置目录下的 chatdock
-CHATDOCK_WEB=web
-CHATDOCK_AUTH_TOKEN=your-token    # 可选；设置后 API 需要 Bearer Token
+CHATDOCK_WEB=/path/to/web/dist     # 可选；为空时使用二进制内嵌的 web/dist
+CHATDOCK_AUTH_TOKEN=your-token     # 可选；设置后 API/MCP 需要 Bearer Token，静态前端仍可访问
 ```
 
-## 构建与验证
+## 前后端一体化构建
+
+ChatDock 采用类似 Memos 的一体化部署方式：
+
+1. `web/src` 通过 Vite/React 构建到 `web/dist`。
+2. `web/embed.go` 使用 `//go:embed dist` 将构建产物嵌入 Go 二进制。
+3. Go `net/http` 在同一个端口下托管静态前端、后端 API 和 MCP 相关能力。
+4. 非 `/api`、非 `/mcp` 的页面路径会 fallback 到 `index.html`，支持 SPA 前端路由；API/MCP 缺失路由保持后端 404。
+
+常用命令：
 
 ```bash
-make fmt
-make check
+make web-build   # 安装/校验前端依赖并生成 web/dist
+make build       # 构建内嵌前端的单个 Go 二进制
+make run         # 先构建前端，再 go run
+make check       # fmt-check + vet + test + build
 ```
 
-`make check` 会执行：`fmt-check`、`go vet ./...`、`go test ./...`、`go build`。
+`make check` 会先生成前端 dist，再执行：`fmt-check`、`go vet ./...`、`go test ./...`、`go build`。如果只想调试磁盘静态目录，可以设置 `CHATDOCK_WEB=/path/to/web/dist` 覆盖内嵌资源。
 
 ## 数据存储
 
@@ -113,10 +128,16 @@ ChatDock 使用 SQLite 作为持久化存储，默认数据库路径为：
 
 ## Docker Compose
 
+Dockerfile 是自包含多阶段构建：先用 Node 构建 Vite/React 前端，再用 Go 编译嵌入前端资源的二进制，最终镜像只包含运行时二进制和数据目录。
+
 ```bash
-docker compose up -d --build
+docker-compose up -d --build
 curl http://127.0.0.1:8720/api/health
 ```
+
+如果你的 Docker CLI 已启用 Compose 插件，也可以使用 `docker compose up -d --build`。
+
+Compose 不需要再挂载或配置 `CHATDOCK_WEB`，前端页面、后端 API 和 MCP 相关能力都运行在 `8720` 同一个端口。
 
 ## macOS launchd
 

@@ -549,25 +549,39 @@ func (s *Store) loadSessionsLocked() error {
 }
 
 func (s *Store) listPrompts(active string) ([]PromptSpace, error) {
+	type promptRow struct {
+		name       string
+		createdRaw string
+		updatedRaw string
+	}
 	rows, err := s.db.Query(`SELECT name, created_at, updated_at FROM prompts`)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	items := []PromptSpace{}
+	promptRows := []promptRow{}
 	for rows.Next() {
-		var name, createdRaw, updatedRaw string
-		if err := rows.Scan(&name, &createdRaw, &updatedRaw); err != nil {
+		var row promptRow
+		if err := rows.Scan(&row.name, &row.createdRaw, &row.updatedRaw); err != nil {
+			_ = rows.Close()
 			return nil, err
 		}
-		item, err := s.promptSummaryFromDB(name, active, createdRaw, updatedRaw)
+		promptRows = append(promptRows, row)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+
+	items := []PromptSpace{}
+	for _, row := range promptRows {
+		item, err := s.promptSummaryFromDB(row.name, active, row.createdRaw, row.updatedRaw)
 		if err != nil {
 			return nil, err
 		}
 		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
 	}
 	sort.Slice(items, func(i, j int) bool {
 		if items[i].Name == defaultPromptName {

@@ -92,6 +92,7 @@ func (s *Store) UpdateScheduledTask(id string, input ScheduledTaskRequest) (Sche
 	next.SessionID = tasks[index].SessionID
 	next.Running = tasks[index].Running
 	next.LastRunAt = tasks[index].LastRunAt
+	next.LastStatus = tasks[index].LastStatus
 	next.LastError = tasks[index].LastError
 	next.CreatedAt = tasks[index].CreatedAt
 	if next.CreatedAt.IsZero() {
@@ -274,8 +275,10 @@ func (s *Store) FinishScheduledTaskRun(promptName string, taskID string, session
 		task.LastRunAt = &startedAt
 		task.UpdatedAt = time.Now()
 		if runErr != nil {
+			task.LastStatus = "failed"
 			task.LastError = runErr.Error()
 		} else {
+			task.LastStatus = "success"
 			task.LastError = ""
 		}
 		if !manual {
