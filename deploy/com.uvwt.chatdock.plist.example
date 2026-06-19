@@ -11,7 +11,6 @@
   <dict>
     <key>CHATDOCK_ADDR</key><string>127.0.0.1:8720</string>
     <key>CHATDOCK_DATA</key><string>/Users/xx/chatdock-data</string>
-    <key>CHATDOCK_WEB</key><string>/Users/xx/agentdock-runtime/workspace/Project/chatdock/web</string>
   </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>

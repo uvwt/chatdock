@@ -72,10 +72,11 @@ ChatDock 采用类似 Memos 的一体化部署方式：
 make web-build   # 安装/校验前端依赖并生成 web/dist
 make build       # 构建内嵌前端的单个 Go 二进制
 make run         # 先构建前端，再 go run
-make check       # fmt-check + vet + test + build
+make js-check    # 检查前端 legacy JS 分片语法和 data-action 覆盖
+make check       # fmt-check + js-check + vet + test + build
 ```
 
-`make check` 会先生成前端 dist，再执行：`fmt-check`、`go vet ./...`、`go test ./...`、`go build`。如果只想调试磁盘静态目录，可以设置 `CHATDOCK_WEB=/path/to/web/dist` 覆盖内嵌资源。
+`make check` 会先检查前端 legacy JS 分片语法和 data-action 覆盖，再生成前端 dist，并执行：`fmt-check`、`go vet ./...`、`go test ./...`、`go build`。如果只想调试磁盘静态目录，可以设置 `CHATDOCK_WEB=/path/to/web/dist` 覆盖内嵌资源。
 
 ## 数据存储
 
@@ -139,6 +140,10 @@ curl http://127.0.0.1:8720/api/health
 
 Compose 不需要再挂载或配置 `CHATDOCK_WEB`，前端页面、后端 API 和 MCP 相关能力都运行在 `8720` 同一个端口。
 
+### 生产部署说明
+
+仓库 `compose.yaml` 是本地自托管示例，默认把当前目录的 `./data` 挂载到容器 `/data`。当前 Mac mini 生产实例使用外置盘数据目录 `/Volumes/KIOXIA/Docker/chatdock/data`，且外置盘 compose 文件在自动化工具中可能出现 `Interrupted system call`。生产更新时应先确认外置盘路径稳定；如果 compose 文件不可稳定读写，可采用“继承旧容器环境变量、替换 `chatdock:local` 容器、继续挂载外置盘 data”的手动容器替换流程。
+
 ## macOS launchd
 
 先构建：
@@ -147,7 +152,7 @@ Compose 不需要再挂载或配置 `CHATDOCK_WEB`，前端页面、后端 API �
 make build
 ```
 
-复制并按实际路径修改：
+复制并按实际路径修改。默认使用二进制内嵌的 `web/dist`，不需要配置 `CHATDOCK_WEB`；只有调试磁盘静态目录时才额外设置 `CHATDOCK_WEB=/path/to/web/dist`。
 
 ```bash
 cp deploy/com.uvwt.chatdock.plist.example ~/Library/LaunchAgents/com.uvwt.chatdock.plist

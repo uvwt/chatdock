@@ -1,7 +1,7 @@
 APP := chatdock
 WEB_DIR := web
 
-.PHONY: run build web-deps web-build test vet fmt fmt-check check clean
+.PHONY: run build web-deps web-build js-check test vet fmt fmt-check check clean
 
 run: web-build
 	go run ./cmd/chatdock
@@ -22,6 +22,10 @@ web-deps:
 web-build: web-deps
 	npm --prefix $(WEB_DIR) run build
 
+js-check: web-deps
+	@for f in $(WEB_DIR)/src/legacy/*.js; do node --check "$$f" || exit 1; done
+	node scripts/check-actions.js
+
 test: web-build
 	go test ./...
 
@@ -31,7 +35,7 @@ vet: web-build
 fmt-check:
 	test -z "$$(gofmt -l cmd internal web/*.go)"
 
-check: fmt-check vet test build
+check: fmt-check js-check vet test build
 
 fmt:
 	gofmt -w cmd internal web/*.go
