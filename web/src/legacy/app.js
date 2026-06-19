@@ -43,6 +43,17 @@ function fmtBytes(value) {
   return (n / 1024 / 1024).toFixed(1) + ' MB';
 }
 
+function toggleSettingsPanel(force) {
+  const appEl = document.getElementById('app');
+  const mask = document.getElementById('settingsMask');
+  if (!appEl) return;
+  const next = typeof force === 'boolean' ? force : !appEl.classList.contains('settings-open');
+  appEl.classList.toggle('settings-open', next);
+  if (mask) mask.classList.toggle('show', next);
+}
+
+function closeSettingsPanel() { toggleSettingsPanel(false); }
+
 function switchSettingsModule(name) {
   document.querySelectorAll('.module-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.module === name));
   document.querySelectorAll('.module-view').forEach(view => view.classList.toggle('active', view.dataset.moduleView === name));
@@ -469,7 +480,8 @@ async function saveMCPConfig() {
 }
 
 async function saveConfig() {
-  await api('/api/config', {method:'POST', body: JSON.stringify({
+  const workspaceID = promptSelector.value || 'default';
+  await api('/api/workspaces/' + encodeURIComponent(workspaceID) + '/config', {method:'POST', body: JSON.stringify({
     base_url: base_url.value,
     api_key: api_key.value,
     model: model.value,
@@ -482,7 +494,7 @@ async function saveConfig() {
   api_key.value = '';
   await loadConfig();
   await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadSystemStatus()]);
-  alert('已保存');
+  alert('已保存到工作空间：' + workspaceID);
 }
 
 async function loadSessions() {
