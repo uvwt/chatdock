@@ -14,5 +14,7 @@ var skillItems = [];
 var scheduledTaskItems = [];
 var workspaceItems = [];
 var providerItems = [];
+var runItems = [];
+var agentTaskItems = [];
 var dataStatusCache = null;
 var delegatedActionsReady = false;

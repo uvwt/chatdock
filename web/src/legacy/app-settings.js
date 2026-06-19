@@ -8,7 +8,7 @@ function fmtBytes(value) {
   return (n / 1024 / 1024).toFixed(1) + ' MB';
 }
 
-const settingsModules = ['workspace', 'model', 'skills', 'tools', 'automation', 'data', 'security'];
+const settingsModules = ['workspace', 'model', 'skills', 'tools', 'runs', 'agent', 'automation', 'data', 'security'];
 
 function normalizeSettingsModule(name) {
   return settingsModules.includes(name) ? name : 'workspace';
@@ -91,6 +91,8 @@ function switchSettingsModule(name, options={}) {
   if (options.lazyLoad === false) return;
   window.requestAnimationFrame(() => {
     if (moduleName === 'tools') loadMCPStatus();
+    if (moduleName === 'runs') loadRuns();
+    if (moduleName === 'agent') loadAgentTasks();
     if (moduleName === 'data') loadDataStatus();
     if (moduleName === 'security') loadSystemStatus();
   });

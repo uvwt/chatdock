@@ -416,7 +416,7 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	answer, err := a.completeWithOptionalTools(r.Context(), cfg, history)
+	answer, err := a.completeWithOptionalTools(r.Context(), input.SessionID, cfg, history)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err)
 		return
@@ -464,7 +464,7 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 
-	answer, err := a.streamWithOptionalTools(r.Context(), cfg, history, func(event string, value any) error {
+	answer, err := a.streamWithOptionalTools(r.Context(), input.SessionID, cfg, history, func(event string, value any) error {
 		return writeSSE(w, flusher, event, value)
 	})
 	if err != nil {
@@ -483,32 +483,12 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 	_ = writeSSE(w, flusher, "done", map[string]any{"session": session})
 }
 
-func (a *App) completeWithOptionalTools(ctx context.Context, cfg ModelConfig, history []Message) (string, error) {
-	mcpCfg, err := a.activeMCPConfig()
-	if err != nil || len(mcpCfg.Servers) == 0 {
-		return a.client.Complete(ctx, cfg, history)
-	}
-	tools, err := a.mcpClient.ListTools(ctx, mcpCfg)
-	if err != nil || len(tools) == 0 {
-		return a.client.Complete(ctx, cfg, history)
-	}
-	return a.client.CompleteWithMCPTools(ctx, cfg, history, tools, func(name string, args map[string]any) (any, error) {
-		return a.mcpClient.CallTool(ctx, mcpCfg, name, args)
-	})
+func (a *App) completeWithOptionalTools(ctx context.Context, sessionID string, cfg ModelConfig, history []Message) (string, error) {
+	return a.completeWithRecordedTools(ctx, sessionID, cfg, history, nil)
 }
 
-func (a *App) streamWithOptionalTools(ctx context.Context, cfg ModelConfig, history []Message, emit func(string, any) error) (string, error) {
-	mcpCfg, err := a.activeMCPConfig()
-	if err != nil || len(mcpCfg.Servers) == 0 {
-		return a.client.Stream(ctx, cfg, history, func(delta StreamDelta) error { return emit("delta", delta) })
-	}
-	tools, err := a.mcpClient.ListTools(ctx, mcpCfg)
-	if err != nil || len(tools) == 0 {
-		return a.client.Stream(ctx, cfg, history, func(delta StreamDelta) error { return emit("delta", delta) })
-	}
-	return a.client.CompleteWithMCPToolsEvents(ctx, cfg, history, tools, func(name string, args map[string]any) (any, error) {
-		return a.mcpClient.CallTool(ctx, mcpCfg, name, args)
-	}, emit)
+func (a *App) streamWithOptionalTools(ctx context.Context, sessionID string, cfg ModelConfig, history []Message, emit func(string, any) error) (string, error) {
+	return a.completeWithRecordedTools(ctx, sessionID, cfg, history, emit)
 }
 
 func isClientCanceled(ctx context.Context, err error) bool {

@@ -174,3 +174,47 @@ func TestStoreCloseClosesSQLiteConnection(t *testing.T) {
 		t.Fatal("closed store should clear sqlite connection")
 	}
 }
+
+func TestStoreMCPRunsAndAgentTasks(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run, err := store.StartMCPRun("session-1", "test run")
+	if err != nil {
+		t.Fatal(err)
+	}
+	args := map[string]any{"action": "create", "title": "ChatDock MCP"}
+	result := map[string]any{"ok": true, "task_id": "task-1", "status": "active"}
+	if _, err := store.AddMCPRunEvent(run.ID, runEventInput{Kind: "tool_call", Status: "success", Tool: "DockMini__task_manage", Arguments: args, Result: result}); err != nil {
+		t.Fatal(err)
+	}
+	finished, err := store.FinishMCPRun(run.ID, "success", "done", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finished.Status != "success" || finished.EventCount != 1 {
+		t.Fatalf("unexpected finished run: %#v", finished)
+	}
+	runs, err := store.ListMCPRuns("", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(runs.Runs) != 1 || runs.Runs[0].ID != run.ID {
+		t.Fatalf("unexpected runs: %#v", runs.Runs)
+	}
+	detail, err := store.MCPRunDetail(run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(detail.Events) != 1 || detail.Events[0].Tool != "task_manage" || detail.Events[0].Server != "DockMini" {
+		t.Fatalf("unexpected run detail: %#v", detail)
+	}
+	tasks, err := store.ListAgentTasks(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tasks.Tasks) != 1 || tasks.Tasks[0].ID != "task-1" || tasks.Tasks[0].Status != "active" {
+		t.Fatalf("unexpected agent tasks: %#v", tasks.Tasks)
+	}
+}

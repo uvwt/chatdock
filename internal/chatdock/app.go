@@ -126,7 +126,7 @@ func (a *App) executeScheduledTask(ctx context.Context, promptName string, id st
 	if err != nil {
 		return ScheduledTaskRunResponse{}, err
 	}
-	answer, runErr := a.completeWithOptionalTools(ctx, run.Config, run.History)
+	answer, runErr := a.completeWithOptionalTools(ctx, run.SessionID, run.Config, run.History)
 	result, finishErr := a.store.FinishScheduledTaskRun(run.PromptName, run.Task.ID, run.SessionID, answer, startedAt, manual, runErr)
 	if finishErr != nil {
 		return ScheduledTaskRunResponse{}, finishErr
@@ -173,6 +173,9 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/mcp/status", a.handleMCPStatus)
 	mux.HandleFunc("GET /api/mcp/test", a.handleTestMCPServer)
 	mux.HandleFunc("POST /api/mcp/call", a.handleCallMCPTool)
+	mux.HandleFunc("GET /api/runs", a.handleListRuns)
+	mux.HandleFunc("GET /api/runs/{id}", a.handleRunDetail)
+	mux.HandleFunc("GET /api/agent-tasks", a.handleListAgentTasks)
 	mux.HandleFunc("GET /api/skills", a.handleListSkills)
 	mux.HandleFunc("POST /api/skills", a.handleCreateSkill)
 	mux.HandleFunc("/api/skills/", a.handleSkillRoute)

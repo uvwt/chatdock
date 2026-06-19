@@ -170,6 +170,11 @@ const clickActionHandlers = {
   'mcp-reload': () => loadMCPConfig(),
   'mcp-test': () => testMCP(),
 
+  // MCP 执行与 Agent 任务动作
+  'runs-load': () => loadRuns(),
+  'agent-tasks-load': () => loadAgentTasks(),
+  'agent-task-continue': target => continueAgentTask(target.dataset.id || ''),
+
   // 自动化任务动作
   'task-create': () => editScheduledTask(),
   'task-run': target => runScheduledTaskNow(target.dataset.id || ''),

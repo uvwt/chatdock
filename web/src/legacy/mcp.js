@@ -16,3 +16,10 @@ function renderToolEvent(kind, data) {
   const suffix = kind === 'start' ? '开始调用' : (data.ok ? '调用完成' : '调用失败');
   return '<div class="tool-event">🔧 ' + suffix + '：' + name + '</div>';
 }
+
+function renderRunTimelineEvent(data) {
+  const label = escapeHtml(data.summary || data.tool || 'MCP 工具事件');
+  const status = escapeHtml(runStatusLabel(data.status || ''));
+  const meta = [data.server, data.action, fmtDuration(data.duration_ms)].filter(Boolean).join(' · ');
+  return '<div class="tool-event run-event-inline">🧭 ' + label + '<div class="tool-event-meta">' + status + (meta ? ' · ' + escapeHtml(meta) : '') + '</div></div>';
+}

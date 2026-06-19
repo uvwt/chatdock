@@ -54,6 +54,8 @@ export const pageHtml = `
       <button class="module-tab" data-module="model" data-action="settings-module">模型</button>
       <button class="module-tab" data-module="skills" data-action="settings-module">技能库</button>
       <button class="module-tab" data-module="tools" data-action="settings-module">工具中心</button>
+      <button class="module-tab" data-module="runs" data-action="settings-module">执行记录</button>
+      <button class="module-tab" data-module="agent" data-action="settings-module">Agent 任务</button>
       <button class="module-tab" data-module="automation" data-action="settings-module">自动化</button>
       <button class="module-tab" data-module="data" data-action="settings-module">数据</button>
       <button class="module-tab" data-module="security" data-action="settings-module">安全</button>
@@ -108,6 +110,18 @@ export const pageHtml = `
         <button class="secondary" data-action="mcp-reload">重新加载 MCP</button>
         <button class="secondary" data-action="mcp-test">测试默认 MCP</button>
       </div>
+    </div>
+
+    <div class="module-view" data-module-view="runs">
+      <div class="settings-block-head"><label>MCP 执行记录</label><button class="secondary small" data-action="runs-load">刷新</button></div>
+      <div class="hint">通用 MCP 工具调用时间线。AgentDock 工具会额外提取任务语义。</div>
+      <div id="runCards" class="tasks-list"><div class="hint">正在加载执行记录...</div></div>
+    </div>
+
+    <div class="module-view" data-module-view="agent">
+      <div class="settings-block-head"><label>AgentDock 任务</label><button class="secondary small" data-action="agent-tasks-load">刷新</button></div>
+      <div class="hint">基于 AgentDock task_manage 调用提取的任务状态，不替代底层 MCP 执行记录。</div>
+      <div id="agentTaskCards" class="tasks-list"><div class="hint">正在加载 Agent 任务...</div></div>
     </div>
 
     <div class="module-view" data-module-view="automation">

@@ -200,6 +200,11 @@ async function sendMsg() {
         if (activeAssistantEl) activeAssistantEl.insertAdjacentHTML('beforeend', renderToolEvent('start', data));
       } else if (event === 'tool_call_result') {
         if (activeAssistantEl) activeAssistantEl.insertAdjacentHTML('beforeend', renderToolEvent('result', data));
+      } else if (event === 'run_event') {
+        if (activeAssistantEl) activeAssistantEl.insertAdjacentHTML('beforeend', renderRunTimelineEvent(data));
+      } else if (event === 'run_finish') {
+        loadRuns().catch(() => {});
+        loadAgentTasks().catch(() => {});
       } else if (event === 'done') {
         finalSession = data.session;
       } else if (event === 'error') {
@@ -211,6 +216,7 @@ async function sendMsg() {
       pendingDelta = '';
       pendingReasoning = '';
       await loadSessions();
+      await Promise.allSettled([loadRuns(), loadAgentTasks()]);
     }
   } catch (e) {
     if (activeAbortController && activeAbortController.signal.aborted) {

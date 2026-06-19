@@ -11,6 +11,7 @@ import appSettingsSource from './legacy/app-settings.js?raw';
 import appConfigSource from './legacy/app-config.js?raw';
 import appSkillsSource from './legacy/app-skills.js?raw';
 import appTasksSource from './legacy/app-tasks.js?raw';
+import appRunsSource from './legacy/app-runs.js?raw';
 import appChatSource from './legacy/app-chat.js?raw';
 import appWorkspacesSource from './legacy/app-workspaces.js?raw';
 import appBootSource from './legacy/app-boot.js?raw';
@@ -25,6 +26,7 @@ const legacySources = [
   appConfigSource,
   appSkillsSource,
   appTasksSource,
+  appRunsSource,
   appChatSource,
   appWorkspacesSource,
   appBootSource,
