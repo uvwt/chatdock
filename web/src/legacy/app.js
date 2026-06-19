@@ -248,6 +248,7 @@ async function ensureAuthenticated() {
 async function startApp() {
   initTheme();
   initSidebar();
+  initSettingsRoute();
   try {
     const ok = await ensureAuthenticated();
     if (!ok) return;
@@ -266,23 +267,92 @@ function fmtBytes(value) {
   return (n / 1024 / 1024).toFixed(1) + ' MB';
 }
 
-function toggleSettingsPanel(force) {
+const settingsModules = ['workspace', 'model', 'skills', 'tools', 'automation', 'data', 'security'];
+
+function normalizeSettingsModule(name) {
+  return settingsModules.includes(name) ? name : 'workspace';
+}
+
+function activeSettingsModule() {
+  const active = document.querySelector('.module-tab.active');
+  return normalizeSettingsModule((active || {}).dataset ? active.dataset.module : localStorage.getItem('chatdock.settingsModule'));
+}
+
+function settingsModuleFromPath() {
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  if (parts[0] !== 'settings') return '';
+  return normalizeSettingsModule(parts[1] || localStorage.getItem('chatdock.settingsModule') || 'workspace');
+}
+
+function replaceRoute(path) {
+  if (window.history && window.history.replaceState && window.location.pathname !== path) {
+    window.history.replaceState({chatdock: true}, '', path);
+  }
+}
+
+function pushRoute(path) {
+  if (window.history && window.history.pushState && window.location.pathname !== path) {
+    window.history.pushState({chatdock: true}, '', path);
+  }
+}
+
+function initSettingsRoute() {
+  if (!window.history || !window.history.pushState) return;
+  const routeModule = settingsModuleFromPath();
+  if (routeModule) {
+    switchSettingsModule(routeModule, {syncRoute: false, lazyLoad: false});
+    toggleSettingsPanel(true, {syncRoute: false});
+    replaceRoute('/settings/' + routeModule);
+  } else {
+    const savedModule = normalizeSettingsModule(localStorage.getItem('chatdock.settingsModule') || 'workspace');
+    switchSettingsModule(savedModule, {syncRoute: false, lazyLoad: false});
+  }
+  window.addEventListener('popstate', syncSettingsFromRoute);
+}
+
+function syncSettingsFromRoute() {
+  const routeModule = settingsModuleFromPath();
+  if (routeModule) {
+    switchSettingsModule(routeModule, {syncRoute: false});
+    toggleSettingsPanel(true, {syncRoute: false});
+  } else {
+    toggleSettingsPanel(false, {syncRoute: false});
+  }
+}
+
+function returnToChat() {
+  toggleSettingsPanel(false);
+}
+
+function toggleSettingsPanel(force, options={}) {
   const appEl = document.getElementById('app');
   const mask = document.getElementById('settingsMask');
   if (!appEl) return;
   const next = typeof force === 'boolean' ? force : !appEl.classList.contains('settings-open');
   appEl.classList.toggle('settings-open', next);
   if (mask) mask.classList.toggle('show', next);
+  if (next) {
+    closeSidebarOnMobile();
+    if (options.syncRoute !== false) pushRoute('/settings/' + activeSettingsModule());
+  } else if (options.syncRoute !== false) {
+    pushRoute('/');
+  }
 }
 
 function closeSettingsPanel() { toggleSettingsPanel(false); }
 
-function switchSettingsModule(name) {
-  document.querySelectorAll('.module-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.module === name));
-  document.querySelectorAll('.module-view').forEach(view => view.classList.toggle('active', view.dataset.moduleView === name));
-  if (name === 'tools') loadMCPStatus();
-  if (name === 'data') loadDataStatus();
-  if (name === 'security') loadSystemStatus();
+function switchSettingsModule(name, options={}) {
+  const moduleName = normalizeSettingsModule(name);
+  localStorage.setItem('chatdock.settingsModule', moduleName);
+  document.querySelectorAll('.module-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.module === moduleName));
+  document.querySelectorAll('.module-view').forEach(view => view.classList.toggle('active', view.dataset.moduleView === moduleName));
+  if (options.syncRoute !== false) pushRoute('/settings/' + moduleName);
+  if (options.lazyLoad === false) return;
+  window.requestAnimationFrame(() => {
+    if (moduleName === 'tools') loadMCPStatus();
+    if (moduleName === 'data') loadDataStatus();
+    if (moduleName === 'security') loadSystemStatus();
+  });
 }
 
 async function refreshProductState() {

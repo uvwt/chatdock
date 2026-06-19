@@ -503,3 +503,77 @@
     max-width: none;
   }
 }
+
+/* 移动端配置中心交互优化 */
+button,
+select,
+input,
+textarea,
+.module-tab,
+.session,
+.product-card {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.settings,
+aside,
+.messages {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.settings-header-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.module-tab {
+  min-height: 40px;
+}
+
+@media (max-width: 980px) {
+  .settings-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding-bottom: 10px;
+    background: #0f172a;
+  }
+
+  .theme-light .settings-header {
+    background: #ffffff;
+  }
+}
+
+@media (max-width: 720px) {
+  .settings {
+    padding: 18px 16px 96px;
+  }
+
+  .settings-header {
+    align-items: flex-start;
+  }
+
+  .settings-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-header-actions button {
+    min-width: 76px;
+    min-height: 40px;
+  }
+
+  .module-tabs {
+    gap: 8px;
+  }
+
+  .module-tab {
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+}
