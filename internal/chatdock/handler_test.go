@@ -275,7 +275,7 @@ func TestSetupInitPersistsAcrossRestart(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("setup init status %d: %s", w.Code, w.Body.String())
 	}
-	if err := app.store.db.Close(); err != nil {
+	if err := app.Close(); err != nil {
 		t.Fatal(err)
 	}
 

@@ -64,6 +64,17 @@ func NewStore(dataDir string) (*Store, error) {
 	return store, nil
 }
 
+func (s *Store) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.db == nil {
+		return nil
+	}
+	err := s.db.Close()
+	s.db = nil
+	return err
+}
+
 func (s *Store) initSQLite() error {
 	stmts := []string{
 		`PRAGMA journal_mode = WAL`,

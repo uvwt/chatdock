@@ -54,6 +54,7 @@ func (a *App) ListenAndServe() error {
 	if err != nil {
 		return fmt.Errorf("listen %s failed: %w", a.cfg.Addr, err)
 	}
+	defer func() { _ = a.Close() }()
 
 	log.Printf("ChatDock listening on %s", displayListenURL(a.cfg.Addr))
 	log.Printf("ChatDock data dir: %s", a.cfg.DataDir)
@@ -61,6 +62,13 @@ func (a *App) ListenAndServe() error {
 	defer cancel()
 	go a.runScheduler(ctx)
 	return a.server.Serve(listener)
+}
+
+func (a *App) Close() error {
+	if a.store == nil {
+		return nil
+	}
+	return a.store.Close()
 }
 
 func (a *App) runScheduler(ctx context.Context) {
