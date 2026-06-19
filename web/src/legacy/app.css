@@ -247,3 +247,6 @@
   .top-actions .secondary:not(.config-toggle), .top-actions .danger { display: none; }
   .settings { width: 100vw; }
 }
+.error-state { text-align:left; margin-top:8px; }
+.error-state b { display:block; margin-bottom:6px; color:#fca5a5; }
+.theme-light .error-state b { color:#b91c1c; }

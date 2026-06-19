@@ -30,8 +30,26 @@ function authURL(path) {
 async function api(path, opt={}) {
   const res = await fetch(path, {...opt, headers: authHeaders({'Content-Type':'application/json', ...(opt.headers || {})})});
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || res.statusText);
+  if (!res.ok) {
+    const err = new Error(data.error || res.statusText);
+    err.status = res.status;
+    err.path = path;
+    throw err;
+  }
   return data;
+}
+
+function panelErrorHTML(error, retryCall) {
+  const unauthorized = error && error.status === 401;
+  const title = unauthorized ? '访问 Token 已失效或未设置' : '加载失败';
+  const message = unauthorized ? '页面已打开，但后端 API 需要新的 ChatDock 访问 Token。设置后会自动重新加载配置中心。' : (error.message || '请稍后重试');
+  return '<div class="empty compact error-state"><b>' + escapeHtml(title) + '</b><div class="hint">' + escapeHtml(message) + '</div><div class="settings-actions">' +
+    (unauthorized ? '<button class="small" onclick="setAuthToken()">设置 Token</button>' : '') +
+    '<button class="secondary small" onclick="' + retryCall + '">重试</button></div></div>';
+}
+
+function renderPanelError(target, error, retryCall) {
+  if (target) target.innerHTML = panelErrorHTML(error, retryCall);
 }
 
 function fmtTime(value) { try { return new Date(value).toLocaleString(); } catch { return ''; } }
@@ -67,7 +85,17 @@ async function refreshProductState() {
 }
 
 async function loadSetupStatus() {
-  const s = await api('/api/setup/status');
+  let s;
+  try {
+    s = await api('/api/setup/status');
+  } catch (e) {
+    if (setupBanner) {
+      setupBanner.classList.remove('ok');
+      setupBanner.classList.add('show');
+      setupBanner.innerHTML = panelErrorHTML(e, 'refreshProductState()');
+    }
+    return;
+  }
   if (!setupBanner) return;
   if (s.needs_setup) {
     setupBanner.classList.remove('ok');
@@ -98,9 +126,14 @@ async function runSetupWizard() {
 }
 
 async function loadWorkspaces() {
-  const data = await api('/api/workspaces');
-  workspaceItems = data.workspaces || [];
-  renderWorkspaces();
+  try {
+    const data = await api('/api/workspaces');
+    workspaceItems = data.workspaces || [];
+    renderWorkspaces();
+  } catch (e) {
+    workspaceItems = [];
+    renderPanelError(workspaceCards, e, 'loadWorkspaces()');
+  }
 }
 
 function renderWorkspaces() {
@@ -117,9 +150,14 @@ function renderWorkspaces() {
 }
 
 async function loadModelProviders() {
-  const data = await api('/api/model-providers');
-  providerItems = data.providers || [];
-  renderModelProviders();
+  try {
+    const data = await api('/api/model-providers');
+    providerItems = data.providers || [];
+    renderModelProviders();
+  } catch (e) {
+    providerItems = [];
+    renderPanelError(providerCards, e, 'loadModelProviders()');
+  }
 }
 
 function renderModelProviders() {
@@ -151,7 +189,14 @@ async function showPromptPreview() {
 }
 
 async function loadDataStatus() {
-  const data = await api('/api/data/status');
+  let data;
+  try {
+    data = await api('/api/data/status');
+  } catch (e) {
+    dataStatusCache = null;
+    renderPanelError(dataStatus, e, 'loadDataStatus()');
+    return;
+  }
   dataStatusCache = data;
   if (!dataStatus) return;
   dataStatus.innerHTML = [
@@ -165,7 +210,13 @@ async function loadDataStatus() {
 }
 
 async function loadSystemStatus() {
-  const data = await api('/api/system/status');
+  let data;
+  try {
+    data = await api('/api/system/status');
+  } catch (e) {
+    renderPanelError(systemStatus, e, 'loadSystemStatus()');
+    return;
+  }
   if (!systemStatus) return;
   systemStatus.innerHTML = '<div class="product-card"><div class="product-card-head"><div><b>ChatDock</b><div class="hint">' + escapeHtml(data.addr || '') + '</div></div><span class="badge">' + (data.ok ? 'healthy' : 'unknown') + '</span></div>' +
     '<div class="product-meta">Web：' + escapeHtml(data.web_dir || '-') + ' · DB：' + escapeHtml(data.database || '-') + ' · 当前工作空间：' + escapeHtml((data.setup || {}).active_workspace || '-') + '</div></div>';
@@ -246,7 +297,13 @@ function closeSidebarOnMobile() {
 }
 
 async function loadConfig() {
-  const c = await api('/api/config');
+  let c;
+  try {
+    c = await api('/api/config');
+  } catch (e) {
+    if (e.status === 401) api_key.placeholder = '访问 Token 已失效，请在安全页重新设置';
+    return;
+  }
   base_url.value = c.base_url || '';
   api_key.value = '';
   api_key.placeholder = c.has_api_key ? '已保存，留空不修改' : '未设置';
@@ -259,15 +316,26 @@ async function loadConfig() {
 }
 
 async function loadMCPConfig() {
-  const c = await api('/api/mcp-config');
+  let c;
+  try {
+    c = await api('/api/mcp-config');
+  } catch (e) {
+    if (mcp_config) mcp_config.value = e.status === 401 ? '访问 Token 已失效，请在安全页重新设置。' : ('加载失败：' + e.message);
+    return;
+  }
   const fallback = ['{', '  "servers": {}', '}'].join('\n') + '\n';
   mcp_config.value = c.content || fallback;
 }
 
 async function loadSkills() {
-  const data = await api('/api/skills');
-  skillItems = data.skills || [];
-  renderSkills();
+  try {
+    const data = await api('/api/skills');
+    skillItems = data.skills || [];
+    renderSkills();
+  } catch (e) {
+    skillItems = [];
+    renderPanelError(skills, e, 'loadSkills()');
+  }
 }
 
 function renderSkills() {
@@ -331,9 +399,14 @@ async function deleteSkill(id) {
 
 
 async function loadScheduledTasks() {
-  const data = await api('/api/scheduled-tasks');
-  scheduledTaskItems = data.tasks || [];
-  renderScheduledTasks();
+  try {
+    const data = await api('/api/scheduled-tasks');
+    scheduledTaskItems = data.tasks || [];
+    renderScheduledTasks();
+  } catch (e) {
+    scheduledTaskItems = [];
+    renderPanelError(scheduledTasks, e, 'loadScheduledTasks()');
+  }
 }
 
 function renderScheduledTasks() {
@@ -816,6 +889,12 @@ function setAuthToken() {
   if (next.trim()) localStorage.setItem('chatdock.authToken', next.trim());
   else localStorage.removeItem('chatdock.authToken');
   alert(next.trim() ? 'Token 已保存到浏览器本地' : 'Token 已清除');
+  refreshProductState();
+  loadConfig();
+  loadMCPConfig();
+  loadSkills();
+  loadScheduledTasks();
+  loadSessions();
 }
 
 initTheme();
