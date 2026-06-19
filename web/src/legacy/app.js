@@ -107,6 +107,10 @@ function showAppDialog(config={}) {
   });
 }
 
+function inlineJSArg(value) {
+  return escapeHtml(JSON.stringify(String(value ?? '')));
+}
+
 function appDialogFieldHTML(field) {
   const name = escapeHtml(field.name || 'field');
   const label = escapeHtml(field.label || field.name || '');
@@ -440,8 +444,8 @@ function workspaceActionsHTML(ws) {
   const name = escapeHtml(ws.name || ws.id || '');
   const canDelete = (ws.id || ws.name) !== 'default' && workspaceItems.length > 1;
   return '<div class="product-actions">' +
-    '<button class="secondary small" onclick="selectWorkspace(\'' + id + '\')">切换到此工作空间</button>' +
-    (canDelete ? '<button class="danger small" onclick="deleteWorkspace(\'' + id + '\', \'' + name + '\')">删除</button>' : '') +
+    '<button class="secondary small" onclick="selectWorkspace(' + inlineJSArg(id) + ')">切换到此工作空间</button>' +
+    (canDelete ? '<button class="danger small" onclick="deleteWorkspace(' + inlineJSArg(id) + ', ' + inlineJSArg(name) + ')">删除</button>' : '') +
   '</div>';
 }
 
