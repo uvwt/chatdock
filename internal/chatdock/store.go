@@ -147,6 +147,45 @@ func (s *Store) CreatePrompt(input CreatePromptRequest) (PromptResponse, error) 
 	return PromptResponse{Active: s.activePrompt, Prompts: prompts}, nil
 }
 
+func (s *Store) DeletePrompt(input SelectPromptRequest) (PromptResponse, error) {
+	name, err := normalizePromptName(input.Name)
+	if err != nil {
+		return PromptResponse{}, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if name == defaultPromptName {
+		return PromptResponse{}, fmt.Errorf("default workspace cannot be deleted")
+	}
+	if name == s.activePrompt {
+		return PromptResponse{}, fmt.Errorf("active workspace cannot be deleted")
+	}
+	exists, err := s.promptExistsLocked(name)
+	if err != nil {
+		return PromptResponse{}, err
+	}
+	if !exists {
+		return PromptResponse{}, fmt.Errorf("prompt not found: %s", name)
+	}
+	names, err := s.listPromptNamesLocked()
+	if err != nil {
+		return PromptResponse{}, err
+	}
+	if len(names) <= 1 {
+		return PromptResponse{}, fmt.Errorf("last workspace cannot be deleted")
+	}
+	if _, err := s.db.Exec(`DELETE FROM prompts WHERE name = ?`, name); err != nil {
+		return PromptResponse{}, err
+	}
+	prompts, err := s.listPromptsLocked()
+	if err != nil {
+		return PromptResponse{}, err
+	}
+	return PromptResponse{Active: s.activePrompt, Prompts: prompts}, nil
+}
+
 func (s *Store) SelectPrompt(input SelectPromptRequest) (PromptResponse, error) {
 	name, err := normalizePromptName(input.Name)
 	if err != nil {

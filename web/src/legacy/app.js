@@ -430,8 +430,31 @@ function renderWorkspaces() {
   workspaceCards.innerHTML = workspaceItems.map(ws => '<div class="product-card ' + (ws.active ? 'active' : '') + '">' +
     '<div class="product-card-head"><div><b>' + escapeHtml(ws.name) + '</b><div class="hint">' + escapeHtml(ws.description || '') + '</div></div><span class="badge">' + (ws.active ? '当前' : '可切换') + '</span></div>' +
     '<div class="product-meta">模型：' + escapeHtml(ws.model || '-') + ' · 会话 ' + (ws.session_count || 0) + ' · 技能 ' + (ws.enabled_skill_count || 0) + '/' + (ws.skill_count || 0) + ' · 任务 ' + (ws.task_count || 0) + '</div>' +
-    (!ws.active ? '<button class="secondary small" onclick="selectWorkspace(\'' + escapeHtml(ws.id) + '\')">切换到此工作空间</button>' : '') +
+    workspaceActionsHTML(ws) +
   '</div>').join('');
+}
+
+function workspaceActionsHTML(ws) {
+  if (!ws || ws.active) return '';
+  const id = escapeHtml(ws.id || ws.name || '');
+  const name = escapeHtml(ws.name || ws.id || '');
+  const canDelete = (ws.id || ws.name) !== 'default' && workspaceItems.length > 1;
+  return '<div class="product-actions">' +
+    '<button class="secondary small" onclick="selectWorkspace(\'' + id + '\')">切换到此工作空间</button>' +
+    (canDelete ? '<button class="danger small" onclick="deleteWorkspace(\'' + id + '\', \'' + name + '\')">删除</button>' : '') +
+  '</div>';
+}
+
+async function deleteWorkspace(id, name) {
+  if (!id) return;
+  const ok = await showChoice('删除工作空间', '确定删除工作空间「' + (name || id) + '」？这会删除该工作空间下的配置、技能、任务和会话。', {confirmText: '删除', danger: true});
+  if (!ok) return;
+  const data = await api('/api/workspaces/' + encodeURIComponent(id), {method:'DELETE'});
+  workspaceItems = data.workspaces || [];
+  renderWorkspaces();
+  await loadPrompts();
+  await Promise.allSettled([loadSetupStatus(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
+  showToast('工作空间已删除', 'success');
 }
 
 async function loadModelProviders() {

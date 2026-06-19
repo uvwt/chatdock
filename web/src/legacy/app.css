@@ -577,3 +577,72 @@ aside,
     font-size: 14px;
   }
 }
+
+/* 工作空间操作与移动端 tab 修正 */
+.product-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.module-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.module-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.module-tab {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 720px) {
+  .settings-header {
+    align-items: center;
+    gap: 10px;
+  }
+
+  .settings-header > div:first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .settings-header h2 {
+    font-size: 30px;
+    line-height: 1.15;
+  }
+
+  .settings-header-actions {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .settings-header-actions button {
+    min-width: 0;
+    min-height: 38px;
+    padding: 8px 10px;
+    white-space: nowrap;
+  }
+
+  .module-tabs {
+    margin: 10px -16px 14px;
+    padding: 0 16px 8px;
+  }
+
+  .module-tab {
+    min-height: 42px;
+    padding: 9px 14px;
+  }
+
+  .product-actions button {
+    min-height: 38px;
+  }
+}

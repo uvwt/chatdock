@@ -533,12 +533,29 @@ func (a *App) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleWorkspaceRoute(w http.ResponseWriter, r *http.Request) {
 	requestPath := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/workspaces/"), "/")
 	parts := strings.Split(requestPath, "/")
-	if len(parts) != 2 {
+	if len(parts) != 1 && len(parts) != 2 {
 		writeError(w, http.StatusNotFound, fmt.Errorf("workspace route not found"))
 		return
 	}
 
 	workspaceID := parts[0]
+	if len(parts) == 1 && r.Method == http.MethodDelete {
+		if _, err := a.store.DeletePrompt(SelectPromptRequest{Name: workspaceID}); err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		result, err := a.store.ListWorkspaces()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		writeJSONResponse(w, http.StatusOK, result)
+		return
+	}
+	if len(parts) != 2 {
+		writeError(w, http.StatusNotFound, fmt.Errorf("workspace route not found"))
+		return
+	}
 	// 配置中心使用 /api/workspaces 作为产品化资源入口；旧 /api/prompts 继续兼容侧栏提示词空间。
 	if parts[1] == "select" && r.Method == http.MethodPost {
 		if _, err := a.store.SelectPrompt(SelectPromptRequest{Name: workspaceID}); err != nil {

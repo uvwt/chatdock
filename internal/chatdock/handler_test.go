@@ -225,6 +225,40 @@ func TestWorkspaceResourceAPIs(t *testing.T) {
 	if cfg.Model != "demo-model" {
 		t.Fatalf("active config did not follow selected workspace: %#v", cfg)
 	}
+
+	r = httptest.NewRequest(http.MethodDelete, "/api/workspaces/default", nil)
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("delete default workspace should fail with 400, got %d", w.Code)
+	}
+
+	r = httptest.NewRequest(http.MethodPost, "/api/workspaces/default/select", bytes.NewReader([]byte(`{}`)))
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("select default before delete status %d: %s", w.Code, w.Body.String())
+	}
+
+	r = httptest.NewRequest(http.MethodDelete, "/api/workspaces/research", nil)
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("delete workspace status %d: %s", w.Code, w.Body.String())
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &spaces); err != nil {
+		t.Fatal(err)
+	}
+	if spaces.Active != "default" || len(spaces.Workspaces) != 1 || spaces.Workspaces[0].ID != "default" {
+		t.Fatalf("unexpected workspace response after delete: %#v", spaces)
+	}
+
+	r = httptest.NewRequest(http.MethodGet, "/api/workspaces/research/config", nil)
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("deleted workspace config should fail with 400, got %d", w.Code)
+	}
 }
 
 func TestSetupInitPersistsAcrossRestart(t *testing.T) {
