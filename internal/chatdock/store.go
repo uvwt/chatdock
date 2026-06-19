@@ -176,6 +176,8 @@ func (s *Store) DeletePrompt(input SelectPromptRequest) (PromptResponse, error) 
 	if len(names) <= 1 {
 		return PromptResponse{}, fmt.Errorf("last workspace cannot be deleted")
 	}
+	// prompt_kv 和 sessions 都声明了 ON DELETE CASCADE；删除 workspace 时必须只删 prompts 主表，
+	// 让 SQLite 在同一个连接内级联清理关联数据，避免前后端各自补删造成状态不一致。
 	if _, err := s.db.Exec(`DELETE FROM prompts WHERE name = ?`, name); err != nil {
 		return PromptResponse{}, err
 	}
