@@ -14,6 +14,7 @@ let scheduledTaskItems = [];
 let workspaceItems = [];
 let providerItems = [];
 let dataStatusCache = null;
+let delegatedActionsReady = false;
 
 let appDialogEl = null;
 let toastTimer = null;
@@ -107,8 +108,66 @@ function showAppDialog(config={}) {
   });
 }
 
-function inlineJSArg(value) {
-  return escapeHtml(JSON.stringify(String(value ?? '')));
+function dataAttr(value) {
+  return escapeHtml(String(value ?? ''));
+}
+
+function initDelegatedActions() {
+  if (delegatedActionsReady) return;
+  delegatedActionsReady = true;
+
+  // 动态列表统一走事件委托，避免把用户输入的 id/name 拼进事件字符串。
+  document.addEventListener('click', event => {
+    const target = event.target.closest('[data-action]');
+    if (!target || target.disabled) return;
+    handleDelegatedClick(target).catch(err => showToast(err.message || String(err), 'error'));
+  });
+  document.addEventListener('change', event => {
+    const target = event.target.closest('[data-action]');
+    if (!target) return;
+    handleDelegatedChange(target).catch(err => showToast(err.message || String(err), 'error'));
+  });
+}
+
+async function handleDelegatedClick(target) {
+  const id = target.dataset.id || '';
+  switch (target.dataset.action) {
+    case 'workspace-select':
+      await selectWorkspace(id);
+      return;
+    case 'workspace-delete':
+      await deleteWorkspace(id, target.dataset.name || id);
+      return;
+    case 'skill-edit':
+      await editSkill(id);
+      return;
+    case 'skill-delete':
+      await deleteSkill(id);
+      return;
+    case 'task-run':
+      await runScheduledTaskNow(id);
+      return;
+    case 'task-edit':
+      await editScheduledTask(id);
+      return;
+    case 'task-delete':
+      await deleteScheduledTask(id);
+      return;
+    case 'session-open':
+      await openSession(id);
+      return;
+  }
+}
+
+async function handleDelegatedChange(target) {
+  const id = target.dataset.id || '';
+  if (target.dataset.action === 'skill-toggle') {
+    await toggleSkill(id, target.checked);
+    return;
+  }
+  if (target.dataset.action === 'task-toggle') {
+    await toggleScheduledTask(id, target.checked);
+  }
 }
 
 function appDialogFieldHTML(field) {
@@ -253,6 +312,7 @@ async function startApp() {
   initTheme();
   initSidebar();
   initSettingsRoute();
+  initDelegatedActions();
   try {
     const ok = await ensureAuthenticated();
     if (!ok) return;
@@ -440,12 +500,12 @@ function renderWorkspaces() {
 
 function workspaceActionsHTML(ws) {
   if (!ws || ws.active) return '';
-  const id = escapeHtml(ws.id || ws.name || '');
-  const name = escapeHtml(ws.name || ws.id || '');
-  const canDelete = (ws.id || ws.name) !== 'default' && workspaceItems.length > 1;
+  const id = ws.id || ws.name || '';
+  const name = ws.name || ws.id || '';
+  const canDelete = id !== 'default' && workspaceItems.length > 1;
   return '<div class="product-actions">' +
-    '<button class="secondary small" onclick="selectWorkspace(' + inlineJSArg(id) + ')">切换到此工作空间</button>' +
-    (canDelete ? '<button class="danger small" onclick="deleteWorkspace(' + inlineJSArg(id) + ', ' + inlineJSArg(name) + ')">删除</button>' : '') +
+    '<button class="secondary small" data-action="workspace-select" data-id="' + dataAttr(id) + '">切换到此工作空间</button>' +
+    (canDelete ? '<button class="danger small" data-action="workspace-delete" data-id="' + dataAttr(id) + '" data-name="' + dataAttr(name) + '">删除</button>' : '') +
   '</div>';
 }
 
@@ -662,11 +722,11 @@ function renderSkills() {
       '<div><div class="skill-name">' + escapeHtml(s.name || '未命名技能') + '</div>' +
       '<div class="skill-desc">' + escapeHtml(s.description || '无描述') + '</div></div>' +
       '<div class="skill-actions">' +
-        '<button class="secondary small" onclick="editSkill(\'' + escapeHtml(s.id) + '\')">编辑</button>' +
-        '<button class="danger small" onclick="deleteSkill(\'' + escapeHtml(s.id) + '\')">删除</button>' +
+        '<button class="secondary small" data-action="skill-edit" data-id="' + dataAttr(s.id) + '">编辑</button>' +
+        '<button class="danger small" data-action="skill-delete" data-id="' + dataAttr(s.id) + '">删除</button>' +
       '</div>' +
     '</div>' +
-    '<label class="skill-toggle"><input type="checkbox" ' + (s.enabled ? 'checked' : '') + ' onchange="toggleSkill(\'' + escapeHtml(s.id) + '\', this.checked)" /> 启用</label>' +
+    '<label class="skill-toggle"><input type="checkbox" data-action="skill-toggle" data-id="' + dataAttr(s.id) + '" ' + (s.enabled ? 'checked' : '') + ' /> 启用</label>' +
   '</div>').join('');
 }
 
@@ -747,12 +807,12 @@ function renderScheduledTasks() {
       '<div class="task-desc">' + escapeHtml((t.prompt || '').slice(0, 120) || '无提示内容') + '</div></div>' +
       '<div class="task-actions">' +
         '<span class="badge ' + taskStatusClass(t) + '">' + taskStatusLabel(t) + '</span>' +
-        '<button class="secondary small" onclick="runScheduledTaskNow(\'' + escapeHtml(t.id) + '\')" ' + (t.running ? 'disabled' : '') + '>立即运行</button>' +
-        '<button class="secondary small" onclick="editScheduledTask(\'' + escapeHtml(t.id) + '\')">编辑</button>' +
-        '<button class="danger small" onclick="deleteScheduledTask(\'' + escapeHtml(t.id) + '\')">删除</button>' +
+        '<button class="secondary small" data-action="task-run" data-id="' + dataAttr(t.id) + '" ' + (t.running ? 'disabled' : '') + '>立即运行</button>' +
+        '<button class="secondary small" data-action="task-edit" data-id="' + dataAttr(t.id) + '">编辑</button>' +
+        '<button class="danger small" data-action="task-delete" data-id="' + dataAttr(t.id) + '">删除</button>' +
       '</div>' +
     '</div>' +
-    '<label class="task-toggle"><input type="checkbox" ' + (t.enabled ? 'checked' : '') + ' onchange="toggleScheduledTask(\'' + escapeHtml(t.id) + '\', this.checked)" /> 启用</label>' +
+    '<label class="task-toggle"><input type="checkbox" data-action="task-toggle" data-id="' + dataAttr(t.id) + '" ' + (t.enabled ? 'checked' : '') + ' /> 启用</label>' +
     '<div class="task-meta">' + scheduleSummary(t) + '</div>' +
     (t.last_error ? '<div class="task-error">上次错误：' + escapeHtml(t.last_error) + '</div>' : '') +
   '</div>').join('');
@@ -918,7 +978,7 @@ async function loadSessions() {
   const list = await api('/api/sessions');
   const q = ((document.getElementById('sessionSearch') || {}).value || '').trim().toLowerCase();
   const filtered = q ? list.filter(s => String(s.title || '').toLowerCase().includes(q)) : list;
-  sessions.innerHTML = filtered.map(s => '<div class="session ' + (current===s.id?'active':'') + '" onclick="openSession(\'' + s.id + '\')">' +
+  sessions.innerHTML = filtered.map(s => '<div class="session ' + (current===s.id?'active':'') + '" data-action="session-open" data-id="' + dataAttr(s.id) + '">' +
     '<div class="session-title">' + escapeHtml(s.title) + '</div>' +
     '<div class="session-meta">' + s.count + ' 条 · ' + fmtTime(s.updated_at) + '</div>' +
   '</div>').join('');
