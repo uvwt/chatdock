@@ -9,10 +9,12 @@ import (
 
 func main() {
 	cfg := chatdock.ServerConfig{
-		Addr:      getenv("CHATDOCK_ADDR", ":8720"),
-		DataDir:   getenv("CHATDOCK_DATA", defaultDataDir()),
-		WebDir:    os.Getenv("CHATDOCK_WEB"),
-		AuthToken: os.Getenv("CHATDOCK_AUTH_TOKEN"),
+		Addr:           getenv("CHATDOCK_ADDR", ":8720"),
+		DataDir:        getenv("CHATDOCK_DATA", defaultDataDir()),
+		WebDir:         os.Getenv("CHATDOCK_WEB"),
+		AuthToken:      os.Getenv("CHATDOCK_AUTH_TOKEN"),
+		AuthUsername:   os.Getenv("CHATDOCK_AUTH_USERNAME"),
+		AuthCredential: os.Getenv("CHATDOCK_AUTH_CREDENTIAL"),
 	}
 
 	app, err := chatdock.NewApp(cfg)

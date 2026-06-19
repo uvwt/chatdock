@@ -39,17 +39,53 @@ async function api(path, opt={}) {
   return data;
 }
 
+function loginFormHTML(error) {
+  const message = error ? (error.status === 401 ? '登录已过期，请重新登录。' : error.message) : '请输入 ChatDock 账号和密码。';
+  return '<form class="login-card" onsubmit="submitLogin(event)">' +
+    '<b>登录 ChatDock</b>' +
+    '<div class="hint">' + escapeHtml(message) + '</div>' +
+    '<label>账号</label><input id="login_username" autocomplete="username" placeholder="账号" />' +
+    '<label>密码</label><input id="login_credential" type="password" autocomplete="current-credential" placeholder="密码" />' +
+    '<div id="loginError" class="task-error"></div>' +
+    '<div class="settings-actions"><button type="submit" class="small">登录</button></div>' +
+  '</form>';
+}
+
 function panelErrorHTML(error, retryCall) {
-  const unauthorized = error && error.status === 401;
-  const title = unauthorized ? '访问 Token 已失效或未设置' : '加载失败';
-  const message = unauthorized ? '页面已打开，但后端 API 需要新的 ChatDock 访问 Token。设置后会自动重新加载配置中心。' : (error.message || '请稍后重试');
-  return '<div class="empty compact error-state"><b>' + escapeHtml(title) + '</b><div class="hint">' + escapeHtml(message) + '</div><div class="settings-actions">' +
-    (unauthorized ? '<button class="small" onclick="setAuthToken()">设置 Token</button>' : '') +
+  if (error && error.status === 401) return loginFormHTML(error);
+  return '<div class="empty compact error-state"><b>加载失败</b><div class="hint">' + escapeHtml(error.message || '请稍后重试') + '</div><div class="settings-actions">' +
     '<button class="secondary small" onclick="' + retryCall + '">重试</button></div></div>';
 }
 
 function renderPanelError(target, error, retryCall) {
   if (target) target.innerHTML = panelErrorHTML(error, retryCall);
+}
+
+function showLoginForm() {
+  if (!setupBanner) return;
+  setupBanner.classList.remove('ok');
+  setupBanner.classList.add('show');
+  setupBanner.innerHTML = loginFormHTML();
+  setupBanner.scrollIntoView({block: 'nearest'});
+}
+
+async function submitLogin(event) {
+  event.preventDefault();
+  const username = ((document.getElementById('login_username') || {}).value || '').trim();
+  const credential = ((document.getElementById('login_credential') || {}).value || '').trim();
+  const errorBox = document.getElementById('loginError');
+  if (errorBox) errorBox.textContent = '';
+  try {
+    const data = await api('/api/auth/login', {method:'POST', body: JSON.stringify({username, credential, token: credential})});
+    if (data.token) localStorage.setItem('chatdock.authToken', data.token);
+    await refreshAfterLogin();
+  } catch (e) {
+    if (errorBox) errorBox.textContent = '登录失败：' + e.message;
+  }
+}
+
+async function refreshAfterLogin() {
+  await Promise.allSettled([refreshProductState(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions()]);
 }
 
 function fmtTime(value) { try { return new Date(value).toLocaleString(); } catch { return ''; } }
@@ -882,19 +918,11 @@ async function createPromptSpace() {
 }
 
 
-function setAuthToken() {
-  const currentToken = localStorage.getItem('chatdock.authToken') || '';
-  const next = prompt('ChatDock 访问 Token（留空表示清除）：', currentToken);
-  if (next === null) return;
-  if (next.trim()) localStorage.setItem('chatdock.authToken', next.trim());
-  else localStorage.removeItem('chatdock.authToken');
-  alert(next.trim() ? 'Token 已保存到浏览器本地' : 'Token 已清除');
-  refreshProductState();
-  loadConfig();
-  loadMCPConfig();
-  loadSkills();
-  loadScheduledTasks();
-  loadSessions();
+function setAuthToken() { showLoginForm(); }
+
+function logout() {
+  localStorage.removeItem('chatdock.authToken');
+  showLoginForm();
 }
 
 initTheme();

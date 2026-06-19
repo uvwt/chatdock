@@ -3,6 +3,7 @@ package chatdock
 import (
 	"bytes"
 	"context"
+	"crypto/subtle"
 	"fmt"
 	"io/fs"
 	"log"
@@ -142,6 +143,8 @@ func (a *App) routes() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /api/health", a.handleHealth)
+	mux.HandleFunc("GET /api/auth/status", a.handleAuthStatus)
+	mux.HandleFunc("POST /api/auth/login", a.handleAuthLogin)
 	mux.HandleFunc("GET /api/setup/status", a.handleSetupStatus)
 	mux.HandleFunc("POST /api/setup/init", a.handleSetupInit)
 	mux.HandleFunc("GET /api/model-providers", a.handleListModelProviders)
@@ -177,6 +180,48 @@ func (a *App) routes() http.Handler {
 	mux.Handle("/", a.webHandler())
 
 	return logRequest(a.authMiddleware(mux))
+}
+
+func (a *App) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
+	username := strings.TrimSpace(a.cfg.AuthUsername)
+	writeJSONResponse(w, http.StatusOK, AuthStatusResponse{
+		Enabled:       strings.TrimSpace(a.cfg.AuthToken) != "",
+		LoginEnabled:  username != "" && strings.TrimSpace(a.cfg.AuthCredential) != "",
+		Username:      username,
+		TokenFallback: strings.TrimSpace(a.cfg.AuthToken) != "",
+	})
+}
+
+func (a *App) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
+	var input AuthLoginRequest
+	if err := readJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	token := strings.TrimSpace(a.cfg.AuthToken)
+	if token == "" {
+		writeJSONResponse(w, http.StatusOK, AuthLoginResponse{OK: true})
+		return
+	}
+
+	username := strings.TrimSpace(a.cfg.AuthUsername)
+	credential := strings.TrimSpace(a.cfg.AuthCredential)
+	if username != "" && credential != "" {
+		if subtle.ConstantTimeCompare([]byte(input.Username), []byte(username)) == 1 && subtle.ConstantTimeCompare([]byte(input.Credential), []byte(credential)) == 1 {
+			writeJSONResponse(w, http.StatusOK, AuthLoginResponse{OK: true, Token: token, Username: username})
+			return
+		}
+		writeError(w, http.StatusUnauthorized, fmt.Errorf("invalid login"))
+		return
+	}
+
+	// 兼容旧部署：尚未配置账号口令时，允许把现有访问令牌作为登录凭据。
+	if subtle.ConstantTimeCompare([]byte(strings.TrimSpace(input.Token)), []byte(token)) == 1 || subtle.ConstantTimeCompare([]byte(strings.TrimSpace(input.Credential)), []byte(token)) == 1 {
+		writeJSONResponse(w, http.StatusOK, AuthLoginResponse{OK: true, Token: token})
+		return
+	}
+	writeError(w, http.StatusUnauthorized, fmt.Errorf("invalid token"))
 }
 
 func (a *App) webHandler() http.Handler {
@@ -238,6 +283,10 @@ func isBackendRoute(requestPath string) bool {
 	return requestPath == "/api" || strings.HasPrefix(requestPath, "/api/") || requestPath == "/mcp" || strings.HasPrefix(requestPath, "/mcp/")
 }
 
+func isPublicBackendRoute(requestPath string) bool {
+	return requestPath == "/api/auth/status" || requestPath == "/api/auth/login"
+}
+
 func logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -252,7 +301,7 @@ func (a *App) authMiddleware(next http.Handler) http.Handler {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !isBackendRoute(r.URL.Path) {
+		if !isBackendRoute(r.URL.Path) || isPublicBackendRoute(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}

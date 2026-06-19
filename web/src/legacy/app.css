@@ -250,3 +250,8 @@
 .error-state { text-align:left; margin-top:8px; }
 .error-state b { display:block; margin-bottom:6px; color:#fca5a5; }
 .theme-light .error-state b { color:#b91c1c; }
+.login-card { text-align:left; margin-top:8px; padding:12px; border:1px dashed #334155; border-radius:14px; background:#020617; }
+.login-card b { display:block; margin-bottom:6px; color:#e5e7eb; }
+.login-card label { margin-top:10px; }
+.theme-light .login-card { background:#fff; border-color:#cbd5e1; }
+.theme-light .login-card b { color:#0f172a; }

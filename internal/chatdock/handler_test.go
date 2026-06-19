@@ -314,6 +314,89 @@ func TestSPAFallbackAndBackendBoundary(t *testing.T) {
 	}
 }
 
+func TestAuthLoginWithCredential(t *testing.T) {
+	webDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(webDir, "index.html"), []byte("<!doctype html><title>ChatDock</title>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: webDir, AuthToken: "server-token", AuthUsername: "admin", AuthCredential: "demo-value"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+
+	r := httptest.NewRequest(http.MethodGet, "/api/auth/status", nil)
+	w := httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("auth status %d: %s", w.Code, w.Body.String())
+	}
+	var status AuthStatusResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil {
+		t.Fatal(err)
+	}
+	if !status.Enabled || !status.LoginEnabled || status.Username != "admin" {
+		t.Fatalf("unexpected auth status: %#v", status)
+	}
+
+	r = httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewReader([]byte(`{"username":"admin","credential":"bad"}`)))
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("bad login status %d, want 401", w.Code)
+	}
+
+	r = httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewReader([]byte(`{"username":"admin","credential":"demo-value"}`)))
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("login status %d: %s", w.Code, w.Body.String())
+	}
+	var login AuthLoginResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &login); err != nil {
+		t.Fatal(err)
+	}
+	if !login.OK || login.Token != "server-token" || login.Username != "admin" {
+		t.Fatalf("unexpected login response: %#v", login)
+	}
+
+	r = httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	r.Header.Set("Authorization", "Bearer "+login.Token)
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("health after login %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestAuthLoginTokenFallback(t *testing.T) {
+	webDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(webDir, "index.html"), []byte("<!doctype html><title>ChatDock</title>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: webDir, AuthToken: "server-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+
+	r := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewReader([]byte(`{"credential":"server-token"}`)))
+	w := httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("fallback login status %d: %s", w.Code, w.Body.String())
+	}
+	var login AuthLoginResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &login); err != nil {
+		t.Fatal(err)
+	}
+	if login.Token != "server-token" {
+		t.Fatalf("fallback token mismatch: %#v", login)
+	}
+}
+
 func TestAuthProtectsBackendButNotEmbeddedWeb(t *testing.T) {
 	webDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(webDir, "index.html"), []byte("<!doctype html><title>ChatDock</title>"), 0o644); err != nil {
