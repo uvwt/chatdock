@@ -15,6 +15,126 @@ let workspaceItems = [];
 let providerItems = [];
 let dataStatusCache = null;
 
+let appDialogEl = null;
+let toastTimer = null;
+
+function closeAppDialog(value) {
+  if (!appDialogEl) return;
+  const resolve = appDialogEl.__resolve;
+  document.removeEventListener('keydown', appDialogEl.__onKeydown);
+  appDialogEl.remove();
+  appDialogEl = null;
+  if (resolve) resolve(value);
+}
+
+function showToast(message, variant='info') {
+  let toast = document.getElementById('appToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'appToast';
+    toast.className = 'app-toast';
+    document.body.appendChild(toast);
+  }
+  toast.className = 'app-toast show ' + (variant || 'info');
+  toast.textContent = message || '';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+}
+
+function showChoice(title, message, options={}) {
+  return showAppDialog({
+    title,
+    message,
+    variant: options.variant || 'info',
+    confirmText: options.confirmText || '确定',
+    cancelText: options.cancelText || '取消',
+    danger: !!options.danger,
+  });
+}
+
+function showFormDialog(options={}) {
+  return showAppDialog({...options, type: 'form', confirmText: options.confirmText || '保存'});
+}
+
+function showAppDialog(config={}) {
+  if (appDialogEl) closeAppDialog(null);
+  return new Promise(resolve => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'app-modal-backdrop show';
+    backdrop.__resolve = resolve;
+    const fields = config.fields || [];
+    const message = config.message ? '<div class="app-modal-message">' + escapeHtml(config.message) + '</div>' : '';
+    const fieldHTML = fields.map(appDialogFieldHTML).join('');
+    const cancelButton = config.hideCancel ? '' : '<button type="button" class="secondary app-modal-cancel">' + escapeHtml(config.cancelText || '取消') + '</button>';
+    const confirmClass = config.danger ? 'danger' : '';
+    backdrop.innerHTML = '<div class="app-modal-card ' + escapeHtml(config.variant || '') + '" role="dialog" aria-modal="true">' +
+      '<form class="app-modal-form">' +
+        '<div class="app-modal-title">' + escapeHtml(config.title || '确认') + '</div>' +
+        message +
+        '<div class="app-modal-fields">' + fieldHTML + '</div>' +
+        '<div class="app-modal-actions">' + cancelButton + '<button type="submit" class="' + confirmClass + '">' + escapeHtml(config.confirmText || '确定') + '</button></div>' +
+      '</form>' +
+    '</div>';
+    const form = backdrop.querySelector('form');
+    const cancel = backdrop.querySelector('.app-modal-cancel');
+    const finishCancel = () => closeAppDialog(null);
+    const finishSubmit = event => {
+      event.preventDefault();
+      if (config.type !== 'form') {
+        closeAppDialog(true);
+        return;
+      }
+      const values = {};
+      fields.forEach(field => {
+        const el = form.querySelector('[data-field="' + field.name + '"]');
+        values[field.name] = el ? el.value : '';
+      });
+      closeAppDialog(values);
+    };
+    backdrop.__onKeydown = event => {
+      if (event.key === 'Escape') finishCancel();
+    };
+    form.addEventListener('submit', finishSubmit);
+    if (cancel) cancel.addEventListener('click', finishCancel);
+    backdrop.addEventListener('click', event => {
+      if (event.target === backdrop) finishCancel();
+    });
+    document.addEventListener('keydown', backdrop.__onKeydown);
+    document.body.appendChild(backdrop);
+    appDialogEl = backdrop;
+    const firstInput = form.querySelector('input, textarea, select, button');
+    if (firstInput) firstInput.focus();
+  });
+}
+
+function appDialogFieldHTML(field) {
+  const name = escapeHtml(field.name || 'field');
+  const label = escapeHtml(field.label || field.name || '');
+  const value = escapeHtml(field.value ?? '');
+  const placeholder = field.placeholder ? ' placeholder="' + escapeHtml(field.placeholder) + '"' : '';
+  const hint = field.hint ? '<div class="app-modal-field-hint">' + escapeHtml(field.hint) + '</div>' : '';
+  const required = field.required ? ' required' : '';
+  let control;
+  if (field.type === 'textarea') {
+    control = '<textarea data-field="' + name + '" rows="' + (field.rows || 5) + '"' + placeholder + required + '>' + value + '</textarea>';
+  } else if (field.type === 'select') {
+    const options = (field.options || []).map(opt => {
+      const optValue = typeof opt === 'string' ? opt : opt.value;
+      const optLabel = typeof opt === 'string' ? opt : opt.label;
+      return '<option value="' + escapeHtml(optValue) + '" ' + (String(optValue) === String(field.value || '') ? 'selected' : '') + '>' + escapeHtml(optLabel) + '</option>';
+    }).join('');
+    control = '<select data-field="' + name + '"' + required + '>' + options + '</select>';
+  } else {
+    const type = escapeHtml(field.type || 'text');
+    const min = field.min != null ? ' min="' + escapeHtml(field.min) + '"' : '';
+    const max = field.max != null ? ' max="' + escapeHtml(field.max) + '"' : '';
+    const step = field.step != null ? ' step="' + escapeHtml(field.step) + '"' : '';
+    control = '<input data-field="' + name + '" type="' + type + '" value="' + value + '"' + placeholder + required + min + max + step + ' />';
+  }
+  return '<label class="app-modal-field"><span>' + label + '</span>' + control + hint + '</label>';
+}
+
+
 function authHeaders(extra={}) {
   const token = localStorage.getItem('chatdock.authToken') || '';
   return token ? {'Authorization':'Bearer ' + token, ...extra} : extra;
@@ -194,20 +314,30 @@ async function loadSetupStatus() {
 }
 
 async function runSetupWizard() {
-  const workspaceName = prompt('默认工作空间名称：', 'default');
-  if (workspaceName === null) return;
-  const baseURL = prompt('模型 Base URL：', base_url.value || 'https://api.openai.com/v1');
-  if (baseURL === null) return;
-  const modelName = prompt('默认模型：', model.value || 'gpt-4o-mini');
-  if (modelName === null) return;
-  const apiKeyValue = prompt('API Key（可留空）：', '');
-  if (apiKeyValue === null) return;
-  const systemPromptValue = prompt('默认 System Prompt：', system_prompt.value || '你是 ChatDock，本地优先 AI 工作台。默认用中文回答。');
-  await api('/api/setup/init', {method:'POST', body: JSON.stringify({workspace_name: workspaceName || 'default', base_url: baseURL || '', model: modelName || '', api_key: apiKeyValue || '', system_prompt: systemPromptValue || ''})});
+  const values = await showFormDialog({
+    title: '首次配置',
+    message: '配置默认工作空间和模型后即可开始对话。',
+    confirmText: '完成初始化',
+    fields: [
+      {name: 'workspace_name', label: '默认工作空间名称', value: 'default', required: true},
+      {name: 'base_url', label: '模型 Base URL', value: base_url.value || 'https://api.openai.com/v1', required: true},
+      {name: 'model', label: '默认模型', value: model.value || 'gpt-4o-mini', required: true},
+      {name: 'api_key', label: 'API Key（可留空）', type: 'password', value: ''},
+      {name: 'system_prompt', label: '默认 System Prompt', type: 'textarea', rows: 4, value: system_prompt.value || '你是 ChatDock，本地优先 AI 工作台。默认用中文回答。'},
+    ],
+  });
+  if (!values) return;
+  await api('/api/setup/init', {method:'POST', body: JSON.stringify({
+    workspace_name: values.workspace_name.trim() || 'default',
+    base_url: values.base_url || '',
+    model: values.model || '',
+    api_key: values.api_key || '',
+    system_prompt: values.system_prompt || '',
+  })});
   await loadPrompts();
   await loadConfig();
   await refreshProductState();
-  alert('初始化完成');
+  showToast('初始化完成', 'success');
 }
 
 async function loadWorkspaces() {
@@ -260,9 +390,9 @@ function renderModelProviders() {
 async function testModelProvider() {
   try {
     const data = await api('/api/model-providers/test', {method:'POST', body:'{}'});
-    alert(data.ok ? '模型连接正常：' + (data.model || '') : '模型连接失败：' + (data.error || 'unknown'));
+    showToast(data.ok ? '模型连接正常：' + (data.model || '') : '模型连接失败：' + (data.error || 'unknown'), data.ok ? 'success' : 'error');
   } catch (e) {
-    alert('模型连接失败：' + e.message);
+    showToast('模型连接失败：' + e.message, 'error');
   }
 }
 
@@ -450,15 +580,25 @@ function findSkill(id) {
 async function editSkill(id) {
   if (busy) return;
   const existing = id ? findSkill(id) : null;
-  const name = prompt(existing ? '技能名称：' : '新技能名称：', existing ? existing.name : '');
-  if (!name || !name.trim()) return;
-  const description = prompt('技能描述（可选）：', existing ? (existing.description || '') : '');
-  const content = prompt('技能内容：', existing ? (existing.content || '') : '');
-  if (!content || !content.trim()) return;
-  const payload = {name: name.trim(), description: description || '', content: content.trim(), enabled: existing ? !!existing.enabled : true};
+  const values = await showFormDialog({
+    title: existing ? '编辑技能' : '新增技能',
+    confirmText: existing ? '保存技能' : '新增技能',
+    fields: [
+      {name: 'name', label: '技能名称', value: existing ? existing.name : '', required: true},
+      {name: 'description', label: '技能描述（可选）', type: 'textarea', rows: 2, value: existing ? (existing.description || '') : ''},
+      {name: 'content', label: '技能内容', type: 'textarea', rows: 8, value: existing ? (existing.content || '') : '', required: true},
+    ],
+  });
+  if (!values) return;
+  if (!values.name.trim() || !values.content.trim()) {
+    showToast('技能名称和内容不能为空', 'error');
+    return;
+  }
+  const payload = {name: values.name.trim(), description: values.description || '', content: values.content.trim(), enabled: existing ? !!existing.enabled : true};
   const data = await api(existing ? '/api/skills/' + encodeURIComponent(existing.id) : '/api/skills', {method: existing ? 'PUT' : 'POST', body: JSON.stringify(payload)});
   skillItems = data.skills || [];
   renderSkills();
+  showToast(existing ? '技能已保存' : '技能已新增', 'success');
 }
 
 async function toggleSkill(id, enabled) {
@@ -476,10 +616,13 @@ async function toggleSkill(id, enabled) {
 
 async function deleteSkill(id) {
   const existing = findSkill(id);
-  if (!existing || !confirm('确定删除技能「' + existing.name + '」？')) return;
+  if (!existing) return;
+  const ok = await showChoice('删除技能', '确定删除技能「' + existing.name + '」？此操作不可恢复。', {confirmText: '删除', danger: true});
+  if (!ok) return;
   const data = await api('/api/skills/' + encodeURIComponent(id), {method:'DELETE'});
   skillItems = data.skills || [];
   renderSkills();
+  showToast('技能已删除', 'success');
 }
 
 
@@ -554,29 +697,42 @@ function defaultRunAtValue() {
 async function editScheduledTask(id) {
   if (busy) return;
   const existing = id ? findScheduledTask(id) : null;
-  const titleValue = prompt(existing ? '任务标题：' : '新任务标题：', existing ? existing.title : '');
-  if (!titleValue || !titleValue.trim()) return;
-  const promptValue = prompt('任务提示词：', existing ? (existing.prompt || '') : '');
-  if (!promptValue || !promptValue.trim()) return;
-  const typeValue = (prompt('调度类型：once / daily / interval', existing ? existing.schedule_type : 'once') || '').trim().toLowerCase();
-  if (!['once', 'daily', 'interval'].includes(typeValue)) {
-    alert('调度类型只能是 once、daily 或 interval');
+  const values = await showFormDialog({
+    title: existing ? '编辑自动化任务' : '新增自动化任务',
+    message: '选择调度类型后，只需要填写对应的时间字段。',
+    confirmText: existing ? '保存任务' : '新增任务',
+    fields: [
+      {name: 'title', label: '任务标题', value: existing ? existing.title : '', required: true},
+      {name: 'prompt', label: '任务提示词', type: 'textarea', rows: 6, value: existing ? (existing.prompt || '') : '', required: true},
+      {name: 'schedule_type', label: '调度类型', type: 'select', value: existing ? existing.schedule_type : 'once', options: [{value: 'once', label: '一次性'}, {value: 'daily', label: '每天固定时间'}, {value: 'interval', label: '按分钟间隔'}]},
+      {name: 'run_at', label: '一次性运行时间', type: 'datetime-local', value: existing && existing.run_at ? existing.run_at.slice(0, 16) : defaultRunAtValue()},
+      {name: 'time_of_day', label: '每天运行时间', type: 'time', value: existing ? (existing.time_of_day || '09:00') : '09:00'},
+      {name: 'interval_minutes', label: '间隔分钟数', type: 'number', min: 1, step: 1, value: existing && existing.interval_minutes ? String(existing.interval_minutes) : '60'},
+    ],
+  });
+  if (!values) return;
+  const titleValue = (values.title || '').trim();
+  const promptValue = (values.prompt || '').trim();
+  const typeValue = (values.schedule_type || '').trim().toLowerCase();
+  if (!titleValue || !promptValue) {
+    showToast('任务标题和提示词不能为空', 'error');
     return;
   }
-  const payload = {title: titleValue.trim(), prompt: promptValue.trim(), enabled: existing ? !!existing.enabled : true, schedule_type: typeValue};
+  if (!['once', 'daily', 'interval'].includes(typeValue)) {
+    showToast('调度类型只能是 once、daily 或 interval', 'error');
+    return;
+  }
+  const payload = {title: titleValue, prompt: promptValue, enabled: existing ? !!existing.enabled : true, schedule_type: typeValue};
   if (typeValue === 'once') {
-    const value = prompt('运行时间（本地时间，格式 2026-06-02T09:30）：', existing && existing.run_at ? existing.run_at.slice(0, 16) : defaultRunAtValue());
-    if (!value || !value.trim()) return;
-    payload.run_at = value.trim();
+    if (!values.run_at || !values.run_at.trim()) return showToast('请填写一次性运行时间', 'error');
+    payload.run_at = values.run_at.trim();
   } else if (typeValue === 'daily') {
-    const value = prompt('每天运行时间（HH:MM）：', existing ? (existing.time_of_day || '09:00') : '09:00');
-    if (!value || !value.trim()) return;
-    payload.time_of_day = value.trim();
+    if (!values.time_of_day || !values.time_of_day.trim()) return showToast('请填写每天运行时间', 'error');
+    payload.time_of_day = values.time_of_day.trim();
   } else {
-    const value = prompt('间隔分钟数：', existing && existing.interval_minutes ? String(existing.interval_minutes) : '60');
-    const minutes = Number(value || 0);
+    const minutes = Number(values.interval_minutes || 0);
     if (!Number.isFinite(minutes) || minutes <= 0) {
-      alert('间隔分钟数必须大于 0');
+      showToast('间隔分钟数必须大于 0', 'error');
       return;
     }
     payload.interval_minutes = Math.floor(minutes);
@@ -584,6 +740,7 @@ async function editScheduledTask(id) {
   const data = await api(existing ? '/api/scheduled-tasks/' + encodeURIComponent(existing.id) : '/api/scheduled-tasks', {method: existing ? 'PUT' : 'POST', body: JSON.stringify(payload)});
   scheduledTaskItems = data.tasks || [];
   renderScheduledTasks();
+  showToast(existing ? '任务已保存' : '任务已新增', 'success');
 }
 
 async function toggleScheduledTask(id, enabled) {
@@ -597,29 +754,34 @@ async function toggleScheduledTask(id, enabled) {
 
 async function deleteScheduledTask(id) {
   const existing = findScheduledTask(id);
-  if (!existing || !confirm('确定删除定时任务「' + existing.title + '」？')) return;
+  if (!existing) return;
+  const ok = await showChoice('删除自动化任务', '确定删除定时任务「' + existing.title + '」？此操作不可恢复。', {confirmText: '删除', danger: true});
+  if (!ok) return;
   const data = await api('/api/scheduled-tasks/' + encodeURIComponent(id), {method:'DELETE'});
   scheduledTaskItems = data.tasks || [];
   renderScheduledTasks();
+  showToast('任务已删除', 'success');
 }
 
 async function runScheduledTaskNow(id) {
   const existing = findScheduledTask(id);
-  if (!existing || !confirm('立即运行定时任务「' + existing.title + '」？')) return;
+  if (!existing) return;
+  const ok = await showChoice('立即运行任务', '立即运行定时任务「' + existing.title + '」？', {confirmText: '立即运行'});
+  if (!ok) return;
   try {
     const result = await api('/api/scheduled-tasks/' + encodeURIComponent(id) + '/run', {method:'POST', body:'{}'});
     await loadScheduledTasks();
     await loadSessions();
-refreshProductState();
+    refreshProductState();
     if (result.session && result.session.id) {
       current = result.session.id;
       await renderSession(result.session);
       await loadSessions();
     }
-    alert('定时任务已运行');
+    showToast('定时任务已运行', 'success');
   } catch (e) {
     await loadScheduledTasks().catch(() => {});
-    alert('运行失败：' + e.message);
+    showToast('运行失败：' + e.message, 'error');
   }
 }
 
@@ -628,13 +790,13 @@ async function saveMCPConfig() {
   try {
     JSON.parse(content || '{}');
   } catch (e) {
-    alert('MCP 配置不是合法 JSON：' + e.message);
+    showToast('MCP 配置不是合法 JSON：' + e.message, 'error');
     return;
   }
   const c = await api('/api/mcp-config', {method:'POST', body: JSON.stringify({content})});
   mcp_config.value = c.content || content;
   await loadMCPStatus().catch(() => {});
-  alert('MCP 配置已保存');
+  showToast('MCP 配置已保存', 'success');
 }
 
 async function saveConfig() {
@@ -652,7 +814,7 @@ async function saveConfig() {
   api_key.value = '';
   await loadConfig();
   await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadSystemStatus()]);
-  alert('已保存到工作空间：' + workspaceID);
+  showToast('已保存到工作空间：' + workspaceID, 'success');
 }
 
 async function loadSessions() {
@@ -683,11 +845,16 @@ async function openSession(id) {
 
 async function renameCurrent() {
   if (!current) return;
-  const next = prompt('新的会话标题：', title.textContent || '');
-  if (!next || !next.trim()) return;
-  const s = await api('/api/sessions/' + current + '/rename', {method:'POST', body: JSON.stringify({title: next.trim()})});
+  const values = await showFormDialog({
+    title: '重命名会话',
+    confirmText: '保存标题',
+    fields: [{name: 'title', label: '新的会话标题', value: title.textContent || '', required: true}],
+  });
+  if (!values || !values.title.trim()) return;
+  const s = await api('/api/sessions/' + current + '/rename', {method:'POST', body: JSON.stringify({title: values.title.trim()})});
   await renderSession(s);
   await loadSessions();
+  showToast('会话标题已保存', 'success');
 }
 
 function exportCurrent() {
@@ -696,12 +863,15 @@ function exportCurrent() {
 }
 
 async function deleteCurrent() {
-  if (!current || !confirm('确定删除当前会话？')) return;
+  if (!current) return;
+  const ok = await showChoice('删除当前会话', '确定删除当前会话？此操作不可恢复。', {confirmText: '删除', danger: true});
+  if (!ok) return;
   await api('/api/sessions/' + current, {method:'DELETE'});
   current = null;
   title.textContent = '未选择会话';
   messages.innerHTML = '<div class="empty">创建一个会话，然后开始聊天。</div>';
   await loadSessions();
+  showToast('会话已删除', 'success');
 }
 
 async function renderSession(s) {
@@ -949,10 +1119,16 @@ async function selectWorkspace(name) {
 
 async function createPromptSpace() {
   if (busy) return;
-  const name = prompt('新工作空间名称：');
-  if (!name || !name.trim()) return;
-  const systemPrompt = prompt('系统提示词内容：', system_prompt.value || '');
-  await api('/api/workspaces', {method:'POST', body: JSON.stringify({name: name.trim(), system_prompt: systemPrompt || ''})});
+  const values = await showFormDialog({
+    title: '新增工作空间',
+    confirmText: '创建工作空间',
+    fields: [
+      {name: 'name', label: '工作空间名称', value: '', required: true},
+      {name: 'system_prompt', label: '系统提示词内容', type: 'textarea', rows: 5, value: system_prompt.value || ''},
+    ],
+  });
+  if (!values || !values.name.trim()) return;
+  await api('/api/workspaces', {method:'POST', body: JSON.stringify({name: values.name.trim(), system_prompt: values.system_prompt || ''})});
   current = null;
   title.textContent = '未选择会话';
   messages.innerHTML = '<div class="empty">已创建并切换到新工作空间。</div>';
@@ -964,6 +1140,7 @@ async function createPromptSpace() {
   await loadScheduledTasks();
   await loadSessions();
   closeSidebarOnMobile();
+  showToast('工作空间已创建', 'success');
 }
 
 

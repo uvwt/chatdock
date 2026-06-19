@@ -2,12 +2,12 @@ async function testMCP() {
   try {
     const data = await api('/api/mcp/test');
     if (data.ok) {
-      alert('MCP 连接正常：' + data.server + '，工具数 ' + data.tool_count);
+      showToast('MCP 连接正常：' + data.server + '，工具数 ' + data.tool_count, 'success');
     } else {
-      alert('MCP 连接失败：' + (data.error || 'unknown error'));
+      showToast('MCP 连接失败：' + (data.error || 'unknown error'), 'error');
     }
   } catch (e) {
-    alert('MCP 测试失败：' + e.message);
+    showToast('MCP 测试失败：' + e.message, 'error');
   }
 }
 
