@@ -34,6 +34,7 @@ async function api(path, opt={}) {
     const err = new Error(data.error || res.statusText);
     err.status = res.status;
     err.path = path;
+    if (res.status === 401 && path !== '/api/auth/login') showLoginPage(err);
     throw err;
   }
   return data;
@@ -42,17 +43,18 @@ async function api(path, opt={}) {
 function loginFormHTML(error) {
   const message = error ? (error.status === 401 ? '登录已过期，请重新登录。' : error.message) : '请输入 ChatDock 账号和密码。';
   return '<form class="login-card" onsubmit="submitLogin(event)">' +
+    '<div class="login-brand">ChatDock</div>' +
     '<b>登录 ChatDock</b>' +
     '<div class="hint">' + escapeHtml(message) + '</div>' +
     '<label>账号</label><input id="login_username" autocomplete="username" placeholder="账号" />' +
-    '<label>密码</label><input id="login_credential" type="password" autocomplete="current-credential" placeholder="密码" />' +
+    '<label>密码</label><input id="login_credential" type="password" autocomplete="current-password" placeholder="密码" />' +
     '<div id="loginError" class="task-error"></div>' +
-    '<div class="settings-actions"><button type="submit" class="small">登录</button></div>' +
+    '<button type="submit" class="login-submit">登录</button>' +
   '</form>';
 }
 
 function panelErrorHTML(error, retryCall) {
-  if (error && error.status === 401) return loginFormHTML(error);
+  if (error && error.status === 401) return '<div class="empty compact">登录已过期，请重新登录。</div>';
   return '<div class="empty compact error-state"><b>加载失败</b><div class="hint">' + escapeHtml(error.message || '请稍后重试') + '</div><div class="settings-actions">' +
     '<button class="secondary small" onclick="' + retryCall + '">重试</button></div></div>';
 }
@@ -62,11 +64,27 @@ function renderPanelError(target, error, retryCall) {
 }
 
 function showLoginForm() {
-  if (!setupBanner) return;
-  setupBanner.classList.remove('ok');
-  setupBanner.classList.add('show');
-  setupBanner.innerHTML = loginFormHTML();
-  setupBanner.scrollIntoView({block: 'nearest'});
+  showLoginPage();
+}
+
+function showLoginPage(error) {
+  document.body.classList.add('auth-page-visible');
+  let page = document.getElementById('authPage');
+  if (!page) {
+    page = document.createElement('div');
+    page.id = 'authPage';
+    page.className = 'auth-page';
+    document.body.appendChild(page);
+  }
+  page.innerHTML = '<div class="auth-shell">' + loginFormHTML(error) + '</div>';
+  const username = document.getElementById('login_username');
+  if (username) username.focus();
+}
+
+function hideLoginPage() {
+  document.body.classList.remove('auth-page-visible');
+  const page = document.getElementById('authPage');
+  if (page) page.remove();
 }
 
 async function submitLogin(event) {
@@ -78,6 +96,7 @@ async function submitLogin(event) {
   try {
     const data = await api('/api/auth/login', {method:'POST', body: JSON.stringify({username, credential})});
     if (data.token) localStorage.setItem('chatdock.authToken', data.token);
+    hideLoginPage();
     await refreshAfterLogin();
   } catch (e) {
     if (errorBox) errorBox.textContent = '登录失败：' + e.message;
@@ -86,6 +105,36 @@ async function submitLogin(event) {
 
 async function refreshAfterLogin() {
   await Promise.allSettled([refreshProductState(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions()]);
+}
+
+async function ensureAuthenticated() {
+  try {
+    const status = await api('/api/auth/status');
+    if (status.enabled && status.login_enabled && !localStorage.getItem('chatdock.authToken')) {
+      showLoginPage();
+      return false;
+    }
+    hideLoginPage();
+    return true;
+  } catch (e) {
+    if (e.status === 401) {
+      showLoginPage(e);
+      return false;
+    }
+    throw e;
+  }
+}
+
+async function startApp() {
+  initTheme();
+  initSidebar();
+  try {
+    const ok = await ensureAuthenticated();
+    if (!ok) return;
+    await refreshAfterLogin();
+  } catch (e) {
+    showLoginPage(e);
+  }
 }
 
 function fmtTime(value) { try { return new Date(value).toLocaleString(); } catch { return ''; } }
@@ -925,12 +974,4 @@ function logout() {
   showLoginForm();
 }
 
-initTheme();
-initSidebar();
-loadPrompts();
-loadConfig();
-loadMCPConfig();
-loadSkills();
-loadScheduledTasks();
-loadSessions();
-refreshProductState();
+startApp();
