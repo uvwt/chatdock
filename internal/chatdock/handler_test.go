@@ -152,6 +152,125 @@ func TestProductizedAPIs(t *testing.T) {
 	}
 }
 
+func TestWorkspaceResourceAPIs(t *testing.T) {
+	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+
+	r := httptest.NewRequest(http.MethodPost, "/api/workspaces", bytes.NewReader([]byte(`{"name":"research","system_prompt":"只做研究总结"}`)))
+	w := httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("create workspace status %d: %s", w.Code, w.Body.String())
+	}
+	var spaces WorkspaceResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &spaces); err != nil {
+		t.Fatal(err)
+	}
+	if spaces.Active != "research" || len(spaces.Workspaces) != 2 {
+		t.Fatalf("unexpected workspace response: %#v", spaces)
+	}
+
+	r = httptest.NewRequest(http.MethodPost, "/api/workspaces/research/config", bytes.NewReader([]byte(`{"base_url":"https://example.test/v1","api_key":"secret-value","model":"demo-model","system_prompt":"研究助手","max_context_messages":8,"temperature":0.2,"hide_thinking":true}`)))
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("save workspace config status %d: %s", w.Code, w.Body.String())
+	}
+	var cfg PublicModelConfig
+	if err := json.Unmarshal(w.Body.Bytes(), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.BaseURL != "https://example.test/v1" || cfg.Model != "demo-model" || !cfg.HasAPIKey {
+		t.Fatalf("unexpected public config: %#v", cfg)
+	}
+
+	r = httptest.NewRequest(http.MethodPost, "/api/workspaces/default/select", bytes.NewReader([]byte(`{}`)))
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("select workspace status %d: %s", w.Code, w.Body.String())
+	}
+
+	r = httptest.NewRequest(http.MethodGet, "/api/workspaces/research/config", nil)
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("get workspace config status %d: %s", w.Code, w.Body.String())
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.BaseURL != "https://example.test/v1" || cfg.SystemPrompt != "研究助手" {
+		t.Fatalf("workspace config should be readable without switching: %#v", cfg)
+	}
+
+	r = httptest.NewRequest(http.MethodPost, "/api/workspaces/research/select", bytes.NewReader([]byte(`{}`)))
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("reselect workspace status %d: %s", w.Code, w.Body.String())
+	}
+	r = httptest.NewRequest(http.MethodGet, "/api/config", nil)
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("active config status %d: %s", w.Code, w.Body.String())
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Model != "demo-model" {
+		t.Fatalf("active config did not follow selected workspace: %#v", cfg)
+	}
+}
+
+func TestSetupInitPersistsAcrossRestart(t *testing.T) {
+	dataDir := t.TempDir()
+	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: dataDir, WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+
+	r := httptest.NewRequest(http.MethodPost, "/api/setup/init", bytes.NewReader([]byte(`{"workspace_name":"daily","base_url":"https://example.test/v1","api_key":"persisted-key","model":"daily-model","system_prompt":"每日助手"}`)))
+	w := httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("setup init status %d: %s", w.Code, w.Body.String())
+	}
+	if err := app.store.db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	restarted, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: dataDir, WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes = restarted.routes()
+	r = httptest.NewRequest(http.MethodPost, "/api/workspaces/daily/select", bytes.NewReader([]byte(`{}`)))
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("select after restart status %d: %s", w.Code, w.Body.String())
+	}
+	r = httptest.NewRequest(http.MethodGet, "/api/setup/status", nil)
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("setup status after restart %d: %s", w.Code, w.Body.String())
+	}
+	var status SetupStatus
+	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil {
+		t.Fatal(err)
+	}
+	if status.NeedsSetup || status.ActiveWorkspace != "daily" || !status.HasAPIKey {
+		t.Fatalf("setup state did not persist: %#v", status)
+	}
+}
+
 func TestSPAFallbackAndBackendBoundary(t *testing.T) {
 	webDir := t.TempDir()
 	assetsDir := filepath.Join(webDir, "assets")

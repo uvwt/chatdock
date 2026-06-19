@@ -147,6 +147,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/model-providers", a.handleListModelProviders)
 	mux.HandleFunc("POST /api/model-providers/test", a.handleTestModelProvider)
 	mux.HandleFunc("GET /api/workspaces", a.handleListWorkspaces)
+	mux.HandleFunc("POST /api/workspaces", a.handleCreateWorkspace)
 	mux.HandleFunc("/api/workspaces/", a.handleWorkspaceRoute)
 	mux.HandleFunc("GET /api/data/status", a.handleDataStatus)
 	mux.HandleFunc("GET /api/system/status", a.handleSystemStatus)

@@ -101,7 +101,7 @@ function renderWorkspaces() {
   workspaceCards.innerHTML = workspaceItems.map(ws => '<div class="product-card ' + (ws.active ? 'active' : '') + '">' +
     '<div class="product-card-head"><div><b>' + escapeHtml(ws.name) + '</b><div class="hint">' + escapeHtml(ws.description || '') + '</div></div><span class="badge">' + (ws.active ? '当前' : '可切换') + '</span></div>' +
     '<div class="product-meta">模型：' + escapeHtml(ws.model || '-') + ' · 会话 ' + (ws.session_count || 0) + ' · 技能 ' + (ws.enabled_skill_count || 0) + '/' + (ws.skill_count || 0) + ' · 任务 ' + (ws.task_count || 0) + '</div>' +
-    (!ws.active ? '<button class="secondary small" onclick="selectPrompt(\'' + escapeHtml(ws.id) + '\')">切换到此工作空间</button>' : '') +
+    (!ws.active ? '<button class="secondary small" onclick="selectWorkspace(\'' + escapeHtml(ws.id) + '\')">切换到此工作空间</button>' : '') +
   '</div>').join('');
 }
 
@@ -758,7 +758,12 @@ async function loadPrompts() {
 
 async function selectPrompt(name) {
   if (busy || !name) return;
-  await api('/api/prompts/select', {method:'POST', body: JSON.stringify({name})});
+  await selectWorkspace(name);
+}
+
+async function selectWorkspace(name) {
+  if (busy || !name) return;
+  await api('/api/workspaces/' + encodeURIComponent(name) + '/select', {method:'POST', body:'{}'});
   current = null;
   title.textContent = '未选择会话';
   messages.innerHTML = '<div class="empty">已切换工作空间。创建或选择一个会话。</div>';
@@ -777,7 +782,7 @@ async function createPromptSpace() {
   const name = prompt('新工作空间名称：');
   if (!name || !name.trim()) return;
   const systemPrompt = prompt('系统提示词内容：', system_prompt.value || '');
-  await api('/api/prompts', {method:'POST', body: JSON.stringify({name: name.trim(), system_prompt: systemPrompt || ''})});
+  await api('/api/workspaces', {method:'POST', body: JSON.stringify({name: name.trim(), system_prompt: systemPrompt || ''})});
   current = null;
   title.textContent = '未选择会话';
   messages.innerHTML = '<div class="empty">已创建并切换到新工作空间。</div>';
