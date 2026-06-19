@@ -139,146 +139,70 @@ function initDelegatedActions() {
   });
 }
 
+const clickActionHandlers = {
+  // 页面框架动作
+  'sidebar-close-mobile': () => closeSidebarOnMobile(),
+  'settings-close': () => closeSettingsPanel(),
+  'sidebar-toggle': () => toggleSidebar(),
+  'settings-toggle': () => toggleSettingsPanel(),
+  'theme-toggle': () => toggleTheme(),
+
+  // 会话和消息动作
+  'session-new': () => newSession(),
+  'session-rename': () => renameCurrent(),
+  'session-export': () => exportCurrent(),
+  'session-delete': () => deleteCurrent(),
+  'session-open': target => openSession(target.dataset.id || ''),
+  'quick-message': target => sendQuickMessage(target.dataset.message || ''),
+  'stream-pause': () => toggleStreamPause(),
+  'stream-stop': () => stopStreaming(),
+  'message-send': () => sendMsg(),
+
+  // 配置中心通用动作
+  'chat-return': () => returnToChat(),
+  'product-refresh': () => refreshProductState(),
+  'settings-module': target => switchSettingsModule(target.dataset.module),
+  'config-save': () => saveConfig(),
+  'prompt-preview': () => showPromptPreview(),
+  'model-test': () => testModelProvider(),
+  'model-providers-load': () => loadModelProviders(),
+  'auth-switch': () => setAuthToken(),
+  'setup-wizard': () => runSetupWizard(),
+
+  // 工作空间动作
+  'prompt-create': () => createPromptSpace(),
+  'workspace-select': target => selectWorkspace(target.dataset.id || ''),
+  'workspace-delete': target => deleteWorkspace(target.dataset.id || '', target.dataset.name || target.dataset.id || ''),
+  'workspaces-load': () => loadWorkspaces(),
+
+  // 技能动作
+  'skill-create': () => editSkill(),
+  'skill-edit': target => editSkill(target.dataset.id || ''),
+  'skill-delete': target => deleteSkill(target.dataset.id || ''),
+  'skills-load': () => loadSkills(),
+
+  // MCP 动作
+  'mcp-status': () => loadMCPStatus(),
+  'mcp-save': () => saveMCPConfig(),
+  'mcp-reload': () => loadMCPConfig(),
+  'mcp-test': () => testMCP(),
+
+  // 自动化任务动作
+  'task-create': () => editScheduledTask(),
+  'task-run': target => runScheduledTaskNow(target.dataset.id || ''),
+  'task-edit': target => editScheduledTask(target.dataset.id || ''),
+  'task-delete': target => deleteScheduledTask(target.dataset.id || ''),
+  'tasks-load': () => loadScheduledTasks(),
+
+  // 状态面板动作
+  'data-status': () => loadDataStatus(),
+  'system-status': () => loadSystemStatus(),
+};
+
 async function handleDelegatedClick(target) {
-  const id = target.dataset.id || '';
-  const action = target.dataset.action;
-
-  switch (action) {
-    case 'sidebar-close-mobile':
-      closeSidebarOnMobile();
-      return;
-    case 'settings-close':
-      closeSettingsPanel();
-      return;
-    case 'sidebar-toggle':
-      toggleSidebar();
-      return;
-    case 'settings-toggle':
-      toggleSettingsPanel();
-      return;
-    case 'theme-toggle':
-      toggleTheme();
-      return;
-
-    case 'prompt-create':
-      await createPromptSpace();
-      return;
-    case 'session-new':
-      await newSession();
-      return;
-    case 'session-rename':
-      await renameCurrent();
-      return;
-    case 'session-export':
-      exportCurrent();
-      return;
-    case 'session-delete':
-      await deleteCurrent();
-      return;
-    case 'session-open':
-      await openSession(id);
-      return;
-
-    case 'quick-message':
-      await sendQuickMessage(target.dataset.message || '');
-      return;
-    case 'stream-pause':
-      toggleStreamPause();
-      return;
-    case 'stream-stop':
-      stopStreaming();
-      return;
-    case 'message-send':
-      await sendMsg();
-      return;
-
-    case 'chat-return':
-      returnToChat();
-      return;
-    case 'product-refresh':
-      await refreshProductState();
-      return;
-    case 'settings-module':
-      switchSettingsModule(target.dataset.module);
-      return;
-    case 'config-save':
-      await saveConfig();
-      return;
-    case 'prompt-preview':
-      showPromptPreview();
-      return;
-    case 'model-test':
-      await testModelProvider();
-      return;
-
-    case 'workspace-select':
-      await selectWorkspace(id);
-      return;
-    case 'workspace-delete':
-      await deleteWorkspace(id, target.dataset.name || id);
-      return;
-    case 'workspaces-load':
-      await loadWorkspaces();
-      return;
-
-    case 'skill-create':
-      await editSkill();
-      return;
-    case 'skill-edit':
-      await editSkill(id);
-      return;
-    case 'skill-delete':
-      await deleteSkill(id);
-      return;
-    case 'skills-load':
-      await loadSkills();
-      return;
-
-    case 'mcp-status':
-      await loadMCPStatus();
-      return;
-    case 'mcp-save':
-      await saveMCPConfig();
-      return;
-    case 'mcp-reload':
-      await loadMCPConfig();
-      return;
-    case 'mcp-test':
-      await testMCP();
-      return;
-
-    case 'task-create':
-      await editScheduledTask();
-      return;
-    case 'task-run':
-      await runScheduledTaskNow(id);
-      return;
-    case 'task-edit':
-      await editScheduledTask(id);
-      return;
-    case 'task-delete':
-      await deleteScheduledTask(id);
-      return;
-    case 'tasks-load':
-      await loadScheduledTasks();
-      return;
-
-    case 'data-status':
-      await loadDataStatus();
-      return;
-    case 'system-status':
-      await loadSystemStatus();
-      return;
-    case 'model-providers-load':
-      await loadModelProviders();
-      return;
-    case 'auth-switch':
-      setAuthToken();
-      return;
-    case 'setup-wizard':
-      await runSetupWizard();
-      return;
-  }
+  const handler = clickActionHandlers[target.dataset.action];
+  if (!handler) return;
+  await handler(target);
 }
 
 async function handleDelegatedChange(target) {
