@@ -127,22 +127,128 @@ function initDelegatedActions() {
     if (!target) return;
     handleDelegatedChange(target).catch(err => showToast(err.message || String(err), 'error'));
   });
+  document.addEventListener('input', event => {
+    const target = event.target.closest('[data-action]');
+    if (!target) return;
+    handleDelegatedInput(target).catch(err => showToast(err.message || String(err), 'error'));
+  });
+  document.addEventListener('submit', event => {
+    const target = event.target.closest('[data-action]');
+    if (!target) return;
+    handleDelegatedSubmit(event, target).catch(err => showToast(err.message || String(err), 'error'));
+  });
 }
 
 async function handleDelegatedClick(target) {
   const id = target.dataset.id || '';
-  switch (target.dataset.action) {
+  const action = target.dataset.action;
+
+  switch (action) {
+    case 'sidebar-close-mobile':
+      closeSidebarOnMobile();
+      return;
+    case 'settings-close':
+      closeSettingsPanel();
+      return;
+    case 'sidebar-toggle':
+      toggleSidebar();
+      return;
+    case 'settings-toggle':
+      toggleSettingsPanel();
+      return;
+    case 'theme-toggle':
+      toggleTheme();
+      return;
+
+    case 'prompt-create':
+      await createPromptSpace();
+      return;
+    case 'session-new':
+      await newSession();
+      return;
+    case 'session-rename':
+      await renameCurrent();
+      return;
+    case 'session-export':
+      exportCurrent();
+      return;
+    case 'session-delete':
+      await deleteCurrent();
+      return;
+    case 'session-open':
+      await openSession(id);
+      return;
+
+    case 'quick-message':
+      await sendQuickMessage(target.dataset.message || '');
+      return;
+    case 'stream-pause':
+      toggleStreamPause();
+      return;
+    case 'stream-stop':
+      stopStreaming();
+      return;
+    case 'message-send':
+      await sendMsg();
+      return;
+
+    case 'chat-return':
+      returnToChat();
+      return;
+    case 'product-refresh':
+      await refreshProductState();
+      return;
+    case 'settings-module':
+      switchSettingsModule(target.dataset.module);
+      return;
+    case 'config-save':
+      await saveConfig();
+      return;
+    case 'prompt-preview':
+      showPromptPreview();
+      return;
+    case 'model-test':
+      await testModelProvider();
+      return;
+
     case 'workspace-select':
       await selectWorkspace(id);
       return;
     case 'workspace-delete':
       await deleteWorkspace(id, target.dataset.name || id);
       return;
+    case 'workspaces-load':
+      await loadWorkspaces();
+      return;
+
+    case 'skill-create':
+      await editSkill();
+      return;
     case 'skill-edit':
       await editSkill(id);
       return;
     case 'skill-delete':
       await deleteSkill(id);
+      return;
+    case 'skills-load':
+      await loadSkills();
+      return;
+
+    case 'mcp-status':
+      await loadMCPStatus();
+      return;
+    case 'mcp-save':
+      await saveMCPConfig();
+      return;
+    case 'mcp-reload':
+      await loadMCPConfig();
+      return;
+    case 'mcp-test':
+      await testMCP();
+      return;
+
+    case 'task-create':
+      await editScheduledTask();
       return;
     case 'task-run':
       await runScheduledTaskNow(id);
@@ -153,20 +259,60 @@ async function handleDelegatedClick(target) {
     case 'task-delete':
       await deleteScheduledTask(id);
       return;
-    case 'session-open':
-      await openSession(id);
+    case 'tasks-load':
+      await loadScheduledTasks();
+      return;
+
+    case 'data-status':
+      await loadDataStatus();
+      return;
+    case 'system-status':
+      await loadSystemStatus();
+      return;
+    case 'model-providers-load':
+      await loadModelProviders();
+      return;
+    case 'auth-switch':
+      setAuthToken();
+      return;
+    case 'setup-wizard':
+      await runSetupWizard();
       return;
   }
 }
 
 async function handleDelegatedChange(target) {
   const id = target.dataset.id || '';
+  if (target.dataset.action === 'prompt-select') {
+    await selectPrompt(target.value);
+    return;
+  }
   if (target.dataset.action === 'skill-toggle') {
     await toggleSkill(id, target.checked);
     return;
   }
   if (target.dataset.action === 'task-toggle') {
     await toggleScheduledTask(id, target.checked);
+  }
+}
+
+async function handleDelegatedInput(target) {
+  if (target.dataset.action === 'session-search') {
+    await loadSessions();
+    return;
+  }
+  if (target.dataset.action === 'skill-search') {
+    renderSkills();
+    return;
+  }
+  if (target.dataset.action === 'task-search') {
+    renderScheduledTasks();
+  }
+}
+
+async function handleDelegatedSubmit(event, target) {
+  if (target.dataset.action === 'login-submit') {
+    await submitLogin(event);
   }
 }
 
@@ -225,7 +371,7 @@ async function api(path, opt={}) {
 
 function loginFormHTML(error) {
   const message = error ? (error.status === 401 ? '登录已过期，请重新登录。' : error.message) : '请输入 ChatDock 账号和密码。';
-  return '<form class="login-card" onsubmit="submitLogin(event)">' +
+  return '<form class="login-card" data-action="login-submit">' +
     '<div class="login-brand">ChatDock</div>' +
     '<b>登录 ChatDock</b>' +
     '<div class="hint">' + escapeHtml(message) + '</div>' +
@@ -236,14 +382,14 @@ function loginFormHTML(error) {
   '</form>';
 }
 
-function panelErrorHTML(error, retryCall) {
+function panelErrorHTML(error, retryAction) {
   if (error && error.status === 401) return '<div class="empty compact">登录已过期，请重新登录。</div>';
   return '<div class="empty compact error-state"><b>加载失败</b><div class="hint">' + escapeHtml(error.message || '请稍后重试') + '</div><div class="settings-actions">' +
-    '<button class="secondary small" onclick="' + retryCall + '">重试</button></div></div>';
+    '<button class="secondary small" data-action="' + dataAttr(retryAction) + '">重试</button></div></div>';
 }
 
-function renderPanelError(target, error, retryCall) {
-  if (target) target.innerHTML = panelErrorHTML(error, retryCall);
+function renderPanelError(target, error, retryAction) {
+  if (target) target.innerHTML = panelErrorHTML(error, retryAction);
 }
 
 function showLoginForm() {
@@ -431,7 +577,7 @@ async function loadSetupStatus() {
     if (setupBanner) {
       setupBanner.classList.remove('ok');
       setupBanner.classList.add('show');
-      setupBanner.innerHTML = panelErrorHTML(e, 'refreshProductState()');
+      setupBanner.innerHTML = panelErrorHTML(e, 'product-refresh');
     }
     return;
   }
@@ -439,7 +585,7 @@ async function loadSetupStatus() {
   if (s.needs_setup) {
     setupBanner.classList.remove('ok');
     setupBanner.innerHTML = '<div><b>首次配置未完成</b><div class="hint">请配置模型供应商和默认工作空间，完成后即可开始对话。</div></div>' +
-      '<button class="small" onclick="runSetupWizard()">开始引导</button>';
+      '<button class="small" data-action="setup-wizard">开始引导</button>';
     setupBanner.classList.add('show');
   } else {
     setupBanner.innerHTML = '<div><b>系统已就绪</b><div class="hint">当前工作空间：' + escapeHtml(s.active_workspace || '-') + ' · 数据目录：' + escapeHtml(s.data_dir || '-') + '</div></div>';
@@ -481,7 +627,7 @@ async function loadWorkspaces() {
     renderWorkspaces();
   } catch (e) {
     workspaceItems = [];
-    renderPanelError(workspaceCards, e, 'loadWorkspaces()');
+    renderPanelError(workspaceCards, e, 'workspaces-load');
   }
 }
 
@@ -528,7 +674,7 @@ async function loadModelProviders() {
     renderModelProviders();
   } catch (e) {
     providerItems = [];
-    renderPanelError(providerCards, e, 'loadModelProviders()');
+    renderPanelError(providerCards, e, 'model-providers-load');
   }
 }
 
@@ -566,7 +712,7 @@ async function loadDataStatus() {
     data = await api('/api/data/status');
   } catch (e) {
     dataStatusCache = null;
-    renderPanelError(dataStatus, e, 'loadDataStatus()');
+    renderPanelError(dataStatus, e, 'data-status');
     return;
   }
   dataStatusCache = data;
@@ -586,7 +732,7 @@ async function loadSystemStatus() {
   try {
     data = await api('/api/system/status');
   } catch (e) {
-    renderPanelError(systemStatus, e, 'loadSystemStatus()');
+    renderPanelError(systemStatus, e, 'system-status');
     return;
   }
   if (!systemStatus) return;
@@ -706,7 +852,7 @@ async function loadSkills() {
     renderSkills();
   } catch (e) {
     skillItems = [];
-    renderPanelError(skills, e, 'loadSkills()');
+    renderPanelError(skills, e, 'skills-load');
   }
 }
 
@@ -790,7 +936,7 @@ async function loadScheduledTasks() {
     renderScheduledTasks();
   } catch (e) {
     scheduledTaskItems = [];
-    renderPanelError(scheduledTasks, e, 'loadScheduledTasks()');
+    renderPanelError(scheduledTasks, e, 'tasks-load');
   }
 }
 
