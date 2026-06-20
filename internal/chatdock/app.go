@@ -310,9 +310,6 @@ func (a *App) authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		got := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
-		if got == "" {
-			got = strings.TrimSpace(r.URL.Query().Get("token"))
-		}
 		if got != token {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)

@@ -627,4 +627,11 @@ func TestAuthProtectsBackendButNotEmbeddedWeb(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("api with token status %d: %s", w.Code, w.Body.String())
 	}
+
+	r = httptest.NewRequest(http.MethodGet, "/api/health?token=secret", nil)
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("api query token status %d, want 401", w.Code)
+	}
 }
