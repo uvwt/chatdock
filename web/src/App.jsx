@@ -134,6 +134,11 @@ export default function App() {
     localStorage.setItem('chatdock.theme', theme);
   }, [theme]);
 
+  useEffect(() => {
+    document.body.classList.toggle('auth-page-visible', !!authPage);
+    return () => document.body.classList.remove('auth-page-visible');
+  }, [authPage]);
+
   const showToast = useCallback((message, variant='info') => {
     setToast({message, variant});
     clearTimeout(toastTimerRef.current);
@@ -335,6 +340,17 @@ export default function App() {
 
   const switchSettingsModule = useCallback((moduleName) => openSettings(moduleName), [openSettings]);
 
+  useEffect(() => {
+    function closeTopLayer(event) {
+      if (event.key !== 'Escape') return;
+      if (dialog) closeDialog(null);
+      else if (workspacePickerOpen) setWorkspacePickerOpen(false);
+      else if (settingsOpen) closeSettings();
+    }
+    window.addEventListener('keydown', closeTopLayer);
+    return () => window.removeEventListener('keydown', closeTopLayer);
+  }, [closeDialog, closeSettings, dialog, settingsOpen, workspacePickerOpen]);
+
   const selectWorkspace = useCallback(async (name) => {
     if (busy || !name) return;
     setWorkspacePickerOpen(false);
@@ -411,13 +427,13 @@ export default function App() {
 
   const sendMsg = useCallback(async (overrideText) => {
     if (busy) return;
+    const text = (overrideText ?? input).trim();
+    if (!text) return;
     let sessionID = current;
     if (!sessionID) {
       const s = await createSession();
       sessionID = s.id;
     }
-    const text = (overrideText ?? input).trim();
-    if (!text) return;
     setInput('');
     setBusy(true);
     setStreamPaused(false);
@@ -585,10 +601,12 @@ export default function App() {
     showToast('MCP 配置已保存', 'success');
   }, [api, loadMCPStatus, mcpConfig, showToast]);
 
-  const testMCP = useCallback(async () => {
+  const testMCP = useCallback(async (serverName = '') => {
     try {
-      const data = await api('/api/mcp/test');
-      showToast(data.ok ? 'MCP 连接正常：' + data.server + '，工具数 ' + data.tool_count : 'MCP 连接失败：' + (data.error || 'unknown error'), data.ok ? 'success' : 'error');
+      const suffix = serverName ? '?server=' + encodeURIComponent(serverName) : '';
+      const data = await api('/api/mcp/test' + suffix);
+      const name = data.server || serverName || '默认 MCP';
+      showToast(data.ok ? 'MCP 连接正常：' + name + '，工具数 ' + data.tool_count : 'MCP 连接失败：' + name + '，' + (data.error || 'unknown error'), data.ok ? 'success' : 'error');
     } catch (e) { showToast('MCP 测试失败：' + e.message, 'error'); }
   }, [api, showToast]);
 
@@ -632,9 +650,9 @@ export default function App() {
       {name:'title', label:'任务标题', value: existing ? existing.title : '', required:true},
       {name:'prompt', label:'任务提示词', type:'textarea', rows:6, value: existing ? (existing.prompt || '') : '', required:true},
       {name:'schedule_type', label:'调度类型', type:'select', value: existing ? existing.schedule_type : 'once', options:[{value:'once', label:'一次性'}, {value:'daily', label:'每天固定时间'}, {value:'interval', label:'按分钟间隔'}]},
-      {name:'run_at', label:'一次性运行时间', type:'datetime-local', value: existing && existing.run_at ? existing.run_at.slice(0,16) : defaultRunAtValue()},
-      {name:'time_of_day', label:'每天运行时间', type:'time', value: existing ? (existing.time_of_day || '09:00') : '09:00'},
-      {name:'interval_minutes', label:'间隔分钟数', type:'number', min:1, step:1, value: existing && existing.interval_minutes ? String(existing.interval_minutes) : '60'},
+      {name:'run_at', label:'一次性运行时间', type:'datetime-local', value: existing && existing.run_at ? existing.run_at.slice(0,16) : defaultRunAtValue(), showWhen:{schedule_type:'once'}},
+      {name:'time_of_day', label:'每天运行时间', type:'time', value: existing ? (existing.time_of_day || '09:00') : '09:00', showWhen:{schedule_type:'daily'}},
+      {name:'interval_minutes', label:'间隔分钟数', type:'number', min:1, step:1, value: existing && existing.interval_minutes ? String(existing.interval_minutes) : '60', showWhen:{schedule_type:'interval'}, hint:'当前本地调度器最低按分钟执行；过短间隔会更频繁占用模型额度。'},
     ]});
     if (!values) return;
     const titleValue = (values.title || '').trim();
@@ -815,7 +833,7 @@ function LoginPage({ api, error, refreshAfterLogin, setAuthPage }) {
     event.preventDefault();
     setLoginError('');
     try {
-      const data = await api('/api/auth/login', {method:'POST', body: JSON.stringify({username: username.trim(), credential: credential.trim()})});
+      const data = await api('/api/auth/login', {method:'POST', body: JSON.stringify({username: username.trim(), credential})});
       if (data.token) localStorage.setItem('chatdock.authToken', data.token);
       setAuthPage(null);
       await refreshAfterLogin();
@@ -837,6 +855,13 @@ function DialogHost({ dialog, closeDialog }) {
     setValues(next);
   }, [dialog]);
   if (!dialog) return null;
+  const visibleFields = (dialog.fields || []).filter(field => {
+    if (!field.showWhen) return true;
+    return Object.entries(field.showWhen).every(([key, expected]) => {
+      const current = values[key];
+      return Array.isArray(expected) ? expected.includes(current) : current === expected;
+    });
+  });
   function submit(event) {
     event.preventDefault();
     if (dialog.type === 'confirm') closeDialog(true);
@@ -846,7 +871,7 @@ function DialogHost({ dialog, closeDialog }) {
     <div className={'app-modal-card ' + (dialog.variant || '')} role="dialog" aria-modal="true"><form className="app-modal-form" onSubmit={submit}>
       <div className="app-modal-title">{dialog.title || '确认'}</div>
       {dialog.message ? <div className="app-modal-message">{dialog.message}</div> : null}
-      <div className="app-modal-fields">{(dialog.fields || []).map(field => <label key={field.name} className="app-modal-field"><span>{field.label || field.name}</span>{renderDialogField(field, values[field.name] ?? '', value => setValues(v => ({...v, [field.name]: value})))}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</label>)}</div>
+      <div className="app-modal-fields">{visibleFields.map(field => <label key={field.name} className="app-modal-field"><span>{field.label || field.name}</span>{renderDialogField(field, values[field.name] ?? '', value => setValues(v => ({...v, [field.name]: value})))}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</label>)}</div>
       <div className="app-modal-actions">{dialog.hideCancel ? null : <button type="button" className="secondary app-modal-cancel" onClick={() => closeDialog(null)}>{dialog.cancelText || '取消'}</button>}<button type="submit" className={dialog.danger ? 'danger' : ''}>{dialog.confirmText || '确定'}</button></div>
     </form></div>
   </div>;
@@ -928,9 +953,9 @@ function SkillCard({ skill, editSkill, deleteSkill, toggleSkill }) {
 function ToolsModule({ mcpStatus, mcpConfig, setMcpConfig, saveMCPConfig, loadMCPConfig, loadMCPStatus, testMCP }) {
   return <>
     <div className="settings-block-head"><label>MCP 工具中心</label><button className="secondary small" onClick={loadMCPStatus}>检测状态</button></div>
-    <div id="mcpStatusCards">{mcpStatus.length ? mcpStatus.map(s => <TextCard key={s.name} title={s.name} hint={s.url || '-'} badge={s.last_status || 'unknown'}><div className="product-meta">allow {s.allow_count} · deny {s.deny_count} · confirm {s.confirm_count} · token {s.has_token ? '已配置' : '无'}</div>{s.last_error ? <div className="task-error">{s.last_error}</div> : null}</TextCard>) : <div className="empty compact">尚未配置 MCP Server。添加后可在这里查看状态、权限和确认规则。</div>}</div>
+    <div id="mcpStatusCards">{mcpStatus.length ? mcpStatus.map(s => <TextCard key={s.name} title={s.name} hint={s.url || '-'} badge={s.last_status || 'unknown'}><div className="product-meta">allow {s.allow_count} · deny {s.deny_count} · confirm {s.confirm_count} · token {s.has_token ? '已配置' : '无'}</div>{s.last_error ? <div className="task-error">{s.last_error}</div> : null}<div className="product-actions"><button className="secondary small" onClick={() => testMCP(s.name)}>测试此 Server</button></div></TextCard>) : <div className="empty compact">尚未配置 MCP Server。添加后可在这里查看状态、权限和确认规则。</div>}</div>
     <label>MCP 配置 JSON</label><textarea className="mcp-editor" value={mcpConfig} onChange={e => setMcpConfig(e.target.value)} />
-    <div className="settings-actions"><button className="secondary" onClick={saveMCPConfig}>保存 MCP 配置</button><button className="secondary" onClick={loadMCPConfig}>重新加载 MCP</button><button className="secondary" onClick={testMCP}>测试默认 MCP</button></div>
+    <div className="settings-actions"><button className="secondary" onClick={saveMCPConfig}>保存 MCP 配置</button><button className="secondary" onClick={loadMCPConfig}>重新加载 MCP</button><button className="secondary" onClick={() => testMCP()}>测试默认 MCP</button></div>
   </>;
 }
 
