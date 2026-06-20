@@ -102,7 +102,7 @@ func (c *ChatClient) ListModels(ctx context.Context, cfg ModelConfig) ([]string,
 	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("model provider models failed: %s: %s", resp.Status, string(respBody))
+		return nil, fmt.Errorf("获取模型列表失败：%s；%s", resp.Status, summarizeModelProviderBody(resp.Header.Get("Content-Type"), respBody))
 	}
 
 	var output struct {
@@ -111,7 +111,7 @@ func (c *ChatClient) ListModels(ctx context.Context, cfg ModelConfig) ([]string,
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(respBody, &output); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("获取模型列表失败：上游 /models 没有返回合法 JSON；%s", summarizeModelProviderBody(resp.Header.Get("Content-Type"), respBody))
 	}
 	models := make([]string, 0, len(output.Data))
 	seen := map[string]bool{}
@@ -124,6 +124,26 @@ func (c *ChatClient) ListModels(ctx context.Context, cfg ModelConfig) ([]string,
 		models = append(models, name)
 	}
 	return models, nil
+}
+
+func summarizeModelProviderBody(contentType string, body []byte) string {
+	text := strings.TrimSpace(string(body))
+	lowerText := strings.ToLower(text)
+	lowerContentType := strings.ToLower(contentType)
+
+	// 第三方中转站常把 /models 拦到网页验证页。这里必须收敛为可读错误，
+	// 不能把整段 HTML/JS 透传到手机端，否则用户看到的就是源码瀑布。
+	if strings.Contains(lowerContentType, "text/html") || strings.HasPrefix(lowerText, "<!doctype html") || strings.HasPrefix(lowerText, "<html") || strings.Contains(lowerText, "cloudflare") || strings.Contains(lowerText, "challenge-platform") {
+		return "上游返回 HTML 页面，可能被 Cloudflare 验证/反爬拦截，或 Base URL 不是 OpenAI 兼容的 /v1 地址"
+	}
+	if text == "" {
+		return "上游响应为空"
+	}
+	runes := []rune(text)
+	if len(runes) > 240 {
+		text = string(runes[:240]) + "..."
+	}
+	return text
 }
 
 func (c *ChatClient) TestModelProvider(ctx context.Context, cfg ModelConfig) error {
