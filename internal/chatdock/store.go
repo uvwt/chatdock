@@ -314,6 +314,7 @@ func (s *Store) ListSessions() []SessionSummary {
 		items = append(items, SessionSummary{
 			ID:        session.ID,
 			Title:     session.Title,
+			Pinned:    session.Pinned,
 			Preview:   preview,
 			LastRole:  lastRole,
 			CreatedAt: session.CreatedAt,
@@ -322,6 +323,9 @@ func (s *Store) ListSessions() []SessionSummary {
 		})
 	}
 	sort.Slice(items, func(i, j int) bool {
+		if items[i].Pinned != items[j].Pinned {
+			return items[i].Pinned
+		}
 		return items[i].UpdatedAt.After(items[j].UpdatedAt)
 	})
 	return items
@@ -374,6 +378,7 @@ func (s *Store) CloneSession(id string) (*Session, error) {
 	if len([]rune(copySession.Title)) > 80 {
 		copySession.Title = string([]rune(copySession.Title)[:80])
 	}
+	copySession.Pinned = false
 	copySession.CreatedAt = now
 	copySession.UpdatedAt = now
 	s.sessions[copySession.ID] = copySession
@@ -395,6 +400,24 @@ func (s *Store) DeleteSession(id string) bool {
 	_, _ = s.db.Exec(`DELETE FROM sessions WHERE prompt = ? AND id = ?`, s.activePrompt, id)
 	_ = s.touchPromptLocked(s.activePrompt, time.Now())
 	return true
+}
+
+func (s *Store) PinSession(id string, pinned bool) (*Session, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, ok := s.sessions[id]
+	if !ok {
+		return nil, ErrSessionNotFound
+	}
+	if session.Pinned == pinned {
+		return cloneSession(session), nil
+	}
+	session.Pinned = pinned
+	if err := s.saveSessionLocked(session); err != nil {
+		return nil, err
+	}
+	return cloneSession(session), nil
 }
 
 func (s *Store) RenameSession(id string, title string) (*Session, error) {

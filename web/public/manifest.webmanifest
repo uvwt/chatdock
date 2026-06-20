@@ -1,0 +1,13 @@
+{
+  "name": "ChatDock",
+  "short_name": "ChatDock",
+  "description": "本地优先 AI 工作台",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {"src": "/chatdock-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}

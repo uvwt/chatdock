@@ -336,6 +336,11 @@ func (a *App) handleSessionRoute(w http.ResponseWriter, r *http.Request) {
 		a.handleRenameSession(w, r)
 		return
 	}
+	if len(parts) == 2 && parts[1] == "pin" && r.Method == http.MethodPost {
+		r.SetPathValue("id", id)
+		a.handlePinSession(w, r)
+		return
+	}
 	if len(parts) == 2 && parts[1] == "clone" && r.Method == http.MethodPost {
 		r.SetPathValue("id", id)
 		a.handleCloneSession(w, r)
@@ -347,6 +352,24 @@ func (a *App) handleSessionRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeError(w, http.StatusNotFound, ErrSessionNotFound)
+}
+
+func (a *App) handlePinSession(w http.ResponseWriter, r *http.Request) {
+	var input PinSessionRequest
+	if err := readJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	session, err := a.store.PinSession(r.PathValue("id"), input.Pinned)
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, ErrSessionNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, session)
 }
 
 func (a *App) handleRenameSession(w http.ResponseWriter, r *http.Request) {

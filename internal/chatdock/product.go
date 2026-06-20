@@ -82,15 +82,20 @@ type PromptPreviewResponse struct {
 }
 
 type DataStatus struct {
-	DataDir           string `json:"data_dir"`
-	DatabasePath      string `json:"database_path"`
-	DatabaseExists    bool   `json:"database_exists"`
-	DatabaseSizeBytes int64  `json:"database_size_bytes"`
-	WALEnabled        bool   `json:"wal_enabled"`
-	SHMExists         bool   `json:"shm_exists"`
-	ActiveWorkspace   string `json:"active_workspace"`
-	WorkspaceCount    int    `json:"workspace_count"`
-	SessionCount      int    `json:"session_count"`
+	DataDir               string    `json:"data_dir"`
+	DatabasePath          string    `json:"database_path"`
+	DatabaseExists        bool      `json:"database_exists"`
+	DatabaseSizeBytes     int64     `json:"database_size_bytes"`
+	WALEnabled            bool      `json:"wal_enabled"`
+	SHMExists             bool      `json:"shm_exists"`
+	BackupDir             string    `json:"backup_dir,omitempty"`
+	BackupCount           int       `json:"backup_count"`
+	LatestBackupPath      string    `json:"latest_backup_path,omitempty"`
+	LatestBackupSizeBytes int64     `json:"latest_backup_size_bytes,omitempty"`
+	LatestBackupAt        time.Time `json:"latest_backup_at,omitempty"`
+	ActiveWorkspace       string    `json:"active_workspace"`
+	WorkspaceCount        int       `json:"workspace_count"`
+	SessionCount          int       `json:"session_count"`
 }
 
 type MCPServerStatus struct {
@@ -380,6 +385,37 @@ func (s *Store) DataStatus() (DataStatus, error) {
 	}
 	if info != nil {
 		status.DatabaseSizeBytes = info.Size()
+	}
+	backupDirs := []string{filepath.Join(filepath.Dir(dataDir), "backups"), filepath.Join(dataDir, "backups")}
+	seenBackupDir := map[string]bool{}
+	for _, dir := range backupDirs {
+		if dir == "" || seenBackupDir[dir] {
+			continue
+		}
+		seenBackupDir[dir] = true
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return DataStatus{}, err
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			fileInfo, err := entry.Info()
+			if err != nil {
+				return DataStatus{}, err
+			}
+			status.BackupDir = dir
+			status.BackupCount++
+			if fileInfo.ModTime().After(status.LatestBackupAt) {
+				status.LatestBackupAt = fileInfo.ModTime()
+				status.LatestBackupPath = filepath.Join(dir, entry.Name())
+				status.LatestBackupSizeBytes = fileInfo.Size()
+			}
+		}
 	}
 	return status, nil
 }

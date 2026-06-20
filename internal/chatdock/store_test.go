@@ -1,6 +1,8 @@
 package chatdock
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -94,6 +96,36 @@ func TestStoreSkillsInjectedIntoChatConfig(t *testing.T) {
 	prompt := buildSystemPrompt(cfg)
 	if !strings.Contains(prompt, "# 已启用技能") || !strings.Contains(prompt, "指出风险并给出修改建议") {
 		t.Fatalf("skill not injected into system prompt: %s", prompt)
+	}
+}
+
+func TestStorePinSessionSortsBeforeRecentUnpinned(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	older, err := store.CreateSession()
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Millisecond)
+	newer, err := store.CreateSession()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.PinSession(older.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	summaries := store.ListSessions()
+	if len(summaries) != 2 || summaries[0].ID != older.ID || !summaries[0].Pinned || summaries[1].ID != newer.ID {
+		t.Fatalf("pinned session should sort first: %#v", summaries)
+	}
+	if _, err := store.PinSession(older.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	summaries = store.ListSessions()
+	if summaries[0].ID != newer.ID || summaries[0].Pinned {
+		t.Fatalf("unpinned sessions should sort by updated_at: %#v", summaries)
 	}
 }
 
@@ -193,6 +225,46 @@ func assertResearchSessionsDeleted(t *testing.T, store *Store) {
 	}
 	if got != 0 {
 		t.Fatalf("session rows for deleted workspace = %d, want 0", got)
+	}
+}
+
+func TestDataStatusReportsLatestBackup(t *testing.T) {
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	backupDir := filepath.Join(root, "backups")
+	if err := os.MkdirAll(backupDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	oldBackup := filepath.Join(backupDir, "old.sqlite")
+	newBackup := filepath.Join(backupDir, "new.sqlite")
+	if err := os.WriteFile(oldBackup, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(newBackup, []byte("new-backup"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	oldTime := time.Now().Add(-2 * time.Hour)
+	newTime := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(oldBackup, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(newBackup, newTime, newTime); err != nil {
+		t.Fatal(err)
+	}
+
+	store, err := NewStore(dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, err := store.DataStatus()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.BackupDir != backupDir || status.BackupCount != 2 || status.LatestBackupPath != newBackup || status.LatestBackupSizeBytes != int64(len("new-backup")) {
+		t.Fatalf("unexpected backup status: %#v", status)
 	}
 }
 

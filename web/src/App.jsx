@@ -16,7 +16,8 @@ function fmtBytes(value) {
   const n = Number(value || 0);
   if (n < 1024) return n + ' B';
   if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
-  return (n / 1024 / 1024).toFixed(1) + ' MB';
+  if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
+  return (n / 1024 / 1024 / 1024).toFixed(1) + ' GB';
 }
 
 function fmtDuration(ms) {
@@ -111,6 +112,7 @@ export default function App() {
   const [dialog, setDialog] = useState(null);
   const [workspacePickerOpen, setWorkspacePickerOpen] = useState(false);
   const [sessionActionsOpen, setSessionActionsOpen] = useState(false);
+  const [quickPaletteOpen, setQuickPaletteOpen] = useState(false);
 
   const [setupStatus, setSetupStatus] = useState(null);
   const [workspaces, setWorkspaces] = useState([]);
@@ -142,6 +144,7 @@ export default function App() {
   const pendingDeltaRef = useRef('');
   const pendingReasoningRef = useRef('');
   const messagesRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => { pausedRef.current = streamPaused; }, [streamPaused]);
   useEffect(() => {
@@ -421,13 +424,33 @@ export default function App() {
     function closeTopLayer(event) {
       if (event.key !== 'Escape') return;
       if (dialog) closeDialog(null);
+      else if (quickPaletteOpen) setQuickPaletteOpen(false);
       else if (sessionActionsOpen) setSessionActionsOpen(false);
       else if (workspacePickerOpen) setWorkspacePickerOpen(false);
       else if (settingsOpen) closeSettings();
     }
     window.addEventListener('keydown', closeTopLayer);
     return () => window.removeEventListener('keydown', closeTopLayer);
-  }, [closeDialog, closeSettings, dialog, sessionActionsOpen, settingsOpen, workspacePickerOpen]);
+  }, [closeDialog, closeSettings, dialog, quickPaletteOpen, sessionActionsOpen, settingsOpen, workspacePickerOpen]);
+
+  useEffect(() => {
+    function onGlobalShortcut(event) {
+      const target = event.target;
+      const tag = String(target?.tagName || '').toLowerCase();
+      const editing = tag === 'input' || tag === 'textarea' || tag === 'select' || target?.isContentEditable;
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setQuickPaletteOpen(true);
+        return;
+      }
+      if (!editing && event.key === '/') {
+        event.preventDefault();
+        inputRef.current?.focus();
+      }
+    }
+    window.addEventListener('keydown', onGlobalShortcut);
+    return () => window.removeEventListener('keydown', onGlobalShortcut);
+  }, []);
 
   const selectWorkspace = useCallback(async (name) => {
     if (busy) { showToast('当前回复还在进行中，请先暂停或中断后再切换工作空间。', 'error'); return; }
@@ -534,6 +557,17 @@ export default function App() {
       showToast('复制会话失败：' + e.message, 'error');
     }
   }, [api, busy, current, loadSessions, showToast]);
+
+  const pinCurrent = useCallback(async () => {
+    if (!current) return;
+    const currentSummary = sessions.find(s => s.id === current);
+    const nextPinned = !currentSummary?.pinned;
+    const s = await api('/api/sessions/' + encodeURIComponent(current) + '/pin', {method:'POST', body: JSON.stringify({pinned: nextPinned})});
+    setCurrentTitle(s.title || currentTitle || '新会话');
+    setMessages(s.messages || []);
+    await loadSessions();
+    showToast(nextPinned ? '会话已置顶' : '已取消置顶', 'success');
+  }, [api, current, currentTitle, loadSessions, sessions, showToast]);
 
   const appendToActiveAssistant = useCallback((patcher) => {
     setMessages(prev => prev.map((m, index) => index === prev.length - 1 && m.role === 'assistant-stream' ? patcher(m) : m));
@@ -876,7 +910,30 @@ export default function App() {
     return q ? sessions.filter(s => [s.title, s.preview, s.last_role].some(v => String(v || '').toLowerCase().includes(q))) : sessions;
   }, [sessionSearch, sessions]);
 
+  const currentSummary = useMemo(() => sessions.find(s => s.id === current) || null, [current, sessions]);
+  const currentPinned = !!currentSummary?.pinned;
   const appClass = 'app ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (settingsOpen ? 'settings-open' : '');
+  const productReady = setupStatus && !setupStatus.needs_setup;
+  const productStatusText = setupStatus == null ? '加载中' : (productReady ? '就绪' : '待配置');
+  const productStatusClass = setupStatus == null ? 'warn' : (productReady ? 'ok' : 'warn');
+  const inputStats = input.trim() ? input.trim().length + ' 字 · 草稿自动保存' : 'Enter 发送 · Shift+Enter 换行 · ⌘/Ctrl K 快捷指令';
+  const quickActions = useMemo(() => [
+    {id:'focus-input', title:'聚焦输入框', hint:'按 / 也可以快速输入', run:() => inputRef.current?.focus()},
+    {id:'new-session', title:'新建会话', hint:'在当前工作空间开始新对话', disabled:busy, run:createSession},
+    {id:'continue', title:'发送“继续”', hint:'让当前会话继续上一轮内容', disabled:busy, run:() => sendMsg('继续')},
+    {id:'workspace-picker', title:'切换工作空间', hint:'加载不同模型、技能和会话', disabled:busy || !prompts.length, run:() => setWorkspacePickerOpen(true)},
+    {id:'settings', title:'打开配置中心', hint:'工作空间、模型、工具和数据统一管理', run:() => openSettings()},
+    {id:'settings-model', title:'模型设置', hint:'Base URL、API Key、模型和最终 Prompt', run:() => openSettings('model')},
+    {id:'settings-tools', title:'工具中心', hint:'MCP 配置、状态检测和连接测试', run:() => openSettings('tools')},
+    {id:'settings-automation', title:'自动化任务', hint:'创建、运行和暂停定时任务', run:() => openSettings('automation')},
+    {id:'settings-data', title:'数据状态', hint:'数据库、工作空间和会话数量', run:() => openSettings('data')},
+    {id:'copy-session', title:'复制当前会话全文', hint:'复制为 Markdown', disabled:!current, run:copyCurrentMarkdown},
+    {id:'export-session', title:'导出当前会话', hint:'下载 Markdown 文件', disabled:!current, run:exportCurrent},
+    {id:'rename-session', title:'重命名当前会话', hint:'整理侧栏会话列表', disabled:!current || busy, run:renameCurrent},
+    {id:'clone-session', title:'复制当前会话', hint:'保留上下文开一个副本', disabled:!current || busy, run:cloneCurrent},
+    {id:'pin-session', title: currentPinned ? '取消置顶当前会话' : '置顶当前会话', hint:'让重要会话固定在列表顶部', disabled:!current, run:pinCurrent},
+    {id:'theme', title:'切换明暗主题', hint:'当前：' + (theme === 'day' ? '白天' : '夜晚'), run:() => setThemeState(theme === 'day' ? 'night' : 'day')},
+  ], [busy, cloneCurrent, copyCurrentMarkdown, createSession, current, currentPinned, exportCurrent, openSettings, pinCurrent, prompts.length, renameCurrent, sendMsg, theme]);
 
   return <>
     <div id="sidebarMask" className={'sidebar-mask ' + (!sidebarCollapsed ? 'show' : '')} onClick={() => setSidebarCollapsed(true)} />
@@ -884,6 +941,7 @@ export default function App() {
     <div className={'session-actions-backdrop ' + (sessionActionsOpen ? 'show' : '')} onClick={() => setSessionActionsOpen(false)}>
       <div className="session-actions-sheet" onClick={e => e.stopPropagation()}>
         <div className="session-actions-head"><b>会话操作</b><button className="secondary small" onClick={() => setSessionActionsOpen(false)}>关闭</button></div>
+        <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); pinCurrent(); }}>{currentPinned ? '取消置顶' : '置顶会话'}</button>
         <button className="secondary" disabled={!current || busy} onClick={() => { setSessionActionsOpen(false); renameCurrent(); }}>重命名</button>
         <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); copyCurrentMarkdown(); }}>复制全文</button>
         <button className="secondary" disabled={!current || busy} onClick={() => { setSessionActionsOpen(false); cloneCurrent(); }}>复制会话</button>
@@ -910,29 +968,34 @@ export default function App() {
         </div>
         <input className="session-search" placeholder="搜索会话" value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} />
         <button className="new" disabled={busy} onClick={newSession}>+ <span className="new-label">新会话</span></button>
-        <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => <div key={s.id} className={'session ' + (current === s.id ? 'active' : '')} onClick={() => openSession(s.id)}><div className="session-title">{s.title}</div>{s.preview ? <div className="session-preview">{s.preview}</div> : null}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div>) : <div className="empty compact">没有匹配会话</div>}</div>
+        <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => <div key={s.id} className={'session ' + (current === s.id ? 'active ' : '') + (s.pinned ? 'pinned' : '')} onClick={() => openSession(s.id)}><div className="session-title">{s.pinned ? <span className="pin-mark">置顶</span> : null}{s.title}</div>{s.preview ? <div className="session-preview">{s.preview}</div> : null}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div>) : <div className="empty compact">没有匹配会话</div>}</div>
       </aside>
       <main>
         <div className="topbar">
-          <div className="top-left"><button className="mobile-menu" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>☰</button><b id="title">{currentTitle}</b></div>
+          <div className="top-left"><button className="mobile-menu" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>☰</button><b id="title">{currentTitle}</b><span className={'status-pill ' + productStatusClass}>{productStatusText}</span></div>
           <div className="top-actions">
+            <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)} title="快捷指令（⌘/Ctrl K）">快捷</button>
             <button className="secondary config-toggle" onClick={() => openSettings()} title="配置中心">配置</button>
             <button className="secondary session-actions-toggle" onClick={() => setSessionActionsOpen(true)} disabled={!current} title="会话操作">会话</button>
             <button className="theme-toggle" onClick={() => setThemeState(theme === 'day' ? 'night' : 'day')}>{theme === 'day' ? '白天' : '夜晚'}</button>
             <button className="secondary" onClick={renameCurrent} disabled={!current || busy}>重命名</button>
             <button className="secondary" onClick={copyCurrentMarkdown} disabled={!current}>复制全文</button>
             <button className="secondary" onClick={cloneCurrent} disabled={!current || busy}>复制会话</button>
+            <button className="secondary" onClick={pinCurrent} disabled={!current}>{currentPinned ? '取消置顶' : '置顶'}</button>
             <button className="secondary" onClick={exportCurrent} disabled={!current}>导出</button>
             <button className="danger" onClick={deleteCurrent} disabled={!current || busy}>删除</button>
           </div>
         </div>
-        <div className="messages" ref={messagesRef}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} />) : <div className="empty">创建一个会话，然后开始聊天。</div>}</div>
+        <div className="messages" ref={messagesRef}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} />}</div>
+        <div className="composer-shell">
         <div className="composer">
           <button className="secondary quick-control" disabled={busy} onClick={() => sendMsg('继续')}>继续</button>
           {busy ? <button className="secondary stream-control" onClick={toggleStreamPause}>{streamPaused ? '继续' : '暂停'}</button> : null}
           {busy ? <button className="danger stream-control" onClick={stopStreaming}>中断</button> : null}
-          <textarea id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendMsg(); } }} placeholder="输入消息，Enter 发送，Shift+Enter 换行；草稿会自动保留" />
+          <textarea ref={inputRef} id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendMsg(); } }} placeholder="输入消息，Enter 发送，Shift+Enter 换行；草稿会自动保留" />
           <button id="send" disabled={busy} onClick={() => sendMsg()}>发送</button>
+        </div>
+        <div className="composer-meta">{inputStats}</div>
         </div>
       </main>
       <SettingsPanel
@@ -949,6 +1012,7 @@ export default function App() {
       />
     </div>
     <WorkspacePicker open={workspacePickerOpen} prompts={prompts} busy={busy} activeName={activePrompt?.name || ''} onClose={() => setWorkspacePickerOpen(false)} onSelect={selectWorkspace} />
+    <QuickPalette open={quickPaletteOpen} actions={quickActions} onClose={() => setQuickPaletteOpen(false)} />
     {authPage ? <LoginPage api={api} error={authPage} refreshAfterLogin={refreshAfterLogin} setAuthPage={setAuthPage} /> : null}
     <DialogHost dialog={dialog} closeDialog={closeDialog} />
     {toast ? <div id="appToast" className={'app-toast show ' + toast.variant}>{toast.message}</div> : null}
@@ -969,6 +1033,61 @@ function MessageView({ message, onCopy }) {
   </div>;
   if (message.role === 'assistant') return <div className="msg assistant markdown"><MessageActions text={message.content} onCopy={onCopy} /><Markdown value={message.content} /></div>;
   return <div className={'msg ' + (message.role || 'user')}><MessageActions text={message.content} onCopy={onCopy} />{message.content}</div>;
+}
+
+
+function EmptyState({ createSession, openSettings, openWorkspacePicker, busy, hasWorkspaces }) {
+  return <div className="empty-state">
+    <div className="empty-state-card">
+      <div className="empty-state-kicker">ChatDock</div>
+      <h1>本地优先的 AI 工作台</h1>
+      <p>选择工作空间、配置模型，或直接新建会话开始。常用操作也可以按 ⌘/Ctrl K 打开快捷指令。</p>
+      <div className="empty-state-actions">
+        <button disabled={busy} onClick={createSession}>新建会话</button>
+        <button className="secondary" onClick={() => openSettings('model')}>配置模型</button>
+        <button className="secondary" disabled={!hasWorkspaces || busy} onClick={openWorkspacePicker}>切换工作空间</button>
+      </div>
+    </div>
+  </div>;
+}
+
+function QuickPalette({ open, actions, onClose }) {
+  const [query, setQuery] = useState('');
+  const inputRef = useRef(null);
+  useEffect(() => {
+    if (!open) {
+      setQuery('');
+      return;
+    }
+    const id = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(id);
+  }, [open]);
+  if (!open) return null;
+  const q = query.trim().toLowerCase();
+  const filtered = actions.filter(action => !q || [action.title, action.hint, action.id].some(v => String(v || '').toLowerCase().includes(q)));
+  function runAction(action) {
+    if (!action || action.disabled) return;
+    onClose();
+    action.run?.();
+  }
+  return <div className="quick-palette-backdrop show" onClick={onClose}>
+    <div className="quick-palette" role="dialog" aria-modal="true" aria-label="快捷指令" onClick={e => e.stopPropagation()}>
+      <div className="quick-palette-head">
+        <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => {
+          if (e.key === 'Escape') onClose();
+          if (e.key === 'Enter') runAction(filtered.find(a => !a.disabled));
+        }} placeholder="搜索快捷指令，例如：模型、导出、工作空间" />
+        <button className="secondary small" onClick={onClose}>关闭</button>
+      </div>
+      <div className="quick-palette-list">
+        {filtered.length ? filtered.map(action => <button key={action.id} type="button" className="quick-palette-item" disabled={!!action.disabled} onClick={() => runAction(action)}>
+          <span><b>{action.title}</b><small>{action.hint}</small></span>
+          <em>{action.disabled ? '不可用' : '执行'}</em>
+        </button>) : <div className="empty compact">没有匹配的快捷指令。</div>}
+      </div>
+      <div className="quick-palette-foot">快捷键：⌘/Ctrl K 打开，/ 聚焦输入框，Esc 关闭弹层。</div>
+    </div>
+  </div>;
 }
 
 function WorkspacePicker({ open, prompts, busy, activeName, onClose, onSelect }) {
@@ -1151,6 +1270,9 @@ function DataStatus({ dataStatus }) {
     ['工作空间', String(dataStatus.workspace_count || 0)],
     ['会话', String(dataStatus.session_count || 0)],
     ['WAL', dataStatus.wal_enabled ? '启用' : '未检测到'],
+    ['备份目录', dataStatus.backup_dir || '未检测到'],
+    ['备份数量', String(dataStatus.backup_count || 0)],
+    ['最近备份', dataStatus.latest_backup_at ? fmtTime(dataStatus.latest_backup_at) + ' · ' + fmtBytes(dataStatus.latest_backup_size_bytes) : '暂无备份'],
   ];
   return <div id="dataStatus">{items.map(item => <div className="stat-card" key={item[0]}><div className="stat-label">{item[0]}</div><div className="stat-value">{item[1]}</div></div>)}</div>;
 }

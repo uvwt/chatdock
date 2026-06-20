@@ -163,6 +163,7 @@ type Message struct {
 type Session struct {
 	ID        string    `json:"id"`
 	Title     string    `json:"title"`
+	Pinned    bool      `json:"pinned"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Messages  []Message `json:"messages"`
@@ -171,6 +172,7 @@ type Session struct {
 type SessionSummary struct {
 	ID        string    `json:"id"`
 	Title     string    `json:"title"`
+	Pinned    bool      `json:"pinned"`
 	Preview   string    `json:"preview,omitempty"`
 	LastRole  string    `json:"last_role,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
@@ -180,6 +182,10 @@ type SessionSummary struct {
 
 type RenameSessionRequest struct {
 	Title string `json:"title"`
+}
+
+type PinSessionRequest struct {
+	Pinned bool `json:"pinned"`
 }
 
 type ChatRequest struct {

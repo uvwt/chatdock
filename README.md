@@ -14,9 +14,11 @@ ChatDock 是一个自用的轻量 AI 对话中控台，目标是：提示词可�
 - 提示词空间：每个空间独立保存模型配置、MCP 配置、技能、定时任务和会话。
 - 技能：每个提示词空间可维护一组可开关的补充系统指令，发送消息时自动注入当前模型请求。
 - 定时任务：每个提示词空间可维护一组本地定时提示，支持一次性、每日、间隔执行，并把运行结果写入任务专属会话。
-- 会话创建、列表、删除、重命名、全文复制、复制会话、Markdown 导出；会话列表显示最近消息摘要，搜索同时匹配标题和摘要。
+- 会话创建、列表、删除、重命名、置顶、全文复制、复制会话、Markdown 导出；会话列表显示最近消息摘要，搜索同时匹配标题和摘要，置顶会话固定在列表顶部。
 - 无 MCP 工具时保留真正流式输出；启用 MCP 工具时通过 SSE 输出工具调用事件和最终回答。
 - MCP HTTP JSON-RPC 客户端：支持 `tools/list`、`tools/call`、Bearer token、server 超时、工具列表缓存、工具 allow/deny/confirm 规则。
+- 产品化前端：独立账号密码登录页、配置中心抽屉、工作空间切换器、快捷指令面板（`⌘/Ctrl K`）、移动端会话操作面板、空状态引导和 PWA manifest。
+- 数据状态页：展示数据库大小、WAL 状态、工作空间/会话数量，并自动探测同级 `backups` 目录中的最近备份。
 
 ## 项目结构
 
@@ -26,6 +28,7 @@ chatdock/
 ├── internal/chatdock/     # 后端核心代码
 ├── web/                   # Vite/React 前端源码、构建脚本和 Go embed 包
 │   ├── src/               # React 前端源码
+│   ├── public/            # PWA manifest、图标等静态资源
 │   ├── dist/              # 生产构建产物，由 make web-build 生成，不提交
 │   ├── embed.go           # //go:embed dist，供 Go 后端托管
 │   └── package.json
@@ -55,6 +58,8 @@ CHATDOCK_ADDR=:8720
 CHATDOCK_DATA=~/.config/chatdock   # 可选；默认使用系统用户配置目录下的 chatdock
 CHATDOCK_WEB=/path/to/web/dist     # 可选；为空时使用二进制内嵌的 web/dist
 CHATDOCK_AUTH_TOKEN=your-token     # 可选；设置后 API/MCP 需要 Bearer Token，静态前端仍可访问
+CHATDOCK_AUTH_USERNAME=admin        # 可选；启用账号密码登录页时使用
+CHATDOCK_AUTH_CREDENTIAL=your-pass  # 可选；启用账号密码登录页时使用
 ```
 
 ## 前后端一体化构建
@@ -169,7 +174,7 @@ ChatDock 默认按“本机私用工具”设计，不建议公网裸奔。API K
 Authorization: Bearer <token>
 ```
 
-前端右侧设置区提供“设置访问 Token”按钮，会把 token 保存到浏览器 localStorage。
+生产环境建议同时设置 `CHATDOCK_AUTH_TOKEN`、`CHATDOCK_AUTH_USERNAME` 和 `CHATDOCK_AUTH_CREDENTIAL`。前端会显示独立登录页，登录成功后只把后端返回的 Bearer token 保存到浏览器 localStorage；后端不再兼容 URL query token。
 
 ## 后续可继续增强
 
