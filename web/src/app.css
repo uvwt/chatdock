@@ -48,7 +48,7 @@ body.theme-light {
     button.secondary { background: var(--border); }
     button.danger { background: var(--danger); }
     button.small { padding: 6px 9px; border-radius: 8px; font-size: 12px; }
-    button:disabled { opacity: .6; cursor: wait; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
     .sidebar-toggle { flex: 0 0 34px; width: 34px; height: 34px; padding: 0; border-radius: 12px; background: #1f2937; font-size: 18px; line-height: 34px; }
     .new { margin: 0 12px 12px; width: calc(100% - 24px); white-space: nowrap; overflow: hidden; }
     .prompt-box { margin: 0 12px 12px; padding: 10px; border: 1px solid #1f2937; border-radius: 14px; background: #111827; }
@@ -267,6 +267,7 @@ body.theme-light {
 .theme-light .product-card, .theme-light .stat-card, .theme-light .skill-card, .theme-light .task-card { background:#fff; border-color:#cbd5e1; }
 .theme-light .product-card.active { background:#eff6ff; border-color:#2563eb; }
 .theme-light .product-meta, .theme-light .stat-label { color:#64748b; }
+.theme-light .stat-value { color:#0f172a; }
 .theme-light .code-preview { background:#f8fafc; color:#0f172a; border-color:#cbd5e1; }
 .theme-light .setup-banner { background:#fffbeb; border-color:#f59e0b; color:#0f172a; }
 .theme-light .setup-banner.ok { background:#ecfdf5; border-color:#16a34a; }

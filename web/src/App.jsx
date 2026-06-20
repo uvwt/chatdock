@@ -80,13 +80,19 @@ function sessionPath(id) {
   return '/sessions/' + encodeURIComponent(id);
 }
 
+function filenameFromResponse(res, fallback) {
+  const value = res.headers.get('Content-Disposition') || '';
+  const match = value.match(/filename="?([^";]+)"?/i);
+  return match ? match[1] : fallback;
+}
+
 function Markdown({ value, className = '' }) {
   return <div className={className} dangerouslySetInnerHTML={{__html: renderMarkdown(value || '')}} />;
 }
 
-function TextCard({ title, hint, badge, active, children }) {
+function TextCard({ title, hint, badge, badgeClass = '', active, children }) {
   return <div className={'product-card ' + (active ? 'active' : '')}>
-    <div className="product-card-head"><div><b>{title}</b>{hint ? <div className="hint">{hint}</div> : null}</div>{badge ? <span className="badge">{badge}</span> : null}</div>
+    <div className="product-card-head"><div><b>{title}</b>{hint ? <div className="hint">{hint}</div> : null}</div>{badge ? <span className={'badge ' + badgeClass}>{badge}</span> : null}</div>
     {children}
   </div>;
 }
@@ -192,16 +198,20 @@ export default function App() {
     });
   }, []);
 
+  const downloadBlob = useCallback((blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename || 'chatdock-session.md';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, []);
+
   const authHeaders = useCallback((extra={}) => {
     const token = localStorage.getItem('chatdock.authToken') || '';
     return token ? {'Authorization':'Bearer ' + token, ...extra} : extra;
-  }, []);
-
-  const authURL = useCallback((path) => {
-    const token = localStorage.getItem('chatdock.authToken') || '';
-    if (!token) return path;
-    const sep = path.includes('?') ? '&' : '?';
-    return path + sep + 'token=' + encodeURIComponent(token);
   }, []);
 
   const api = useCallback(async (path, opt={}) => {
@@ -300,6 +310,17 @@ export default function App() {
   const refreshProductState = useCallback(async () => {
     await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
   }, [loadSetupStatus, loadWorkspaces, loadModelProviders, loadDataStatus, loadSystemStatus]);
+
+  const refreshVisibleSettings = useCallback(async () => {
+    const jobs = [loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadDataStatus(), loadSystemStatus()];
+    if (activeModule === 'skills') jobs.push(loadSkills());
+    if (activeModule === 'tools') jobs.push(loadMCPStatus());
+    if (activeModule === 'runs') jobs.push(loadRuns());
+    if (activeModule === 'agent') jobs.push(loadAgentTasks());
+    if (activeModule === 'automation') jobs.push(loadScheduledTasks());
+    await Promise.allSettled(jobs);
+    showToast('配置中心已刷新', 'success');
+  }, [activeModule, loadAgentTasks, loadDataStatus, loadMCPStatus, loadModelProviders, loadRuns, loadScheduledTasks, loadSetupStatus, loadSkills, loadSystemStatus, loadWorkspaces, showToast]);
 
   const loadSessionFromRoute = useCallback(async (id) => {
     if (!id) return false;
@@ -409,7 +430,8 @@ export default function App() {
   }, [closeDialog, closeSettings, dialog, sessionActionsOpen, settingsOpen, workspacePickerOpen]);
 
   const selectWorkspace = useCallback(async (name) => {
-    if (busy || !name) return;
+    if (busy) { showToast('当前回复还在进行中，请先暂停或中断后再切换工作空间。', 'error'); return; }
+    if (!name) return;
     setWorkspacePickerOpen(false);
     await api('/api/workspaces/' + encodeURIComponent(name) + '/select', {method:'POST', body:'{}'});
     setCurrent(null);
@@ -418,9 +440,13 @@ export default function App() {
     await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions()]);
     if (window.location.pathname !== '/') window.history.pushState({chatdock:true}, '', '/');
     closeSidebarOnMobile();
-  }, [api, busy, refreshProductState, loadPrompts, loadConfig, loadMCPConfig, loadSkills, loadScheduledTasks, loadSessions, closeSidebarOnMobile]);
+  }, [api, busy, refreshProductState, loadPrompts, loadConfig, loadMCPConfig, loadSkills, loadScheduledTasks, loadSessions, closeSidebarOnMobile, showToast]);
 
   const createSession = useCallback(async () => {
+    if (busy) {
+      showToast('当前回复还在进行中，请先暂停或中断后再新建会话。', 'error');
+      return null;
+    }
     const s = await api('/api/sessions', {method:'POST', body:'{}'});
     setCurrent(s.id);
     setCurrentTitle(s.title || '新会话');
@@ -429,9 +455,13 @@ export default function App() {
     if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({chatdock:true}, '', sessionPath(s.id));
     closeSidebarOnMobile();
     return s;
-  }, [api, loadSessions, closeSidebarOnMobile]);
+  }, [api, busy, loadSessions, closeSidebarOnMobile, showToast]);
 
   const openSession = useCallback(async (id) => {
+    if (busy) {
+      showToast('当前回复还在进行中，请先暂停或中断后再切换会话。', 'error');
+      return;
+    }
     setCurrent(id);
     const s = await api('/api/sessions/' + encodeURIComponent(id));
     setCurrentTitle(s.title || '新会话');
@@ -439,7 +469,7 @@ export default function App() {
     await loadSessions();
     if (window.location.pathname !== sessionPath(id)) window.history.pushState({chatdock:true}, '', sessionPath(id));
     closeSidebarOnMobile();
-  }, [api, loadSessions, closeSidebarOnMobile]);
+  }, [api, busy, loadSessions, closeSidebarOnMobile, showToast]);
 
   const newSession = useCallback(async () => { await createSession(); }, [createSession]);
 
@@ -467,10 +497,17 @@ export default function App() {
     showToast('会话已删除', 'success');
   }, [api, current, loadSessions, showDialog, showToast]);
 
-  const exportCurrent = useCallback(() => {
+  const exportCurrent = useCallback(async () => {
     if (!current) return;
-    window.open(authURL('/api/sessions/' + current + '/export?format=md'), '_blank');
-  }, [authURL, current]);
+    try {
+      const res = await fetch('/api/sessions/' + encodeURIComponent(current) + '/export?format=md', {headers: authHeaders()});
+      if (!res.ok) throw new Error(await res.text() || res.statusText);
+      downloadBlob(await res.blob(), filenameFromResponse(res, 'chatdock-session.md'));
+      showToast('已导出 Markdown', 'success');
+    } catch (e) {
+      showToast('导出失败：' + e.message, 'error');
+    }
+  }, [authHeaders, current, downloadBlob, showToast]);
 
   const copyCurrentMarkdown = useCallback(async () => {
     if (!current) return;
@@ -512,6 +549,20 @@ export default function App() {
     appendToActiveAssistant(m => ({...m, reasoning: (m.reasoning || '') + text}));
   }, [appendToActiveAssistant]);
 
+  const activePrompt = useMemo(() => prompts.find(p => p.active) || prompts[0] || null, [prompts]);
+  const draftKey = useMemo(() => 'chatdock.draft.' + encodeURIComponent(activePrompt?.name || 'default') + '.' + encodeURIComponent(current || 'new'), [activePrompt?.name, current]);
+
+  useEffect(() => {
+    setInput(localStorage.getItem(draftKey) || '');
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (busy) return;
+    const text = input.trim();
+    if (text) localStorage.setItem(draftKey, input);
+    else localStorage.removeItem(draftKey);
+  }, [busy, draftKey, input]);
+
   const sendMsg = useCallback(async (overrideText) => {
     if (busy) return;
     const text = (overrideText ?? input).trim();
@@ -519,8 +570,10 @@ export default function App() {
     let sessionID = current;
     if (!sessionID) {
       const s = await createSession();
+      if (!s) return;
       sessionID = s.id;
     }
+    localStorage.removeItem(draftKey);
     setInput('');
     setBusy(true);
     setStreamPaused(false);
@@ -589,7 +642,7 @@ export default function App() {
       abortRef.current = null;
       setStreamPaused(false);
     }
-  }, [api, authHeaders, busy, current, input, createSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, loadRuns, loadAgentTasks]);
+  }, [api, authHeaders, busy, current, draftKey, input, createSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, loadRuns, loadAgentTasks]);
 
   const toggleStreamPause = useCallback(() => {
     if (!busy) return;
@@ -795,15 +848,17 @@ export default function App() {
       const result = await api('/api/scheduled-tasks/' + encodeURIComponent(id) + '/run', {method:'POST', body:'{}'});
       await loadScheduledTasks();
       await loadSessions();
-      refreshProductState();
+      await refreshProductState();
       if (result.session && result.session.id) {
         setCurrent(result.session.id);
         setCurrentTitle(result.session.title || '定时任务');
         setMessages(result.session.messages || []);
+        if (window.location.pathname !== sessionPath(result.session.id)) window.history.pushState({chatdock:true}, '', sessionPath(result.session.id));
+        closeSettings();
       }
       showToast('定时任务已运行', 'success');
     } catch (e) { await loadScheduledTasks().catch(() => {}); showToast('运行失败：' + e.message, 'error'); }
-  }, [api, loadScheduledTasks, loadSessions, refreshProductState, scheduledTasks, showDialog, showToast]);
+  }, [api, closeSettings, loadScheduledTasks, loadSessions, refreshProductState, scheduledTasks, showDialog, showToast]);
 
   const continueAgentTask = useCallback((task) => {
     setInput('继续任务：' + (task.title || 'AgentDock 任务') + '\n任务 ID：' + task.id + '\n来源 Run：' + (task.source_run_id || ''));
@@ -821,8 +876,6 @@ export default function App() {
     return q ? sessions.filter(s => [s.title, s.preview, s.last_role].some(v => String(v || '').toLowerCase().includes(q))) : sessions;
   }, [sessionSearch, sessions]);
 
-  const activePrompt = useMemo(() => prompts.find(p => p.active) || prompts[0] || null, [prompts]);
-
   const appClass = 'app ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (settingsOpen ? 'settings-open' : '');
 
   return <>
@@ -831,11 +884,11 @@ export default function App() {
     <div className={'session-actions-backdrop ' + (sessionActionsOpen ? 'show' : '')} onClick={() => setSessionActionsOpen(false)}>
       <div className="session-actions-sheet" onClick={e => e.stopPropagation()}>
         <div className="session-actions-head"><b>会话操作</b><button className="secondary small" onClick={() => setSessionActionsOpen(false)}>关闭</button></div>
-        <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); renameCurrent(); }}>重命名</button>
+        <button className="secondary" disabled={!current || busy} onClick={() => { setSessionActionsOpen(false); renameCurrent(); }}>重命名</button>
         <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); copyCurrentMarkdown(); }}>复制全文</button>
         <button className="secondary" disabled={!current || busy} onClick={() => { setSessionActionsOpen(false); cloneCurrent(); }}>复制会话</button>
         <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); exportCurrent(); }}>导出 Markdown</button>
-        <button className="danger" disabled={!current} onClick={() => { setSessionActionsOpen(false); deleteCurrent(); }}>删除会话</button>
+        <button className="danger" disabled={!current || busy} onClick={() => { setSessionActionsOpen(false); deleteCurrent(); }}>删除会话</button>
       </div>
     </div>
     <div id="app" className={appClass}>
@@ -852,11 +905,11 @@ export default function App() {
               <span className="workspace-picker-meta">{activePrompt ? activePrompt.count + ' 条' : '暂无工作空间'}</span>
               <span className="workspace-picker-arrow">⌄</span>
             </button>
-            <button className="prompt-add" onClick={createWorkspace}>+</button>
+            <button className="prompt-add" disabled={busy} onClick={createWorkspace}>+</button>
           </div>
         </div>
         <input className="session-search" placeholder="搜索会话" value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} />
-        <button className="new" onClick={newSession}>+ <span className="new-label">新会话</span></button>
+        <button className="new" disabled={busy} onClick={newSession}>+ <span className="new-label">新会话</span></button>
         <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => <div key={s.id} className={'session ' + (current === s.id ? 'active' : '')} onClick={() => openSession(s.id)}><div className="session-title">{s.title}</div>{s.preview ? <div className="session-preview">{s.preview}</div> : null}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div>) : <div className="empty compact">没有匹配会话</div>}</div>
       </aside>
       <main>
@@ -866,11 +919,11 @@ export default function App() {
             <button className="secondary config-toggle" onClick={() => openSettings()} title="配置中心">配置</button>
             <button className="secondary session-actions-toggle" onClick={() => setSessionActionsOpen(true)} disabled={!current} title="会话操作">会话</button>
             <button className="theme-toggle" onClick={() => setThemeState(theme === 'day' ? 'night' : 'day')}>{theme === 'day' ? '白天' : '夜晚'}</button>
-            <button className="secondary" onClick={renameCurrent} disabled={!current}>重命名</button>
+            <button className="secondary" onClick={renameCurrent} disabled={!current || busy}>重命名</button>
             <button className="secondary" onClick={copyCurrentMarkdown} disabled={!current}>复制全文</button>
             <button className="secondary" onClick={cloneCurrent} disabled={!current || busy}>复制会话</button>
             <button className="secondary" onClick={exportCurrent} disabled={!current}>导出</button>
-            <button className="danger" onClick={deleteCurrent} disabled={!current}>删除</button>
+            <button className="danger" onClick={deleteCurrent} disabled={!current || busy}>删除</button>
           </div>
         </div>
         <div className="messages" ref={messagesRef}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} />) : <div className="empty">创建一个会话，然后开始聊天。</div>}</div>
@@ -878,7 +931,7 @@ export default function App() {
           <button className="secondary quick-control" disabled={busy} onClick={() => sendMsg('继续')}>继续</button>
           {busy ? <button className="secondary stream-control" onClick={toggleStreamPause}>{streamPaused ? '继续' : '暂停'}</button> : null}
           {busy ? <button className="danger stream-control" onClick={stopStreaming}>中断</button> : null}
-          <textarea id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } }} placeholder="输入消息，Enter 发送，Shift+Enter 换行" />
+          <textarea id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendMsg(); } }} placeholder="输入消息，Enter 发送，Shift+Enter 换行；草稿会自动保留" />
           <button id="send" disabled={busy} onClick={() => sendMsg()}>发送</button>
         </div>
       </main>
@@ -887,7 +940,7 @@ export default function App() {
         createWorkspace={createWorkspace} dataStatus={dataStatus} deleteScheduledTask={deleteScheduledTask} deleteSkill={deleteSkill} deleteWorkspace={deleteWorkspace}
         editScheduledTask={editScheduledTask} editSkill={editSkill} loadAgentTasks={loadAgentTasks} loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig}
         loadMCPStatus={loadMCPStatus} loadRuns={loadRuns} loadScheduledTasks={loadScheduledTasks} loadSkills={loadSkills} loadSystemStatus={loadSystemStatus}
-        mcpConfig={mcpConfig} mcpStatus={mcpStatus} providers={providers} promptPreview={promptPreview} refreshProductState={refreshProductState}
+        mcpConfig={mcpConfig} mcpStatus={mcpStatus} providers={providers} promptPreview={promptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
         runScheduledTaskNow={runScheduledTaskNow} runSetupWizard={runSetupWizard} runs={runs} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
         scheduledTasks={scheduledTasks} selectWorkspace={selectWorkspace} setConfig={setConfig} setMcpConfig={setMcpConfig} setTaskSearch={setTaskSearch}
         setupStatus={setupStatus} showPromptPreview={showPromptPreview} skillSearch={skillSearch} skills={skills} switchSettingsModule={switchSettingsModule}
@@ -1004,7 +1057,7 @@ function SettingsPanel(props) {
   const {
     activeModule, busy, closeSettings, config, continueAgentTask, createWorkspace, dataStatus, deleteScheduledTask, deleteSkill, deleteWorkspace,
     editScheduledTask, editSkill, loadAgentTasks, loadDataStatus, loadMCPConfig, loadMCPStatus, loadRuns, loadScheduledTasks, loadSkills,
-    loadSystemStatus, logout, mcpConfig, mcpStatus, providers, promptPreview, refreshProductState, runScheduledTaskNow, runSetupWizard,
+    loadSystemStatus, logout, mcpConfig, mcpStatus, providers, promptPreview, refreshProductState, refreshVisibleSettings, runScheduledTaskNow, runSetupWizard,
     runs, saveConfig, saveMCPConfig, scheduledTasks, selectWorkspace, setConfig, setMcpConfig, setSkillSearch, setTaskSearch, setupStatus,
     showPromptPreview, skillSearch, skills, switchSettingsModule, systemStatus, taskSearch, testMCP, testModelProvider, toggleScheduledTask,
     toggleSkill, workspaces, agentTasks,
@@ -1018,7 +1071,7 @@ function SettingsPanel(props) {
     return q ? scheduledTasks.filter(t => [t.title, t.prompt, t.schedule_type, t.last_status, t.last_error].some(v => String(v || '').toLowerCase().includes(q))) : scheduledTasks;
   }, [scheduledTasks, taskSearch]);
   return <section className="settings">
-    <div className="settings-header"><div><h2>配置中心</h2><p>工作空间、模型、技能、工具和数据状态统一管理。</p></div><div className="settings-header-actions"><button className="secondary small" onClick={() => closeSettings()}>返回对话</button><button className="secondary small" onClick={refreshProductState}>刷新</button></div></div>
+    <div className="settings-header"><div><h2>配置中心</h2><p>工作空间、模型、技能、工具和数据状态统一管理。</p></div><div className="settings-header-actions"><button className="secondary small" onClick={() => closeSettings()}>返回对话</button><button className="secondary small" onClick={refreshVisibleSettings || refreshProductState}>刷新</button></div></div>
     <div className="module-tabs">{settingsModules.map(m => <button key={m} className={'module-tab ' + (activeModule === m ? 'active' : '')} onClick={() => switchSettingsModule(m)}>{moduleLabel(m)}</button>)}</div>
     <ModuleView name="workspace" activeModule={activeModule}><WorkspaceModule setupStatus={setupStatus} workspaces={workspaces} createWorkspace={createWorkspace} selectWorkspace={selectWorkspace} deleteWorkspace={deleteWorkspace} runSetupWizard={runSetupWizard} /></ModuleView>
     <ModuleView name="model" activeModule={activeModule}><ModelModule config={config} setConfig={setConfig} saveConfig={saveConfig} showPromptPreview={showPromptPreview} promptPreview={promptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>
@@ -1070,7 +1123,7 @@ function SkillCard({ skill, editSkill, deleteSkill, toggleSkill }) {
 function ToolsModule({ mcpStatus, mcpConfig, setMcpConfig, saveMCPConfig, loadMCPConfig, loadMCPStatus, testMCP }) {
   return <>
     <div className="settings-block-head"><label>MCP 工具中心</label><button className="secondary small" onClick={loadMCPStatus}>检测状态</button></div>
-    <div id="mcpStatusCards">{mcpStatus.length ? mcpStatus.map(s => <TextCard key={s.name} title={s.name} hint={s.url || '-'} badge={s.last_status || 'unknown'}><div className="product-meta">allow {s.allow_count} · deny {s.deny_count} · confirm {s.confirm_count} · token {s.has_token ? '已配置' : '无'}</div>{s.last_error ? <div className="task-error">{s.last_error}</div> : null}<div className="product-actions"><button className="secondary small" onClick={() => testMCP(s.name)}>测试此 Server</button></div></TextCard>) : <div className="empty compact">尚未配置 MCP Server。添加后可在这里查看状态、权限和确认规则。</div>}</div>
+    <div id="mcpStatusCards">{mcpStatus.length ? mcpStatus.map(s => <TextCard key={s.name} title={s.name} hint={s.url || '-'} badge={runStatusLabel(s.last_status || 'unknown')} badgeClass={runStatusClass(s.last_status || 'unknown')}><div className="product-meta">allow {s.allow_count} · deny {s.deny_count} · confirm {s.confirm_count} · token {s.has_token ? '已配置' : '无'}</div>{s.last_error ? <div className="task-error">{s.last_error}</div> : null}<div className="product-actions"><button className="secondary small" onClick={() => testMCP(s.name)}>测试此 Server</button></div></TextCard>) : <div className="empty compact">尚未配置 MCP Server。添加后可在这里查看状态、权限和确认规则。</div>}</div>
     <label>MCP 配置 JSON</label><textarea className="mcp-editor" value={mcpConfig} onChange={e => setMcpConfig(e.target.value)} />
     <div className="settings-actions"><button className="secondary" onClick={saveMCPConfig}>保存 MCP 配置</button><button className="secondary" onClick={loadMCPConfig}>重新加载 MCP</button><button className="secondary" onClick={() => testMCP()}>测试默认 MCP</button></div>
   </>;
@@ -1085,17 +1138,25 @@ function AgentTaskCard({ task, continueAgentTask }) {
 }
 
 function TaskCard({ task, editScheduledTask, deleteScheduledTask, toggleScheduledTask, runScheduledTaskNow }) {
-  return <div className="task-card"><div className="task-head"><div><div className="task-name">{task.title || '未命名任务'}{task.running ? ' · 运行中' : ''}</div><div className="task-desc">{(task.prompt || '').slice(0, 120) || '无提示内容'}</div></div><div className="task-actions"><span className={'badge ' + taskStatusClass(task)}>{taskStatusLabel(task)}</span><button className="secondary small" disabled={task.running} onClick={() => runScheduledTaskNow(task.id)}>立即运行</button><button className="secondary small" onClick={() => editScheduledTask(task.id)}>编辑</button><button className="danger small" onClick={() => deleteScheduledTask(task.id)}>删除</button></div></div><label className="task-toggle"><input type="checkbox" checked={!!task.enabled} onChange={e => toggleScheduledTask(task.id, e.target.checked)} /> 启用</label><div className="task-meta">{scheduleSummary(task)}</div>{task.last_error ? <div className="task-error">上次错误：{task.last_error}</div> : null}</div>;
+  return <div className="task-card"><div className="task-head"><div><div className="task-name">{task.title || '未命名任务'}{task.running ? ' · 运行中' : ''}</div><div className="task-desc">{(task.prompt || '').slice(0, 120) || '无提示内容'}</div></div><div className="task-actions"><span className={'badge ' + taskStatusClass(task)}>{taskStatusLabel(task)}</span><button className="secondary small" disabled={task.running} onClick={() => runScheduledTaskNow(task.id)}>立即运行</button><button className="secondary small" disabled={task.running} onClick={() => editScheduledTask(task.id)}>编辑</button><button className="danger small" disabled={task.running} onClick={() => deleteScheduledTask(task.id)}>删除</button></div></div><label className="task-toggle"><input type="checkbox" disabled={task.running} checked={!!task.enabled} onChange={e => toggleScheduledTask(task.id, e.target.checked)} /> 启用</label><div className="task-meta">{scheduleSummary(task)}</div>{task.running ? <div className="hint">任务运行中，暂时不能编辑、删除或切换启用状态。</div> : null}{task.last_error ? <div className="task-error">上次错误：{task.last_error}</div> : null}</div>;
 }
 
 function DataStatus({ dataStatus }) {
   if (!dataStatus) return <div className="hint">尚未加载数据状态。</div>;
-  const items = [['数据目录', dataStatus.data_dir || '-'], ['数据库', dataStatus.database_path || '-'], ['数据库大小', fmtBytes(dataStatus.database_size_bytes)], ['工作空间', String(dataStatus.workspace_count || 0)], ['会话', String(dataStatus.session_count || 0)], ['WAL', dataStatus.wal_enabled ? '启用' : '未检测到']];
+  const items = [
+    ['当前工作空间', dataStatus.active_workspace || '-'],
+    ['数据目录', dataStatus.data_dir || '-'],
+    ['数据库', dataStatus.database_exists ? (dataStatus.database_path || '-') : '未创建'],
+    ['数据库大小', fmtBytes(dataStatus.database_size_bytes)],
+    ['工作空间', String(dataStatus.workspace_count || 0)],
+    ['会话', String(dataStatus.session_count || 0)],
+    ['WAL', dataStatus.wal_enabled ? '启用' : '未检测到'],
+  ];
   return <div id="dataStatus">{items.map(item => <div className="stat-card" key={item[0]}><div className="stat-label">{item[0]}</div><div className="stat-value">{item[1]}</div></div>)}</div>;
 }
 
 function SecurityModule({ systemStatus, loadSystemStatus, logout }) {
-  return <><div className="settings-block-head"><label>系统状态</label><button className="secondary small" onClick={loadSystemStatus}>刷新系统状态</button></div>{systemStatus ? <TextCard title="ChatDock" hint={systemStatus.addr || ''} badge={systemStatus.ok ? 'healthy' : 'unknown'}><div className="product-meta">Web：{systemStatus.web_dir || '-'} · DB：{systemStatus.database || '-'} · 当前工作空间：{(systemStatus.setup || {}).active_workspace || '-'}</div></TextCard> : <div className="hint">尚未加载系统状态。</div>}<div className="settings-actions"><button className="secondary" onClick={logout}>登录 / 切换账号</button></div></>;
+  return <><div className="settings-block-head"><label>系统状态</label><button className="secondary small" onClick={loadSystemStatus}>刷新系统状态</button></div>{systemStatus ? <TextCard title="ChatDock" hint={systemStatus.addr || ''} badge={systemStatus.ok ? 'healthy' : 'unknown'} badgeClass={systemStatus.ok ? 'ok' : 'warn'}><div className="product-meta">Web：{systemStatus.web_dir || '-'} · DB：{systemStatus.database || '-'} · 当前工作空间：{(systemStatus.setup || {}).active_workspace || '-'}</div></TextCard> : <div className="hint">尚未加载系统状态。</div>}<div className="settings-actions"><button className="secondary" onClick={logout}>登录 / 切换账号</button></div></>;
 }
 
 async function readSSE(res, onEvent) {
