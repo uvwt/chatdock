@@ -73,7 +73,10 @@ body.theme-light {
     .top-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
     .theme-toggle { background: #1f2937; white-space: nowrap; }
     .messages { flex: 1; overflow: auto; padding: 22px; }
-    .msg { max-width: 900px; margin: 0 auto 16px; padding: 14px 16px; border-radius: 14px; line-height: 1.7; white-space: pre-wrap; }
+    .msg { position: relative; max-width: 900px; margin: 0 auto 16px; padding: 14px 16px; border-radius: 14px; line-height: 1.7; white-space: pre-wrap; }
+    .msg-actions { position: absolute; top: 8px; right: 8px; opacity: 0; transition: opacity .14s ease; }
+    .msg:hover .msg-actions, .msg:focus-within .msg-actions { opacity: 1; }
+    .msg-actions button { min-height: 28px; padding: 4px 8px; font-size: 12px; }
     .user { background: #1d4ed8; color: white; }
     .assistant { background: #111827; border: 1px solid #263244; }
     .reasoning { display: none; margin-bottom: 12px; padding: 10px 12px; border-left: 3px solid #64748b; border-radius: 10px; background: #0b1220; color: #94a3b8; font-size: 13px; line-height: 1.6; }
@@ -215,6 +218,7 @@ body.theme-light {
       .sidebar-mask.show { display: block; position: fixed; inset: 0; z-index: 20; background: rgba(2, 6, 23, .58); backdrop-filter: blur(2px); }
       .messages { padding: 12px 10px; }
       .msg { max-width: none; margin: 0 0 10px; padding: 12px 13px; border-radius: 12px; font-size: 15px; line-height: 1.65; }
+      .msg-actions { opacity: 1; }
       .composer { padding: 10px; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
       .composer textarea { flex: 1 1 100%; min-height: 48px; max-height: 36dvh; font-size: 16px; }
       .composer button { flex: 1 1 0; min-width: 64px; padding: 10px 8px; }

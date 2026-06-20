@@ -71,6 +71,15 @@ function settingsModuleFromPath() {
   return normalizeSettingsModule(parts[1] || localStorage.getItem('chatdock.settingsModule') || 'workspace');
 }
 
+function sessionIDFromPath() {
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  return parts[0] === 'sessions' && parts[1] ? parts[1] : '';
+}
+
+function sessionPath(id) {
+  return '/sessions/' + encodeURIComponent(id);
+}
+
 function Markdown({ value, className = '' }) {
   return <div className={className} dangerouslySetInnerHTML={{__html: renderMarkdown(value || '')}} />;
 }
@@ -148,6 +157,32 @@ export default function App() {
   const showDialog = useCallback((config) => new Promise(resolve => {
     setDialog({...config, resolve});
   }), []);
+
+  const copyText = useCallback(async (text) => {
+    const value = String(text || '').trim();
+    if (!value) {
+      showToast('没有可复制的内容', 'error');
+      return;
+    }
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const area = document.createElement('textarea');
+        area.value = value;
+        area.setAttribute('readonly', '');
+        area.style.position = 'fixed';
+        area.style.opacity = '0';
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand('copy');
+        area.remove();
+      }
+      showToast('已复制到剪贴板', 'success');
+    } catch (e) {
+      showToast('复制失败：' + e.message, 'error');
+    }
+  }, [showToast]);
 
   const closeDialog = useCallback((value) => {
     setDialog(currentDialog => {
@@ -265,9 +300,21 @@ export default function App() {
     await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
   }, [loadSetupStatus, loadWorkspaces, loadModelProviders, loadDataStatus, loadSystemStatus]);
 
+  const loadSessionFromRoute = useCallback(async (id) => {
+    if (!id) return false;
+    const s = await api('/api/sessions/' + encodeURIComponent(id));
+    setCurrent(s.id);
+    setCurrentTitle(s.title || '新会话');
+    setMessages(s.messages || []);
+    await loadSessions();
+    return true;
+  }, [api, loadSessions]);
+
   const refreshAfterLogin = useCallback(async () => {
     await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions()]);
-  }, [refreshProductState, loadPrompts, loadConfig, loadMCPConfig, loadSkills, loadScheduledTasks, loadSessions]);
+    const routeSession = sessionIDFromPath();
+    if (routeSession) await loadSessionFromRoute(routeSession).catch(e => showToast('会话路由加载失败：' + e.message, 'error'));
+  }, [refreshProductState, loadPrompts, loadConfig, loadMCPConfig, loadSkills, loadScheduledTasks, loadSessions, loadSessionFromRoute, showToast]);
 
   useEffect(() => {
     let mounted = true;
@@ -295,13 +342,20 @@ export default function App() {
       if (routeModule) {
         setActiveModule(routeModule);
         setSettingsOpen(true);
-      } else {
-        setSettingsOpen(false);
+        return;
+      }
+      setSettingsOpen(false);
+      const routeSession = sessionIDFromPath();
+      if (routeSession) loadSessionFromRoute(routeSession).catch(e => showToast('会话路由加载失败：' + e.message, 'error'));
+      else {
+        setCurrent(null);
+        setCurrentTitle('未选择会话');
+        setMessages([]);
       }
     }
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, []);
+  }, [loadSessionFromRoute, showToast]);
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -335,8 +389,9 @@ export default function App() {
 
   const closeSettings = useCallback((syncRoute = true) => {
     setSettingsOpen(false);
-    if (syncRoute && window.location.pathname !== '/') window.history.pushState({chatdock:true}, '', '/');
-  }, []);
+    const target = current ? sessionPath(current) : '/';
+    if (syncRoute && window.location.pathname !== target) window.history.pushState({chatdock:true}, '', target);
+  }, [current]);
 
   const switchSettingsModule = useCallback((moduleName) => openSettings(moduleName), [openSettings]);
 
@@ -359,6 +414,7 @@ export default function App() {
     setCurrentTitle('未选择会话');
     setMessages([{role:'empty', content:'已切换工作空间。创建或选择一个会话。'}]);
     await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions()]);
+    if (window.location.pathname !== '/') window.history.pushState({chatdock:true}, '', '/');
     closeSidebarOnMobile();
   }, [api, busy, refreshProductState, loadPrompts, loadConfig, loadMCPConfig, loadSkills, loadScheduledTasks, loadSessions, closeSidebarOnMobile]);
 
@@ -368,16 +424,18 @@ export default function App() {
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
     await loadSessions();
+    if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({chatdock:true}, '', sessionPath(s.id));
     closeSidebarOnMobile();
     return s;
   }, [api, loadSessions, closeSidebarOnMobile]);
 
   const openSession = useCallback(async (id) => {
     setCurrent(id);
-    const s = await api('/api/sessions/' + id);
+    const s = await api('/api/sessions/' + encodeURIComponent(id));
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
     await loadSessions();
+    if (window.location.pathname !== sessionPath(id)) window.history.pushState({chatdock:true}, '', sessionPath(id));
     closeSidebarOnMobile();
   }, [api, loadSessions, closeSidebarOnMobile]);
 
@@ -402,6 +460,7 @@ export default function App() {
     setCurrent(null);
     setCurrentTitle('未选择会话');
     setMessages([]);
+    if (window.location.pathname !== '/') window.history.pushState({chatdock:true}, '', '/');
     await loadSessions();
     showToast('会话已删除', 'success');
   }, [api, current, loadSessions, showDialog, showToast]);
@@ -540,13 +599,16 @@ export default function App() {
   }, [api, busy, closeSidebarOnMobile, config.system_prompt, loadConfig, loadMCPConfig, loadPrompts, loadScheduledTasks, loadSessions, loadSkills, refreshProductState, showDialog, showToast]);
 
   const deleteWorkspace = useCallback(async (id, name) => {
-    const ok = await showDialog({title:'删除工作空间', message:'确定删除工作空间「' + (name || id) + '」？这会删除该工作空间下的配置、技能、任务和会话。', confirmText:'删除', danger:true, type:'confirm'});
+    const ok = await showDialog({title:'删除工作空间', message:'确定删除工作空间「' + (name || id) + '」？这会删除该工作空间下的配置、技能、任务和会话。若删除当前工作空间，会自动切换到默认工作空间。', confirmText:'删除', danger:true, type:'confirm'});
     if (!ok) return;
     const data = await api('/api/workspaces/' + encodeURIComponent(id), {method:'DELETE'});
     setWorkspaces(data.workspaces || []);
-    await Promise.allSettled([loadPrompts(), loadSetupStatus(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
+    setCurrent(null);
+    setCurrentTitle('未选择会话');
+    setMessages([{role:'empty', content:'工作空间已删除。当前工作空间：' + (data.active || 'default')}]);
+    await Promise.allSettled([loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions(), loadSetupStatus(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
     showToast('工作空间已删除', 'success');
-  }, [api, loadDataStatus, loadModelProviders, loadPrompts, loadSetupStatus, loadSystemStatus, showDialog, showToast]);
+  }, [api, loadConfig, loadDataStatus, loadMCPConfig, loadModelProviders, loadPrompts, loadScheduledTasks, loadSessions, loadSetupStatus, loadSkills, loadSystemStatus, showDialog, showToast]);
 
   const saveConfig = useCallback(async () => {
     const workspaceID = (prompts.find(p => p.active) || {}).name || 'default';
@@ -761,7 +823,7 @@ export default function App() {
             <button className="danger" onClick={deleteCurrent}>删除</button>
           </div>
         </div>
-        <div className="messages" ref={messagesRef}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} />) : <div className="empty">创建一个会话，然后开始聊天。</div>}</div>
+        <div className="messages" ref={messagesRef}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} />) : <div className="empty">创建一个会话，然后开始聊天。</div>}</div>
         <div className="composer">
           <button className="secondary quick-control" disabled={busy} onClick={() => sendMsg('继续')}>继续</button>
           {busy ? <button className="secondary stream-control" onClick={toggleStreamPause}>{streamPaused ? '继续' : '暂停'}</button> : null}
@@ -790,15 +852,20 @@ export default function App() {
   </>;
 }
 
-function MessageView({ message }) {
+function MessageActions({ text, onCopy }) {
+  return <div className="msg-actions"><button type="button" className="secondary small" onClick={() => onCopy(text)}>复制</button></div>;
+}
+
+function MessageView({ message, onCopy }) {
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
   if (message.role === 'assistant-stream') return <div className="msg assistant">
+    <MessageActions text={message.answer || message.reasoning || ''} onCopy={onCopy} />
     {message.reasoning ? <div className="reasoning show"><div className="reasoning-title">思考</div><Markdown className="reasoning-content markdown" value={message.reasoning} /></div> : null}
     <Markdown className="answer markdown" value={message.answer} />
     {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline' : '')}>{event.text}{event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}</div>)}
   </div>;
-  if (message.role === 'assistant') return <div className="msg assistant markdown"><Markdown value={message.content} /></div>;
-  return <div className={'msg ' + (message.role || 'user')}>{message.content}</div>;
+  if (message.role === 'assistant') return <div className="msg assistant markdown"><MessageActions text={message.content} onCopy={onCopy} /><Markdown value={message.content} /></div>;
+  return <div className={'msg ' + (message.role || 'user')}><MessageActions text={message.content} onCopy={onCopy} />{message.content}</div>;
 }
 
 function WorkspacePicker({ open, prompts, busy, activeName, onClose, onSelect }) {
@@ -924,7 +991,7 @@ function WorkspaceModule({ setupStatus, workspaces, createWorkspace, selectWorks
   return <>
     <div className={'setup-banner show ' + (setupStatus && !setupStatus.needs_setup ? 'ok' : '')}>{setupStatus?.needs_setup ? <><div><b>首次配置未完成</b><div className="hint">请配置模型供应商和默认工作空间，完成后即可开始对话。</div></div><button className="small" onClick={runSetupWizard}>开始引导</button></> : <div><b>系统已就绪</b><div className="hint">当前工作空间：{setupStatus?.active_workspace || '-'} · 数据目录：{setupStatus?.data_dir || '-'}</div></div>}</div>
     <div className="settings-block-head"><label>工作空间概览</label><button className="secondary small" onClick={createWorkspace}>新增工作空间</button></div>
-    <div id="workspaceCards">{workspaces.length ? workspaces.map(ws => <TextCard key={ws.id || ws.name} title={ws.name} hint={ws.description || ''} badge={ws.active ? '当前' : '可切换'} active={ws.active}><div className="product-meta">模型：{ws.model || '-'} · 会话 {ws.session_count || 0} · 技能 {ws.enabled_skill_count || 0}/{ws.skill_count || 0} · 任务 {ws.task_count || 0}</div>{!ws.active ? <div className="product-actions"><button className="secondary small" onClick={() => selectWorkspace(ws.id || ws.name)}>切换到此工作空间</button>{(ws.id || ws.name) !== 'default' && workspaces.length > 1 ? <button className="danger small" onClick={() => deleteWorkspace(ws.id || ws.name, ws.name || ws.id)}>删除</button> : null}</div> : null}</TextCard>) : <div className="empty compact">还没有工作空间，请创建第一个工作空间。</div>}</div>
+    <div id="workspaceCards">{workspaces.length ? workspaces.map(ws => <TextCard key={ws.id || ws.name} title={ws.name} hint={ws.description || ''} badge={ws.active ? '当前' : '可切换'} active={ws.active}><div className="product-meta">模型：{ws.model || '-'} · 会话 {ws.session_count || 0} · 技能 {ws.enabled_skill_count || 0}/{ws.skill_count || 0} · 任务 {ws.task_count || 0}</div><div className="product-actions">{!ws.active ? <button className="secondary small" onClick={() => selectWorkspace(ws.id || ws.name)}>切换到此工作空间</button> : null}{(ws.id || ws.name) !== 'default' && workspaces.length > 1 ? <button className="danger small" onClick={() => deleteWorkspace(ws.id || ws.name, ws.name || ws.id)}>{ws.active ? '删除当前工作空间' : '删除'}</button> : null}</div></TextCard>) : <div className="empty compact">还没有工作空间，请创建第一个工作空间。</div>}</div>
   </>;
 }
 
