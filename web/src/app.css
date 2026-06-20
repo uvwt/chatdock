@@ -34,7 +34,7 @@ body.theme-light {
 }
 
 * { box-sizing: border-box; }
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); -webkit-text-size-adjust: 100%; }
     .app { display: grid; grid-template-columns: 260px 1fr 340px; height: 100vh; transition: grid-template-columns .18s ease; }
     .app.sidebar-collapsed { grid-template-columns: 64px 1fr 340px; }
     aside, .settings { border-right: 1px solid var(--border); background: var(--panel); overflow: auto; }
@@ -44,7 +44,7 @@ body.theme-light {
     .brand { min-width: 0; flex: 1; font-weight: 800; font-size: 22px; line-height: 1.1; white-space: nowrap; overflow: hidden; }
     .brand-text { display: inline-block; }
     .sub { color: #94a3b8; font-size: 12px; margin-top: 4px; font-weight: 400; }
-    button { background: var(--primary); color: white; border: 0; border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+    button { background: var(--primary); color: white; border: 0; border-radius: 10px; padding: 10px 12px; cursor: pointer; font: inherit; font-size: 14px; line-height: 1.25; }
     button.secondary { background: var(--border); }
     button.danger { background: var(--danger); }
     button.small { padding: 6px 9px; border-radius: 8px; font-size: 12px; }
@@ -56,7 +56,7 @@ body.theme-light {
     .prompt-row { display: flex; gap: 8px; align-items: center; }
     .prompt-row select { flex: 1; min-width: 0; }
     .prompt-add { flex: 0 0 38px; width: 38px; height: 38px; padding: 0; border-radius: 10px; background: #1f2937; }
-    select { width: 100%; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--panel-deep); color: var(--text); padding: 9px; outline: none; }
+    select { width: 100%; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--panel-deep); color: var(--text); padding: 9px; outline: none; font: inherit; font-size: 16px; line-height: 1.35; }
     .session { padding: 12px 14px; border-top: 1px solid #1f2937; cursor: pointer; color: #cbd5e1; }
     .session:hover, .session.active { background: #172554; color: #fff; }
     .session-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -103,9 +103,9 @@ body.theme-light {
     .composer { border-top: 1px solid #1f2937; padding: 14px; display: flex; gap: 10px; }
     .quick-control, .stream-control { flex: 0 0 auto; min-width: 68px; }
     .stream-control[hidden] { display: none; }
-    textarea, input { width: 100%; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--panel-deep); color: var(--text); padding: 10px; outline: none; }
+    textarea, input { width: 100%; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--panel-deep); color: var(--text); padding: 10px; outline: none; font: inherit; font-size: 16px; line-height: 1.35; }
     textarea { min-height: 54px; max-height: 160px; resize: vertical; }
-    .mcp-editor { min-height: 190px; max-height: 360px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; line-height: 1.55; }
+    .mcp-editor { min-height: 190px; max-height: 360px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 16px; line-height: 1.55; }
     .settings-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
     .settings-block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
     .settings-block-head label { margin: 0; }
@@ -218,7 +218,7 @@ body.theme-light {
       .row { grid-template-columns: 1fr; }
     }
 
-.session-search { width: 100%; margin: 8px 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); color: var(--text); }
+.session-search { width: 100%; margin: 8px 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font: inherit; font-size: 16px; line-height: 1.35; }
 .tool-event { margin: 6px 0; padding: 8px 10px; border-radius: 10px; border: 1px dashed var(--border); color: var(--muted); font-size: 12px; }
 
 /* Productized configuration center */
@@ -579,12 +579,16 @@ aside,
 
 @media (max-width: 720px) {
   .settings {
-    padding: 18px 16px 96px;
+    width: 100vw;
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) 14px calc(env(safe-area-inset-bottom, 0px) + 88px);
   }
 
+  /* 手机端不要让 header 悬浮压住标签栏；配置页内容由整个抽屉自然滚动。 */
   .settings-header {
-    align-items: center;
+    position: static;
+    align-items: flex-start;
     gap: 10px;
+    padding-bottom: 0;
   }
 
   .settings-header > div:first-child {
@@ -593,13 +597,19 @@ aside,
   }
 
   .settings-header h2 {
-    font-size: 30px;
+    font-size: 26px;
     line-height: 1.15;
   }
 
+  .settings-header p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
   .settings-header-actions {
-    flex-direction: row;
-    align-items: center;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
     gap: 6px;
   }
 
@@ -611,20 +621,52 @@ aside,
   }
 
   .module-tabs {
-    margin: 10px -16px 14px;
-    padding: 0 16px 8px;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    margin: 10px -14px 14px;
+    padding: 8px 14px 10px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
   }
 
   .module-tab {
-    min-height: 42px;
-    padding: 9px 14px;
-    font-size: 14px;
+    min-height: 38px;
+    padding: 8px 12px;
+    font-size: 16px;
+    line-height: 1.15;
   }
 
   .product-actions button {
     min-height: 38px;
   }
 }
+/* iOS Safari 会在小于 16px 的表单控件获得焦点时自动放大页面。 */
+@media (max-width: 720px) {
+  input,
+  textarea,
+  select,
+  .session-search,
+  .mcp-editor {
+    font-size: 16px;
+  }
+
+  input,
+  textarea,
+  select {
+    min-height: 44px;
+  }
+
+  button {
+    font-size: 16px;
+  }
+
+  button.small,
+  .settings-header-actions button {
+    font-size: 14px;
+  }
+}
+
 .run-card .task-meta, .agent-task-card .task-meta { overflow-wrap: anywhere; }
 .run-event-inline { border-style: solid; background: rgba(37, 99, 235, .08); }
 .tool-event-meta { margin-top: 3px; color: var(--muted); font-size: 11px; }
