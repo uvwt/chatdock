@@ -27,6 +27,47 @@ function fmtDuration(ms) {
   return (n / 1000).toFixed(1) + 's';
 }
 
+function fmtRelativeAge(seconds) {
+  const n = Number(seconds || 0);
+  if (n <= 0) return '刚刚';
+  if (n < 3600) return Math.floor(n / 60) + ' 分钟前';
+  if (n < 86400) return Math.floor(n / 3600) + ' 小时前';
+  return Math.floor(n / 86400) + ' 天前';
+}
+
+function safePathName(value) {
+  const text = String(value || '').trim();
+  if (!text) return '-';
+  return text.split(/[\/]/).filter(Boolean).pop() || text;
+}
+
+function diagnosticsText({ setupStatus, systemStatus, dataStatus, mcpStatus, providers }) {
+  const setup = setupStatus || systemStatus?.setup || {};
+  const data = dataStatus || systemStatus?.data || {};
+  const lines = [
+    '# ChatDock 诊断信息',
+    '- 时间：' + new Date().toLocaleString(),
+    '- 状态：' + (systemStatus?.ok ? 'healthy' : 'unknown'),
+    '- 地址：' + (systemStatus?.addr || '-'),
+    '- 数据目录：' + safePathName(data.data_dir || setup.data_dir),
+    '- 当前工作空间：' + (setup.active_workspace || data.active_workspace || '-'),
+    '- 工作空间数量：' + (data.workspace_count ?? setup.workspace_count ?? '-'),
+    '- 会话数量：' + (data.session_count ?? '-'),
+    '- 数据库：' + (data.database_exists ? safePathName(data.database_path || systemStatus?.database) : '未创建'),
+    '- 数据库大小：' + fmtBytes(data.database_size_bytes),
+    '- 数据库健康：' + (data.database_healthy ? '正常' : (data.database_warning || '未知')),
+    '- WAL：' + (data.wal_enabled ? '启用' : '未检测到'),
+    '- 备份目录：' + (data.backup_dir ? safePathName(data.backup_dir) : '未检测到'),
+    '- 已检查备份目录：' + ((data.backup_checked_dirs || []).map(safePathName).join(', ') || '无'),
+    '- 备份数量：' + (data.backup_count || 0),
+    '- 最近备份：' + (data.latest_backup_at ? fmtTime(data.latest_backup_at) + '（' + fmtRelativeAge(data.latest_backup_age_seconds) + '）' : '暂无'),
+    '- 备份健康：' + (data.backup_healthy ? '正常' : (data.backup_warning || '异常或未知')),
+    '- 模型供应商数量：' + (providers || []).length,
+    '- MCP Server 数量：' + (mcpStatus || []).length,
+  ];
+  return lines.join('\n');
+}
+
 function runStatusLabel(status) {
   return ({running:'执行中', success:'成功', failed:'失败', completed:'已完成', blocked:'已阻塞', active:'进行中', matched:'已匹配'})[status] || (status || '未知');
 }
@@ -917,6 +958,7 @@ export default function App() {
   const productStatusText = setupStatus == null ? '加载中' : (productReady ? '就绪' : '待配置');
   const productStatusClass = setupStatus == null ? 'warn' : (productReady ? 'ok' : 'warn');
   const inputStats = input.trim() ? input.trim().length + ' 字 · 草稿自动保存' : 'Enter 发送 · Shift+Enter 换行 · ⌘/Ctrl K 快捷指令';
+  const productDiagnostics = diagnosticsText({setupStatus, systemStatus, dataStatus, mcpStatus, providers});
   const quickActions = useMemo(() => [
     {id:'focus-input', title:'聚焦输入框', hint:'按 / 也可以快速输入', run:() => inputRef.current?.focus()},
     {id:'new-session', title:'新建会话', hint:'在当前工作空间开始新对话', disabled:busy, run:createSession},
@@ -927,13 +969,14 @@ export default function App() {
     {id:'settings-tools', title:'工具中心', hint:'MCP 配置、状态检测和连接测试', run:() => openSettings('tools')},
     {id:'settings-automation', title:'自动化任务', hint:'创建、运行和暂停定时任务', run:() => openSettings('automation')},
     {id:'settings-data', title:'数据状态', hint:'数据库、工作空间和会话数量', run:() => openSettings('data')},
+    {id:'copy-diagnostics', title:'复制诊断信息', hint:'复制脱敏后的系统、数据库、备份和 MCP 状态', run:() => copyText(productDiagnostics)},
     {id:'copy-session', title:'复制当前会话全文', hint:'复制为 Markdown', disabled:!current, run:copyCurrentMarkdown},
     {id:'export-session', title:'导出当前会话', hint:'下载 Markdown 文件', disabled:!current, run:exportCurrent},
     {id:'rename-session', title:'重命名当前会话', hint:'整理侧栏会话列表', disabled:!current || busy, run:renameCurrent},
     {id:'clone-session', title:'复制当前会话', hint:'保留上下文开一个副本', disabled:!current || busy, run:cloneCurrent},
     {id:'pin-session', title: currentPinned ? '取消置顶当前会话' : '置顶当前会话', hint:'让重要会话固定在列表顶部', disabled:!current, run:pinCurrent},
     {id:'theme', title:'切换明暗主题', hint:'当前：' + (theme === 'day' ? '白天' : '夜晚'), run:() => setThemeState(theme === 'day' ? 'night' : 'day')},
-  ], [busy, cloneCurrent, copyCurrentMarkdown, createSession, current, currentPinned, exportCurrent, openSettings, pinCurrent, prompts.length, renameCurrent, sendMsg, theme]);
+  ], [busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, exportCurrent, openSettings, pinCurrent, productDiagnostics, prompts.length, renameCurrent, sendMsg, theme]);
 
   return <>
     <div id="sidebarMask" className={'sidebar-mask ' + (!sidebarCollapsed ? 'show' : '')} onClick={() => setSidebarCollapsed(true)} />
@@ -1003,7 +1046,7 @@ export default function App() {
         createWorkspace={createWorkspace} dataStatus={dataStatus} deleteScheduledTask={deleteScheduledTask} deleteSkill={deleteSkill} deleteWorkspace={deleteWorkspace}
         editScheduledTask={editScheduledTask} editSkill={editSkill} loadAgentTasks={loadAgentTasks} loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig}
         loadMCPStatus={loadMCPStatus} loadRuns={loadRuns} loadScheduledTasks={loadScheduledTasks} loadSkills={loadSkills} loadSystemStatus={loadSystemStatus}
-        mcpConfig={mcpConfig} mcpStatus={mcpStatus} providers={providers} promptPreview={promptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
+        mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers} promptPreview={promptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
         runScheduledTaskNow={runScheduledTaskNow} runSetupWizard={runSetupWizard} runs={runs} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
         scheduledTasks={scheduledTasks} selectWorkspace={selectWorkspace} setConfig={setConfig} setMcpConfig={setMcpConfig} setTaskSearch={setTaskSearch}
         setupStatus={setupStatus} showPromptPreview={showPromptPreview} skillSearch={skillSearch} skills={skills} switchSettingsModule={switchSettingsModule}
@@ -1176,7 +1219,7 @@ function SettingsPanel(props) {
   const {
     activeModule, busy, closeSettings, config, continueAgentTask, createWorkspace, dataStatus, deleteScheduledTask, deleteSkill, deleteWorkspace,
     editScheduledTask, editSkill, loadAgentTasks, loadDataStatus, loadMCPConfig, loadMCPStatus, loadRuns, loadScheduledTasks, loadSkills,
-    loadSystemStatus, logout, mcpConfig, mcpStatus, providers, promptPreview, refreshProductState, refreshVisibleSettings, runScheduledTaskNow, runSetupWizard,
+    loadSystemStatus, logout, mcpConfig, mcpStatus, onCopy, providers, promptPreview, refreshProductState, refreshVisibleSettings, runScheduledTaskNow, runSetupWizard,
     runs, saveConfig, saveMCPConfig, scheduledTasks, selectWorkspace, setConfig, setMcpConfig, setSkillSearch, setTaskSearch, setupStatus,
     showPromptPreview, skillSearch, skills, switchSettingsModule, systemStatus, taskSearch, testMCP, testModelProvider, toggleScheduledTask,
     toggleSkill, workspaces, agentTasks,
@@ -1199,8 +1242,8 @@ function SettingsPanel(props) {
     <ModuleView name="runs" activeModule={activeModule}><div className="settings-block-head"><label>MCP 执行记录</label><button className="secondary small" onClick={loadRuns}>刷新</button></div>{runs.length ? runs.map(r => <RunCard key={r.id} run={r} />) : <div className="empty compact">还没有 MCP 执行记录。</div>}</ModuleView>
     <ModuleView name="agent" activeModule={activeModule}><div className="settings-block-head"><label>AgentDock 任务</label><button className="secondary small" onClick={loadAgentTasks}>刷新</button></div>{agentTasks.length ? agentTasks.map(t => <AgentTaskCard key={t.id} task={t} continueAgentTask={continueAgentTask} />) : <div className="empty compact">还没有 AgentDock 任务记录。</div>}</ModuleView>
     <ModuleView name="automation" activeModule={activeModule}><div className="settings-block-head"><label>自动化任务（当前工作空间）</label><button className="secondary small" onClick={() => editScheduledTask()}>新增任务</button></div><input className="session-search" placeholder="搜索任务" value={taskSearch} onChange={e => setTaskSearch(e.target.value)} /><div className="tasks-list">{filteredTasks.length ? filteredTasks.map(t => <TaskCard key={t.id} task={t} editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} toggleScheduledTask={toggleScheduledTask} runScheduledTaskNow={runScheduledTaskNow} />) : <div className="hint">暂无定时任务。任务会按当前工作空间运行，并把结果写入专属会话。</div>}</div><div className="settings-actions"><button className="secondary" onClick={loadScheduledTasks}>刷新任务</button></div></ModuleView>
-    <ModuleView name="data" activeModule={activeModule}><div className="settings-block-head"><label>数据状态</label><button className="secondary small" onClick={loadDataStatus}>刷新数据状态</button></div><DataStatus dataStatus={dataStatus} /></ModuleView>
-    <ModuleView name="security" activeModule={activeModule}><SecurityModule systemStatus={systemStatus} loadSystemStatus={loadSystemStatus} logout={logout} /></ModuleView>
+    <ModuleView name="data" activeModule={activeModule}><div className="settings-block-head"><label>数据状态</label><button className="secondary small" onClick={loadDataStatus}>刷新数据状态</button></div><DataStatus dataStatus={dataStatus} onCopy={onCopy} /></ModuleView>
+    <ModuleView name="security" activeModule={activeModule}><SecurityModule systemStatus={systemStatus} setupStatus={setupStatus} dataStatus={dataStatus} mcpStatus={mcpStatus} providers={providers} loadSystemStatus={loadSystemStatus} logout={logout} onCopy={onCopy} /></ModuleView>
   </section>;
 }
 
@@ -1260,29 +1303,41 @@ function TaskCard({ task, editScheduledTask, deleteScheduledTask, toggleSchedule
   return <div className="task-card"><div className="task-head"><div><div className="task-name">{task.title || '未命名任务'}{task.running ? ' · 运行中' : ''}</div><div className="task-desc">{(task.prompt || '').slice(0, 120) || '无提示内容'}</div></div><div className="task-actions"><span className={'badge ' + taskStatusClass(task)}>{taskStatusLabel(task)}</span><button className="secondary small" disabled={task.running} onClick={() => runScheduledTaskNow(task.id)}>立即运行</button><button className="secondary small" disabled={task.running} onClick={() => editScheduledTask(task.id)}>编辑</button><button className="danger small" disabled={task.running} onClick={() => deleteScheduledTask(task.id)}>删除</button></div></div><label className="task-toggle"><input type="checkbox" disabled={task.running} checked={!!task.enabled} onChange={e => toggleScheduledTask(task.id, e.target.checked)} /> 启用</label><div className="task-meta">{scheduleSummary(task)}</div>{task.running ? <div className="hint">任务运行中，暂时不能编辑、删除或切换启用状态。</div> : null}{task.last_error ? <div className="task-error">上次错误：{task.last_error}</div> : null}</div>;
 }
 
-function DataStatus({ dataStatus }) {
+function DataStatus({ dataStatus, onCopy }) {
   if (!dataStatus) return <div className="hint">尚未加载数据状态。</div>;
   const items = [
     ['当前工作空间', dataStatus.active_workspace || '-'],
     ['数据目录', dataStatus.data_dir || '-'],
     ['数据库', dataStatus.database_exists ? (dataStatus.database_path || '-') : '未创建'],
     ['数据库大小', fmtBytes(dataStatus.database_size_bytes)],
+    ['数据库健康', dataStatus.database_healthy ? '正常' : (dataStatus.database_warning || '需要检查')],
     ['工作空间', String(dataStatus.workspace_count || 0)],
     ['会话', String(dataStatus.session_count || 0)],
     ['WAL', dataStatus.wal_enabled ? '启用' : '未检测到'],
     ['备份目录', dataStatus.backup_dir || '未检测到'],
     ['数据库备份数量', String(dataStatus.backup_count || 0)],
-    ['最近数据库备份', dataStatus.latest_backup_at ? fmtTime(dataStatus.latest_backup_at) + ' · ' + fmtBytes(dataStatus.latest_backup_size_bytes) : '暂无数据库备份'],
+    ['已检查备份目录', String((dataStatus.backup_checked_dirs || []).length)],
+    ['最近数据库备份', dataStatus.latest_backup_at ? fmtTime(dataStatus.latest_backup_at) + ' · ' + fmtBytes(dataStatus.latest_backup_size_bytes) + ' · ' + fmtRelativeAge(dataStatus.latest_backup_age_seconds) : '暂无数据库备份'],
+    ['备份健康', dataStatus.backup_healthy ? '正常' : (dataStatus.backup_warning || '需要检查')],
   ];
   const backups = dataStatus.backups || [];
   return <>
+    {dataStatus.backup_warning ? <div className="backup-health warn">{dataStatus.backup_warning}</div> : <div className="backup-health ok">数据库备份状态正常。</div>}
     <div id="dataStatus">{items.map(item => <div className="stat-card" key={item[0]}><div className="stat-label">{item[0]}</div><div className="stat-value">{item[1]}</div></div>)}</div>
-    {backups.length ? <div className="backup-list"><div className="settings-block-head"><label>最近数据库备份</label></div>{backups.map(item => <div className="backup-item" key={item.path || item.name}><div><b>{item.name || item.path}</b><div className="hint">{fmtTime(item.updated_at)} · {fmtBytes(item.size_bytes)}</div></div><code>{item.path}</code></div>)}</div> : null}
+    {(dataStatus.backup_checked_dirs || []).length ? <details className="backup-path checked-dirs"><summary>查看已检查备份目录</summary>{dataStatus.backup_checked_dirs.map(dir => <code key={dir}>{dir}</code>)}</details> : null}
+    {backups.length ? <div className="backup-list"><div className="settings-block-head"><label>最近数据库备份</label></div>{backups.map(item => <div className="backup-item" key={item.path || item.name}><div className="backup-main"><div><b>{item.name || safePathName(item.path)}</b><div className="hint">{fmtTime(item.updated_at)} · {fmtRelativeAge(item.age_seconds)} · {fmtBytes(item.size_bytes)}</div></div>{item.path ? <button className="secondary mini" onClick={() => onCopy?.(item.path)}>复制路径</button> : null}</div>{item.path ? <details className="backup-path"><summary>查看完整路径</summary><code>{item.path}</code></details> : null}</div>)}</div> : null}
   </>;
 }
 
-function SecurityModule({ systemStatus, loadSystemStatus, logout }) {
-  return <><div className="settings-block-head"><label>系统状态</label><button className="secondary small" onClick={loadSystemStatus}>刷新系统状态</button></div>{systemStatus ? <TextCard title="ChatDock" hint={systemStatus.addr || ''} badge={systemStatus.ok ? 'healthy' : 'unknown'} badgeClass={systemStatus.ok ? 'ok' : 'warn'}><div className="product-meta">Web：{systemStatus.web_dir || '-'} · DB：{systemStatus.database || '-'} · 当前工作空间：{(systemStatus.setup || {}).active_workspace || '-'}</div></TextCard> : <div className="hint">尚未加载系统状态。</div>}<div className="settings-actions"><button className="secondary" onClick={logout}>登录 / 切换账号</button></div></>;
+function SecurityModule({ systemStatus, setupStatus, dataStatus, mcpStatus, providers, loadSystemStatus, logout, onCopy }) {
+  const text = diagnosticsText({setupStatus, systemStatus, dataStatus, mcpStatus, providers});
+  return <>
+    <div className="settings-block-head"><label>系统状态</label><button className="secondary small" onClick={loadSystemStatus}>刷新系统状态</button></div>
+    {systemStatus ? <TextCard title="ChatDock" hint={systemStatus.addr || ''} badge={systemStatus.ok ? 'healthy' : 'unknown'} badgeClass={systemStatus.ok ? 'ok' : 'warn'}><div className="product-meta">Web：{systemStatus.web_dir || '内嵌'} · DB：{systemStatus.database || '-'} · 当前工作空间：{(systemStatus.setup || {}).active_workspace || '-'}</div></TextCard> : <div className="hint">尚未加载系统状态。</div>}
+    <div className="settings-block-head"><label>诊断信息</label></div>
+    <pre className="diagnostics-preview">{text}</pre>
+    <div className="settings-actions"><button className="secondary" onClick={() => onCopy?.(text)}>复制诊断信息</button><button className="secondary" onClick={logout}>登录 / 切换账号</button></div>
+  </>;
 }
 
 async function readSSE(res, onEvent) {
