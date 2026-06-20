@@ -18,7 +18,7 @@ ChatDock 是一个自用的轻量 AI 对话中控台，目标是：提示词可�
 - 无 MCP 工具时保留真正流式输出；启用 MCP 工具时通过 SSE 输出工具调用事件和最终回答。
 - MCP HTTP JSON-RPC 客户端：支持 `tools/list`、`tools/call`、Bearer token、server 超时、工具列表缓存、工具 allow/deny/confirm 规则。
 - 产品化前端：独立账号密码登录页、配置中心抽屉、工作空间切换器、快捷指令面板（`⌘/Ctrl K`）、移动端会话操作面板、空状态引导和 PWA manifest。
-- 数据状态页：展示数据库大小、WAL 状态、工作空间/会话数量，并自动探测同级 `backups` 目录中的最近备份和最近备份列表。
+- 数据状态页：展示数据库大小、WAL 状态、工作空间/会话数量，并自动探测同级 `backups` 目录中的最近数据库备份和数据库备份列表，配置备份文件不会进入产品界面。
 
 ## 项目结构
 
@@ -143,11 +143,11 @@ curl http://127.0.0.1:8720/api/health
 
 如果你的 Docker CLI 已启用 Compose 插件，也可以使用 `docker compose up -d --build`。
 
-Compose 不需要再挂载或配置 `CHATDOCK_WEB`，前端页面、后端 API 和 MCP 相关能力都运行在 `8720` 同一个端口。默认还会把 `./backups` 只读挂载到容器 `/backups`，用于配置中心展示最近备份状态。
+Compose 不需要再挂载或配置 `CHATDOCK_WEB`，前端页面、后端 API 和 MCP 相关能力都运行在 `8720` 同一个端口。默认还会把 `./backups` 只读挂载到容器 `/backups`，用于配置中心展示最近数据库备份状态。
 
 ### 生产部署说明
 
-仓库 `compose.yaml` 是本地自托管示例，默认把当前目录的 `./data` 挂载到容器 `/data`。当前 Mac mini 生产实例使用外置盘数据目录 `/Volumes/KIOXIA/Docker/chatdock/data`，并把 `/Volumes/KIOXIA/Docker/chatdock/backups` 只读挂载到容器 `/backups` 展示备份状态；外置盘 compose 文件在自动化工具中可能出现 `Interrupted system call`。生产更新时应先确认外置盘路径稳定；如果 compose 文件不可稳定读写，可采用“继承旧容器环境变量、替换 `chatdock:local` 容器、继续挂载外置盘 data”的手动容器替换流程。
+仓库 `compose.yaml` 是本地自托管示例，默认把当前目录的 `./data` 挂载到容器 `/data`。当前 Mac mini 生产实例使用外置盘数据目录 `/Volumes/KIOXIA/Docker/chatdock/data`，并把 `/Volumes/KIOXIA/Docker/chatdock/backups` 只读挂载到容器 `/backups` 展示数据库备份状态；外置盘 compose 文件在自动化工具中可能出现 `Interrupted system call`。生产更新时应先确认外置盘路径稳定；如果 compose 文件不可稳定读写，可采用“继承旧容器环境变量、替换 `chatdock:local` 容器、继续挂载外置盘 data”的手动容器替换流程。
 
 ## macOS launchd
 

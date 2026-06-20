@@ -1271,13 +1271,13 @@ function DataStatus({ dataStatus }) {
     ['会话', String(dataStatus.session_count || 0)],
     ['WAL', dataStatus.wal_enabled ? '启用' : '未检测到'],
     ['备份目录', dataStatus.backup_dir || '未检测到'],
-    ['备份数量', String(dataStatus.backup_count || 0)],
-    ['最近备份', dataStatus.latest_backup_at ? fmtTime(dataStatus.latest_backup_at) + ' · ' + fmtBytes(dataStatus.latest_backup_size_bytes) : '暂无备份'],
+    ['数据库备份数量', String(dataStatus.backup_count || 0)],
+    ['最近数据库备份', dataStatus.latest_backup_at ? fmtTime(dataStatus.latest_backup_at) + ' · ' + fmtBytes(dataStatus.latest_backup_size_bytes) : '暂无数据库备份'],
   ];
   const backups = dataStatus.backups || [];
   return <>
     <div id="dataStatus">{items.map(item => <div className="stat-card" key={item[0]}><div className="stat-label">{item[0]}</div><div className="stat-value">{item[1]}</div></div>)}</div>
-    {backups.length ? <div className="backup-list"><div className="settings-block-head"><label>最近备份</label></div>{backups.map(item => <div className="backup-item" key={item.path || item.name}><div><b>{item.name || item.path}</b><div className="hint">{fmtTime(item.updated_at)} · {fmtBytes(item.size_bytes)}</div></div><code>{item.path}</code></div>)}</div> : null}
+    {backups.length ? <div className="backup-list"><div className="settings-block-head"><label>最近数据库备份</label></div>{backups.map(item => <div className="backup-item" key={item.path || item.name}><div><b>{item.name || item.path}</b><div className="hint">{fmtTime(item.updated_at)} · {fmtBytes(item.size_bytes)}</div></div><code>{item.path}</code></div>)}</div> : null}
   </>;
 }
 
