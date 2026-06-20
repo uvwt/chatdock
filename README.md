@@ -14,7 +14,7 @@ ChatDock 是一个自用的轻量 AI 对话中控台，目标是：提示词可�
 - 提示词空间：每个空间独立保存模型配置、MCP 配置、技能、定时任务和会话。
 - 技能：每个提示词空间可维护一组可开关的补充系统指令，发送消息时自动注入当前模型请求。
 - 定时任务：每个提示词空间可维护一组本地定时提示，支持一次性、每日、间隔执行，并把运行结果写入任务专属会话。
-- 会话创建、列表、删除、重命名、搜索、Markdown 导出。
+- 会话创建、列表、删除、重命名、全文复制、复制会话、Markdown 导出；会话列表显示最近消息摘要，搜索同时匹配标题和摘要。
 - 无 MCP 工具时保留真正流式输出；启用 MCP 工具时通过 SSE 输出工具调用事件和最终回答。
 - MCP HTTP JSON-RPC 客户端：支持 `tools/list`、`tools/call`、Bearer token、server 超时、工具列表缓存、工具 allow/deny/confirm 规则。
 
@@ -25,7 +25,7 @@ chatdock/
 ├── cmd/chatdock/          # 程序入口
 ├── internal/chatdock/     # 后端核心代码
 ├── web/                   # Vite/React 前端源码、构建脚本和 Go embed 包
-│   ├── src/               # 前端源码；legacy/ 保留当前 UI 逻辑，后续可逐步 React 化
+│   ├── src/               # React 前端源码
 │   ├── dist/              # 生产构建产物，由 make web-build 生成，不提交
 │   ├── embed.go           # //go:embed dist，供 Go 后端托管
 │   └── package.json
@@ -72,11 +72,11 @@ ChatDock 采用类似 Memos 的一体化部署方式：
 make web-build   # 安装/校验前端依赖并生成 web/dist
 make build       # 构建内嵌前端的单个 Go 二进制
 make run         # 先构建前端，再 go run
-make js-check    # 检查前端 legacy JS 分片语法和 data-action 覆盖
+make js-check    # 检查前端配置与 Markdown 工具脚本语法
 make check       # fmt-check + js-check + vet + test + build
 ```
 
-`make check` 会先检查前端 legacy JS 分片语法和 data-action 覆盖，再生成前端 dist，并执行：`fmt-check`、`go vet ./...`、`go test ./...`、`go build`。如果只想调试磁盘静态目录，可以设置 `CHATDOCK_WEB=/path/to/web/dist` 覆盖内嵌资源。
+`make check` 会先检查前端配置与 Markdown 工具脚本语法，再生成前端 dist，并执行：`fmt-check`、`go vet ./...`、`go test ./...`、`go build`。如果只想调试磁盘静态目录，可以设置 `CHATDOCK_WEB=/path/to/web/dist` 覆盖内嵌资源。
 
 ## 数据存储
 
@@ -175,5 +175,5 @@ Authorization: Bearer <token>
 
 - MCP 人工确认队列和前端确认弹窗。
 - Token 估算与上下文摘要压缩。
-- 会话收藏、置顶、批量导出。
+- 会话收藏、置顶和批量导出。
 - 可选敏感配置加密。

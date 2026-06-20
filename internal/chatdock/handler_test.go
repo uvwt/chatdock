@@ -13,9 +13,11 @@ import (
 )
 
 func TestChatAPIWritesSingleJSONResponse(t *testing.T) {
+	seenPath := make(chan string, 1)
 	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/chat/completions" {
-			t.Fatalf("unexpected model path: %s", r.URL.Path)
+		select {
+		case seenPath <- r.URL.Path:
+		default:
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"模型回答"}}]}`))
@@ -60,6 +62,9 @@ func TestChatAPIWritesSingleJSONResponse(t *testing.T) {
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		t.Fatalf("response has trailing JSON/content: err=%v body=%q", err, w.Body.String())
 	}
+	if got := <-seenPath; got != "/chat/completions" {
+		t.Fatalf("unexpected model path: %s", got)
+	}
 	if result.Answer != "模型回答" || result.Session == nil || len(result.Session.Messages) != 2 {
 		t.Fatalf("unexpected chat response: %#v", result)
 	}
@@ -98,6 +103,56 @@ func TestSessionRenameAndExportAPI(t *testing.T) {
 	}
 	if w.Header().Get("Content-Type") != "text/markdown; charset=utf-8" {
 		t.Fatalf("unexpected content type: %s", w.Header().Get("Content-Type"))
+	}
+}
+
+func TestSessionCloneAPI(t *testing.T) {
+	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/api/sessions", bytes.NewReader([]byte(`{}`)))
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("create status %d: %s", w.Code, w.Body.String())
+	}
+	var session Session
+	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := app.store.AppendUserMessage(session.ID, "需要复制的消息"); err != nil {
+		t.Fatal(err)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/api/sessions/"+session.ID+"/clone", bytes.NewReader([]byte(`{}`)))
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("clone status %d: %s", w.Code, w.Body.String())
+	}
+	var cloned Session
+	if err := json.Unmarshal(w.Body.Bytes(), &cloned); err != nil {
+		t.Fatal(err)
+	}
+	if cloned.ID == session.ID || len(cloned.Messages) != 1 || !strings.Contains(cloned.Title, "副本") {
+		t.Fatalf("unexpected cloned session: %#v", cloned)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "/api/sessions", nil)
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("list status %d: %s", w.Code, w.Body.String())
+	}
+	var summaries []SessionSummary
+	if err := json.Unmarshal(w.Body.Bytes(), &summaries); err != nil {
+		t.Fatal(err)
+	}
+	if len(summaries) != 2 || summaries[0].Preview == "" {
+		t.Fatalf("expected cloned session and preview in list: %#v", summaries)
 	}
 }
 
@@ -172,6 +227,74 @@ func TestScheduledTasksAPI(t *testing.T) {
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("delete scheduled task status %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestModelProviderTestUsesRequestConfig(t *testing.T) {
+	seenPath := make(chan string, 1)
+	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case seenPath <- r.URL.Path:
+		default:
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer model.Close()
+
+	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+	body := `{"base_url":"` + model.URL + `","model":"draft-model","api_key":""}`
+	r := httptest.NewRequest(http.MethodPost, "/api/model-providers/test", bytes.NewReader([]byte(body)))
+	w := httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("model provider test status %d: %s", w.Code, w.Body.String())
+	}
+	if got := <-seenPath; got != "/models" {
+		t.Fatalf("unexpected model test path: %s", got)
+	}
+	var result map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result["model"] != "draft-model" {
+		t.Fatalf("unexpected response: %#v", result)
+	}
+}
+
+func TestModelProviderTestKeepsSavedAPIKeyWhenMasked(t *testing.T) {
+	seenAuth := make(chan string, 1)
+	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case seenAuth <- r.Header.Get("Authorization"):
+		default:
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer model.Close()
+
+	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.store.SaveModelConfig(ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "saved-secret"}); err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+	body := `{"base_url":"` + model.URL + `","model":"draft-model","api_key":"********"}`
+	r := httptest.NewRequest(http.MethodPost, "/api/model-providers/test", bytes.NewReader([]byte(body)))
+	w := httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("model provider masked key test status %d: %s", w.Code, w.Body.String())
+	}
+	if got := <-seenAuth; got != "Bearer saved-secret" {
+		t.Fatalf("unexpected authorization header: %q", got)
 	}
 }
 

@@ -104,6 +104,7 @@ export default function App() {
   const toastTimerRef = useRef(null);
   const [dialog, setDialog] = useState(null);
   const [workspacePickerOpen, setWorkspacePickerOpen] = useState(false);
+  const [sessionActionsOpen, setSessionActionsOpen] = useState(false);
 
   const [setupStatus, setSetupStatus] = useState(null);
   const [workspaces, setWorkspaces] = useState([]);
@@ -399,12 +400,13 @@ export default function App() {
     function closeTopLayer(event) {
       if (event.key !== 'Escape') return;
       if (dialog) closeDialog(null);
+      else if (sessionActionsOpen) setSessionActionsOpen(false);
       else if (workspacePickerOpen) setWorkspacePickerOpen(false);
       else if (settingsOpen) closeSettings();
     }
     window.addEventListener('keydown', closeTopLayer);
     return () => window.removeEventListener('keydown', closeTopLayer);
-  }, [closeDialog, closeSettings, dialog, settingsOpen, workspacePickerOpen]);
+  }, [closeDialog, closeSettings, dialog, sessionActionsOpen, settingsOpen, workspacePickerOpen]);
 
   const selectWorkspace = useCallback(async (name) => {
     if (busy || !name) return;
@@ -469,6 +471,32 @@ export default function App() {
     if (!current) return;
     window.open(authURL('/api/sessions/' + current + '/export?format=md'), '_blank');
   }, [authURL, current]);
+
+  const copyCurrentMarkdown = useCallback(async () => {
+    if (!current) return;
+    try {
+      const res = await fetch('/api/sessions/' + encodeURIComponent(current) + '/export?format=md', {headers: authHeaders()});
+      if (!res.ok) throw new Error(await res.text() || res.statusText);
+      await copyText(await res.text());
+    } catch (e) {
+      showToast('复制全文失败：' + e.message, 'error');
+    }
+  }, [authHeaders, copyText, current, showToast]);
+
+  const cloneCurrent = useCallback(async () => {
+    if (!current || busy) return;
+    try {
+      const s = await api('/api/sessions/' + encodeURIComponent(current) + '/clone', {method:'POST', body:'{}'});
+      setCurrent(s.id);
+      setCurrentTitle(s.title || '会话副本');
+      setMessages(s.messages || []);
+      await loadSessions();
+      if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({chatdock:true}, '', sessionPath(s.id));
+      showToast('会话已复制', 'success');
+    } catch (e) {
+      showToast('复制会话失败：' + e.message, 'error');
+    }
+  }, [api, busy, current, loadSessions, showToast]);
 
   const appendToActiveAssistant = useCallback((patcher) => {
     setMessages(prev => prev.map((m, index) => index === prev.length - 1 && m.role === 'assistant-stream' ? patcher(m) : m));
@@ -650,10 +678,19 @@ export default function App() {
 
   const testModelProvider = useCallback(async () => {
     try {
-      const data = await api('/api/model-providers/test', {method:'POST', body:'{}'});
+      const data = await api('/api/model-providers/test', {method:'POST', body: JSON.stringify({
+        base_url: config.base_url,
+        api_key: config.api_key,
+        model: config.model,
+        system_prompt: config.system_prompt,
+        max_context_messages: Number(config.max_context_messages || 12),
+        temperature: Number(config.temperature || 0.7),
+        enable_thinking: !!config.enable_thinking,
+        hide_thinking: !!config.hide_thinking,
+      })});
       showToast(data.ok ? '模型连接正常：' + (data.model || '') : '模型连接失败：' + (data.error || 'unknown'), data.ok ? 'success' : 'error');
     } catch (e) { showToast('模型连接失败：' + e.message, 'error'); }
-  }, [api, showToast]);
+  }, [api, config, showToast]);
 
   const saveMCPConfig = useCallback(async () => {
     try { JSON.parse(mcpConfig || '{}'); } catch (e) { showToast('MCP 配置不是合法 JSON：' + e.message, 'error'); return; }
@@ -781,7 +818,7 @@ export default function App() {
 
   const filteredSessions = useMemo(() => {
     const q = sessionSearch.trim().toLowerCase();
-    return q ? sessions.filter(s => String(s.title || '').toLowerCase().includes(q)) : sessions;
+    return q ? sessions.filter(s => [s.title, s.preview, s.last_role].some(v => String(v || '').toLowerCase().includes(q))) : sessions;
   }, [sessionSearch, sessions]);
 
   const activePrompt = useMemo(() => prompts.find(p => p.active) || prompts[0] || null, [prompts]);
@@ -791,6 +828,16 @@ export default function App() {
   return <>
     <div id="sidebarMask" className={'sidebar-mask ' + (!sidebarCollapsed ? 'show' : '')} onClick={() => setSidebarCollapsed(true)} />
     <div id="settingsMask" className={'settings-mask ' + (settingsOpen ? 'show' : '')} onClick={() => closeSettings()} />
+    <div className={'session-actions-backdrop ' + (sessionActionsOpen ? 'show' : '')} onClick={() => setSessionActionsOpen(false)}>
+      <div className="session-actions-sheet" onClick={e => e.stopPropagation()}>
+        <div className="session-actions-head"><b>会话操作</b><button className="secondary small" onClick={() => setSessionActionsOpen(false)}>关闭</button></div>
+        <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); renameCurrent(); }}>重命名</button>
+        <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); copyCurrentMarkdown(); }}>复制全文</button>
+        <button className="secondary" disabled={!current || busy} onClick={() => { setSessionActionsOpen(false); cloneCurrent(); }}>复制会话</button>
+        <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); exportCurrent(); }}>导出 Markdown</button>
+        <button className="danger" disabled={!current} onClick={() => { setSessionActionsOpen(false); deleteCurrent(); }}>删除会话</button>
+      </div>
+    </div>
     <div id="app" className={appClass}>
       <aside>
         <div className="sidebar-head">
@@ -810,17 +857,20 @@ export default function App() {
         </div>
         <input className="session-search" placeholder="搜索会话" value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} />
         <button className="new" onClick={newSession}>+ <span className="new-label">新会话</span></button>
-        <div id="sessions">{filteredSessions.map(s => <div key={s.id} className={'session ' + (current === s.id ? 'active' : '')} onClick={() => openSession(s.id)}><div className="session-title">{s.title}</div><div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div>)}</div>
+        <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => <div key={s.id} className={'session ' + (current === s.id ? 'active' : '')} onClick={() => openSession(s.id)}><div className="session-title">{s.title}</div>{s.preview ? <div className="session-preview">{s.preview}</div> : null}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div>) : <div className="empty compact">没有匹配会话</div>}</div>
       </aside>
       <main>
         <div className="topbar">
           <div className="top-left"><button className="mobile-menu" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>☰</button><b id="title">{currentTitle}</b></div>
           <div className="top-actions">
             <button className="secondary config-toggle" onClick={() => openSettings()} title="配置中心">配置</button>
+            <button className="secondary session-actions-toggle" onClick={() => setSessionActionsOpen(true)} disabled={!current} title="会话操作">会话</button>
             <button className="theme-toggle" onClick={() => setThemeState(theme === 'day' ? 'night' : 'day')}>{theme === 'day' ? '白天' : '夜晚'}</button>
-            <button className="secondary" onClick={renameCurrent}>重命名</button>
-            <button className="secondary" onClick={exportCurrent}>导出</button>
-            <button className="danger" onClick={deleteCurrent}>删除</button>
+            <button className="secondary" onClick={renameCurrent} disabled={!current}>重命名</button>
+            <button className="secondary" onClick={copyCurrentMarkdown} disabled={!current}>复制全文</button>
+            <button className="secondary" onClick={cloneCurrent} disabled={!current || busy}>复制会话</button>
+            <button className="secondary" onClick={exportCurrent} disabled={!current}>导出</button>
+            <button className="danger" onClick={deleteCurrent} disabled={!current}>删除</button>
           </div>
         </div>
         <div className="messages" ref={messagesRef}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} />) : <div className="empty">创建一个会话，然后开始聊天。</div>}</div>

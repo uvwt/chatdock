@@ -336,6 +336,11 @@ func (a *App) handleSessionRoute(w http.ResponseWriter, r *http.Request) {
 		a.handleRenameSession(w, r)
 		return
 	}
+	if len(parts) == 2 && parts[1] == "clone" && r.Method == http.MethodPost {
+		r.SetPathValue("id", id)
+		a.handleCloneSession(w, r)
+		return
+	}
 	if len(parts) == 2 && parts[1] == "export" && r.Method == http.MethodGet {
 		r.SetPathValue("id", id)
 		a.handleExportSession(w, r)
@@ -351,6 +356,19 @@ func (a *App) handleRenameSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	session, err := a.store.RenameSession(r.PathValue("id"), input.Title)
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, ErrSessionNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, session)
+}
+
+func (a *App) handleCloneSession(w http.ResponseWriter, r *http.Request) {
+	session, err := a.store.CloneSession(r.PathValue("id"))
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, ErrSessionNotFound) {

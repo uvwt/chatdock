@@ -171,6 +171,8 @@ type Session struct {
 type SessionSummary struct {
 	ID        string    `json:"id"`
 	Title     string    `json:"title"`
+	Preview   string    `json:"preview,omitempty"`
+	LastRole  string    `json:"last_role,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Count     int       `json:"count"`

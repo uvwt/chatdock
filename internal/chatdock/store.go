@@ -310,9 +310,12 @@ func (s *Store) ListSessions() []SessionSummary {
 
 	items := make([]SessionSummary, 0, len(s.sessions))
 	for _, session := range s.sessions {
+		lastRole, preview := sessionPreview(session)
 		items = append(items, SessionSummary{
 			ID:        session.ID,
 			Title:     session.Title,
+			Preview:   preview,
+			LastRole:  lastRole,
 			CreatedAt: session.CreatedAt,
 			UpdatedAt: session.UpdatedAt,
 			Count:     len(session.Messages),
@@ -350,6 +353,35 @@ func (s *Store) GetSession(id string) (*Session, bool) {
 		return nil, false
 	}
 	return cloneSession(session), true
+}
+
+func (s *Store) CloneSession(id string) (*Session, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	source, ok := s.sessions[id]
+	if !ok {
+		return nil, ErrSessionNotFound
+	}
+	now := time.Now()
+	copySession := cloneSession(source)
+	copySession.ID = NewID()
+	copySession.Title = strings.TrimSpace(source.Title)
+	if copySession.Title == "" {
+		copySession.Title = "新会话"
+	}
+	copySession.Title = strings.TrimSpace(copySession.Title + " 副本")
+	if len([]rune(copySession.Title)) > 80 {
+		copySession.Title = string([]rune(copySession.Title)[:80])
+	}
+	copySession.CreatedAt = now
+	copySession.UpdatedAt = now
+	s.sessions[copySession.ID] = copySession
+	if err := s.saveSessionLocked(copySession); err != nil {
+		delete(s.sessions, copySession.ID)
+		return nil, err
+	}
+	return cloneSession(copySession), nil
 }
 
 func (s *Store) DeleteSession(id string) bool {
@@ -894,6 +926,19 @@ func parseDBTime(value string) time.Time {
 		return t.Local()
 	}
 	return time.Now()
+}
+
+func sessionPreview(session *Session) (string, string) {
+	if session == nil || len(session.Messages) == 0 {
+		return "", ""
+	}
+	msg := session.Messages[len(session.Messages)-1]
+	content := strings.Join(strings.Fields(msg.Content), " ")
+	runes := []rune(content)
+	if len(runes) > 120 {
+		content = string(runes[:120]) + "…"
+	}
+	return strings.TrimSpace(msg.Role), content
 }
 
 func cloneSession(session *Session) *Session {

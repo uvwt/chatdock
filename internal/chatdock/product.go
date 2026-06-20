@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -494,6 +495,25 @@ func (a *App) handleListModelProviders(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleTestModelProvider(w http.ResponseWriter, r *http.Request) {
 	cfg := a.store.GetModelConfig()
+	if r.Body != nil {
+		defer r.Body.Close()
+		raw, err := io.ReadAll(io.LimitReader(r.Body, 2<<20))
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		if strings.TrimSpace(string(raw)) != "" && strings.TrimSpace(string(raw)) != "{}" {
+			next := cfg
+			if err := json.Unmarshal(raw, &next); err != nil {
+				writeError(w, http.StatusBadRequest, err)
+				return
+			}
+			if strings.TrimSpace(next.APIKey) == "" || strings.TrimSpace(next.APIKey) == "********" {
+				next.APIKey = cfg.APIKey
+			}
+			cfg = NormalizeModelConfig(next)
+		}
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
 	if err := a.client.TestModelProvider(ctx, cfg); err != nil {
