@@ -94,6 +94,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
   const [dialog, setDialog] = useState(null);
+  const [workspacePickerOpen, setWorkspacePickerOpen] = useState(false);
 
   const [setupStatus, setSetupStatus] = useState(null);
   const [workspaces, setWorkspaces] = useState([]);
@@ -336,6 +337,7 @@ export default function App() {
 
   const selectWorkspace = useCallback(async (name) => {
     if (busy || !name) return;
+    setWorkspacePickerOpen(false);
     await api('/api/workspaces/' + encodeURIComponent(name) + '/select', {method:'POST', body:'{}'});
     setCurrent(null);
     setCurrentTitle('未选择会话');
@@ -702,6 +704,8 @@ export default function App() {
     return q ? sessions.filter(s => String(s.title || '').toLowerCase().includes(q)) : sessions;
   }, [sessionSearch, sessions]);
 
+  const activePrompt = useMemo(() => prompts.find(p => p.active) || prompts[0] || null, [prompts]);
+
   const appClass = 'app ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (settingsOpen ? 'settings-open' : '');
 
   return <>
@@ -716,7 +720,11 @@ export default function App() {
         <div className="prompt-box">
           <label>工作空间</label>
           <div className="prompt-row">
-            <select value={(prompts.find(p => p.active) || {}).name || ''} onChange={e => selectWorkspace(e.target.value)} disabled={busy}>{prompts.map(p => <option key={p.name} value={p.name}>{p.name}（{p.count}）{p.active ? ' ✔' : ''}</option>)}</select>
+            <button className="workspace-picker-trigger" type="button" disabled={busy || !prompts.length} onClick={() => setWorkspacePickerOpen(true)}>
+              <span className="workspace-picker-name">{activePrompt ? activePrompt.name : '未选择'}</span>
+              <span className="workspace-picker-meta">{activePrompt ? activePrompt.count + ' 条' : '暂无工作空间'}</span>
+              <span className="workspace-picker-arrow">⌄</span>
+            </button>
             <button className="prompt-add" onClick={createWorkspace}>+</button>
           </div>
         </div>
@@ -757,6 +765,7 @@ export default function App() {
         toggleSkill={toggleSkill} workspaces={workspaces} agentTasks={agentTasks} setSkillSearch={setSkillSearch} logout={logout}
       />
     </div>
+    <WorkspacePicker open={workspacePickerOpen} prompts={prompts} busy={busy} activeName={activePrompt?.name || ''} onClose={() => setWorkspacePickerOpen(false)} onSelect={selectWorkspace} />
     {authPage ? <LoginPage api={api} error={authPage} refreshAfterLogin={refreshAfterLogin} setAuthPage={setAuthPage} /> : null}
     <DialogHost dialog={dialog} closeDialog={closeDialog} />
     {toast ? <div id="appToast" className={'app-toast show ' + toast.variant}>{toast.message}</div> : null}
@@ -772,6 +781,29 @@ function MessageView({ message }) {
   </div>;
   if (message.role === 'assistant') return <div className="msg assistant markdown"><Markdown value={message.content} /></div>;
   return <div className={'msg ' + (message.role || 'user')}>{message.content}</div>;
+}
+
+function WorkspacePicker({ open, prompts, busy, activeName, onClose, onSelect }) {
+  if (!open) return null;
+  return <div className="workspace-picker-backdrop show" onClick={onClose}>
+    <div className="workspace-picker-sheet" role="dialog" aria-modal="true" aria-label="选择工作空间" onClick={e => e.stopPropagation()}>
+      <div className="workspace-picker-head">
+        <div><b>选择工作空间</b><div className="hint">切换后会加载对应会话、模型和技能。</div></div>
+        <button className="secondary small" type="button" onClick={onClose}>关闭</button>
+      </div>
+      <div className="workspace-picker-list">
+        {prompts.length ? prompts.map(item => <button
+          key={item.name}
+          type="button"
+          disabled={busy}
+          className={'workspace-picker-item ' + (item.name === activeName ? 'active' : '')}
+          onClick={() => onSelect(item.name)}>
+          <span className="workspace-picker-item-main"><b>{item.name}</b><span>{item.count} 条会话</span></span>
+          <span className="workspace-picker-check">{item.name === activeName ? '✓' : ''}</span>
+        </button>) : <div className="empty compact">暂无工作空间。</div>}
+      </div>
+    </div>
+  </div>;
 }
 
 function LoginPage({ api, error, refreshAfterLogin, setAuthPage }) {
