@@ -620,14 +620,15 @@ aside,
     white-space: nowrap;
   }
 
+  /* 上一版把模块标签栏 sticky 到顶部，滚动到表单中段时会露出上方字段残片。
+     手机端改回普通横向导航，随配置页一起滚动，避免遮挡和切割内容。 */
   .module-tabs {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    margin: 10px -14px 14px;
-    padding: 8px 14px 10px;
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
+    position: static;
+    z-index: auto;
+    margin: 12px -14px 16px;
+    padding: 0 14px 8px;
+    background: transparent;
+    border-bottom: 0;
   }
 
   .module-tab {
