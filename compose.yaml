@@ -11,3 +11,4 @@ services:
       - "127.0.0.1:8720:8720"
     volumes:
       - ./data:/data
+      - ./backups:/backups:ro

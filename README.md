@@ -143,11 +143,11 @@ curl http://127.0.0.1:8720/api/health
 
 如果你的 Docker CLI 已启用 Compose 插件，也可以使用 `docker compose up -d --build`。
 
-Compose 不需要再挂载或配置 `CHATDOCK_WEB`，前端页面、后端 API 和 MCP 相关能力都运行在 `8720` 同一个端口。
+Compose 不需要再挂载或配置 `CHATDOCK_WEB`，前端页面、后端 API 和 MCP 相关能力都运行在 `8720` 同一个端口。默认还会把 `./backups` 只读挂载到容器 `/backups`，用于配置中心展示最近备份状态。
 
 ### 生产部署说明
 
-仓库 `compose.yaml` 是本地自托管示例，默认把当前目录的 `./data` 挂载到容器 `/data`。当前 Mac mini 生产实例使用外置盘数据目录 `/Volumes/KIOXIA/Docker/chatdock/data`，且外置盘 compose 文件在自动化工具中可能出现 `Interrupted system call`。生产更新时应先确认外置盘路径稳定；如果 compose 文件不可稳定读写，可采用“继承旧容器环境变量、替换 `chatdock:local` 容器、继续挂载外置盘 data”的手动容器替换流程。
+仓库 `compose.yaml` 是本地自托管示例，默认把当前目录的 `./data` 挂载到容器 `/data`。当前 Mac mini 生产实例使用外置盘数据目录 `/Volumes/KIOXIA/Docker/chatdock/data`，并把 `/Volumes/KIOXIA/Docker/chatdock/backups` 只读挂载到容器 `/backups` 展示备份状态；外置盘 compose 文件在自动化工具中可能出现 `Interrupted system call`。生产更新时应先确认外置盘路径稳定；如果 compose 文件不可稳定读写，可采用“继承旧容器环境变量、替换 `chatdock:local` 容器、继续挂载外置盘 data”的手动容器替换流程。
 
 ## macOS launchd
 
