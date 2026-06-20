@@ -81,21 +81,29 @@ type PromptPreviewResponse struct {
 	Content       string   `json:"content"`
 }
 
+type BackupInfo struct {
+	Name      string    `json:"name"`
+	Path      string    `json:"path"`
+	SizeBytes int64     `json:"size_bytes"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type DataStatus struct {
-	DataDir               string    `json:"data_dir"`
-	DatabasePath          string    `json:"database_path"`
-	DatabaseExists        bool      `json:"database_exists"`
-	DatabaseSizeBytes     int64     `json:"database_size_bytes"`
-	WALEnabled            bool      `json:"wal_enabled"`
-	SHMExists             bool      `json:"shm_exists"`
-	BackupDir             string    `json:"backup_dir,omitempty"`
-	BackupCount           int       `json:"backup_count"`
-	LatestBackupPath      string    `json:"latest_backup_path,omitempty"`
-	LatestBackupSizeBytes int64     `json:"latest_backup_size_bytes,omitempty"`
-	LatestBackupAt        time.Time `json:"latest_backup_at,omitempty"`
-	ActiveWorkspace       string    `json:"active_workspace"`
-	WorkspaceCount        int       `json:"workspace_count"`
-	SessionCount          int       `json:"session_count"`
+	DataDir               string       `json:"data_dir"`
+	DatabasePath          string       `json:"database_path"`
+	DatabaseExists        bool         `json:"database_exists"`
+	DatabaseSizeBytes     int64        `json:"database_size_bytes"`
+	WALEnabled            bool         `json:"wal_enabled"`
+	SHMExists             bool         `json:"shm_exists"`
+	BackupDir             string       `json:"backup_dir,omitempty"`
+	BackupCount           int          `json:"backup_count"`
+	LatestBackupPath      string       `json:"latest_backup_path,omitempty"`
+	LatestBackupSizeBytes int64        `json:"latest_backup_size_bytes,omitempty"`
+	LatestBackupAt        time.Time    `json:"latest_backup_at,omitempty"`
+	Backups               []BackupInfo `json:"backups,omitempty"`
+	ActiveWorkspace       string       `json:"active_workspace"`
+	WorkspaceCount        int          `json:"workspace_count"`
+	SessionCount          int          `json:"session_count"`
 }
 
 type MCPServerStatus struct {
@@ -410,12 +418,25 @@ func (s *Store) DataStatus() (DataStatus, error) {
 			}
 			status.BackupDir = dir
 			status.BackupCount++
-			if fileInfo.ModTime().After(status.LatestBackupAt) {
-				status.LatestBackupAt = fileInfo.ModTime()
-				status.LatestBackupPath = filepath.Join(dir, entry.Name())
-				status.LatestBackupSizeBytes = fileInfo.Size()
-			}
+			status.Backups = append(status.Backups, BackupInfo{
+				Name:      entry.Name(),
+				Path:      filepath.Join(dir, entry.Name()),
+				SizeBytes: fileInfo.Size(),
+				UpdatedAt: fileInfo.ModTime(),
+			})
 		}
+	}
+	sort.Slice(status.Backups, func(i, j int) bool {
+		return status.Backups[i].UpdatedAt.After(status.Backups[j].UpdatedAt)
+	})
+	if len(status.Backups) > 0 {
+		latest := status.Backups[0]
+		status.LatestBackupAt = latest.UpdatedAt
+		status.LatestBackupPath = latest.Path
+		status.LatestBackupSizeBytes = latest.SizeBytes
+	}
+	if len(status.Backups) > 5 {
+		status.Backups = status.Backups[:5]
 	}
 	return status, nil
 }

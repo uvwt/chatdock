@@ -812,3 +812,11 @@ body.theme-light .quick-palette-item:not(:disabled):hover, body.theme-light .qui
 .session.pinned { border-left: 3px solid var(--primary); }
 .pin-mark { display:inline-flex; align-items:center; margin-right:6px; padding:2px 6px; border-radius:999px; background:rgba(37,99,235,.18); color:#93c5fd; font-size:11px; font-weight:700; vertical-align:middle; }
 body.theme-light .pin-mark { background:#dbeafe; color:#1d4ed8; }
+
+/* 数据页最近备份列表 */
+.backup-list { display:grid; gap:8px; margin-top:12px; }
+.backup-item { display:grid; gap:8px; padding:10px; border:1px solid var(--border); border-radius:12px; background:var(--panel-soft); }
+.backup-item b { color:var(--text-strong); overflow-wrap:anywhere; }
+.backup-item code { display:block; padding:8px; border-radius:10px; background:var(--panel-deep); color:var(--muted); font-size:12px; overflow-wrap:anywhere; white-space:normal; }
+body.theme-light .backup-item { background:#f8fafc; border-color:#e2e8f0; }
+body.theme-light .backup-item code { background:#ffffff; color:#64748b; }

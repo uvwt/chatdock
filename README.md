@@ -18,7 +18,7 @@ ChatDock 是一个自用的轻量 AI 对话中控台，目标是：提示词可�
 - 无 MCP 工具时保留真正流式输出；启用 MCP 工具时通过 SSE 输出工具调用事件和最终回答。
 - MCP HTTP JSON-RPC 客户端：支持 `tools/list`、`tools/call`、Bearer token、server 超时、工具列表缓存、工具 allow/deny/confirm 规则。
 - 产品化前端：独立账号密码登录页、配置中心抽屉、工作空间切换器、快捷指令面板（`⌘/Ctrl K`）、移动端会话操作面板、空状态引导和 PWA manifest。
-- 数据状态页：展示数据库大小、WAL 状态、工作空间/会话数量，并自动探测同级 `backups` 目录中的最近备份。
+- 数据状态页：展示数据库大小、WAL 状态、工作空间/会话数量，并自动探测同级 `backups` 目录中的最近备份和最近备份列表。
 
 ## 项目结构
 

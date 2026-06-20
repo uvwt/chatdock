@@ -1274,7 +1274,11 @@ function DataStatus({ dataStatus }) {
     ['备份数量', String(dataStatus.backup_count || 0)],
     ['最近备份', dataStatus.latest_backup_at ? fmtTime(dataStatus.latest_backup_at) + ' · ' + fmtBytes(dataStatus.latest_backup_size_bytes) : '暂无备份'],
   ];
-  return <div id="dataStatus">{items.map(item => <div className="stat-card" key={item[0]}><div className="stat-label">{item[0]}</div><div className="stat-value">{item[1]}</div></div>)}</div>;
+  const backups = dataStatus.backups || [];
+  return <>
+    <div id="dataStatus">{items.map(item => <div className="stat-card" key={item[0]}><div className="stat-label">{item[0]}</div><div className="stat-value">{item[1]}</div></div>)}</div>
+    {backups.length ? <div className="backup-list"><div className="settings-block-head"><label>最近备份</label></div>{backups.map(item => <div className="backup-item" key={item.path || item.name}><div><b>{item.name || item.path}</b><div className="hint">{fmtTime(item.updated_at)} · {fmtBytes(item.size_bytes)}</div></div><code>{item.path}</code></div>)}</div> : null}
+  </>;
 }
 
 function SecurityModule({ systemStatus, loadSystemStatus, logout }) {

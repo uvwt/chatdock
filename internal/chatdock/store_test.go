@@ -266,6 +266,9 @@ func TestDataStatusReportsLatestBackup(t *testing.T) {
 	if status.BackupDir != backupDir || status.BackupCount != 2 || status.LatestBackupPath != newBackup || status.LatestBackupSizeBytes != int64(len("new-backup")) {
 		t.Fatalf("unexpected backup status: %#v", status)
 	}
+	if len(status.Backups) != 2 || status.Backups[0].Path != newBackup || status.Backups[0].Name != "new.sqlite" || status.Backups[1].Path != oldBackup {
+		t.Fatalf("unexpected backup list: %#v", status.Backups)
+	}
 }
 
 func TestStoreCloseClosesSQLiteConnection(t *testing.T) {
