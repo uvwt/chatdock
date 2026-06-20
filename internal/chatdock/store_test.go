@@ -238,20 +238,35 @@ func TestDataStatusReportsLatestBackup(t *testing.T) {
 	if err := os.MkdirAll(backupDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	oldBackup := filepath.Join(backupDir, "old.sqlite")
-	newBackup := filepath.Join(backupDir, "new.sqlite")
+	oldBackup := filepath.Join(backupDir, "chatdock.sqlite.20260620-010000.bak")
+	newBackup := filepath.Join(backupDir, "chatdock.sqlite.20260620-020000.bak")
+	ignoredEnvBackup := filepath.Join(backupDir, ".env.20260620-030000.bak")
+	ignoredComposeBackup := filepath.Join(backupDir, "compose.yaml.20260620-030000.bak")
 	if err := os.WriteFile(oldBackup, []byte("old"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(newBackup, []byte("new-backup"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	oldTime := time.Now().Add(-2 * time.Hour)
-	newTime := time.Now().Add(-time.Hour)
+	if err := os.WriteFile(ignoredEnvBackup, []byte("env"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(ignoredComposeBackup, []byte("compose"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	oldTime := time.Now().Add(-3 * time.Hour)
+	newTime := time.Now().Add(-2 * time.Hour)
+	ignoredTime := time.Now().Add(-time.Hour)
 	if err := os.Chtimes(oldBackup, oldTime, oldTime); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(newBackup, newTime, newTime); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(ignoredEnvBackup, ignoredTime, ignoredTime); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(ignoredComposeBackup, ignoredTime, ignoredTime); err != nil {
 		t.Fatal(err)
 	}
 
@@ -266,8 +281,13 @@ func TestDataStatusReportsLatestBackup(t *testing.T) {
 	if status.BackupDir != backupDir || status.BackupCount != 2 || status.LatestBackupPath != newBackup || status.LatestBackupSizeBytes != int64(len("new-backup")) {
 		t.Fatalf("unexpected backup status: %#v", status)
 	}
-	if len(status.Backups) != 2 || status.Backups[0].Path != newBackup || status.Backups[0].Name != "new.sqlite" || status.Backups[1].Path != oldBackup {
+	if len(status.Backups) != 2 || status.Backups[0].Path != newBackup || status.Backups[0].Name != "chatdock.sqlite.20260620-020000.bak" || status.Backups[1].Path != oldBackup {
 		t.Fatalf("unexpected backup list: %#v", status.Backups)
+	}
+	for _, backup := range status.Backups {
+		if strings.HasPrefix(backup.Name, ".env") || strings.HasPrefix(backup.Name, "compose.yaml") {
+			t.Fatalf("non-database backup should not be reported: %#v", status.Backups)
+		}
 	}
 }
 

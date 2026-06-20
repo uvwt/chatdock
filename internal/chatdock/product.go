@@ -409,7 +409,8 @@ func (s *Store) DataStatus() (DataStatus, error) {
 			return DataStatus{}, err
 		}
 		for _, entry := range entries {
-			if entry.IsDir() {
+			name := entry.Name()
+			if entry.IsDir() || !isDatabaseBackupFile(name) {
 				continue
 			}
 			fileInfo, err := entry.Info()
@@ -419,8 +420,8 @@ func (s *Store) DataStatus() (DataStatus, error) {
 			status.BackupDir = dir
 			status.BackupCount++
 			status.Backups = append(status.Backups, BackupInfo{
-				Name:      entry.Name(),
-				Path:      filepath.Join(dir, entry.Name()),
+				Name:      name,
+				Path:      filepath.Join(dir, name),
 				SizeBytes: fileInfo.Size(),
 				UpdatedAt: fileInfo.ModTime(),
 			})
@@ -439,6 +440,16 @@ func (s *Store) DataStatus() (DataStatus, error) {
 		status.Backups = status.Backups[:5]
 	}
 	return status, nil
+}
+
+func isDatabaseBackupFile(name string) bool {
+	lowerName := strings.ToLower(name)
+	for _, marker := range []string{".sqlite", ".sqlite3", ".db", ".db3"} {
+		if strings.HasSuffix(lowerName, marker) || strings.Contains(lowerName, marker+".") || strings.Contains(lowerName, marker+"-") || strings.Contains(lowerName, marker+"_") {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Store) modelConfigForPrompt(prompt string) (ModelConfig, error) {
