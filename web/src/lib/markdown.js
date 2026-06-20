@@ -1,4 +1,4 @@
-function renderMarkdown(value) {
+export function renderMarkdown(value) {
   const lines = String(value || '').replace(/\r\n/g, '\n').split('\n');
   const html = [];
   let paragraph = [];
@@ -31,9 +31,8 @@ function renderMarkdown(value) {
     const line = lines[i];
     const fence = line.match(/^\s*```\s*([^`]*)\s*$/);
     if (fence) {
-      if (inCode) {
-        flushCode();
-      } else {
+      if (inCode) flushCode();
+      else {
         flushParagraph();
         flushList();
         inCode = true;
@@ -174,6 +173,6 @@ function renderInline(value) {
   return html;
 }
 
-function escapeHtml(value) {
-  return String(value || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+export function escapeHtml(value) {
+  return String(value || '').replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 }
