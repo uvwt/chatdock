@@ -1,4 +1,4 @@
-// ChatDock legacy settings：配置中心路由、概览卡片、主题和侧栏。
+// ChatDock module settings：配置中心路由、概览卡片、主题和侧栏。
 function fmtTime(value) { try { return new Date(value).toLocaleString(); } catch { return ''; } }
 
 function fmtBytes(value) {

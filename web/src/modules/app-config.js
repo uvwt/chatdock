@@ -1,4 +1,4 @@
-// ChatDock legacy config：工作空间模型配置和 MCP 配置保存。
+// ChatDock module config：工作空间模型配置和 MCP 配置保存。
 async function loadConfig() {
   let c;
   try {

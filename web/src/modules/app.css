@@ -1,17 +1,52 @@
+/* ChatDock frontend tokens：集中定义主题变量，后续组件样式优先复用这些语义变量。 */
+:root {
+  color-scheme: dark;
+  --bg: #0b1020;
+  --panel: #0f172a;
+  --panel-soft: #111827;
+  --panel-deep: #020617;
+  --text: #e5e7eb;
+  --text-strong: #f8fafc;
+  --muted: #94a3b8;
+  --muted-weak: #64748b;
+  --border: #1f2937;
+  --border-strong: #334155;
+  --primary: #2563eb;
+  --primary-strong: #1d4ed8;
+  --danger: #991b1b;
+}
+
+body.theme-light {
+  color-scheme: light;
+  --bg: #f6f8fb;
+  --panel: #ffffff;
+  --panel-soft: #f8fafc;
+  --panel-deep: #ffffff;
+  --text: #0f172a;
+  --text-strong: #0f172a;
+  --muted: #64748b;
+  --muted-weak: #64748b;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --primary: #2563eb;
+  --primary-strong: #1d4ed8;
+  --danger: #991b1b;
+}
+
 * { box-sizing: border-box; }
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0b1020; color: #e5e7eb; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
     .app { display: grid; grid-template-columns: 260px 1fr 340px; height: 100vh; transition: grid-template-columns .18s ease; }
     .app.sidebar-collapsed { grid-template-columns: 64px 1fr 340px; }
-    aside, .settings { border-right: 1px solid #1f2937; background: #0f172a; overflow: auto; }
+    aside, .settings { border-right: 1px solid var(--border); background: var(--panel); overflow: auto; }
     aside { overflow-x: hidden; }
-    .settings { border-right: 0; border-left: 1px solid #1f2937; padding: 16px; }
+    .settings { border-right: 0; border-left: 1px solid var(--border); padding: 16px; }
     .sidebar-head { display: flex; align-items: center; gap: 8px; padding: 14px 12px 12px 16px; }
     .brand { min-width: 0; flex: 1; font-weight: 800; font-size: 22px; line-height: 1.1; white-space: nowrap; overflow: hidden; }
     .brand-text { display: inline-block; }
     .sub { color: #94a3b8; font-size: 12px; margin-top: 4px; font-weight: 400; }
-    button { background: #2563eb; color: white; border: 0; border-radius: 10px; padding: 10px 12px; cursor: pointer; }
-    button.secondary { background: #1f2937; }
-    button.danger { background: #991b1b; }
+    button { background: var(--primary); color: white; border: 0; border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+    button.secondary { background: var(--border); }
+    button.danger { background: var(--danger); }
     button.small { padding: 6px 9px; border-radius: 8px; font-size: 12px; }
     button:disabled { opacity: .6; cursor: wait; }
     .sidebar-toggle { flex: 0 0 34px; width: 34px; height: 34px; padding: 0; border-radius: 12px; background: #1f2937; font-size: 18px; line-height: 34px; }
@@ -21,7 +56,7 @@
     .prompt-row { display: flex; gap: 8px; align-items: center; }
     .prompt-row select { flex: 1; min-width: 0; }
     .prompt-add { flex: 0 0 38px; width: 38px; height: 38px; padding: 0; border-radius: 10px; background: #1f2937; }
-    select { width: 100%; border-radius: 10px; border: 1px solid #334155; background: #020617; color: #e5e7eb; padding: 9px; outline: none; }
+    select { width: 100%; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--panel-deep); color: var(--text); padding: 9px; outline: none; }
     .session { padding: 12px 14px; border-top: 1px solid #1f2937; cursor: pointer; color: #cbd5e1; }
     .session:hover, .session.active { background: #172554; color: #fff; }
     .session-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -68,7 +103,7 @@
     .composer { border-top: 1px solid #1f2937; padding: 14px; display: flex; gap: 10px; }
     .quick-control, .stream-control { flex: 0 0 auto; min-width: 68px; }
     .stream-control[hidden] { display: none; }
-    textarea, input { width: 100%; border-radius: 10px; border: 1px solid #334155; background: #020617; color: #e5e7eb; padding: 10px; outline: none; }
+    textarea, input { width: 100%; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--panel-deep); color: var(--text); padding: 10px; outline: none; }
     textarea { min-height: 54px; max-height: 160px; resize: vertical; }
     .mcp-editor { min-height: 190px; max-height: 360px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; line-height: 1.55; }
     .settings-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }

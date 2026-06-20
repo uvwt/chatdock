@@ -1,4 +1,4 @@
-// ChatDock legacy runs：MCP 执行记录和 AgentDock 任务状态。
+// ChatDock module runs：MCP 执行记录和 AgentDock 任务状态。
 async function loadRuns() {
   const target = document.getElementById('runCards');
   if (!target) return;

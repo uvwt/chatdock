@@ -1,4 +1,4 @@
-// ChatDock legacy skills：技能列表、编辑、开关和删除。
+// ChatDock module skills：技能列表、编辑、开关和删除。
 async function loadSkills() {
   try {
     const data = await api('/api/skills');

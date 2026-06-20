@@ -1,4 +1,4 @@
-// ChatDock legacy workspaces：工作空间选择、新建和登录状态切换入口。
+// ChatDock module workspaces：工作空间选择、新建和登录状态切换入口。
 async function loadPrompts() {
   const data = await api('/api/prompts');
   promptSelector.innerHTML = data.prompts.map(p => {

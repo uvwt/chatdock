@@ -1,4 +1,4 @@
-// ChatDock legacy chat：会话列表、消息渲染、流式输出和 SSE 解析。
+// ChatDock module chat：会话列表、消息渲染、流式输出和 SSE 解析。
 async function loadSessions() {
   const list = await api('/api/sessions');
   const q = ((document.getElementById('sessionSearch') || {}).value || '').trim().toLowerCase();

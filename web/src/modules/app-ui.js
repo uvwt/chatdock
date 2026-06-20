@@ -1,4 +1,4 @@
-// ChatDock legacy UI：弹层、Toast、事件委托和通用 HTML 属性处理。
+// ChatDock module UI：弹层、Toast、事件委托和通用 HTML 属性处理。
 let appDialogEl = null;
 let toastTimer = null;
 

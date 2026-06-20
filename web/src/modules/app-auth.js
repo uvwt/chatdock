@@ -1,4 +1,4 @@
-// ChatDock legacy auth：API 包装、登录页和启动入口。
+// ChatDock module auth：API 包装、登录页和启动入口。
 function authHeaders(extra={}) {
   const token = localStorage.getItem('chatdock.authToken') || '';
   return token ? {'Authorization':'Bearer ' + token, ...extra} : extra;

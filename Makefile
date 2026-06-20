@@ -23,7 +23,8 @@ web-build: web-deps
 	npm --prefix $(WEB_DIR) run build
 
 js-check: web-deps
-	@for f in $(WEB_DIR)/src/legacy/*.js; do node --check "$$f" || exit 1; done
+	node --check $(WEB_DIR)/src/main.js
+	@for f in $(WEB_DIR)/src/modules/*.js; do node --check "$$f" || exit 1; done
 	node scripts/check-actions.js
 
 test: web-build

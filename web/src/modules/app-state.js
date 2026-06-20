@@ -1,4 +1,4 @@
-// ChatDock legacy state：只放跨模块共享的运行态变量。
+// ChatDock module state：只放跨模块共享的运行态变量。
 var current = null;
 var busy = false;
 var activeAbortController = null;

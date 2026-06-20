@@ -5,9 +5,9 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const files = [
   'web/src/pageHtml.js',
-  ...fs.readdirSync(path.join(root, 'web/src/legacy'))
+  ...fs.readdirSync(path.join(root, 'web/src/modules'))
     .filter(name => name.endsWith('.js'))
-    .map(name => `web/src/legacy/${name}`),
+    .map(name => `web/src/modules/${name}`),
 ];
 
 const source = files.map(file => fs.readFileSync(path.join(root, file), 'utf8')).join('\n');
@@ -18,7 +18,7 @@ for (const match of source.matchAll(/data-action="([^"]+)"/g)) {
 }
 
 const clickActions = new Set();
-const handlerSource = fs.readFileSync(path.join(root, 'web/src/legacy/app-ui.js'), 'utf8');
+const handlerSource = fs.readFileSync(path.join(root, 'web/src/modules/app-ui.js'), 'utf8');
 for (const match of handlerSource.matchAll(/'([^']+)':/g)) clickActions.add(match[1]);
 
 const changeActions = new Set(['prompt-select', 'skill-toggle', 'task-toggle']);

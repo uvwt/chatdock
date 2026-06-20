@@ -1,4 +1,4 @@
-// ChatDock legacy tasks：自动化任务列表、编辑、开关、删除和立即运行。
+// ChatDock module tasks：自动化任务列表、编辑、开关、删除和立即运行。
 async function loadScheduledTasks() {
   try {
     const data = await api('/api/scheduled-tasks');
