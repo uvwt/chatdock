@@ -158,6 +158,8 @@ export default function App() {
   const [setupStatus, setSetupStatus] = useState(null);
   const [workspaces, setWorkspaces] = useState([]);
   const [providers, setProviders] = useState([]);
+  const [availableModels, setAvailableModels] = useState([]);
+  const [loadingModels, setLoadingModels] = useState(false);
   const [prompts, setPrompts] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [sessionSearch, setSessionSearch] = useState('');
@@ -820,6 +822,30 @@ export default function App() {
     } catch (e) { showToast('模型连接失败：' + e.message, 'error'); }
   }, [api, config, showToast]);
 
+  const fetchProviderModels = useCallback(async () => {
+    setLoadingModels(true);
+    try {
+      const data = await api('/api/model-providers/models', {method:'POST', body: JSON.stringify({
+        base_url: config.base_url,
+        api_key: config.api_key,
+        model: config.model,
+        system_prompt: config.system_prompt,
+        max_context_messages: Number(config.max_context_messages || 12),
+        temperature: Number(config.temperature || 0.7),
+        enable_thinking: !!config.enable_thinking,
+        hide_thinking: !!config.hide_thinking,
+      })});
+      const models = data.models || [];
+      setAvailableModels(models);
+      showToast(models.length ? '已获取 ' + models.length + ' 个模型' : '接口可用，但没有返回模型名称', models.length ? 'success' : 'warn');
+    } catch (e) {
+      setAvailableModels([]);
+      showToast('获取模型列表失败：' + e.message, 'error');
+    } finally {
+      setLoadingModels(false);
+    }
+  }, [api, config, showToast]);
+
   const saveMCPConfig = useCallback(async () => {
     try { JSON.parse(mcpConfig || '{}'); } catch (e) { showToast('MCP 配置不是合法 JSON：' + e.message, 'error'); return; }
     const c = await api('/api/mcp-config', {method:'POST', body: JSON.stringify({content:mcpConfig})});
@@ -1050,7 +1076,7 @@ export default function App() {
         runScheduledTaskNow={runScheduledTaskNow} runSetupWizard={runSetupWizard} runs={runs} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
         scheduledTasks={scheduledTasks} selectWorkspace={selectWorkspace} setConfig={setConfig} setMcpConfig={setMcpConfig} setTaskSearch={setTaskSearch}
         setupStatus={setupStatus} showPromptPreview={showPromptPreview} skillSearch={skillSearch} skills={skills} switchSettingsModule={switchSettingsModule}
-        systemStatus={systemStatus} taskSearch={taskSearch} testMCP={testMCP} testModelProvider={testModelProvider} toggleScheduledTask={toggleScheduledTask}
+        systemStatus={systemStatus} taskSearch={taskSearch} testMCP={testMCP} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} loadingModels={loadingModels} toggleScheduledTask={toggleScheduledTask}
         toggleSkill={toggleSkill} workspaces={workspaces} agentTasks={agentTasks} setSkillSearch={setSkillSearch} logout={logout}
       />
     </div>
@@ -1221,7 +1247,7 @@ function SettingsPanel(props) {
     editScheduledTask, editSkill, loadAgentTasks, loadDataStatus, loadMCPConfig, loadMCPStatus, loadRuns, loadScheduledTasks, loadSkills,
     loadSystemStatus, logout, mcpConfig, mcpStatus, onCopy, providers, promptPreview, refreshProductState, refreshVisibleSettings, runScheduledTaskNow, runSetupWizard,
     runs, saveConfig, saveMCPConfig, scheduledTasks, selectWorkspace, setConfig, setMcpConfig, setSkillSearch, setTaskSearch, setupStatus,
-    showPromptPreview, skillSearch, skills, switchSettingsModule, systemStatus, taskSearch, testMCP, testModelProvider, toggleScheduledTask,
+    showPromptPreview, skillSearch, skills, switchSettingsModule, systemStatus, taskSearch, testMCP, testModelProvider, fetchProviderModels, availableModels, loadingModels, toggleScheduledTask,
     toggleSkill, workspaces, agentTasks,
   } = props;
   const filteredSkills = useMemo(() => {
@@ -1236,7 +1262,7 @@ function SettingsPanel(props) {
     <div className="settings-header"><div><h2>配置中心</h2><p>工作空间、模型、技能、工具和数据状态统一管理。</p></div><div className="settings-header-actions"><button className="secondary small" onClick={() => closeSettings()}>返回对话</button><button className="secondary small" onClick={refreshVisibleSettings || refreshProductState}>刷新</button></div></div>
     <div className="module-tabs">{settingsModules.map(m => <button key={m} className={'module-tab ' + (activeModule === m ? 'active' : '')} onClick={() => switchSettingsModule(m)}>{moduleLabel(m)}</button>)}</div>
     <ModuleView name="workspace" activeModule={activeModule}><WorkspaceModule setupStatus={setupStatus} workspaces={workspaces} createWorkspace={createWorkspace} selectWorkspace={selectWorkspace} deleteWorkspace={deleteWorkspace} runSetupWizard={runSetupWizard} /></ModuleView>
-    <ModuleView name="model" activeModule={activeModule}><ModelModule config={config} setConfig={setConfig} saveConfig={saveConfig} showPromptPreview={showPromptPreview} promptPreview={promptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>
+    <ModuleView name="model" activeModule={activeModule}><ModelModule config={config} setConfig={setConfig} saveConfig={saveConfig} showPromptPreview={showPromptPreview} promptPreview={promptPreview} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} loadingModels={loadingModels} providers={providers} /></ModuleView>
     <ModuleView name="skills" activeModule={activeModule}><div className="settings-block-head"><label>技能库（当前工作空间）</label><button className="secondary small" onClick={() => editSkill()}>新增技能</button></div><input className="session-search" placeholder="搜索技能" value={skillSearch} onChange={e => setSkillSearch(e.target.value)} /><div className="skills-list">{filteredSkills.length ? filteredSkills.map(s => <SkillCard key={s.id} skill={s} editSkill={editSkill} deleteSkill={deleteSkill} toggleSkill={toggleSkill} />) : <div className="hint">暂无技能。技能会作为当前工作空间的补充系统指令注入模型请求。</div>}</div><div className="settings-actions"><button className="secondary" onClick={loadSkills}>刷新技能</button></div></ModuleView>
     <ModuleView name="tools" activeModule={activeModule}><ToolsModule mcpStatus={mcpStatus} mcpConfig={mcpConfig} setMcpConfig={setMcpConfig} saveMCPConfig={saveMCPConfig} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} /></ModuleView>
     <ModuleView name="runs" activeModule={activeModule}><div className="settings-block-head"><label>MCP 执行记录</label><button className="secondary small" onClick={loadRuns}>刷新</button></div>{runs.length ? runs.map(r => <RunCard key={r.id} run={r} />) : <div className="empty compact">还没有 MCP 执行记录。</div>}</ModuleView>
@@ -1260,13 +1286,15 @@ function WorkspaceModule({ setupStatus, workspaces, createWorkspace, selectWorks
   </>;
 }
 
-function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptPreview, testModelProvider, providers }) {
+function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptPreview, testModelProvider, fetchProviderModels, availableModels, loadingModels, providers }) {
   const update = (key, value) => setConfig(c => ({...c, [key]: value}));
   return <>
     <div className="settings-block-head"><label>当前工作空间模型</label></div>
     <label>Base URL</label><input value={config.base_url} onChange={e => update('base_url', e.target.value)} placeholder="https://api.openai.com/v1" />
     <label>API Key</label><input type="password" value={config.api_key} onChange={e => update('api_key', e.target.value)} placeholder={config.has_api_key ? '已保存，留空不修改' : '未设置'} />
-    <label>Model</label><input value={config.model} onChange={e => update('model', e.target.value)} placeholder="gpt-4o-mini" />
+    <div className="settings-block-head inline-head"><label>Model</label><button className="secondary small" onClick={fetchProviderModels} disabled={loadingModels}>{loadingModels ? '获取中…' : '获取模型列表'}</button></div>
+    <input value={config.model} onChange={e => update('model', e.target.value)} placeholder="gpt-4o-mini" />
+    {availableModels.length ? <div className="model-options">{availableModels.map(name => <button key={name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => update('model', name)}>{name}</button>)}</div> : <div className="hint">填写 Base URL 和 API Key 后，可从接口获取可用模型名称。</div>}
     <label>System Prompt</label><textarea value={config.system_prompt} onChange={e => update('system_prompt', e.target.value)} />
     <div className="row"><div><label>上下文消息数</label><input type="number" value={config.max_context_messages} onChange={e => update('max_context_messages', e.target.value)} /></div><div><label>Temperature</label><input type="number" step="0.1" min="0" max="2" value={config.temperature} onChange={e => update('temperature', e.target.value)} /></div></div>
     <label className="check-row"><input type="checkbox" checked={!!config.enable_thinking} onChange={e => update('enable_thinking', e.target.checked)} /> 启用模型思考</label>

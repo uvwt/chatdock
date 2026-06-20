@@ -298,6 +298,86 @@ func TestModelProviderTestKeepsSavedAPIKeyWhenMasked(t *testing.T) {
 	}
 }
 
+func TestModelProviderModelsReturnsAvailableNames(t *testing.T) {
+	seenPath := make(chan string, 1)
+	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case seenPath <- r.URL.Path:
+		default:
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"id":"zeta-model"},{"id":""},{"id":"alpha-model"},{"id":"zeta-model"}]}`))
+	}))
+	defer model.Close()
+
+	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+	body := `{"base_url":"` + model.URL + `","model":"draft-model","api_key":""}`
+	r := httptest.NewRequest(http.MethodPost, "/api/model-providers/models", bytes.NewReader([]byte(body)))
+	w := httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("model provider models status %d: %s", w.Code, w.Body.String())
+	}
+	if got := <-seenPath; got != "/models" {
+		t.Fatalf("unexpected model list path: %s", got)
+	}
+	var result struct {
+		OK     bool     `json:"ok"`
+		Models []string `json:"models"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"zeta-model", "alpha-model"}
+	if !result.OK || len(result.Models) != len(want) {
+		t.Fatalf("unexpected model list response: %#v", result)
+	}
+	for i := range want {
+		if result.Models[i] != want[i] {
+			t.Fatalf("unexpected model %d: got %q want %q; all=%#v", i, result.Models[i], want[i], result.Models)
+		}
+	}
+}
+
+func TestModelProviderModelsKeepsSavedAPIKeyWhenMasked(t *testing.T) {
+	seenAuth := make(chan string, 1)
+	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case seenAuth <- r.Header.Get("Authorization"):
+		default:
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"id":"saved-key-model"}]}`))
+	}))
+	defer model.Close()
+
+	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.store.SaveModelConfig(ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "saved-secret"}); err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+	body := `{"base_url":"` + model.URL + `","model":"draft-model","api_key":"********"}`
+	r := httptest.NewRequest(http.MethodPost, "/api/model-providers/models", bytes.NewReader([]byte(body)))
+	w := httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("model provider masked key models status %d: %s", w.Code, w.Body.String())
+	}
+	if got := <-seenAuth; got != "Bearer saved-secret" {
+		t.Fatalf("unexpected authorization header: %q", got)
+	}
+	if strings.Contains(w.Body.String(), "saved-secret") {
+		t.Fatalf("response leaked saved API key: %s", w.Body.String())
+	}
+}
+
 func TestProductizedAPIs(t *testing.T) {
 	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {

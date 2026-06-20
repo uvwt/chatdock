@@ -85,26 +85,50 @@ func (c *ChatClient) Complete(ctx context.Context, cfg ModelConfig, history []Me
 	return content, nil
 }
 
-func (c *ChatClient) TestModelProvider(ctx context.Context, cfg ModelConfig) error {
+func (c *ChatClient) ListModels(ctx context.Context, cfg ModelConfig) ([]string, error) {
 	cfg = NormalizeModelConfig(cfg)
 	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/models"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if apiKey := strings.TrimSpace(cfg.APIKey); apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		return nil
-	}
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	return fmt.Errorf("model provider test failed: %s: %s", resp.Status, string(respBody))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("model provider models failed: %s: %s", resp.Status, string(respBody))
+	}
+
+	var output struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(respBody, &output); err != nil {
+		return nil, err
+	}
+	models := make([]string, 0, len(output.Data))
+	seen := map[string]bool{}
+	for _, item := range output.Data {
+		name := strings.TrimSpace(item.ID)
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		models = append(models, name)
+	}
+	return models, nil
+}
+
+func (c *ChatClient) TestModelProvider(ctx context.Context, cfg ModelConfig) error {
+	_, err := c.ListModels(ctx, cfg)
+	return err
 }
 
 func (c *ChatClient) Stream(ctx context.Context, cfg ModelConfig, history []Message, onDelta func(StreamDelta) error) (string, error) {

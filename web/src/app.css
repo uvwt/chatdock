@@ -855,3 +855,11 @@ body.theme-light .diagnostics-preview { background: #f8fafc; border-color: #e2e8
 .backup-path code { margin-top:6px; }
 button.mini { padding:6px 8px; font-size:12px; border-radius:9px; white-space:nowrap; }
 @media (max-width: 640px) { .backup-main { flex-direction:column; } button.mini { width:100%; } }
+
+/* 模型列表选择：通过 /models 获取候选模型，仍保留手动输入能力。 */
+.inline-head { align-items:center; gap:10px; }
+.model-options { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 12px; }
+.model-option { padding:7px 10px; border-radius:999px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:12px; cursor:pointer; }
+.model-option.active { border-color:var(--accent); box-shadow:0 0 0 1px rgba(96, 165, 250, .35) inset; }
+body.theme-light .model-option { background:#f8fafc; }
+@media (max-width: 640px) { .model-option { width:100%; text-align:left; border-radius:12px; } }
