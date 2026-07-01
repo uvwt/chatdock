@@ -1055,7 +1055,7 @@ export default function App() {
             <button className="danger" onClick={deleteCurrent} disabled={!current || busy}>删除</button>
           </div>
         </div>
-        <div className="messages" ref={messagesRef}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} />}</div>
+        <div className="messages" ref={messagesRef}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} />}</div>
         <div className="composer-shell">
         <div className="composer">
           <button className="secondary quick-control" disabled={busy} onClick={() => sendMsg('继续')}>继续</button>
@@ -1105,18 +1105,46 @@ function MessageView({ message, onCopy }) {
 }
 
 
-function EmptyState({ createSession, openSettings, openWorkspacePicker, busy, hasWorkspaces }) {
-  return <div className="empty-state">
-    <div className="empty-state-card">
-      <div className="empty-state-kicker">ChatDock</div>
-      <h1>本地优先的 AI 工作台</h1>
-      <p>选择工作空间、配置模型，或直接新建会话开始。常用操作也可以按 ⌘/Ctrl K 打开快捷指令。</p>
-      <div className="empty-state-actions">
-        <button disabled={busy} onClick={createSession}>新建会话</button>
-        <button className="secondary" onClick={() => openSettings('model')}>配置模型</button>
-        <button className="secondary" disabled={!hasWorkspaces || busy} onClick={openWorkspacePicker}>切换工作空间</button>
+function EmptyState({ createSession, openSettings, openWorkspacePicker, busy, hasWorkspaces, setInput }) {
+  const starterCards = [
+    {title:'规划一个任务', text:'把目标拆成可执行步骤，并保留上下文。', prompt:'帮我把这个任务拆成可执行计划：'},
+    {title:'整理一段资料', text:'提取结论、风险点和下一步动作。', prompt:'请帮我整理这段资料，并输出重点：'},
+    {title:'排查一个问题', text:'按现象、证据、假设和验证步骤推进。', prompt:'我遇到一个问题，请按排障流程分析：'},
+  ];
+  return <div className="empty-state product-empty-state">
+    <section className="product-hero">
+      <div className="hero-copy">
+        <div className="empty-state-kicker"><span className="kicker-dot" /> ChatDock · Local-first AI Workspace</div>
+        <h1>把会话、模型、工具和自动化放进一个工作台</h1>
+        <p>为本地优先的 AI 工作流设计：会话不只是聊天窗口，模型配置、MCP 工具、技能、任务记录和数据状态都能在同一个界面里闭环。</p>
+        <div className="empty-state-actions hero-actions">
+          <button disabled={busy} onClick={createSession}>开始新会话</button>
+          <button className="secondary" onClick={() => openSettings('model')}>配置模型</button>
+          <button className="secondary" disabled={!hasWorkspaces || busy} onClick={openWorkspacePicker}>切换工作空间</button>
+        </div>
+        <div className="hero-trust-row">
+          <span>本地数据优先</span><span>工作空间隔离</span><span>快捷指令 ⌘K</span>
+        </div>
       </div>
-    </div>
+      <div className="hero-panel" aria-label="ChatDock 工作台能力概览">
+        <div className="hero-panel-top"><span>今日工作台</span><b>Ready</b></div>
+        <div className="hero-metric-row"><div><b>会话</b><span>多工作空间管理</span></div><strong>∞</strong></div>
+        <div className="hero-metric-row"><div><b>模型</b><span>OpenAI 兼容配置</span></div><strong>API</strong></div>
+        <div className="hero-metric-row"><div><b>工具</b><span>MCP / Skill / 自动化</span></div><strong>Live</strong></div>
+      </div>
+    </section>
+    <section className="starter-grid">
+      {starterCards.map(card => <button key={card.title} type="button" className="starter-card" disabled={busy} onClick={() => { setInput(card.prompt); createSession(); }}>
+        <span className="starter-icon">✦</span>
+        <b>{card.title}</b>
+        <span>{card.text}</span>
+      </button>)}
+    </section>
+    <section className="empty-capability-strip">
+      <div><b>配置中心</b><span>模型、Prompt、工具状态统一维护</span></div>
+      <div><b>数据状态</b><span>数据库、备份和会话健康可见</span></div>
+      <div><b>自动化</b><span>定时任务与运行记录可追踪</span></div>
+    </section>
   </div>;
 }
 
