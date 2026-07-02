@@ -1401,12 +1401,173 @@ function SkillCard({ skill, editSkill, deleteSkill, toggleSkill }) {
   return <div className="skill-card"><div className="skill-head"><div><div className="skill-name">{skill.name || '未命名技能'}</div><div className="skill-desc">{skill.description || '无描述'}</div></div><div className="skill-actions"><button className="secondary small" onClick={() => editSkill(skill.id)}>编辑</button><button className="danger small" onClick={() => deleteSkill(skill.id)}>删除</button></div></div><label className="skill-toggle"><input type="checkbox" checked={!!skill.enabled} onChange={e => toggleSkill(skill.id, e.target.checked)} /> 启用</label></div>;
 }
 
+function parseMCPConfigDraft(content) {
+  try {
+    const config = JSON.parse(String(content || '{}')) || {};
+    if (!config.servers || typeof config.servers !== 'object' || Array.isArray(config.servers)) config.servers = {};
+    return {config, error: ''};
+  } catch (e) {
+    return {config: {servers: {}}, error: e.message};
+  }
+}
+
+function stringifyMCPConfigDraft(config) {
+  return JSON.stringify({...config, servers: config.servers || {}}, null, 2) + '\n';
+}
+
+function joinMCPToolList(value) {
+  return (Array.isArray(value) ? value : []).join('\n');
+}
+
+function splitMCPToolList(value) {
+  return String(value || '').split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+}
+
+function mcpServerToDraft(server = {}) {
+  const auth = server.auth || {};
+  return {
+    type: server.type || 'streamable-http',
+    url: server.url || '',
+    path: server.path || '',
+    disabled: !!server.disabled,
+    auth_type: auth.type || (auth.token || auth.token_env ? 'bearer' : 'none'),
+    token: auth.token || '',
+    token_env: auth.token_env || '',
+    allow_tools: joinMCPToolList(server.allow_tools),
+    deny_tools: joinMCPToolList(server.deny_tools),
+    confirm_tools: joinMCPToolList(server.confirm_tools),
+    timeout_ms: server.timeout_ms ? String(server.timeout_ms) : '',
+    cache_ttl_ms: server.cache_ttl_ms ? String(server.cache_ttl_ms) : '',
+  };
+}
+
+function cleanMCPServerDraft(draft) {
+  const next = {};
+  const type = String(draft.type || '').trim();
+  const url = String(draft.url || '').trim();
+  const path = String(draft.path || '').trim();
+  const authType = String(draft.auth_type || '').trim();
+  const token = String(draft.token || '').trim();
+  const tokenEnv = String(draft.token_env || '').trim();
+  if (type && type !== 'streamable-http') next.type = type;
+  if (url) next.url = url;
+  if (path) next.path = path;
+  if (draft.disabled) next.disabled = true;
+  if (authType && authType !== 'none') {
+    next.auth = {type: authType};
+    if (token) next.auth.token = token;
+    if (tokenEnv) next.auth.token_env = tokenEnv;
+  }
+  const allow = splitMCPToolList(draft.allow_tools);
+  const deny = splitMCPToolList(draft.deny_tools);
+  const confirm = splitMCPToolList(draft.confirm_tools);
+  if (allow.length) next.allow_tools = allow;
+  if (deny.length) next.deny_tools = deny;
+  if (confirm.length) next.confirm_tools = confirm;
+  const timeout = Number(draft.timeout_ms || 0);
+  const cacheTTL = Number(draft.cache_ttl_ms || 0);
+  if (Number.isFinite(timeout) && timeout > 0) next.timeout_ms = Math.round(timeout);
+  if (Number.isFinite(cacheTTL) && cacheTTL > 0) next.cache_ttl_ms = Math.round(cacheTTL);
+  return next;
+}
+
+function defaultMCPServerDraft() {
+  return {name: '', type: 'streamable-http', url: '', path: '', disabled: false, auth_type: 'none', token: '', token_env: '', allow_tools: '', deny_tools: '', confirm_tools: '', timeout_ms: '30000', cache_ttl_ms: ''};
+}
+
 function ToolsModule({ mcpStatus, mcpConfig, setMcpConfig, saveMCPConfig, loadMCPConfig, loadMCPStatus, testMCP }) {
+  const [newServer, setNewServer] = useState(defaultMCPServerDraft);
+  const [formError, setFormError] = useState('');
+  const parsed = useMemo(() => parseMCPConfigDraft(mcpConfig), [mcpConfig]);
+  const serverNames = Object.keys(parsed.config.servers || {}).sort();
+  const statusByName = useMemo(() => Object.fromEntries((mcpStatus || []).map(s => [s.name, s])), [mcpStatus]);
+
+  function replaceConfig(mutator) {
+    setMcpConfig(prev => {
+      const parsedPrev = parseMCPConfigDraft(prev);
+      if (parsedPrev.error) return prev;
+      const next = {...parsedPrev.config, servers: {...(parsedPrev.config.servers || {})}};
+      mutator(next);
+      return stringifyMCPConfigDraft(next);
+    });
+  }
+
+  function patchServer(name, patch) {
+    replaceConfig(next => {
+      const draft = {...mcpServerToDraft(next.servers[name]), ...patch};
+      next.servers[name] = cleanMCPServerDraft(draft);
+    });
+  }
+
+  function removeServer(name) {
+    replaceConfig(next => { delete next.servers[name]; });
+  }
+
+  function addServer() {
+    const name = String(newServer.name || '').trim();
+    if (!name) { setFormError('请先填写 Server 名称。'); return; }
+    if ((parsed.config.servers || {})[name]) { setFormError('Server 名称已存在，请换一个名称。'); return; }
+    if (!String(newServer.url || '').trim() && !String(newServer.path || '').trim()) { setFormError('请填写 MCP HTTP 地址；Docker 部署访问本机服务通常用 http://host.docker.internal:18766/mcp。'); return; }
+    replaceConfig(next => { next.servers[name] = cleanMCPServerDraft(newServer); });
+    setNewServer(defaultMCPServerDraft());
+    setFormError('');
+  }
+
+  function serverStatusSummary(status) {
+    if (!status) return '未检测';
+    if (status.last_error) return status.last_error;
+    if (status.disabled) return '已禁用，不会参与模型工具调用。';
+    return 'allow ' + status.allow_count + ' · deny ' + status.deny_count + ' · confirm ' + status.confirm_count + ' · token ' + (status.has_token ? '已配置' : '无');
+  }
+
+  const renderServerForm = (name, server, isNew = false) => {
+    const draft = isNew ? newServer : mcpServerToDraft(server);
+    const status = !isNew ? statusByName[name] : null;
+    const update = patch => isNew ? setNewServer(s => ({...s, ...patch})) : patchServer(name, patch);
+    return <div className={'mcp-form-card ' + (isNew ? 'new-server' : '')} key={isNew ? 'new' : name}>
+      <div className="mcp-form-head">
+        <div><b>{isNew ? '新增 MCP Server' : name}</b><div className="hint">{isNew ? '填地址即可，不需要手写 JSON。' : serverStatusSummary(status)}</div></div>
+        {!isNew ? <div className="mcp-form-head-actions"><button className="secondary small" onClick={() => patchServer(name, {disabled: !draft.disabled})}>{draft.disabled ? '启用' : '禁用'}</button><button className="danger small" onClick={() => removeServer(name)}>删除</button></div> : null}
+      </div>
+      {isNew ? <label>Server 名称<input value={draft.name} onChange={e => setNewServer(s => ({...s, name: e.target.value}))} placeholder="例如 agentdock" /></label> : null}
+      <div className="mcp-form-grid">
+        <label>连接类型<select value={draft.type} onChange={e => update({type: e.target.value})}><option value="streamable-http">HTTP / Streamable HTTP</option></select></label>
+        <label>状态<select value={draft.disabled ? 'disabled' : 'enabled'} onChange={e => update({disabled: e.target.value === 'disabled'})}><option value="enabled">启用</option><option value="disabled">禁用</option></select></label>
+      </div>
+      <label>MCP HTTP 地址<input value={draft.url} onChange={e => update({url: e.target.value})} placeholder="http://host.docker.internal:18766/mcp" /></label>
+      <div className="hint">ChatDock 如果跑在 Docker 里，填 127.0.0.1 通常会连到容器自己；访问电脑上的 AgentDock 建议用 host.docker.internal。</div>
+      <details className="mcp-advanced-fields">
+        <summary>高级权限、Token 和缓存</summary>
+        <div className="mcp-form-grid">
+          <label>认证方式<select value={draft.auth_type} onChange={e => update({auth_type: e.target.value})}><option value="none">无</option><option value="bearer">Bearer Token</option></select></label>
+          <label>Token 环境变量<input value={draft.token_env} onChange={e => update({token_env: e.target.value})} placeholder="例如 AGENTDOCK_TOKEN" /></label>
+        </div>
+        {draft.auth_type !== 'none' ? <label>Token<input type="password" value={draft.token} onChange={e => update({token: e.target.value})} placeholder="留空表示不写入明文 Token" /></label> : null}
+        <div className="mcp-form-grid">
+          <label>超时 ms<input type="number" inputMode="numeric" value={draft.timeout_ms} onChange={e => update({timeout_ms: e.target.value})} placeholder="30000" /></label>
+          <label>工具缓存 ms<input type="number" inputMode="numeric" value={draft.cache_ttl_ms} onChange={e => update({cache_ttl_ms: e.target.value})} placeholder="可留空" /></label>
+        </div>
+        <label>允许工具（每行一个，可留空）<textarea value={draft.allow_tools} onChange={e => update({allow_tools: e.target.value})} placeholder={'tool_a\nserver__tool_b'} /></label>
+        <label>禁止工具（每行一个，可留空）<textarea value={draft.deny_tools} onChange={e => update({deny_tools: e.target.value})} /></label>
+        <label>调用前确认的工具（每行一个，可留空）<textarea value={draft.confirm_tools} onChange={e => update({confirm_tools: e.target.value})} /></label>
+        <label>本地路径备注<input value={draft.path} onChange={e => update({path: e.target.value})} placeholder="仅作为备注保留；当前 MCP 调用使用 HTTP 地址" /></label>
+      </details>
+      <div className="mcp-form-actions">
+        {isNew ? <button onClick={addServer}>添加 Server</button> : <button className="secondary" onClick={() => testMCP(name)} disabled={draft.disabled || !draft.url}>测试此 Server</button>}
+        {!isNew && status?.last_error ? <button className="secondary" onClick={() => patchServer(name, {disabled: true})}>禁用异常 Server</button> : null}
+      </div>
+    </div>;
+  };
+
   return <>
     <div className="settings-block-head"><label>MCP 工具中心</label><button className="secondary small" onClick={loadMCPStatus}>检测状态</button></div>
-    <div id="mcpStatusCards">{mcpStatus.length ? mcpStatus.map(s => <TextCard key={s.name} title={s.name} hint={s.url || '-'} badge={runStatusLabel(s.last_status || 'unknown')} badgeClass={runStatusClass(s.last_status || 'unknown')}><div className="product-meta">allow {s.allow_count} · deny {s.deny_count} · confirm {s.confirm_count} · token {s.has_token ? '已配置' : '无'}</div>{s.last_error ? <div className="task-error">{s.last_error}</div> : null}<div className="product-actions"><button className="secondary small" onClick={() => testMCP(s.name)}>测试此 Server</button></div></TextCard>) : <div className="empty compact">尚未配置 MCP Server。添加后可在这里查看状态、权限和确认规则。</div>}</div>
-    <label>MCP 配置 JSON</label><textarea className="mcp-editor" value={mcpConfig} onChange={e => setMcpConfig(e.target.value)} />
-    <div className="settings-actions"><button className="secondary" onClick={saveMCPConfig}>保存 MCP 配置</button><button className="secondary" onClick={loadMCPConfig}>重新加载 MCP</button><button className="secondary" onClick={() => testMCP()}>测试默认 MCP</button></div>
+    <div id="mcpStatusCards" className="mcp-status-grid">{mcpStatus.length ? mcpStatus.map(s => <TextCard key={s.name} title={s.name} hint={s.url || '未填写 HTTP 地址'} badge={runStatusLabel(s.last_status || 'unknown')} badgeClass={runStatusClass(s.last_status || 'unknown')}><div className="product-meta">allow {s.allow_count} · deny {s.deny_count} · confirm {s.confirm_count} · token {s.has_token ? '已配置' : '无'}</div>{s.last_error ? <div className="task-error">{s.last_error}</div> : null}<div className="product-actions"><button className="secondary small" onClick={() => testMCP(s.name)} disabled={s.disabled || !s.url}>测试</button></div></TextCard>) : <div className="empty compact">尚未配置 MCP Server。添加后可在这里查看状态、权限和确认规则。</div>}</div>
+    <div className="settings-block-head"><label>MCP Server 配置</label></div>
+    {parsed.error ? <div className="backup-health warn">当前配置 JSON 损坏，表单无法解析：{parsed.error}。可以在下方高级区修复原始内容。</div> : null}
+    {!parsed.error ? <div className="mcp-form-list">{serverNames.length ? serverNames.map(name => renderServerForm(name, parsed.config.servers[name])) : <div className="empty compact">暂无 Server，先添加一个 HTTP MCP 地址。</div>}{renderServerForm('', {}, true)}</div> : null}
+    {formError ? <div className="backup-health warn">{formError}</div> : null}
+    <div className="settings-actions mcp-primary-actions"><button onClick={saveMCPConfig}>保存 MCP 配置</button><button className="secondary" onClick={loadMCPConfig}>重新加载</button><button className="secondary" onClick={() => testMCP()}>测试默认 MCP</button></div>
+    <details className="mcp-raw-json"><summary>高级：查看 / 编辑原始 JSON</summary><textarea className="mcp-editor" value={mcpConfig} onChange={e => setMcpConfig(e.target.value)} /></details>
   </>;
 }
 
