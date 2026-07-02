@@ -152,9 +152,11 @@ func (c *ChatClient) TestModelProvider(ctx context.Context, cfg ModelConfig) err
 }
 
 func (c *ChatClient) Stream(ctx context.Context, cfg ModelConfig, history []Message, onDelta func(StreamDelta) error) (string, error) {
-	messages := BuildChatMessages(cfg, history)
-	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/chat/completions"
+	return c.StreamRawMessages(ctx, cfg, BuildChatMessagesAny(cfg, history), onDelta)
+}
 
+func (c *ChatClient) StreamRawMessages(ctx context.Context, cfg ModelConfig, messages []map[string]any, onDelta func(StreamDelta) error) (string, error) {
+	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/chat/completions"
 	body := map[string]any{
 		"model":       cfg.Model,
 		"messages":    messages,
@@ -188,9 +190,13 @@ func (c *ChatClient) Stream(ctx context.Context, cfg ModelConfig, history []Mess
 		return "", fmt.Errorf("model api failed: %s: %s", resp.Status, string(respBody))
 	}
 
+	return readModelStream(resp.Body, cfg, onDelta)
+}
+
+func readModelStream(body io.Reader, cfg ModelConfig, onDelta func(StreamDelta) error) (string, error) {
 	var full strings.Builder
 	filter := NewThinkingFilter(cfg.HideThinking)
-	scanner := bufio.NewScanner(resp.Body)
+	scanner := bufio.NewScanner(body)
 	scanner.Buffer(make([]byte, 0, 64*1024), 10*1024*1024)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())

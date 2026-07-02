@@ -426,9 +426,6 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 	answer, runErr := a.client.CompleteWithMCPToolsEvents(ctx, cfg, history, tools, func(name string, args map[string]any) (any, error) {
 		return a.mcpClient.CallTool(ctx, mcpCfg, name, args)
 	}, recordingEmit)
-	if emit != nil && strings.TrimSpace(answer) != "" {
-		_ = emit("delta", StreamDelta{Content: answer})
-	}
 	if recorder.Created {
 		status := "success"
 		if runErr != nil {

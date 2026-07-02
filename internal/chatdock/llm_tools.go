@@ -34,6 +34,9 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg ModelCo
 	messages := BuildChatMessagesAny(cfg, history)
 	openAITools := MCPToolsToOpenAITools(tools)
 	if len(openAITools) == 0 || call == nil {
+		if emit != nil {
+			return c.Stream(ctx, cfg, history, func(delta StreamDelta) error { return emit("delta", delta) })
+		}
 		return c.Complete(ctx, cfg, history)
 	}
 	for round := 0; round < 4; round++ {
@@ -42,6 +45,9 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg ModelCo
 			return "", err
 		}
 		if len(resp.ToolCalls) == 0 {
+			if emit != nil {
+				return c.StreamRawMessages(ctx, cfg, messages, func(delta StreamDelta) error { return emit("delta", delta) })
+			}
 			answer := strings.TrimSpace(resp.Content)
 			if cfg.HideThinking {
 				answer = StripThinkingContent(answer)
@@ -49,6 +55,7 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg ModelCo
 			return answer, nil
 		}
 		messages = append(messages, map[string]any{"role": "assistant", "content": resp.Content, "tool" + "_calls": encodeModelToolCalls(resp.ToolCalls)})
+		streamFinalAfterTools := emit != nil
 		for index, tc := range resp.ToolCalls {
 			args := map[string]any{}
 			if strings.TrimSpace(tc.Function.Arguments) != "" {
@@ -72,6 +79,9 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg ModelCo
 				_ = emit("tool_call_result", payload)
 			}
 			messages = append(messages, map[string]any{"role": "tool", "tool" + "_call_id": id, "name": tc.Function.Name, "content": compactJSON(payload)})
+		}
+		if streamFinalAfterTools {
+			return c.StreamRawMessages(ctx, cfg, messages, func(delta StreamDelta) error { return emit("delta", delta) })
 		}
 	}
 	return "", fmt.Errorf("too many tool rounds")
