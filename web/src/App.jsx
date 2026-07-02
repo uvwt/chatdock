@@ -3,7 +3,10 @@ import { AttachmentList, EmptyState, MessageView, WorkbenchBrief } from './compo
 import { DialogHost, LoginPage, Markdown, QuickPalette, WorkspacePicker } from './components/base.jsx';
 import { SettingsPanel } from './components/settings.jsx';
 import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtDuration, fmtTime, normalizeSettingsModule, runStatusLabel, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
-import { readSSE } from './lib/sse.js';
+import { createJsonApi } from './lib/http.js';
+import { fetchChatJobs, streamChat, streamChatJobEvents } from './lib/chatApi.js';
+import { cloneSession, createSessionRecord, deleteSession, fetchSession, fetchSessionMarkdown, fetchSessions, pinSession, renameSession } from './lib/sessionApi.js';
+import { createWorkspaceRecord, deleteScheduledTaskRecord, deleteSkillRecord, deleteWorkspaceRecord, fetchAgentTasks, fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchPrompts, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchRuns, fetchScheduledTasks, fetchSetupStatus, fetchSkills, fetchSystemStatus, fetchWorkspaces, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveSkillRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest } from './lib/settingsApi.js';
 import { uploadFileRequest } from './lib/upload.js';
 
 export default function App() {
@@ -131,31 +134,20 @@ export default function App() {
     return token ? {'Authorization':'Bearer ' + token, ...extra} : extra;
   }, []);
 
-  const api = useCallback(async (path, opt={}) => {
-    const res = await fetch(path, {...opt, headers: authHeaders({'Content-Type':'application/json', ...(opt.headers || {})})});
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const err = new Error(data.error || res.statusText);
-      err.status = res.status;
-      err.path = path;
-      if (res.status === 401 && path !== '/api/auth/login') setAuthPage(err);
-      throw err;
-    }
-    return data;
-  }, [authHeaders]);
+  const api = useMemo(() => createJsonApi({authHeaders, onUnauthorized: setAuthPage}), [authHeaders]);
 
   const loadPrompts = useCallback(async () => {
-    const data = await api('/api/prompts');
+    const data = await fetchPrompts(api);
     setPrompts(data.prompts || []);
   }, [api]);
 
   const loadSessions = useCallback(async () => {
-    const list = await api('/api/sessions');
+    const list = await fetchSessions(api);
     setSessions(list || []);
   }, [api]);
 
   const loadConfig = useCallback(async () => {
-    const c = await api('/api/config');
+    const c = await fetchConfig(api);
     setConfig({
       base_url: c.base_url || '',
       api_key: '',
@@ -170,57 +162,57 @@ export default function App() {
   }, [api]);
 
   const loadMCPConfig = useCallback(async () => {
-    const c = await api('/api/mcp-config');
+    const c = await fetchMCPConfig(api);
     setMcpConfig(c.content || '{\n  "servers": {}\n}\n');
   }, [api]);
 
   const loadSetupStatus = useCallback(async () => {
-    const data = await api('/api/setup/status');
+    const data = await fetchSetupStatus(api);
     setSetupStatus(data);
   }, [api]);
 
   const loadWorkspaces = useCallback(async () => {
-    const data = await api('/api/workspaces');
+    const data = await fetchWorkspaces(api);
     setWorkspaces(data.workspaces || []);
   }, [api]);
 
   const loadModelProviders = useCallback(async () => {
-    const data = await api('/api/model-providers');
+    const data = await fetchModelProviders(api);
     setProviders(data.providers || []);
   }, [api]);
 
   const loadSkills = useCallback(async () => {
-    const data = await api('/api/skills');
+    const data = await fetchSkills(api);
     setSkills(data.skills || []);
   }, [api]);
 
   const loadScheduledTasks = useCallback(async () => {
-    const data = await api('/api/scheduled-tasks');
+    const data = await fetchScheduledTasks(api);
     setScheduledTasks(data.tasks || []);
   }, [api]);
 
   const loadDataStatus = useCallback(async () => {
-    const data = await api('/api/data/status');
+    const data = await fetchDataStatus(api);
     setDataStatus(data);
   }, [api]);
 
   const loadSystemStatus = useCallback(async () => {
-    const data = await api('/api/system/status');
+    const data = await fetchSystemStatus(api);
     setSystemStatus(data);
   }, [api]);
 
   const loadMCPStatus = useCallback(async () => {
-    const data = await api('/api/mcp/status');
+    const data = await fetchMCPStatus(api);
     setMcpStatus(data.servers || []);
   }, [api]);
 
   const loadRuns = useCallback(async () => {
-    const data = await api('/api/runs?limit=80');
+    const data = await fetchRuns(api);
     setRuns(data.runs || []);
   }, [api]);
 
   const loadAgentTasks = useCallback(async () => {
-    const data = await api('/api/agent-tasks?limit=80');
+    const data = await fetchAgentTasks(api);
     setAgentTasks(data.tasks || []);
   }, [api]);
 
@@ -241,7 +233,7 @@ export default function App() {
 
   const loadSessionFromRoute = useCallback(async (id) => {
     if (!id) return false;
-    const s = await api('/api/sessions/' + encodeURIComponent(id));
+    const s = await fetchSession(api, id);
     setCurrent(s.id);
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
@@ -371,7 +363,7 @@ export default function App() {
     if (busy) { showToast('当前回复还在进行中，请先暂停或中断后再切换工作空间。', 'error'); return; }
     if (!name) return;
     setWorkspacePickerOpen(false);
-    await api('/api/workspaces/' + encodeURIComponent(name) + '/select', {method:'POST', body:'{}'});
+    await selectWorkspaceRequest(api, name);
     setCurrent(null);
     setCurrentTitle('未选择会话');
     setMessages([{role:'empty', content:'已切换工作空间。创建或选择一个会话。'}]);
@@ -386,7 +378,7 @@ export default function App() {
       showToast('当前回复还在进行中，请先暂停或中断后再新建会话。', 'error');
       return null;
     }
-    const s = await api('/api/sessions', {method:'POST', body:'{}'});
+    const s = await createSessionRecord(api);
     setCurrent(s.id);
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
@@ -403,7 +395,7 @@ export default function App() {
       return;
     }
     setCurrent(id);
-    const s = await api('/api/sessions/' + encodeURIComponent(id));
+    const s = await fetchSession(api, id);
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
     setPendingAttachments([]);
@@ -418,7 +410,7 @@ export default function App() {
     if (!current) return;
     const values = await showDialog({title:'重命名会话', confirmText:'保存标题', fields:[{name:'title', label:'新的会话标题', value:currentTitle || '', required:true}]});
     if (!values || !values.title.trim()) return;
-    const s = await api('/api/sessions/' + current + '/rename', {method:'POST', body: JSON.stringify({title: values.title.trim()})});
+    const s = await renameSession(api, current, values.title.trim());
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
     await loadSessions();
@@ -429,7 +421,7 @@ export default function App() {
     if (!current) return;
     const ok = await showDialog({title:'删除当前会话', message:'确定删除当前会话？此操作不可恢复。', confirmText:'删除', danger:true, type:'confirm'});
     if (!ok) return;
-    await api('/api/sessions/' + current, {method:'DELETE'});
+    await deleteSession(api, current);
     setCurrent(null);
     setCurrentTitle('未选择会话');
     setMessages([]);
@@ -442,8 +434,7 @@ export default function App() {
   const exportCurrent = useCallback(async () => {
     if (!current) return;
     try {
-      const res = await fetch('/api/sessions/' + encodeURIComponent(current) + '/export?format=md', {headers: authHeaders()});
-      if (!res.ok) throw new Error(await res.text() || res.statusText);
+      const res = await fetchSessionMarkdown(current, authHeaders);
       downloadBlob(await res.blob(), filenameFromResponse(res, 'chatdock-session.md'));
       showToast('已导出 Markdown', 'success');
     } catch (e) {
@@ -454,8 +445,7 @@ export default function App() {
   const copyCurrentMarkdown = useCallback(async () => {
     if (!current) return;
     try {
-      const res = await fetch('/api/sessions/' + encodeURIComponent(current) + '/export?format=md', {headers: authHeaders()});
-      if (!res.ok) throw new Error(await res.text() || res.statusText);
+      const res = await fetchSessionMarkdown(current, authHeaders);
       await copyText(await res.text());
     } catch (e) {
       showToast('复制全文失败：' + e.message, 'error');
@@ -465,7 +455,7 @@ export default function App() {
   const cloneCurrent = useCallback(async () => {
     if (!current || busy) return;
     try {
-      const s = await api('/api/sessions/' + encodeURIComponent(current) + '/clone', {method:'POST', body:'{}'});
+      const s = await cloneSession(api, current);
       setCurrent(s.id);
       setCurrentTitle(s.title || '会话副本');
       setMessages(s.messages || []);
@@ -481,7 +471,7 @@ export default function App() {
     if (!current) return;
     const currentSummary = sessions.find(s => s.id === current);
     const nextPinned = !currentSummary?.pinned;
-    const s = await api('/api/sessions/' + encodeURIComponent(current) + '/pin', {method:'POST', body: JSON.stringify({pinned: nextPinned})});
+    const s = await pinSession(api, current, nextPinned);
     setCurrentTitle(s.title || currentTitle || '新会话');
     setMessages(s.messages || []);
     await loadSessions();
@@ -547,7 +537,7 @@ export default function App() {
     const abort = new AbortController();
     async function resumeRunningJob() {
       try {
-        const list = await api('/api/chat/jobs?session_id=' + encodeURIComponent(current));
+        const list = await fetchChatJobs(api, current);
         if (stopped) return;
         const job = (list.jobs || []).find(j => j.status === 'running');
         if (!job) return;
@@ -559,13 +549,8 @@ export default function App() {
         abortRef.current = abort;
         setStreamStats({state:'streaming', started_at:Date.now(), chars:0, events:0, tools:0, error:''});
         setMessages(prev => prev.some(m => m.role === 'assistant-stream') ? prev : [...prev, {role:'assistant-stream', answer:'', reasoning:'', events:[{kind:'tool', text:'↩️ 已恢复后台生成'}]}]);
-        const res = await fetch('/api/chat/jobs/' + encodeURIComponent(job.id) + '/events?after=0', {headers: authHeaders(), signal: abort.signal});
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || res.statusText);
-        }
         let finalSession = null;
-        await readSSE(res, (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; }));
+        await streamChatJobEvents({jobID: job.id, authHeaders, signal: abort.signal, onEvent: (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; })});
         if (finalSession && !stopped) {
           pendingDeltaRef.current = '';
           pendingReasoningRef.current = '';
@@ -683,20 +668,10 @@ export default function App() {
     abortRef.current = abort;
     setMessages(prev => [...prev, {role:'user', content:text, attachments:attachmentsForMessage}, {role:'assistant-stream', answer:'', reasoning:'', events:[]}]);
     try {
-      const res = await fetch('/api/chat/stream', {
-        method:'POST',
-        headers: authHeaders({'Content-Type':'application/json'}),
-        body: JSON.stringify({session_id: sessionID, message:text, attachment_ids: attachmentIDs}),
-        signal: abort.signal,
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || res.statusText);
-      }
       setPendingAttachments([]);
       setStreamStats(prev => ({...prev, state:'streaming'}));
       let finalSession = null;
-      await readSSE(res, (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; }));
+      await streamChat({authHeaders, signal: abort.signal, sessionID, message:text, attachmentIDs, onEvent: (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; })});
       if (finalSession) {
         pendingDeltaRef.current = '';
         pendingReasoningRef.current = '';
@@ -752,7 +727,7 @@ export default function App() {
       {name:'system_prompt', label:'系统提示词内容', type:'textarea', rows:5, value:config.system_prompt || ''},
     ]});
     if (!values || !values.name.trim()) return;
-    await api('/api/workspaces', {method:'POST', body: JSON.stringify({name: values.name.trim(), system_prompt: values.system_prompt || ''})});
+    await createWorkspaceRecord(api, {name: values.name.trim(), system_prompt: values.system_prompt || ''});
     setCurrent(null);
     setCurrentTitle('未选择会话');
     setMessages([{role:'empty', content:'已创建并切换到新工作空间。'}]);
@@ -765,7 +740,7 @@ export default function App() {
   const deleteWorkspace = useCallback(async (id, name) => {
     const ok = await showDialog({title:'删除工作空间', message:'确定删除工作空间「' + (name || id) + '」？这会删除该工作空间下的配置、技能、任务和会话。若删除当前工作空间，会自动切换到默认工作空间。', confirmText:'删除', danger:true, type:'confirm'});
     if (!ok) return;
-    const data = await api('/api/workspaces/' + encodeURIComponent(id), {method:'DELETE'});
+    const data = await deleteWorkspaceRecord(api, id);
     setWorkspaces(data.workspaces || []);
     setCurrent(null);
     setCurrentTitle('未选择会话');
@@ -777,7 +752,7 @@ export default function App() {
 
   const saveConfig = useCallback(async () => {
     const workspaceID = (prompts.find(p => p.active) || {}).name || 'default';
-    await api('/api/workspaces/' + encodeURIComponent(workspaceID) + '/config', {method:'POST', body: JSON.stringify({
+    await saveWorkspaceConfig(api, workspaceID, {
       base_url: config.base_url,
       api_key: config.api_key,
       model: config.model,
@@ -786,7 +761,7 @@ export default function App() {
       temperature: Number(config.temperature || 0.7),
       enable_thinking: !!config.enable_thinking,
       hide_thinking: !!config.hide_thinking,
-    })});
+    });
     setConfig(c => ({...c, api_key:''}));
     await loadConfig();
     await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadSystemStatus()]);
@@ -795,7 +770,7 @@ export default function App() {
 
   const showPromptPreview = useCallback(async () => {
     const workspaceID = (prompts.find(p => p.active) || {}).name || 'default';
-    const data = await api('/api/workspaces/' + encodeURIComponent(workspaceID) + '/prompt-preview');
+    const data = await fetchPromptPreview(api, workspaceID);
     setPromptPreview(data.content || '(空)');
   }, [api, prompts]);
 
@@ -808,14 +783,14 @@ export default function App() {
       {name:'system_prompt', label:'默认 System Prompt', type:'textarea', rows:4, value:config.system_prompt || '你是 ChatDock，本地优先 AI 工作台。默认用中文回答。'},
     ]});
     if (!values) return;
-    await api('/api/setup/init', {method:'POST', body: JSON.stringify(values)});
+    await initializeSetup(api, values);
     await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig()]);
     showToast('初始化完成', 'success');
   }, [api, config, loadConfig, loadPrompts, refreshProductState, showDialog, showToast]);
 
   const testModelProvider = useCallback(async () => {
     try {
-      const data = await api('/api/model-providers/test', {method:'POST', body: JSON.stringify({
+      const data = await testModelProviderRequest(api, {
         base_url: config.base_url,
         api_key: config.api_key,
         model: config.model,
@@ -824,7 +799,7 @@ export default function App() {
         temperature: Number(config.temperature || 0.7),
         enable_thinking: !!config.enable_thinking,
         hide_thinking: !!config.hide_thinking,
-      })});
+      });
       showToast(data.ok ? '模型连接正常：' + (data.model || '') : '模型连接失败：' + (data.error || 'unknown'), data.ok ? 'success' : 'error');
     } catch (e) { showToast('模型连接失败：' + e.message, 'error'); }
   }, [api, config, showToast]);
@@ -832,7 +807,7 @@ export default function App() {
   const fetchProviderModels = useCallback(async () => {
     setLoadingModels(true);
     try {
-      const data = await api('/api/model-providers/models', {method:'POST', body: JSON.stringify({
+      const data = await fetchProviderModelsRequest(api, {
         base_url: config.base_url,
         api_key: config.api_key,
         model: config.model,
@@ -841,7 +816,7 @@ export default function App() {
         temperature: Number(config.temperature || 0.7),
         enable_thinking: !!config.enable_thinking,
         hide_thinking: !!config.hide_thinking,
-      })});
+      });
       const models = data.models || [];
       setAvailableModels(models);
       showToast(models.length ? '已获取 ' + models.length + ' 个模型' : '接口可用，但没有返回模型名称', models.length ? 'success' : 'warn');
@@ -855,7 +830,7 @@ export default function App() {
 
   const saveMCPConfig = useCallback(async () => {
     try { JSON.parse(mcpConfig || '{}'); } catch (e) { showToast('MCP 配置不是合法 JSON：' + e.message, 'error'); return; }
-    const c = await api('/api/mcp-config', {method:'POST', body: JSON.stringify({content:mcpConfig})});
+    const c = await saveMCPConfigRequest(api, mcpConfig);
     setMcpConfig(c.content || mcpConfig);
     await loadMCPStatus().catch(() => {});
     showToast('MCP 配置已保存', 'success');
@@ -863,8 +838,7 @@ export default function App() {
 
   const testMCP = useCallback(async (serverName = '') => {
     try {
-      const suffix = serverName ? '?server=' + encodeURIComponent(serverName) : '';
-      const data = await api('/api/mcp/test' + suffix);
+      const data = await testMCPServer(api, serverName);
       const name = data.server || serverName || '默认 MCP';
       showToast(data.ok ? 'MCP 连接正常：' + name + '，工具数 ' + data.tool_count : 'MCP 连接失败：' + name + '，' + (data.error || 'unknown error'), data.ok ? 'success' : 'error');
     } catch (e) { showToast('MCP 测试失败：' + e.message, 'error'); }
@@ -881,7 +855,7 @@ export default function App() {
     if (!values) return;
     if (!values.name.trim() || !values.content.trim()) { showToast('技能名称和内容不能为空', 'error'); return; }
     const payload = {name: values.name.trim(), description: values.description || '', content: values.content.trim(), enabled: existing ? !!existing.enabled : true};
-    const data = await api(existing ? '/api/skills/' + encodeURIComponent(existing.id) : '/api/skills', {method: existing ? 'PUT' : 'POST', body: JSON.stringify(payload)});
+    const data = await saveSkillRecord(api, existing, payload);
     setSkills(data.skills || []);
     showToast(existing ? '技能已保存' : '技能已新增', 'success');
   }, [api, busy, skills, showDialog, showToast]);
@@ -889,7 +863,7 @@ export default function App() {
   const toggleSkill = useCallback(async (id, enabled) => {
     const existing = skills.find(s => s.id === id);
     if (!existing) return;
-    const data = await api('/api/skills/' + encodeURIComponent(id), {method:'PUT', body: JSON.stringify({name: existing.name, description: existing.description || '', content: existing.content || '', enabled: !!enabled})});
+    const data = await saveSkillRecord(api, existing, {name: existing.name, description: existing.description || '', content: existing.content || '', enabled: !!enabled});
     setSkills(data.skills || []);
   }, [api, skills]);
 
@@ -898,7 +872,7 @@ export default function App() {
     if (!existing) return;
     const ok = await showDialog({title:'删除技能', message:'确定删除技能「' + existing.name + '」？此操作不可恢复。', confirmText:'删除', danger:true, type:'confirm'});
     if (!ok) return;
-    const data = await api('/api/skills/' + encodeURIComponent(id), {method:'DELETE'});
+    const data = await deleteSkillRecord(api, id);
     setSkills(data.skills || []);
     showToast('技能已删除', 'success');
   }, [api, showDialog, showToast, skills]);
@@ -924,7 +898,7 @@ export default function App() {
     if (typeValue === 'once') payload.run_at = values.run_at || '';
     if (typeValue === 'daily') payload.time_of_day = values.time_of_day || '';
     if (typeValue === 'interval') payload.interval_minutes = Math.floor(Number(values.interval_minutes || 0));
-    const data = await api(existing ? '/api/scheduled-tasks/' + encodeURIComponent(existing.id) : '/api/scheduled-tasks', {method: existing ? 'PUT' : 'POST', body: JSON.stringify(payload)});
+    const data = await saveScheduledTaskRecord(api, existing, payload);
     setScheduledTasks(data.tasks || []);
     showToast(existing ? '任务已保存' : '任务已新增', 'success');
   }, [api, busy, scheduledTasks, showDialog, showToast]);
@@ -933,7 +907,7 @@ export default function App() {
     const existing = scheduledTasks.find(t => t.id === id);
     if (!existing) return;
     const payload = {title: existing.title, prompt: existing.prompt, enabled: !!enabled, schedule_type: existing.schedule_type, run_at: existing.run_at || '', time_of_day: existing.time_of_day || '', interval_minutes: existing.interval_minutes || 0};
-    const data = await api('/api/scheduled-tasks/' + encodeURIComponent(id), {method:'PUT', body: JSON.stringify(payload)});
+    const data = await saveScheduledTaskRecord(api, existing, payload);
     setScheduledTasks(data.tasks || []);
   }, [api, scheduledTasks]);
 
@@ -942,7 +916,7 @@ export default function App() {
     if (!existing) return;
     const ok = await showDialog({title:'删除自动化任务', message:'确定删除定时任务「' + existing.title + '」？此操作不可恢复。', confirmText:'删除', danger:true, type:'confirm'});
     if (!ok) return;
-    const data = await api('/api/scheduled-tasks/' + encodeURIComponent(id), {method:'DELETE'});
+    const data = await deleteScheduledTaskRecord(api, id);
     setScheduledTasks(data.tasks || []);
     showToast('任务已删除', 'success');
   }, [api, scheduledTasks, showDialog, showToast]);
@@ -953,7 +927,7 @@ export default function App() {
     const ok = await showDialog({title:'立即运行任务', message:'立即运行定时任务「' + existing.title + '」？', confirmText:'立即运行', type:'confirm'});
     if (!ok) return;
     try {
-      const result = await api('/api/scheduled-tasks/' + encodeURIComponent(id) + '/run', {method:'POST', body:'{}'});
+      const result = await runScheduledTask(api, id);
       await loadScheduledTasks();
       await loadSessions();
       await refreshProductState();

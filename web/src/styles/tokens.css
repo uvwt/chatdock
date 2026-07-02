@@ -1,0 +1,101 @@
+/* ChatDock frontend tokens：集中定义主题变量，后续组件样式优先复用这些语义变量。 */
+:root {
+  color-scheme: dark;
+  --bg: #0b1020;
+  --panel: #0f172a;
+  --panel-soft: #111827;
+  --panel-deep: #020617;
+  --text: #e5e7eb;
+  --text-strong: #f8fafc;
+  --muted: #94a3b8;
+  --muted-weak: #64748b;
+  --border: #1f2937;
+  --border-strong: #334155;
+  --primary: #2563eb;
+  --primary-strong: #1d4ed8;
+  --danger: #991b1b;
+}
+
+body.theme-light {
+  color-scheme: light;
+  --bg: #f6f8fb;
+  --panel: #ffffff;
+  --panel-soft: #f8fafc;
+  --panel-deep: #ffffff;
+  --text: #0f172a;
+  --text-strong: #0f172a;
+  --muted: #64748b;
+  --muted-weak: #64748b;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --primary: #2563eb;
+  --primary-strong: #1d4ed8;
+  --danger: #991b1b;
+}
+
+/* ChatGPT-like shell override: 2026-07-01
+   目标：左侧会话栏 + 中央对话流 + 浮动输入框 + 配置抽屉，保留原功能入口。 */
+:root {
+  --gpt-bg: #212121;
+  --gpt-main: #212121;
+  --gpt-sidebar: #171717;
+  --gpt-sidebar-hover: #2f2f2f;
+  --gpt-surface: #303030;
+  --gpt-surface-2: #2a2a2a;
+  --gpt-border: rgba(255,255,255,.10);
+  --gpt-border-strong: rgba(255,255,255,.16);
+  --gpt-text: #f4f4f4;
+  --gpt-muted: #b4b4b4;
+  --gpt-muted-2: #8e8e8e;
+  --gpt-accent: #10a37f;
+  --gpt-danger: #ef4444;
+  --gpt-chat-width: 768px;
+  --gpt-sidebar-width: 260px;
+}
+
+body.theme-night,
+body:not(.theme-light) {
+  --bg: var(--gpt-bg);
+  --panel: var(--gpt-sidebar);
+  --panel-soft: var(--gpt-surface-2);
+  --panel-deep: #212121;
+  --text: var(--gpt-text);
+  --text-strong: #ffffff;
+  --muted: var(--gpt-muted);
+  --muted-weak: var(--gpt-muted-2);
+  --border: var(--gpt-border);
+  --border-strong: var(--gpt-border-strong);
+  --primary: var(--gpt-accent);
+  --primary-strong: #0d8f6f;
+  --danger: var(--gpt-danger);
+}
+
+body.theme-light {
+  --gpt-bg: #ffffff;
+  --gpt-main: #ffffff;
+  --gpt-sidebar: #f7f7f8;
+  --gpt-sidebar-hover: #ececf1;
+  --gpt-surface: #f4f4f4;
+  --gpt-surface-2: #ffffff;
+  --gpt-border: rgba(0,0,0,.10);
+  --gpt-border-strong: rgba(0,0,0,.16);
+  --gpt-text: #0d0d0d;
+  --gpt-muted: #6b7280;
+  --gpt-muted-2: #8a8f98;
+  --gpt-accent: #10a37f;
+  --gpt-danger: #dc2626;
+  background: var(--gpt-bg);
+}
+
+/* Product polish: richer ChatDock workspace shell */
+:root {
+  --dock-hero-glow: rgba(16, 163, 127, .22);
+  --dock-blue-glow: rgba(103, 126, 234, .16);
+  --dock-card-shadow: 0 24px 70px rgba(0,0,0,.28);
+}
+
+body.theme-light {
+  --dock-hero-glow: rgba(16, 163, 127, .14);
+  --dock-blue-glow: rgba(79, 70, 229, .10);
+  --dock-card-shadow: 0 24px 70px rgba(15,23,42,.12);
+}
