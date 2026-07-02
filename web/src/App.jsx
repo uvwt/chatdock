@@ -169,6 +169,7 @@ export default function App() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [streamPaused, setStreamPaused] = useState(false);
+  const [streamStats, setStreamStats] = useState({state:'idle', started_at:0, chars:0, events:0, tools:0, error:''});
   const [skills, setSkills] = useState([]);
   const [skillSearch, setSkillSearch] = useState('');
   const [scheduledTasks, setScheduledTasks] = useState([]);
@@ -643,7 +644,15 @@ export default function App() {
   const sendMsg = useCallback(async (overrideText) => {
     if (busy) return;
     const text = (overrideText ?? input).trim();
-    if (!text) return;
+    if (!text) {
+      inputRef.current?.focus();
+      return;
+    }
+    if (!String(config.base_url || '').trim() || !String(config.model || '').trim()) {
+      showToast('请先配置模型 Base URL 和 Model，再发送消息。', 'error');
+      openSettings('model');
+      return;
+    }
     let sessionID = current;
     if (!sessionID) {
       const s = await createSession();
@@ -654,6 +663,7 @@ export default function App() {
     setInput('');
     setBusy(true);
     setStreamPaused(false);
+    setStreamStats({state:'connecting', started_at:Date.now(), chars:0, events:0, tools:0, error:''});
     pausedRef.current = false;
     pendingDeltaRef.current = '';
     pendingReasoningRef.current = '';
@@ -671,11 +681,13 @@ export default function App() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || res.statusText);
       }
+      setStreamStats(prev => ({...prev, state:'streaming'}));
       let finalSession = null;
       await readSSE(res, (event, data) => {
         if (event === 'delta') {
           const reasoning = data.reasoning_content || '';
           const content = data.content || '';
+          setStreamStats(prev => ({...prev, state: pausedRef.current ? 'paused' : 'streaming', chars: prev.chars + content.length + reasoning.length}));
           if (pausedRef.current) {
             pendingReasoningRef.current += reasoning;
             pendingDeltaRef.current += content;
@@ -684,17 +696,21 @@ export default function App() {
             appendAnswer(content);
           }
         } else if (event === 'tool_call_start') {
+          setStreamStats(prev => ({...prev, events: prev.events + 1, tools: prev.tools + 1}));
           appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🔧 开始调用：' + (data.tool || 'tool')}]}));
         } else if (event === 'tool_call_result') {
+          setStreamStats(prev => ({...prev, events: prev.events + 1}));
           appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🔧 ' + (data.ok ? '调用完成：' : '调用失败：') + (data.tool || 'tool')}]}));
         } else if (event === 'run_event') {
           const meta = [runStatusLabel(data.status || ''), data.server, data.action, fmtDuration(data.duration_ms)].filter(Boolean).join(' · ');
+          setStreamStats(prev => ({...prev, events: prev.events + 1}));
           appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'run', text:'🧭 ' + (data.summary || data.tool || 'MCP 工具事件'), meta}]}));
         } else if (event === 'run_finish') {
           loadRuns().catch(() => {});
           loadAgentTasks().catch(() => {});
         } else if (event === 'done') {
           finalSession = data.session;
+          setStreamStats(prev => ({...prev, state:'done'}));
         } else if (event === 'error') {
           throw new Error(data.message || 'stream error');
         }
@@ -712,6 +728,7 @@ export default function App() {
         appendAnswer('\n\n【已中断】');
         await loadSessions().catch(() => {});
       } else {
+        setStreamStats(prev => ({...prev, state:'error', error:e.message}));
         appendToActiveAssistant(m => ({...m, answer:'错误：' + e.message}));
       }
     } finally {
@@ -719,13 +736,14 @@ export default function App() {
       abortRef.current = null;
       setStreamPaused(false);
     }
-  }, [api, authHeaders, busy, current, draftKey, input, createSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, loadRuns, loadAgentTasks]);
+  }, [api, authHeaders, busy, config.base_url, config.model, current, draftKey, input, createSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, loadRuns, loadAgentTasks, openSettings, showToast]);
 
   const toggleStreamPause = useCallback(() => {
     if (!busy) return;
     setStreamPaused(prev => {
       const next = !prev;
       pausedRef.current = next;
+      setStreamStats(current => ({...current, state: next ? 'paused' : 'streaming'}));
       if (!next) {
         appendReasoning(pendingReasoningRef.current);
         appendAnswer(pendingDeltaRef.current);
@@ -737,7 +755,10 @@ export default function App() {
   }, [appendAnswer, appendReasoning, busy]);
 
   const stopStreaming = useCallback(() => {
-    if (busy && abortRef.current) abortRef.current.abort();
+    if (busy && abortRef.current) {
+      setStreamStats(prev => ({...prev, state:'stopping'}));
+      abortRef.current.abort();
+    }
   }, [busy]);
 
   const createWorkspace = useCallback(async () => {
@@ -981,9 +1002,12 @@ export default function App() {
   const currentPinned = !!currentSummary?.pinned;
   const appClass = 'app ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (settingsOpen ? 'settings-open' : '');
   const productReady = setupStatus && !setupStatus.needs_setup;
+  const modelReady = !!String(config.base_url || '').trim() && !!String(config.model || '').trim();
   const productStatusText = setupStatus == null ? '加载中' : (productReady ? '就绪' : '待配置');
   const productStatusClass = setupStatus == null ? 'warn' : (productReady ? 'ok' : 'warn');
-  const inputStats = input.trim() ? input.trim().length + ' 字 · 草稿自动保存' : 'Enter 发送 · Shift+Enter 换行 · ⌘/Ctrl K 快捷指令';
+  const streamElapsed = streamStats.started_at ? Math.max(0, Math.round((Date.now() - streamStats.started_at) / 1000)) : 0;
+  const streamStatsText = busy ? streamStatusText(streamStats, streamElapsed) : '';
+  const inputStats = busy ? streamStatsText : (input.trim() ? input.trim().length + ' 字 · 草稿自动保存' : (modelReady ? 'Enter 发送 · Shift+Enter 换行 · ⌘/Ctrl K 快捷指令' : '请先在配置中心完成模型 Base URL 和 Model'));
   const productDiagnostics = diagnosticsText({setupStatus, systemStatus, dataStatus, mcpStatus, providers});
   const quickActions = useMemo(() => [
     {id:'focus-input', title:'聚焦输入框', hint:'按 / 也可以快速输入', run:() => inputRef.current?.focus()},
@@ -1055,14 +1079,15 @@ export default function App() {
             <button className="danger" onClick={deleteCurrent} disabled={!current || busy}>删除</button>
           </div>
         </div>
-        <div className="messages" ref={messagesRef}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} />}</div>
+        <WorkbenchBrief setupStatus={setupStatus} config={config} activePrompt={activePrompt} sessions={sessions} skills={skills} scheduledTasks={scheduledTasks} mcpStatus={mcpStatus} dataStatus={dataStatus} productReady={!!productReady} busy={busy} streamStats={streamStats} openSettings={openSettings} />
+        <div className="messages" ref={messagesRef}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
         <div className="composer-shell">
         <div className="composer">
           <button className="secondary quick-control" disabled={busy} onClick={() => sendMsg('继续')}>继续</button>
           {busy ? <button className="secondary stream-control" onClick={toggleStreamPause}>{streamPaused ? '继续' : '暂停'}</button> : null}
           {busy ? <button className="danger stream-control" onClick={stopStreaming}>中断</button> : null}
           <textarea ref={inputRef} id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendMsg(); } }} placeholder="输入消息，Enter 发送，Shift+Enter 换行；草稿会自动保留" />
-          <button id="send" disabled={busy} onClick={() => sendMsg()}>发送</button>
+          <button id="send" disabled={busy || !input.trim() || !modelReady} onClick={() => sendMsg()} title={!modelReady ? '请先配置模型' : '发送'}>发送</button>
         </div>
         <div className="composer-meta">{inputStats}</div>
         </div>
@@ -1088,6 +1113,44 @@ export default function App() {
   </>;
 }
 
+function streamStatusText(stats, elapsed) {
+  const labels = {connecting:'连接模型中', streaming:'流式输出中', paused:'已暂停，后台继续接收', stopping:'正在中断', done:'已完成', error:'输出失败'};
+  const parts = [labels[stats.state] || '待命'];
+  if (elapsed) parts.push(elapsed + 's');
+  if (stats.chars) parts.push(stats.chars + ' 字');
+  if (stats.tools) parts.push(stats.tools + ' 个工具');
+  if (stats.events) parts.push(stats.events + ' 个事件');
+  if (stats.error) parts.push(stats.error);
+  return parts.join(' · ');
+}
+
+function WorkbenchBrief({ setupStatus, config, activePrompt, sessions, skills, scheduledTasks, mcpStatus, dataStatus, productReady, busy, streamStats, openSettings }) {
+  const modelReady = !!String(config.base_url || '').trim() && !!String(config.model || '').trim();
+  const keyReady = !!config.has_api_key || !!String(config.api_key || '').trim();
+  const mcpReady = (mcpStatus || []).some(s => !s.disabled && s.last_status === 'ok');
+  const dbHealthy = dataStatus == null ? true : dataStatus.database_healthy !== false;
+  const items = [
+    {label:'工作空间', value:activePrompt?.name || setupStatus?.active_workspace || 'default', ok:!!activePrompt || !!setupStatus?.has_workspace, action:'workspace'},
+    {label:'模型', value:config.model || '未配置', ok:modelReady, action:'model'},
+    {label:'API Key', value:keyReady ? '已保存' : '可选 / 未设置', ok:keyReady || modelReady, action:'model'},
+    {label:'MCP', value:mcpReady ? '可用' : '未启用', ok:true, action:'tools'},
+    {label:'数据', value:dbHealthy ? fmtBytes(dataStatus?.database_size_bytes || 0) : '异常', ok:dbHealthy, action:'data'},
+  ];
+  const summary = [
+    (sessions || []).length + ' 个会话',
+    (skills || []).filter(s => s.enabled).length + '/' + (skills || []).length + ' 个技能启用',
+    (scheduledTasks || []).length + ' 个自动化任务',
+  ].join(' · ');
+  return <section className={'workbench-brief ' + (productReady ? 'ready' : 'needs-setup') + (busy ? ' busy' : '')}>
+    <div className="brief-main">
+      <div className="brief-title"><span className="brief-dot" />{busy ? '正在生成回复' : (productReady ? '工作台已就绪' : '完成配置后即可开始')}</div>
+      <div className="brief-subtitle">{busy ? streamStatusText(streamStats, streamStats.started_at ? Math.max(0, Math.round((Date.now() - streamStats.started_at) / 1000)) : 0) : summary}</div>
+    </div>
+    <div className="brief-checks">{items.map(item => <button key={item.label} type="button" className={'brief-check ' + (item.ok ? 'ok' : 'warn')} onClick={() => openSettings(item.action)}><span>{item.label}</span><b>{item.value}</b></button>)}</div>
+  </section>;
+}
+
+
 function MessageActions({ text, onCopy }) {
   return <div className="msg-actions"><button type="button" className="secondary small" onClick={() => onCopy(text)}>复制</button></div>;
 }
@@ -1105,7 +1168,7 @@ function MessageView({ message, onCopy }) {
 }
 
 
-function EmptyState({ createSession, openSettings, openWorkspacePicker, busy, hasWorkspaces, setInput }) {
+function EmptyState({ createSession, openSettings, openWorkspacePicker, busy, hasWorkspaces, setInput, modelReady }) {
   const starterCards = [
     {title:'规划一个任务', text:'把目标拆成可执行步骤，并保留上下文。', prompt:'帮我把这个任务拆成可执行计划：'},
     {title:'整理一段资料', text:'提取结论、风险点和下一步动作。', prompt:'请帮我整理这段资料，并输出重点：'},
@@ -1118,8 +1181,8 @@ function EmptyState({ createSession, openSettings, openWorkspacePicker, busy, ha
         <h1>把会话、模型、工具和自动化放进一个工作台</h1>
         <p>为本地优先的 AI 工作流设计：会话不只是聊天窗口，模型配置、MCP 工具、技能、任务记录和数据状态都能在同一个界面里闭环。</p>
         <div className="empty-state-actions hero-actions">
-          <button disabled={busy} onClick={createSession}>开始新会话</button>
-          <button className="secondary" onClick={() => openSettings('model')}>配置模型</button>
+          <button disabled={busy || !modelReady} onClick={createSession}>{modelReady ? '开始新会话' : '先配置模型'}</button>
+          <button className="secondary" onClick={() => openSettings('model')}>{modelReady ? '检查模型' : '配置模型'}</button>
           <button className="secondary" disabled={!hasWorkspaces || busy} onClick={openWorkspacePicker}>切换工作空间</button>
         </div>
         <div className="hero-trust-row">
