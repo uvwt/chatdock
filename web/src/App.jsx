@@ -627,6 +627,95 @@ export default function App() {
     appendToActiveAssistant(m => ({...m, reasoning: (m.reasoning || '') + text}));
   }, [appendToActiveAssistant]);
 
+  const handleChatStreamEvent = useCallback((event, data, setFinalSession) => {
+    if (event === 'delta') {
+      const reasoning = data.reasoning_content || '';
+      const content = data.content || '';
+      setStreamStats(prev => ({...prev, state: pausedRef.current ? 'paused' : 'streaming', chars: prev.chars + content.length + reasoning.length}));
+      if (pausedRef.current) {
+        pendingReasoningRef.current += reasoning;
+        pendingDeltaRef.current += content;
+      } else {
+        appendReasoning(reasoning);
+        appendAnswer(content);
+      }
+    } else if (event === 'tool_setup_ready') {
+      setStreamStats(prev => ({...prev, events: prev.events + 1}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🧰 MCP 已接入：' + (data.tool_count || 0) + ' 个工具'}]}));
+    } else if (event === 'tool_setup_error') {
+      setStreamStats(prev => ({...prev, events: prev.events + 1, error: data.message || 'MCP 工具未接入'}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'⚠️ MCP 未接入：' + (data.message || '工具初始化失败')}]}));
+    } else if (event === 'tool_call_start') {
+      setStreamStats(prev => ({...prev, events: prev.events + 1, tools: prev.tools + 1}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🔧 开始调用：' + (data.tool || 'tool')}]}));
+    } else if (event === 'tool_call_result') {
+      setStreamStats(prev => ({...prev, events: prev.events + 1}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🔧 ' + (data.ok ? '调用完成：' : '调用失败：') + (data.tool || 'tool')}]}));
+    } else if (event === 'run_event') {
+      const meta = [runStatusLabel(data.status || ''), data.server, data.action, fmtDuration(data.duration_ms)].filter(Boolean).join(' · ');
+      setStreamStats(prev => ({...prev, events: prev.events + 1}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'run', text:'🧭 ' + (data.summary || data.tool || 'MCP 工具事件'), meta}]}));
+    } else if (event === 'run_finish') {
+      loadRuns().catch(() => {});
+      loadAgentTasks().catch(() => {});
+    } else if (event === 'done') {
+      setFinalSession(data.session);
+      setStreamStats(prev => ({...prev, state:'done'}));
+    } else if (event === 'error') {
+      throw new Error(data.message || 'stream error');
+    }
+  }, [appendAnswer, appendReasoning, appendToActiveAssistant, loadRuns, loadAgentTasks]);
+
+  useEffect(() => {
+    if (!current || busy) return;
+    let stopped = false;
+    const abort = new AbortController();
+    async function resumeRunningJob() {
+      try {
+        const list = await api('/api/chat/jobs?session_id=' + encodeURIComponent(current));
+        if (stopped) return;
+        const job = (list.jobs || []).find(j => j.status === 'running');
+        if (!job) return;
+        setBusy(true);
+        setStreamPaused(false);
+        pausedRef.current = false;
+        pendingDeltaRef.current = '';
+        pendingReasoningRef.current = '';
+        abortRef.current = abort;
+        setStreamStats({state:'streaming', started_at:Date.now(), chars:0, events:0, tools:0, error:''});
+        setMessages(prev => prev.some(m => m.role === 'assistant-stream') ? prev : [...prev, {role:'assistant-stream', answer:'', reasoning:'', events:[{kind:'tool', text:'↩️ 已恢复后台生成'}]}]);
+        const res = await fetch('/api/chat/jobs/' + encodeURIComponent(job.id) + '/events?after=0', {headers: authHeaders(), signal: abort.signal});
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || res.statusText);
+        }
+        let finalSession = null;
+        await readSSE(res, (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; }));
+        if (finalSession && !stopped) {
+          pendingDeltaRef.current = '';
+          pendingReasoningRef.current = '';
+          setMessages(finalSession.messages || []);
+          setCurrentTitle(finalSession.title || currentTitle || '新会话');
+          await loadSessions();
+          await Promise.allSettled([loadRuns(), loadAgentTasks()]);
+        }
+      } catch (e) {
+        if (!abort.signal.aborted && !stopped) {
+          setStreamStats(prev => ({...prev, state:'error', error:e.message}));
+          appendToActiveAssistant(m => ({...m, answer:'错误：' + e.message}));
+        }
+      } finally {
+        if (!stopped) {
+          setBusy(false);
+          abortRef.current = null;
+          setStreamPaused(false);
+        }
+      }
+    }
+    resumeRunningJob();
+    return () => { stopped = true; abort.abort(); };
+  }, [current, api, authHeaders, handleChatStreamEvent, appendToActiveAssistant, currentTitle, loadSessions, loadRuns, loadAgentTasks]);
+
   const activePrompt = useMemo(() => prompts.find(p => p.active) || prompts[0] || null, [prompts]);
   const draftKey = useMemo(() => 'chatdock.draft.' + encodeURIComponent(activePrompt?.name || 'default') + '.' + encodeURIComponent(current || 'new'), [activePrompt?.name, current]);
 
@@ -683,44 +772,7 @@ export default function App() {
       }
       setStreamStats(prev => ({...prev, state:'streaming'}));
       let finalSession = null;
-      await readSSE(res, (event, data) => {
-        if (event === 'delta') {
-          const reasoning = data.reasoning_content || '';
-          const content = data.content || '';
-          setStreamStats(prev => ({...prev, state: pausedRef.current ? 'paused' : 'streaming', chars: prev.chars + content.length + reasoning.length}));
-          if (pausedRef.current) {
-            pendingReasoningRef.current += reasoning;
-            pendingDeltaRef.current += content;
-          } else {
-            appendReasoning(reasoning);
-            appendAnswer(content);
-          }
-        } else if (event === 'tool_setup_ready') {
-          setStreamStats(prev => ({...prev, events: prev.events + 1}));
-          appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🧰 MCP 已接入：' + (data.tool_count || 0) + ' 个工具'}]}));
-        } else if (event === 'tool_setup_error') {
-          setStreamStats(prev => ({...prev, events: prev.events + 1, error: data.message || 'MCP 工具未接入'}));
-          appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'⚠️ MCP 未接入：' + (data.message || '工具初始化失败')}]}));
-        } else if (event === 'tool_call_start') {
-          setStreamStats(prev => ({...prev, events: prev.events + 1, tools: prev.tools + 1}));
-          appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🔧 开始调用：' + (data.tool || 'tool')}]}));
-        } else if (event === 'tool_call_result') {
-          setStreamStats(prev => ({...prev, events: prev.events + 1}));
-          appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🔧 ' + (data.ok ? '调用完成：' : '调用失败：') + (data.tool || 'tool')}]}));
-        } else if (event === 'run_event') {
-          const meta = [runStatusLabel(data.status || ''), data.server, data.action, fmtDuration(data.duration_ms)].filter(Boolean).join(' · ');
-          setStreamStats(prev => ({...prev, events: prev.events + 1}));
-          appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'run', text:'🧭 ' + (data.summary || data.tool || 'MCP 工具事件'), meta}]}));
-        } else if (event === 'run_finish') {
-          loadRuns().catch(() => {});
-          loadAgentTasks().catch(() => {});
-        } else if (event === 'done') {
-          finalSession = data.session;
-          setStreamStats(prev => ({...prev, state:'done'}));
-        } else if (event === 'error') {
-          throw new Error(data.message || 'stream error');
-        }
-      });
+      await readSSE(res, (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; }));
       if (finalSession) {
         pendingDeltaRef.current = '';
         pendingReasoningRef.current = '';
@@ -744,7 +796,7 @@ export default function App() {
       abortRef.current = null;
       setStreamPaused(false);
     }
-  }, [api, authHeaders, busy, config.base_url, config.model, current, draftKey, input, createSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, loadRuns, loadAgentTasks, openSettings, showToast]);
+  }, [api, authHeaders, busy, config.base_url, config.model, current, currentTitle, draftKey, input, createSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, loadRuns, loadAgentTasks, openSettings, showToast]);
 
   const toggleStreamPause = useCallback(() => {
     if (!busy) return;

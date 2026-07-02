@@ -478,15 +478,9 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	input.Message = strings.TrimSpace(input.Message)
-	if input.Message == "" {
-		writeError(w, http.StatusBadRequest, fmt.Errorf("message is empty"))
-		return
-	}
-
-	_, cfg, history, err := a.store.AppendUserMessage(input.SessionID, input.Message)
+	job, _, err := a.startChatJob(input)
 	if err != nil {
-		status := http.StatusInternalServerError
+		status := http.StatusBadGateway
 		if errors.Is(err, ErrSessionNotFound) {
 			status = http.StatusNotFound
 		}
@@ -504,30 +498,7 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
-
-	var reasoning strings.Builder
-	answer, err := a.streamWithOptionalTools(r.Context(), input.SessionID, cfg, history, func(event string, value any) error {
-		if event == "delta" {
-			if delta, ok := value.(StreamDelta); ok && delta.ReasoningContent != "" {
-				reasoning.WriteString(delta.ReasoningContent)
-			}
-		}
-		return writeSSE(w, flusher, event, value)
-	})
-	if err != nil {
-		if isClientCanceled(r.Context(), err) && strings.TrimSpace(answer) != "" {
-			_, _ = a.store.AppendAssistantMessageWithReasoning(input.SessionID, strings.TrimSpace(answer)+"\n\n【已中断】", reasoning.String())
-		}
-		_ = writeSSE(w, flusher, "error", map[string]string{"message": err.Error()})
-		return
-	}
-
-	session, err := a.store.AppendAssistantMessageWithReasoning(input.SessionID, answer, reasoning.String())
-	if err != nil {
-		_ = writeSSE(w, flusher, "error", map[string]string{"message": err.Error()})
-		return
-	}
-	_ = writeSSE(w, flusher, "done", map[string]any{"session": session})
+	streamChatJobEvents(r, w, flusher, a, job.ID, 0)
 }
 
 func (a *App) completeWithOptionalTools(ctx context.Context, sessionID string, cfg ModelConfig, history []Message) (string, error) {

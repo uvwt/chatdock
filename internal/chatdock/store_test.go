@@ -430,3 +430,35 @@ func TestStoreEffectiveMCPConfigFallsBackToDefaultWorkspace(t *testing.T) {
 		t.Fatalf("expected default workspace MCP server fallback, got %s", content)
 	}
 }
+
+func TestStoreChatJobEventsPersistAndFinish(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := store.CreateSession()
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := store.CreateChatJob(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.AddChatJobEvent(job.ID, "delta", StreamDelta{Content: "hello"}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, events, err := store.ChatJobEventsAfter(job.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.Status != "running" || len(events) != 1 || events[0].Event != "delta" || events[0].Seq != 1 {
+		t.Fatalf("unexpected loaded job/events: %#v %#v", loaded, events)
+	}
+	finished, err := store.FinishChatJob(job.ID, "success", "answer", "reason", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finished.Status != "success" || finished.Answer != "answer" || finished.Reasoning != "reason" || finished.FinishedAt == nil {
+		t.Fatalf("unexpected finished job: %#v", finished)
+	}
+}
