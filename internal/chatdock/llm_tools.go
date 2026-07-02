@@ -32,6 +32,7 @@ func (c *ChatClient) CompleteWithMCPTools(ctx context.Context, cfg ModelConfig, 
 
 func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg ModelConfig, history []Message, tools []MCPTool, call func(string, map[string]any) (any, error), emit func(string, any) error) (string, error) {
 	messages := BuildChatMessagesAny(cfg, history)
+	messages = appendMCPToolUseHint(messages, tools)
 	openAITools := MCPToolsToOpenAITools(tools)
 	if len(openAITools) == 0 || call == nil {
 		if emit != nil {
@@ -85,6 +86,26 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg ModelCo
 		}
 	}
 	return "", fmt.Errorf("too many tool rounds")
+}
+
+func appendMCPToolUseHint(messages []map[string]any, tools []MCPTool) []map[string]any {
+	if len(tools) == 0 {
+		return messages
+	}
+	hint := map[string]any{"role": "system", "content": "MCP 工具已通过 tools 字段接入。用户要求查询外部环境、读取记忆/任务、操作文件或明确要求使用 MCP 时，优先调用合适工具，拿到结果后再回答；不要声称没有工具权限。"}
+	out := make([]map[string]any, 0, len(messages)+1)
+	inserted := false
+	for _, msg := range messages {
+		if !inserted && msg["role"] != "system" {
+			out = append(out, hint)
+			inserted = true
+		}
+		out = append(out, msg)
+	}
+	if !inserted {
+		out = append(out, hint)
+	}
+	return out
 }
 
 func (c *ChatClient) completeChatWithRawMessages(ctx context.Context, cfg ModelConfig, messages []map[string]any, tools []map[string]any) (ModelChatResponse, error) {

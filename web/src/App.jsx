@@ -695,6 +695,12 @@ export default function App() {
             appendReasoning(reasoning);
             appendAnswer(content);
           }
+        } else if (event === 'tool_setup_ready') {
+          setStreamStats(prev => ({...prev, events: prev.events + 1}));
+          appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🧰 MCP 已接入：' + (data.tool_count || 0) + ' 个工具'}]}));
+        } else if (event === 'tool_setup_error') {
+          setStreamStats(prev => ({...prev, events: prev.events + 1, error: data.message || 'MCP 工具未接入'}));
+          appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'⚠️ MCP 未接入：' + (data.message || '工具初始化失败')}]}));
         } else if (event === 'tool_call_start') {
           setStreamStats(prev => ({...prev, events: prev.events + 1, tools: prev.tools + 1}));
           appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🔧 开始调用：' + (data.tool || 'tool')}]}));

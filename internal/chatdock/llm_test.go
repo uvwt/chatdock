@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -148,5 +149,16 @@ func TestCompleteWithMCPToolsEventsStreamsWhenNoToolCall(t *testing.T) {
 	}
 	if len(events) != 2 || events[0] != "流" || events[1] != "式" {
 		t.Fatalf("expected streamed events, got %#v", events)
+	}
+}
+
+func TestAppendMCPToolUseHint(t *testing.T) {
+	messages := []map[string]any{{"role": "system", "content": "base"}, {"role": "user", "content": "hi"}}
+	out := appendMCPToolUseHint(messages, []MCPTool{{Name: "read", FullName: "agentdock__read"}})
+	if len(out) != 3 {
+		t.Fatalf("expected hint to be inserted, got %#v", out)
+	}
+	if out[1]["role"] != "system" || !strings.Contains(out[1]["content"].(string), "MCP") {
+		t.Fatalf("expected MCP system hint after existing system prompt, got %#v", out)
 	}
 }

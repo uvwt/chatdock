@@ -100,7 +100,7 @@ func (a *App) handleSaveMCPConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) activeMCPConfig() (MCPConfig, error) {
-	content, err := a.store.GetMCPConfig()
+	content, err := a.store.GetEffectiveMCPConfig()
 	if err != nil {
 		return MCPConfig{}, err
 	}

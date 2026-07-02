@@ -407,9 +407,21 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 	tools, err := a.mcpClient.ListTools(ctx, mcpCfg)
 	if err != nil || len(tools) == 0 {
 		if emit != nil {
+			message := "MCP 工具未接入"
+			if err != nil {
+				message = err.Error()
+			}
+			if emitErr := emit("tool_setup_error", map[string]any{"message": message}); emitErr != nil {
+				return "", emitErr
+			}
 			return a.client.Stream(ctx, cfg, history, func(delta StreamDelta) error { return emit("delta", delta) })
 		}
 		return a.client.Complete(ctx, cfg, history)
+	}
+	if emit != nil {
+		if err := emit("tool_setup_ready", map[string]any{"tool_count": len(tools)}); err != nil {
+			return "", err
+		}
 	}
 	recorder := &activeToolRun{LastArgs: map[string]any{}, StartedAt: map[string]time.Time{}}
 	recordingEmit := func(event string, value any) error {

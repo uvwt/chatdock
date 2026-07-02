@@ -402,3 +402,31 @@ func TestStoreMCPRunsAndAgentTasks(t *testing.T) {
 		t.Fatalf("unexpected agent tasks: %#v", tasks.Tasks)
 	}
 }
+
+func TestStoreEffectiveMCPConfigFallsBackToDefaultWorkspace(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defaultConfig := `{"servers":{"agentdock":{"url":"http://host.docker.internal:18766/mcp"}}}`
+	if _, err := store.SaveMCPConfig(defaultConfig); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreatePrompt(CreatePromptRequest{Name: "model", SystemPrompt: "model workspace"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SaveMCPConfig(`{"servers":{}}`); err != nil {
+		t.Fatal(err)
+	}
+	content, err := store.GetEffectiveMCPConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := ParseMCPConfig(content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.Servers["agentdock"]; !ok {
+		t.Fatalf("expected default workspace MCP server fallback, got %s", content)
+	}
+}

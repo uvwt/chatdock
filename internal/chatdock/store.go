@@ -260,6 +260,39 @@ func (s *Store) GetMCPConfig() (string, error) {
 	return content, nil
 }
 
+func (s *Store) GetEffectiveMCPConfig() (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	content, ok, err := s.getPromptRawLocked(s.activePrompt, "mcp")
+	if err != nil {
+		return "", err
+	}
+	if !ok || strings.TrimSpace(content) == "" {
+		content = DefaultMCPConfig()
+		if err := s.setPromptRawLocked(s.activePrompt, "mcp", content); err != nil {
+			return "", err
+		}
+	}
+	if mcpConfigHasServers(content) || s.activePrompt == defaultPromptName {
+		return content, nil
+	}
+
+	fallback, ok, err := s.getPromptRawLocked(defaultPromptName, "mcp")
+	if err != nil {
+		return "", err
+	}
+	if ok && mcpConfigHasServers(fallback) {
+		return fallback, nil
+	}
+	return content, nil
+}
+
+func mcpConfigHasServers(content string) bool {
+	cfg, err := ParseMCPConfig(content)
+	return err == nil && len(cfg.Servers) > 0
+}
+
 func (s *Store) SaveMCPConfig(content string) (string, error) {
 	content = strings.TrimSpace(content)
 	if content == "" {
