@@ -42,3 +42,15 @@ func TestMCPToolsToOpenAIToolsDoesNotMutateSchema(t *testing.T) {
 		t.Fatal("normalizeJSONSchema should not mutate original schema")
 	}
 }
+
+func TestNormalizeBearerToken(t *testing.T) {
+	if got := normalizeBearerToken("Bearer abc"); got != "abc" {
+		t.Fatalf("expected prefix to be stripped, got %q", got)
+	}
+	if got := normalizeBearerToken("  bearer abc  "); got != "abc" {
+		t.Fatalf("expected lowercase prefix to be stripped, got %q", got)
+	}
+	if got := normalizeBearerToken("abc"); got != "abc" {
+		t.Fatalf("expected raw value to stay unchanged, got %q", got)
+	}
+}

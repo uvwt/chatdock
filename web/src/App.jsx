@@ -1434,6 +1434,10 @@ function dockerHostMCPURL(value) {
   return cleaned.replace(/^http:\/\/(127\.0\.0\.1|localhost)(?=[:/]|$)/i, 'http://host.docker.internal');
 }
 
+function normalizeBearerTokenDraft(value) {
+  return String(value || '').trim().replace(/^Bearer\s+/i, '');
+}
+
 function mcpTokenExpiryState(token) {
   const parts = String(token || '').split('.');
   if (parts.length < 2) return null;
@@ -1473,7 +1477,7 @@ function cleanMCPServerDraft(draft) {
   const url = normalizeMCPURLDraft(draft.url);
   const path = String(draft.path || '').trim();
   const authType = String(draft.auth_type || '').trim();
-  const token = String(draft.token || '').trim();
+  const token = normalizeBearerTokenDraft(draft.token);
   const tokenEnv = String(draft.token_env || '').trim();
   if (type && type !== 'streamable-http') next.type = type;
   if (url) next.url = url;

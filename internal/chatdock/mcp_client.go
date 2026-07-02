@@ -276,13 +276,21 @@ func (s MCPServerConfig) bearerToken() string {
 	if !strings.EqualFold(strings.TrimSpace(s.Auth.Type), "bearer") {
 		return ""
 	}
-	if token := strings.TrimSpace(s.Auth.Token); token != "" {
+	if token := normalizeBearerToken(s.Auth.Token); token != "" {
 		return token
 	}
 	if env := strings.TrimSpace(s.Auth.TokenEnv); env != "" {
-		return strings.TrimSpace(os.Getenv(env))
+		return normalizeBearerToken(os.Getenv(env))
 	}
 	return ""
+}
+
+func normalizeBearerToken(value string) string {
+	token := strings.TrimSpace(value)
+	if len(token) >= len("Bearer ") && strings.EqualFold(token[:len("Bearer ")], "Bearer ") {
+		return strings.TrimSpace(token[len("Bearer "):])
+	}
+	return token
 }
 
 func (s MCPServerConfig) allowsTool(toolName, fullName string) bool {
