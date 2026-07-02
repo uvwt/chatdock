@@ -2907,3 +2907,27 @@ body.theme-light .mcp-inline-warning.danger {
   background: #fef2f2;
   border-color: #f87171;
 }
+
+/* 文件上传：输入框上方的附件栏和聊天气泡内附件卡片。 */
+.file-input { display: none; }
+.attach-control { flex: 0 0 44px; min-width: 44px; font-size: 22px; line-height: 1; padding: 8px 0; }
+.composer-shell .attachment-list { max-width: 900px; margin: 0 auto 8px; padding: 0 14px; }
+.attachment-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.attachment-chip { display: inline-flex; align-items: center; gap: 9px; max-width: min(100%, 360px); padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-soft); color: var(--text); }
+.attachment-chip.error { border-color: rgba(239, 68, 68, .55); }
+.attachment-icon { flex: 0 0 auto; opacity: .82; }
+.attachment-main { min-width: 0; display: grid; gap: 2px; }
+.attachment-main b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-strong); }
+.attachment-main span { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.attachment-remove { flex: 0 0 24px; width: 24px; height: 24px; min-height: 24px; padding: 0; border-radius: 999px; background: var(--border); color: var(--text); line-height: 24px; }
+.msg .attachment-list { margin-top: 10px; }
+.user .attachment-chip { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.25); color: #fff; }
+.user .attachment-main b { color: #fff; }
+.user .attachment-main span { color: rgba(255,255,255,.72); }
+.user .attachment-remove { display: none; }
+
+@media (max-width: 720px) {
+  .composer-shell .attachment-list { padding: 0 10px; }
+  .attach-control { flex: 0 0 42px; min-width: 42px; }
+  .attachment-chip { max-width: 100%; }
+}

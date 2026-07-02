@@ -442,12 +442,12 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	input.Message = strings.TrimSpace(input.Message)
-	if input.Message == "" {
+	if input.Message == "" && len(input.AttachmentIDs) == 0 {
 		writeError(w, http.StatusBadRequest, fmt.Errorf("message is empty"))
 		return
 	}
 
-	_, cfg, history, err := a.store.AppendUserMessage(input.SessionID, input.Message)
+	_, cfg, history, err := a.store.AppendUserMessageWithAttachments(input.SessionID, input.Message, input.AttachmentIDs)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if errors.Is(err, ErrSessionNotFound) {

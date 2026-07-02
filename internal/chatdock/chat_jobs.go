@@ -226,10 +226,10 @@ func scanChatJobEvents(rows *sql.Rows) ([]ChatJobEvent, error) {
 
 func (a *App) startChatJob(input ChatRequest) (ChatJob, *Session, error) {
 	input.Message = strings.TrimSpace(input.Message)
-	if input.Message == "" {
+	if input.Message == "" && len(input.AttachmentIDs) == 0 {
 		return ChatJob{}, nil, fmt.Errorf("message is empty")
 	}
-	session, cfg, history, err := a.store.AppendUserMessage(input.SessionID, input.Message)
+	session, cfg, history, err := a.store.AppendUserMessageWithAttachments(input.SessionID, input.Message, input.AttachmentIDs)
 	if err != nil {
 		return ChatJob{}, nil, err
 	}

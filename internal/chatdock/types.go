@@ -155,10 +155,27 @@ type ScheduledTaskRunResponse struct {
 }
 
 type Message struct {
-	Role      string    `json:"role"`
-	Content   string    `json:"content"`
-	Reasoning string    `json:"reasoning,omitempty"`
+	ID          string       `json:"id,omitempty"`
+	Role        string       `json:"role"`
+	Content     string       `json:"content"`
+	Reasoning   string       `json:"reasoning,omitempty"`
+	Attachments []Attachment `json:"attachments,omitempty"`
+	CreatedAt   time.Time    `json:"created_at"`
+}
+
+type Attachment struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	MIMEType  string    `json:"mime_type"`
+	Size      int64     `json:"size"`
+	Status    string    `json:"status"`
+	HasText   bool      `json:"has_text"`
+	TextBytes int       `json:"text_bytes,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type FileUploadResponse struct {
+	Attachment Attachment `json:"attachment"`
 }
 
 type Session struct {
@@ -190,8 +207,9 @@ type PinSessionRequest struct {
 }
 
 type ChatRequest struct {
-	SessionID string `json:"session_id"`
-	Message   string `json:"message"`
+	SessionID     string   `json:"session_id"`
+	Message       string   `json:"message"`
+	AttachmentIDs []string `json:"attachment_ids,omitempty"`
 }
 
 type ChatResponse struct {

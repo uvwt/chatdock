@@ -186,6 +186,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/sessions", a.handleListSessions)
 	mux.HandleFunc("POST /api/sessions", a.handleCreateSession)
 	mux.HandleFunc("/api/sessions/", a.handleSessionRoute)
+	mux.HandleFunc("POST /api/files", a.handleUploadFile)
 	mux.HandleFunc("POST /api/chat", a.handleChat)
 	mux.HandleFunc("POST /api/chat/stream", a.handleChatStream)
 	mux.HandleFunc("GET /api/chat/jobs", a.handleListChatJobs)

@@ -128,6 +128,37 @@ function filenameFromResponse(res, fallback) {
   return match ? match[1] : fallback;
 }
 
+function uploadFileRequest(file, sessionID, authHeaders, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const form = new FormData();
+    form.append('file', file);
+    if (sessionID) form.append('session_id', sessionID);
+    xhr.open('POST', '/api/files');
+    const headers = authHeaders();
+    Object.entries(headers || {}).forEach(([key, value]) => xhr.setRequestHeader(key, value));
+    xhr.upload.onprogress = event => {
+      if (!event.lengthComputable) return;
+      onProgress?.(Math.max(1, Math.min(99, Math.round(event.loaded / event.total * 100))));
+    };
+    xhr.onload = () => {
+      let data = {};
+      try { data = JSON.parse(xhr.responseText || '{}'); } catch {}
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100);
+        resolve(data);
+      } else {
+        const err = new Error(data.error || xhr.statusText || '上传失败');
+        err.status = xhr.status;
+        reject(err);
+      }
+    };
+    xhr.onerror = () => reject(new Error('上传网络错误'));
+    xhr.onabort = () => reject(new Error('上传已取消'));
+    xhr.send(form);
+  });
+}
+
 function Markdown({ value, className = '' }) {
   return <div className={className} dangerouslySetInnerHTML={{__html: renderMarkdown(value || '')}} />;
 }
@@ -167,6 +198,8 @@ export default function App() {
   const [currentTitle, setCurrentTitle] = useState('未选择会话');
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  const [pendingAttachments, setPendingAttachments] = useState([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
   const [busy, setBusy] = useState(false);
   const [streamPaused, setStreamPaused] = useState(false);
   const [streamStats, setStreamStats] = useState({state:'idle', started_at:0, chars:0, events:0, tools:0, error:''});
@@ -189,6 +222,7 @@ export default function App() {
   const pendingReasoningRef = useRef('');
   const messagesRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => { pausedRef.current = streamPaused; }, [streamPaused]);
   useEffect(() => {
@@ -375,6 +409,7 @@ export default function App() {
     setCurrent(s.id);
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
+    setPendingAttachments([]);
     await loadSessions();
     return true;
   }, [api, loadSessions]);
@@ -504,6 +539,7 @@ export default function App() {
     setCurrent(null);
     setCurrentTitle('未选择会话');
     setMessages([{role:'empty', content:'已切换工作空间。创建或选择一个会话。'}]);
+    setPendingAttachments([]);
     await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions()]);
     if (window.location.pathname !== '/') window.history.pushState({chatdock:true}, '', '/');
     closeSidebarOnMobile();
@@ -518,6 +554,7 @@ export default function App() {
     setCurrent(s.id);
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
+    setPendingAttachments([]);
     await loadSessions();
     if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({chatdock:true}, '', sessionPath(s.id));
     closeSidebarOnMobile();
@@ -533,6 +570,7 @@ export default function App() {
     const s = await api('/api/sessions/' + encodeURIComponent(id));
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
+    setPendingAttachments([]);
     await loadSessions();
     if (window.location.pathname !== sessionPath(id)) window.history.pushState({chatdock:true}, '', sessionPath(id));
     closeSidebarOnMobile();
@@ -559,6 +597,7 @@ export default function App() {
     setCurrent(null);
     setCurrentTitle('未选择会话');
     setMessages([]);
+    setPendingAttachments([]);
     if (window.location.pathname !== '/') window.history.pushState({chatdock:true}, '', '/');
     await loadSessions();
     showToast('会话已删除', 'success');
@@ -730,11 +769,59 @@ export default function App() {
     else localStorage.removeItem(draftKey);
   }, [busy, draftKey, input]);
 
+  const readyAttachments = useMemo(() => pendingAttachments.filter(item => item.id && !item.uploading && !item.error && !String(item.id).startsWith('local_')), [pendingAttachments]);
+  const pendingAttachmentIDs = useMemo(() => readyAttachments.map(item => item.id), [readyAttachments]);
+
+  const removePendingAttachment = useCallback((id) => {
+    setPendingAttachments(prev => prev.filter(item => item.id !== id));
+  }, []);
+
+  const handleFileSelect = useCallback(async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (!files.length) return;
+    if (busy) {
+      showToast('当前回复还在进行中，请稍后再上传。', 'error');
+      return;
+    }
+    let sessionID = current;
+    if (!sessionID) {
+      const s = await createSession();
+      if (!s) return;
+      sessionID = s.id;
+    }
+    setUploadingFiles(true);
+    try {
+      for (const file of files) {
+        const localID = 'local_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+        setPendingAttachments(prev => [...prev, {id: localID, name: file.name || 'upload', size: file.size || 0, mime_type: file.type || 'application/octet-stream', status: 'uploading', uploading: true, progress: 0}]);
+        try {
+          const data = await uploadFileRequest(file, sessionID, authHeaders, progress => {
+            setPendingAttachments(prev => prev.map(item => item.id === localID ? {...item, progress} : item));
+          });
+          setPendingAttachments(prev => prev.map(item => item.id === localID ? {...data.attachment, progress: 100} : item));
+        } catch (e) {
+          if (e.status === 401) setAuthPage(e);
+          setPendingAttachments(prev => prev.map(item => item.id === localID ? {...item, uploading: false, error: e.message || '上传失败', status: 'failed'} : item));
+          showToast('上传失败：' + (e.message || '未知错误'), 'error');
+        }
+      }
+    } finally {
+      setUploadingFiles(false);
+    }
+  }, [authHeaders, busy, createSession, current, setAuthPage, showToast]);
+
   const sendMsg = useCallback(async (overrideText) => {
     if (busy) return;
     const text = (overrideText ?? input).trim();
-    if (!text) {
+    const attachmentIDs = pendingAttachmentIDs;
+    const attachmentsForMessage = readyAttachments;
+    if (!text && !attachmentIDs.length) {
       inputRef.current?.focus();
+      return;
+    }
+    if (uploadingFiles || pendingAttachments.some(item => item.uploading)) {
+      showToast('文件还在上传，请上传完成后再发送。', 'error');
       return;
     }
     if (!String(config.base_url || '').trim() || !String(config.model || '').trim()) {
@@ -758,18 +845,19 @@ export default function App() {
     pendingReasoningRef.current = '';
     const abort = new AbortController();
     abortRef.current = abort;
-    setMessages(prev => [...prev, {role:'user', content:text}, {role:'assistant-stream', answer:'', reasoning:'', events:[]}]);
+    setMessages(prev => [...prev, {role:'user', content:text, attachments:attachmentsForMessage}, {role:'assistant-stream', answer:'', reasoning:'', events:[]}]);
     try {
       const res = await fetch('/api/chat/stream', {
         method:'POST',
         headers: authHeaders({'Content-Type':'application/json'}),
-        body: JSON.stringify({session_id: sessionID, message:text}),
+        body: JSON.stringify({session_id: sessionID, message:text, attachment_ids: attachmentIDs}),
         signal: abort.signal,
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || res.statusText);
       }
+      setPendingAttachments([]);
       setStreamStats(prev => ({...prev, state:'streaming'}));
       let finalSession = null;
       await readSSE(res, (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; }));
@@ -796,7 +884,7 @@ export default function App() {
       abortRef.current = null;
       setStreamPaused(false);
     }
-  }, [api, authHeaders, busy, config.base_url, config.model, current, currentTitle, draftKey, input, createSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, loadRuns, loadAgentTasks, openSettings, showToast]);
+  }, [api, authHeaders, busy, config.base_url, config.model, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, createSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, loadRuns, loadAgentTasks, openSettings, showToast]);
 
   const toggleStreamPause = useCallback(() => {
     if (!busy) return;
@@ -832,6 +920,7 @@ export default function App() {
     setCurrent(null);
     setCurrentTitle('未选择会话');
     setMessages([{role:'empty', content:'已创建并切换到新工作空间。'}]);
+    setPendingAttachments([]);
     await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions()]);
     closeSidebarOnMobile();
     showToast('工作空间已创建', 'success');
@@ -845,6 +934,7 @@ export default function App() {
     setCurrent(null);
     setCurrentTitle('未选择会话');
     setMessages([{role:'empty', content:'工作空间已删除。当前工作空间：' + (data.active || 'default')}]);
+    setPendingAttachments([]);
     await Promise.allSettled([loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions(), loadSetupStatus(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
     showToast('工作空间已删除', 'success');
   }, [api, loadConfig, loadDataStatus, loadMCPConfig, loadModelProviders, loadPrompts, loadScheduledTasks, loadSessions, loadSetupStatus, loadSkills, loadSystemStatus, showDialog, showToast]);
@@ -1067,7 +1157,7 @@ export default function App() {
   const productStatusClass = setupStatus == null ? 'warn' : (productReady ? 'ok' : 'warn');
   const streamElapsed = streamStats.started_at ? Math.max(0, Math.round((Date.now() - streamStats.started_at) / 1000)) : 0;
   const streamStatsText = busy ? streamStatusText(streamStats, streamElapsed) : '';
-  const inputStats = busy ? streamStatsText : (input.trim() ? input.trim().length + ' 字 · 草稿自动保存' : (modelReady ? 'Enter 发送 · Shift+Enter 换行 · ⌘/Ctrl K 快捷指令' : '请先在配置中心完成模型 Base URL 和 Model'));
+  const inputStats = busy ? streamStatsText : (pendingAttachments.length ? pendingAttachments.length + ' 个附件 · ' + (input.trim() ? input.trim().length + ' 字' : '可直接发送') : (input.trim() ? input.trim().length + ' 字 · 草稿自动保存' : (modelReady ? 'Enter 发送 · Shift+Enter 换行 · 点击 + 上传文件' : '请先在配置中心完成模型 Base URL 和 Model')));
   const productDiagnostics = diagnosticsText({setupStatus, systemStatus, dataStatus, mcpStatus, providers});
   const quickActions = useMemo(() => [
     {id:'focus-input', title:'聚焦输入框', hint:'按 / 也可以快速输入', run:() => inputRef.current?.focus()},
@@ -1142,12 +1232,15 @@ export default function App() {
         <WorkbenchBrief setupStatus={setupStatus} config={config} activePrompt={activePrompt} sessions={sessions} skills={skills} scheduledTasks={scheduledTasks} mcpStatus={mcpStatus} dataStatus={dataStatus} productReady={!!productReady} busy={busy} streamStats={streamStats} openSettings={openSettings} />
         <div className="messages" ref={messagesRef}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
         <div className="composer-shell">
+        {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} /> : null}
         <div className="composer">
+          <input ref={fileInputRef} type="file" multiple className="file-input" onChange={handleFileSelect} />
+          <button className="secondary attach-control" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} title="上传文件">+</button>
           <button className="secondary quick-control" disabled={busy} onClick={() => sendMsg('继续')}>继续</button>
           {busy ? <button className="secondary stream-control" onClick={toggleStreamPause}>{streamPaused ? '继续' : '暂停'}</button> : null}
           {busy ? <button className="danger stream-control" onClick={stopStreaming}>中断</button> : null}
-          <textarea ref={inputRef} id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendMsg(); } }} placeholder="输入消息，Enter 发送，Shift+Enter 换行；草稿会自动保留" />
-          <button id="send" disabled={busy || !input.trim() || !modelReady} onClick={() => sendMsg()} title={!modelReady ? '请先配置模型' : '发送'}>发送</button>
+          <textarea ref={inputRef} id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendMsg(); } }} placeholder="输入消息，Enter 发送；点击 + 上传文件" />
+          <button id="send" disabled={busy || uploadingFiles || (!input.trim() && !pendingAttachmentIDs.length) || !modelReady} onClick={() => sendMsg()} title={!modelReady ? '请先配置模型' : '发送'}>发送</button>
         </div>
         <div className="composer-meta">{inputStats}</div>
         </div>
@@ -1215,6 +1308,26 @@ function MessageActions({ text, onCopy }) {
   return <div className="msg-actions"><button type="button" className="secondary small" onClick={() => onCopy(text)}>复制</button></div>;
 }
 
+function attachmentStatusLabel(item) {
+  if (item.uploading) return '上传中 ' + (item.progress || 0) + '%';
+  if (item.error) return '失败：' + item.error;
+  if (item.has_text) return '已提取文本';
+  if (item.status === 'extracted') return '已提取文本';
+  if (item.status === 'stored') return '已上传';
+  return item.status || '已上传';
+}
+
+function AttachmentList({ attachments, removable = false, onRemove }) {
+  if (!attachments?.length) return null;
+  return <div className="attachment-list">
+    {attachments.map(item => <div key={item.id || item.name} className={'attachment-chip ' + (item.error ? 'error' : '')}>
+      <span className="attachment-icon">📎</span>
+      <span className="attachment-main"><b>{item.name || '附件'}</b><span>{fmtBytes(item.size)} · {attachmentStatusLabel(item)}</span></span>
+      {removable ? <button className="attachment-remove" type="button" onClick={() => onRemove?.(item.id)} title="移除附件">×</button> : null}
+    </div>)}
+  </div>;
+}
+
 function MessageView({ message, onCopy }) {
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
   if (message.role === 'assistant-stream') return <div className="msg assistant">
@@ -1224,7 +1337,7 @@ function MessageView({ message, onCopy }) {
     {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline' : '')}>{event.text}{event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}</div>)}
   </div>;
   if (message.role === 'assistant') return <div className="msg assistant markdown"><MessageActions text={[message.reasoning, message.content].filter(Boolean).join('\n\n')} onCopy={onCopy} />{message.reasoning ? <details className="reasoning reasoning-collapsed"><summary>思考</summary><Markdown className="reasoning-content markdown" value={message.reasoning} /></details> : null}<Markdown value={message.content} /></div>;
-  return <div className={'msg ' + (message.role || 'user')}><MessageActions text={message.content} onCopy={onCopy} />{message.content}</div>;
+  return <div className={'msg ' + (message.role || 'user')}><MessageActions text={message.content} onCopy={onCopy} />{message.content ? <div>{message.content}</div> : null}<AttachmentList attachments={message.attachments || []} /></div>;
 }
 
 
