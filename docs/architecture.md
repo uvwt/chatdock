@@ -20,7 +20,11 @@ web/src/lib/               前端纯函数、传输层和协议解析
 app.go                    HTTP 路由、静态资源、App 组装
 handler.go                聊天 HTTP handler
 chat_jobs.go              流式/后台聊天任务
-store.go                  SQLite 持久化入口和事务协调
+store.go                  Store 生命周期、DB 连接、进程内状态
+store_db.go               SQLite 初始化、旧 JSON 迁移、meta
+store_prompt.go           工作空间 / Prompt / 模型配置 / MCP 配置
+store_sessions.go         会话 CRUD、消息追加、会话标题与预览
+store_files.go            文件读写、JSON 格式化、DB 时间格式工具
 attachments.go            附件上传、落盘、文本提取、模型上下文注入
 llm.go / llm_tools.go     OpenAI 兼容模型请求与工具调用适配
 mcp_client.go             MCP 客户端
@@ -31,14 +35,12 @@ product.go                产品化状态、健康检查、数据状态
 config.go / types.go      配置和 DTO
 ```
 
-后续继续拆分时，优先把 `store.go` 拆成同 package 文件，而不是马上拆 package：
+后端已经完成第一轮 Store 同 package 拆分。后续如果继续治理，优先处理仍较大的业务文件，仍然保持“先按真实职责拆文件，边界稳定后再考虑 package”的节奏：
 
 ```text
-store_db.go               SQLite 初始化、迁移、meta
-store_prompt.go           工作空间 / prompt 配置
-store_sessions.go         会话 CRUD
-store_jobs.go             chat_jobs 持久化
-store_mcp_runs.go         MCP runs 持久化
+handler.go                可继续拆普通聊天、流式聊天、导入导出 handler
+product.go                可继续拆数据状态、系统状态、产品就绪检查
+scheduled_tasks.go        可继续拆任务调度、任务 CRUD、任务执行记录
 ```
 
 ## 前端分层
