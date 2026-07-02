@@ -217,7 +217,7 @@ func readModelStream(body io.Reader, cfg ModelConfig, onDelta func(StreamDelta) 
 			continue
 		}
 
-		if delta.ReasoningContent != "" && !cfg.HideThinking {
+		if delta.ReasoningContent != "" {
 			if err := onDelta(StreamDelta{ReasoningContent: delta.ReasoningContent}); err != nil {
 				return full.String(), err
 			}

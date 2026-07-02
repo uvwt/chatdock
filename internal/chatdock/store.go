@@ -476,6 +476,10 @@ func (s *Store) AppendUserMessage(sessionID string, content string) (*Session, M
 }
 
 func (s *Store) AppendAssistantMessage(sessionID string, content string) (*Session, error) {
+	return s.AppendAssistantMessageWithReasoning(sessionID, content, "")
+}
+
+func (s *Store) AppendAssistantMessageWithReasoning(sessionID string, content string, reasoning string) (*Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -485,7 +489,7 @@ func (s *Store) AppendAssistantMessage(sessionID string, content string) (*Sessi
 	}
 
 	now := time.Now()
-	session.Messages = append(session.Messages, Message{Role: "assistant", Content: content, CreatedAt: now})
+	session.Messages = append(session.Messages, Message{Role: "assistant", Content: content, Reasoning: strings.TrimSpace(reasoning), CreatedAt: now})
 	session.UpdatedAt = now
 
 	if err := s.saveSessionLocked(session); err != nil {

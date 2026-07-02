@@ -718,6 +718,8 @@ export default function App() {
       if (finalSession) {
         pendingDeltaRef.current = '';
         pendingReasoningRef.current = '';
+        setMessages(finalSession.messages || []);
+        setCurrentTitle(finalSession.title || currentTitle || '新会话');
         await loadSessions();
         await Promise.allSettled([loadRuns(), loadAgentTasks()]);
       }
@@ -1158,12 +1160,12 @@ function MessageActions({ text, onCopy }) {
 function MessageView({ message, onCopy }) {
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
   if (message.role === 'assistant-stream') return <div className="msg assistant">
-    <MessageActions text={message.answer || message.reasoning || ''} onCopy={onCopy} />
-    {message.reasoning ? <div className="reasoning show"><div className="reasoning-title">思考</div><Markdown className="reasoning-content markdown" value={message.reasoning} /></div> : null}
+    <MessageActions text={[message.reasoning, message.answer].filter(Boolean).join('\n\n')} onCopy={onCopy} />
+    {message.reasoning ? <div className="reasoning show"><div className="reasoning-title">思考中</div><Markdown className="reasoning-content markdown" value={message.reasoning} /></div> : null}
     <Markdown className="answer markdown" value={message.answer} />
     {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline' : '')}>{event.text}{event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}</div>)}
   </div>;
-  if (message.role === 'assistant') return <div className="msg assistant markdown"><MessageActions text={message.content} onCopy={onCopy} /><Markdown value={message.content} /></div>;
+  if (message.role === 'assistant') return <div className="msg assistant markdown"><MessageActions text={[message.reasoning, message.content].filter(Boolean).join('\n\n')} onCopy={onCopy} />{message.reasoning ? <details className="reasoning reasoning-collapsed"><summary>思考</summary><Markdown className="reasoning-content markdown" value={message.reasoning} /></details> : null}<Markdown value={message.content} /></div>;
   return <div className={'msg ' + (message.role || 'user')}><MessageActions text={message.content} onCopy={onCopy} />{message.content}</div>;
 }
 
@@ -1423,6 +1425,30 @@ function splitMCPToolList(value) {
   return String(value || '').split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
 }
 
+function normalizeMCPURLDraft(value) {
+  return String(value || '').trim().replace(/\s+/g, '');
+}
+
+function dockerHostMCPURL(value) {
+  const cleaned = normalizeMCPURLDraft(value);
+  return cleaned.replace(/^http:\/\/(127\.0\.0\.1|localhost)(?=[:/]|$)/i, 'http://host.docker.internal');
+}
+
+function mcpTokenExpiryState(token) {
+  const parts = String(token || '').split('.');
+  if (parts.length < 2) return null;
+  try {
+    const payload = JSON.parse(atob(parts[0].replace(/-/g, '+').replace(/_/g, '/')));
+    const exp = Number(payload.exp || 0);
+    if (!exp) return null;
+    const expiresAt = new Date(exp * 1000);
+    if (Date.now() >= exp * 1000) return {expired: true, text: 'Token 已过期：' + expiresAt.toLocaleString()};
+    return {expired: false, text: 'Token 有效期至：' + expiresAt.toLocaleString()};
+  } catch {
+    return null;
+  }
+}
+
 function mcpServerToDraft(server = {}) {
   const auth = server.auth || {};
   return {
@@ -1444,7 +1470,7 @@ function mcpServerToDraft(server = {}) {
 function cleanMCPServerDraft(draft) {
   const next = {};
   const type = String(draft.type || '').trim();
-  const url = String(draft.url || '').trim();
+  const url = normalizeMCPURLDraft(draft.url);
   const path = String(draft.path || '').trim();
   const authType = String(draft.auth_type || '').trim();
   const token = String(draft.token || '').trim();
@@ -1524,6 +1550,10 @@ function ToolsModule({ mcpStatus, mcpConfig, setMcpConfig, saveMCPConfig, loadMC
     const draft = isNew ? newServer : mcpServerToDraft(server);
     const status = !isNew ? statusByName[name] : null;
     const update = patch => isNew ? setNewServer(s => ({...s, ...patch})) : patchServer(name, patch);
+    const urlHasLocalhost = /^http:\/\/(127\.0\.0\.1|localhost)(?=[:/]|$)/i.test(normalizeMCPURLDraft(draft.url));
+    const urlHasSpace = /\s/.test(String(draft.url || ''));
+    const tokenEnvLooksLikeHeader = String(draft.token_env || '').trim().toLowerCase() === 'authorization';
+    const tokenExpiry = mcpTokenExpiryState(draft.token);
     return <div className={'mcp-form-card ' + (isNew ? 'new-server' : '')} key={isNew ? 'new' : name}>
       <div className="mcp-form-head">
         <div><b>{isNew ? '新增 MCP Server' : name}</b><div className="hint">{isNew ? '填地址即可，不需要手写 JSON。' : serverStatusSummary(status)}</div></div>
@@ -1535,14 +1565,17 @@ function ToolsModule({ mcpStatus, mcpConfig, setMcpConfig, saveMCPConfig, loadMC
         <label>状态<select value={draft.disabled ? 'disabled' : 'enabled'} onChange={e => update({disabled: e.target.value === 'disabled'})}><option value="enabled">启用</option><option value="disabled">禁用</option></select></label>
       </div>
       <label>MCP HTTP 地址<input value={draft.url} onChange={e => update({url: e.target.value})} placeholder="http://host.docker.internal:18766/mcp" /></label>
-      <div className="hint">ChatDock 如果跑在 Docker 里，填 127.0.0.1 通常会连到容器自己；访问电脑上的 AgentDock 建议用 host.docker.internal。</div>
+      <div className="hint">ChatDock 生产环境跑在 Docker 里，127.0.0.1 会连到容器自己；访问电脑上的 AgentDock 应填 http://host.docker.internal:18766/mcp，且 URL 里不能有空格。</div>
+      {urlHasLocalhost || urlHasSpace ? <div className="mcp-inline-warning"><b>当前地址可能连不上</b><span>{urlHasSpace ? 'URL 里有空格；' : ''}{urlHasLocalhost ? 'Docker 内不能用 127.0.0.1 访问宿主机。' : ''}</span><button className="secondary small" onClick={() => update({url: dockerHostMCPURL(draft.url)})}>改成 Docker 宿主机地址</button></div> : null}
       <details className="mcp-advanced-fields">
         <summary>高级权限、Token 和缓存</summary>
         <div className="mcp-form-grid">
           <label>认证方式<select value={draft.auth_type} onChange={e => update({auth_type: e.target.value})}><option value="none">无</option><option value="bearer">Bearer Token</option></select></label>
-          <label>Token 环境变量<input value={draft.token_env} onChange={e => update({token_env: e.target.value})} placeholder="例如 AGENTDOCK_TOKEN" /></label>
+          <label>Token 环境变量名（可选）<input value={draft.token_env} onChange={e => update({token_env: e.target.value})} placeholder="例如 AGENTDOCK_MCP_TOKEN，不是 Authorization" /></label>
         </div>
-        {draft.auth_type !== 'none' ? <label>Token<input type="password" value={draft.token} onChange={e => update({token: e.target.value})} placeholder="留空表示不写入明文 Token" /></label> : null}
+        {tokenEnvLooksLikeHeader ? <div className="mcp-inline-warning"><b>这里不要填 Authorization</b><span>这是环境变量名，不是 HTTP Header 名。已经在下方 Token 粘贴值时可以留空。</span><button className="secondary small" onClick={() => update({token_env: ''})}>清空此项</button></div> : null}
+        {draft.auth_type !== 'none' ? <label>Token<input type="password" value={draft.token} onChange={e => update({token: e.target.value})} placeholder="粘贴 AgentDock Bearer Token；没有就需要重新授权生成" /></label> : null}
+        {draft.auth_type !== 'none' && tokenExpiry ? <div className={'mcp-inline-warning ' + (tokenExpiry.expired ? 'danger' : 'ok')}><b>{tokenExpiry.expired ? 'Token 已过期，需要重新生成' : 'Token 有效期'}</b><span>{tokenExpiry.text}</span></div> : null}
         <div className="mcp-form-grid">
           <label>超时 ms<input type="number" inputMode="numeric" value={draft.timeout_ms} onChange={e => update({timeout_ms: e.target.value})} placeholder="30000" /></label>
           <label>工具缓存 ms<input type="number" inputMode="numeric" value={draft.cache_ttl_ms} onChange={e => update({cache_ttl_ms: e.target.value})} placeholder="可留空" /></label>

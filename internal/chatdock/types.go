@@ -157,6 +157,7 @@ type ScheduledTaskRunResponse struct {
 type Message struct {
 	Role      string    `json:"role"`
 	Content   string    `json:"content"`
+	Reasoning string    `json:"reasoning,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

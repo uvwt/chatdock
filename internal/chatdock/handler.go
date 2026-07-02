@@ -505,18 +505,24 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 
+	var reasoning strings.Builder
 	answer, err := a.streamWithOptionalTools(r.Context(), input.SessionID, cfg, history, func(event string, value any) error {
+		if event == "delta" {
+			if delta, ok := value.(StreamDelta); ok && delta.ReasoningContent != "" {
+				reasoning.WriteString(delta.ReasoningContent)
+			}
+		}
 		return writeSSE(w, flusher, event, value)
 	})
 	if err != nil {
 		if isClientCanceled(r.Context(), err) && strings.TrimSpace(answer) != "" {
-			_, _ = a.store.AppendAssistantMessage(input.SessionID, strings.TrimSpace(answer)+"\n\n【已中断】")
+			_, _ = a.store.AppendAssistantMessageWithReasoning(input.SessionID, strings.TrimSpace(answer)+"\n\n【已中断】", reasoning.String())
 		}
 		_ = writeSSE(w, flusher, "error", map[string]string{"message": err.Error()})
 		return
 	}
 
-	session, err := a.store.AppendAssistantMessage(input.SessionID, answer)
+	session, err := a.store.AppendAssistantMessageWithReasoning(input.SessionID, answer, reasoning.String())
 	if err != nil {
 		_ = writeSSE(w, flusher, "error", map[string]string{"message": err.Error()})
 		return
