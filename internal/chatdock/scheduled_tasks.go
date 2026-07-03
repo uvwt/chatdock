@@ -510,11 +510,23 @@ type DueScheduledTask struct {
 	Task       ScheduledTask
 }
 
-func (s *Store) DueScheduledTasksAllPrompts(now time.Time) ([]DueScheduledTask, error) {
+func (s *Store) DueScheduledTasksAllPrompts(now time.Time) (items []DueScheduledTask, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	previous := s.activePrompt
+	// 扫描所有工作空间只是后台任务的内部动作，不能改变用户当前正在看的工作空间。
+	// 即使中途遇到 SQLite / 外置盘 I/O 错误，也必须尽量恢复，否则前端会突然只看到
+	// 某个残留工作空间的会话，看起来像“聊天记录丢了”。
+	defer func() {
+		if previous == "" || s.activePrompt == previous {
+			return
+		}
+		if restoreErr := s.loadPromptLocked(previous); restoreErr != nil && err == nil {
+			err = restoreErr
+		}
+	}()
+
 	prompts, err := s.listPromptNamesLocked()
 	if err != nil {
 		return nil, err
@@ -533,11 +545,6 @@ func (s *Store) DueScheduledTasksAllPrompts(now time.Time) ([]DueScheduledTask, 
 				continue
 			}
 			out = append(out, DueScheduledTask{PromptName: prompt, Task: task})
-		}
-	}
-	if previous != "" {
-		if err := s.loadPromptLocked(previous); err != nil {
-			return nil, err
 		}
 	}
 	return out, nil
