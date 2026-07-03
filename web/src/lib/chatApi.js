@@ -4,6 +4,14 @@ export function fetchChatJobs(api, sessionID) {
   return api('/api/chat/jobs?session_id=' + encodeURIComponent(sessionID));
 }
 
+export function cancelChatJob(api, jobID) {
+  return api('/api/chat/jobs/' + encodeURIComponent(jobID) + '/cancel', {method:'POST'});
+}
+
+export function resolveMCPConfirmation(api, id, approve) {
+  return api('/api/mcp/confirmations/' + encodeURIComponent(id) + '/resolve', {method:'POST', body: JSON.stringify({approve: !!approve})});
+}
+
 export async function streamChatJobEvents({jobID, authHeaders, signal, onEvent}) {
   const res = await fetch('/api/chat/jobs/' + encodeURIComponent(jobID) + '/events?after=0', {headers: authHeaders(), signal});
   if (!res.ok) {

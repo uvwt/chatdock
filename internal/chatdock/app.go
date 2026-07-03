@@ -19,13 +19,17 @@ import (
 )
 
 type App struct {
-	cfg       ServerConfig
-	store     *Store
-	client    *ChatClient
-	mcpClient *MCPClient
-	server    *http.Server
-	runningMu sync.Mutex
-	running   map[string]bool
+	cfg           ServerConfig
+	store         *Store
+	client        *ChatClient
+	mcpClient     *MCPClient
+	server        *http.Server
+	jobMu         sync.Mutex
+	jobCancel     map[string]context.CancelFunc
+	confirmMu     sync.Mutex
+	confirmations map[string]*MCPConfirmation
+	runningMu     sync.Mutex
+	running       map[string]bool
 }
 
 func NewApp(cfg ServerConfig) (*App, error) {
@@ -35,11 +39,13 @@ func NewApp(cfg ServerConfig) (*App, error) {
 	}
 
 	app := &App{
-		cfg:       cfg,
-		store:     store,
-		client:    NewChatClient(),
-		mcpClient: NewMCPClient(),
-		running:   make(map[string]bool),
+		cfg:           cfg,
+		store:         store,
+		client:        NewChatClient(),
+		mcpClient:     NewMCPClient(),
+		jobCancel:     make(map[string]context.CancelFunc),
+		confirmations: make(map[string]*MCPConfirmation),
+		running:       make(map[string]bool),
 	}
 	app.server = &http.Server{
 		Addr:              cfg.Addr,
@@ -173,6 +179,8 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/mcp/tools", a.handleListMCPTools)
 	mux.HandleFunc("GET /api/mcp/status", a.handleMCPStatus)
 	mux.HandleFunc("GET /api/mcp/test", a.handleTestMCPServer)
+	mux.HandleFunc("GET /api/mcp/confirmations", a.handleListMCPConfirmations)
+	mux.HandleFunc("/api/mcp/confirmations/", a.handleMCPConfirmationRoute)
 	mux.HandleFunc("POST /api/mcp/call", a.handleCallMCPTool)
 	mux.HandleFunc("GET /api/runs", a.handleListRuns)
 	mux.HandleFunc("GET /api/runs/{id}", a.handleRunDetail)
@@ -184,6 +192,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /api/scheduled-tasks", a.handleCreateScheduledTask)
 	mux.HandleFunc("/api/scheduled-tasks/", a.handleScheduledTaskRoute)
 	mux.HandleFunc("GET /api/sessions", a.handleListSessions)
+	mux.HandleFunc("GET /api/sessions/search", a.handleSearchSessions)
 	mux.HandleFunc("POST /api/sessions", a.handleCreateSession)
 	mux.HandleFunc("/api/sessions/", a.handleSessionRoute)
 	mux.HandleFunc("POST /api/files", a.handleUploadFile)
@@ -192,6 +201,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/chat/jobs", a.handleListChatJobs)
 	mux.HandleFunc("POST /api/chat/jobs", a.handleCreateChatJob)
 	mux.HandleFunc("GET /api/chat/jobs/{id}/events", a.handleChatJobEvents)
+	mux.HandleFunc("POST /api/chat/jobs/{id}/cancel", a.handleCancelChatJob)
 
 	mux.Handle("/", a.webHandler())
 

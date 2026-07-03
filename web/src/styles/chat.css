@@ -650,3 +650,20 @@ body.theme-light .composer {
   color: var(--gpt-muted-2);
   font-style: italic;
 }
+
+.session-search-meta {
+  margin: -2px 4px 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.session-preview.search-hit {
+  color: var(--text);
+}
+
+.tool-event-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}

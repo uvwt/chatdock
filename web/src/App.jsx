@@ -4,8 +4,8 @@ import { DialogHost, LoginPage, Markdown, QuickPalette, WorkspacePicker } from '
 import { SettingsPanel } from './components/settings.jsx';
 import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtDuration, fmtTime, normalizeSettingsModule, runStatusLabel, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
 import { createJsonApi } from './lib/http.js';
-import { fetchChatJobs, streamChat, streamChatJobEvents } from './lib/chatApi.js';
-import { cloneSession, createSessionRecord, deleteSession, fetchSession, fetchSessionMarkdown, fetchSessions, pinSession, renameSession } from './lib/sessionApi.js';
+import { cancelChatJob, fetchChatJobs, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
+import { cloneSession, createSessionRecord, deleteSession, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessions, pinSession, renameSession, searchSessions } from './lib/sessionApi.js';
 import { createWorkspaceRecord, deleteScheduledTaskRecord, deleteSkillRecord, deleteWorkspaceRecord, fetchAgentTasks, fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchPrompts, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchRuns, fetchScheduledTasks, fetchSetupStatus, fetchSkills, fetchSystemStatus, fetchWorkspaces, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveSkillRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest } from './lib/settingsApi.js';
 import { uploadFileRequest } from './lib/upload.js';
 
@@ -43,6 +43,20 @@ function readableChatError(error, hasImageAttachment = false) {
   return raw.replace(/^model api failed:\s*/i, '');
 }
 
+function contextPreviewText(data) {
+  const lines = [];
+  lines.push('工作空间：' + (data.workspace || '-'));
+  lines.push('上下文模式：' + (data.context_mode || '-') + ' · 最近消息窗口：' + (data.recent_messages || 0) + ' · 早期摘要：' + (data.summarize_old ? '开启' : '关闭'));
+  lines.push('会话消息：' + (data.message_count || 0) + ' 条 · 实际发送片段：' + (data.context_count || 0) + ' 条 · 粗略 token：' + (data.estimated_tokens || 0));
+  lines.push('');
+  (data.items || []).forEach((item, index) => {
+    lines.push((index + 1) + '. ' + (item.source || item.role || '上下文') + ' · ' + (item.role || '-') + ' · ' + (item.chars || 0) + ' 字 · ≈' + (item.estimated_tokens || 0) + ' tokens');
+    lines.push(item.content_preview || '');
+    lines.push('');
+  });
+  return lines.join('\n');
+}
+
 export default function App() {
   const [authPage, setAuthPage] = useState(null);
   const [theme, setThemeState] = useState(() => localStorage.getItem('chatdock.theme') === 'day' ? 'day' : 'night');
@@ -67,6 +81,8 @@ export default function App() {
   const [prompts, setPrompts] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [sessionSearch, setSessionSearch] = useState('');
+  const [sessionSearchResults, setSessionSearchResults] = useState([]);
+  const [sessionSearchBusy, setSessionSearchBusy] = useState(false);
   const [current, setCurrent] = useState(null);
   const [currentTitle, setCurrentTitle] = useState('未选择会话');
   const [messages, setMessages] = useState([]);
@@ -76,6 +92,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [streamPaused, setStreamPaused] = useState(false);
   const [streamStats, setStreamStats] = useState({state:'idle', started_at:0, chars:0, events:0, tools:0, error:''});
+  const [activeJobID, setActiveJobID] = useState('');
   const [skills, setSkills] = useState([]);
   const [skillSearch, setSkillSearch] = useState('');
   const [scheduledTasks, setScheduledTasks] = useState([]);
@@ -90,6 +107,7 @@ export default function App() {
   const [config, setConfig] = useState({base_url:'', api_key:'', model:'', system_prompt:'', context_mode:'auto', max_context_messages:12, temperature:0.7, enable_thinking:false, hide_thinking:false, has_api_key:false});
 
   const abortRef = useRef(null);
+  const activeJobIDRef = useRef('');
   const pausedRef = useRef(false);
   const pendingDeltaRef = useRef('');
   const pendingReasoningRef = useRef('');
@@ -181,6 +199,28 @@ export default function App() {
     const list = await fetchSessions(api);
     setSessions(list || []);
   }, [api]);
+
+  useEffect(() => {
+    const q = sessionSearch.trim();
+    if (!q) {
+      setSessionSearchResults([]);
+      setSessionSearchBusy(false);
+      return;
+    }
+    let stopped = false;
+    setSessionSearchBusy(true);
+    const timer = window.setTimeout(async () => {
+      try {
+        const data = await searchSessions(api, q);
+        if (!stopped) setSessionSearchResults(data.sessions || []);
+      } catch {
+        if (!stopped) setSessionSearchResults([]);
+      } finally {
+        if (!stopped) setSessionSearchBusy(false);
+      }
+    }, 260);
+    return () => { stopped = true; window.clearTimeout(timer); };
+  }, [api, sessionSearch]);
 
   const loadConfig = useCallback(async () => {
     const c = await fetchConfig(api);
@@ -554,7 +594,10 @@ export default function App() {
   }, [appendToActiveAssistant]);
 
   const handleChatStreamEvent = useCallback((event, data, setFinalSession) => {
-    if (event === 'delta') {
+    if (event === 'job_started') {
+      activeJobIDRef.current = data.id || '';
+      setActiveJobID(data.id || '');
+    } else if (event === 'delta') {
       const reasoning = data.reasoning_content || '';
       const content = data.content || '';
       setStreamStats(prev => ({...prev, state: pausedRef.current ? 'paused' : 'streaming', chars: prev.chars + content.length + reasoning.length}));
@@ -577,6 +620,15 @@ export default function App() {
     } else if (event === 'tool_call_result') {
       setStreamStats(prev => ({...prev, events: prev.events + 1}));
       appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🔧 ' + (data.ok ? '调用完成：' : '调用失败：') + (data.tool || 'tool')}]}));
+    } else if (event === 'tool_confirmation_required') {
+      setStreamStats(prev => ({...prev, events: prev.events + 1, state:'paused'}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'confirm', text:'⏳ 等待确认工具：' + (data.tool || 'MCP 工具'), meta:'确认后模型会继续执行；拒绝则把拒绝结果返回给模型。', confirmation:data, status:'pending'}]}));
+    } else if (event === 'tool_confirmation_resolved') {
+      setStreamStats(prev => ({...prev, events: prev.events + 1, state:'streaming'}));
+      appendToActiveAssistant(m => ({...m, events:(m.events || []).map(item => item.confirmation?.id === data.id ? {...item, status:'resolved', text:(data.approved ? '✅ 已允许工具：' : '⛔ 已拒绝工具：') + (data.tool || item.confirmation?.tool || 'MCP 工具')} : item)}));
+    } else if (event === 'job_cancelled') {
+      setStreamStats(prev => ({...prev, events: prev.events + 1, state:'stopping'}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'⏹️ 已请求停止生成'}]}));
     } else if (event === 'run_event') {
       const meta = [runStatusLabel(data.status || ''), data.server, data.action, fmtDuration(data.duration_ms)].filter(Boolean).join(' · ');
       setStreamStats(prev => ({...prev, events: prev.events + 1}));
@@ -586,6 +638,8 @@ export default function App() {
       loadAgentTasks().catch(() => {});
     } else if (event === 'done') {
       setFinalSession(data.session);
+      activeJobIDRef.current = '';
+      setActiveJobID('');
       setStreamStats(prev => ({...prev, state:'done'}));
     } else if (event === 'error') {
       throw new Error(data.message || 'stream error');
@@ -603,6 +657,8 @@ export default function App() {
         const job = (list.jobs || []).find(j => j.status === 'running');
         if (!job) return;
         setBusy(true);
+        activeJobIDRef.current = job.id || '';
+        setActiveJobID(job.id || '');
         setStreamPaused(false);
         pausedRef.current = false;
         pendingDeltaRef.current = '';
@@ -630,6 +686,8 @@ export default function App() {
         if (!stopped) {
           setBusy(false);
           abortRef.current = null;
+          activeJobIDRef.current = '';
+          setActiveJobID('');
           setStreamPaused(false);
         }
       }
@@ -758,6 +816,8 @@ export default function App() {
     } finally {
       setBusy(false);
       abortRef.current = null;
+      activeJobIDRef.current = '';
+      setActiveJobID('');
       setStreamPaused(false);
     }
   }, [authHeaders, busy, config.base_url, config.model, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, createPersistedSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, loadRuns, loadAgentTasks, openSettings, showToast]);
@@ -778,12 +838,25 @@ export default function App() {
     });
   }, [appendAnswer, appendReasoning, busy]);
 
-  const stopStreaming = useCallback(() => {
-    if (busy && abortRef.current) {
-      setStreamStats(prev => ({...prev, state:'stopping'}));
-      abortRef.current.abort();
+  const stopStreaming = useCallback(async () => {
+    if (!busy) return;
+    setStreamStats(prev => ({...prev, state:'stopping'}));
+    const jobID = activeJobIDRef.current || activeJobID;
+    if (jobID) {
+      try { await cancelChatJob(api, jobID); } catch (e) { showToast('停止生成失败：' + e.message, 'error'); }
     }
-  }, [busy]);
+    if (abortRef.current) abortRef.current.abort();
+  }, [activeJobID, api, busy, showToast]);
+
+  const resolveToolConfirmation = useCallback(async (id, approve) => {
+    try {
+      await resolveMCPConfirmation(api, id, approve);
+      appendToActiveAssistant(m => ({...m, events:(m.events || []).map(item => item.confirmation?.id === id ? {...item, status:'resolved', text:(approve ? '✅ 已允许工具：' : '⛔ 已拒绝工具：') + (item.confirmation?.tool || 'MCP 工具')} : item)}));
+      showToast(approve ? '已允许工具执行' : '已拒绝工具执行', approve ? 'success' : 'info');
+    } catch (e) {
+      showToast('确认工具失败：' + e.message, 'error');
+    }
+  }, [api, appendToActiveAssistant, showToast]);
 
   const createWorkspace = useCallback(async () => {
     if (busy) return;
@@ -1010,6 +1083,16 @@ export default function App() {
     } catch (e) { await loadScheduledTasks().catch(() => {}); showToast('运行失败：' + e.message, 'error'); }
   }, [api, closeSettings, loadScheduledTasks, loadSessions, refreshProductState, scheduledTasks, showDialog, showToast]);
 
+  const showContextPreview = useCallback(async () => {
+    if (!current) return;
+    try {
+      const preview = await fetchContextPreview(api, current);
+      await showDialog({title:'上下文 / Token 预览', confirmText:'关闭', hideCancel:true, fields:[{name:'preview', label:'实际会发送给模型的上下文（token 为粗略估算）', type:'textarea', rows:16, value:contextPreviewText(preview)}]});
+    } catch (e) {
+      showToast('上下文预览失败：' + e.message, 'error');
+    }
+  }, [api, current, showDialog, showToast]);
+
   const continueAgentTask = useCallback((task) => {
     setInput('继续任务：' + (task.title || 'AgentDock 任务') + '\n任务 ID：' + task.id + '\n来源 Run：' + (task.source_run_id || ''));
     closeSettings();
@@ -1022,9 +1105,10 @@ export default function App() {
   }, []);
 
   const filteredSessions = useMemo(() => {
-    const q = sessionSearch.trim().toLowerCase();
-    return q ? sessions.filter(s => [s.title, s.preview, s.last_role].some(v => String(v || '').toLowerCase().includes(q))) : sessions;
-  }, [sessionSearch, sessions]);
+    const q = sessionSearch.trim();
+    if (q) return sessionSearchResults;
+    return sessions;
+  }, [sessionSearch, sessionSearchResults, sessions]);
 
   const currentSummary = useMemo(() => sessions.find(s => s.id === current) || null, [current, sessions]);
   const currentPinned = !!currentSummary?.pinned;
@@ -1052,11 +1136,12 @@ export default function App() {
     {id:'copy-diagnostics', title:'复制诊断信息', hint:'复制脱敏后的系统、数据库、备份和 MCP 状态', run:() => copyText(productDiagnostics)},
     {id:'copy-session', title:'复制当前会话全文', hint:'复制为 Markdown', disabled:!current, run:copyCurrentMarkdown},
     {id:'export-session', title:'导出当前会话', hint:'下载 Markdown 文件', disabled:!current, run:exportCurrent},
+    {id:'context-preview', title:'查看上下文 / Token 预览', hint:'查看实际发送给模型的消息构成', disabled:!current, run:showContextPreview},
     {id:'rename-session', title:'重命名当前会话', hint:'整理侧栏会话列表', disabled:!current || busy, run:renameCurrent},
     {id:'clone-session', title:'复制当前会话', hint:'保留上下文开一个副本', disabled:!current || busy, run:cloneCurrent},
     {id:'pin-session', title: currentPinned ? '取消置顶当前会话' : '置顶当前会话', hint:'让重要会话固定在列表顶部', disabled:!current, run:pinCurrent},
     {id:'theme', title:'切换明暗主题', hint:'当前：' + (theme === 'day' ? '白天' : '夜晚'), run:() => setThemeState(theme === 'day' ? 'night' : 'day')},
-  ], [busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, exportCurrent, openSettings, pinCurrent, productDiagnostics, prompts.length, renameCurrent, sendMsg, theme]);
+  ], [busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, exportCurrent, openSettings, pinCurrent, productDiagnostics, prompts.length, renameCurrent, sendMsg, showContextPreview, theme]);
 
   const settingsPanel = (
     <SettingsPanel
@@ -1083,6 +1168,7 @@ export default function App() {
         <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); copyCurrentMarkdown(); }}>复制全文</button>
         <button className="secondary" disabled={!current || busy} onClick={() => { setSessionActionsOpen(false); cloneCurrent(); }}>复制会话</button>
         <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); exportCurrent(); }}>导出 Markdown</button>
+        <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); showContextPreview(); }}>上下文 / Token</button>
         <button className="danger" disabled={!current || busy} onClick={() => { setSessionActionsOpen(false); deleteCurrent(); }}>删除会话</button>
       </div>
     </div>
@@ -1103,9 +1189,10 @@ export default function App() {
             <button className="prompt-add" disabled={busy} onClick={createWorkspace}>+</button>
           </div>
         </div>
-        <input className="session-search" placeholder="搜索会话" value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} />
+        <input className="session-search" placeholder="搜索会话全文" value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} />
+        {sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : '全文搜索 ' + filteredSessions.length + ' 条'}</div> : null}
         <button className="new" disabled={busy} onClick={newSession}>+ <span className="new-label">新会话</span></button>
-        <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => <div key={s.id} className={'session ' + (current === s.id ? 'active ' : '') + (s.pinned ? 'pinned' : '')} onClick={() => openSession(s.id)}><div className="session-title">{s.pinned ? <span className="pin-mark">置顶</span> : null}{s.title}</div>{s.preview ? <div className="session-preview">{s.preview}</div> : null}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div>) : <div className="empty compact">没有匹配会话</div>}</div>
+        <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => <div key={s.id} className={'session ' + (current === s.id ? 'active ' : '') + (s.pinned ? 'pinned' : '')} onClick={() => openSession(s.id)}><div className="session-title">{s.pinned ? <span className="pin-mark">置顶</span> : null}{s.title}</div>{s.match_snippet ? <div className="session-preview search-hit">{s.match_field ? s.match_field + '：' : ''}{s.match_snippet}</div> : (s.preview ? <div className="session-preview">{s.preview}</div> : null)}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div>) : <div className="empty compact">没有匹配会话</div>}</div>
       </aside>
       <main>
         <div className="topbar">
@@ -1120,10 +1207,11 @@ export default function App() {
             <button className="secondary" onClick={cloneCurrent} disabled={!current || busy}>复制会话</button>
             <button className="secondary" onClick={pinCurrent} disabled={!current}>{currentPinned ? '取消置顶' : '置顶'}</button>
             <button className="secondary" onClick={exportCurrent} disabled={!current}>导出</button>
+            <button className="secondary" onClick={showContextPreview} disabled={!current}>上下文</button>
             <button className="danger" onClick={deleteCurrent} disabled={!current || busy}>删除</button>
           </div>
         </div>
-        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} hideThinking={!!config.hide_thinking} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
+        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
         <div className="composer-shell">
         {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} /> : null}
         <div className="composer">

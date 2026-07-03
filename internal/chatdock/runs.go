@@ -436,6 +436,12 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 		return nil
 	}
 	answer, runErr := a.client.CompleteWithMCPToolsEvents(ctx, cfg, history, tools, func(name string, args map[string]any) (any, error) {
+		if mcpToolNeedsConfirmation(mcpCfg, name) {
+			if err := a.requestMCPConfirmation(ctx, sessionID, name, args, recordingEmit); err != nil {
+				return nil, err
+			}
+			return a.mcpClient.CallToolAfterConfirmation(ctx, mcpCfg, name, args)
+		}
 		return a.mcpClient.CallTool(ctx, mcpCfg, name, args)
 	}, recordingEmit)
 	if recorder.Created {

@@ -74,6 +74,11 @@ func (a *App) handleSessionRoute(w http.ResponseWriter, r *http.Request) {
 		a.handleExportSession(w, r)
 		return
 	}
+	if len(parts) == 2 && parts[1] == "context-preview" && r.Method == http.MethodGet {
+		r.SetPathValue("id", id)
+		a.handleContextPreview(w, r)
+		return
+	}
 	writeError(w, http.StatusNotFound, ErrSessionNotFound)
 }
 

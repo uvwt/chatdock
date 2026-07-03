@@ -41,7 +41,7 @@ function ReasoningBlock({ value, streaming = false, hidden = false }) {
   </section>;
 }
 
-export function MessageView({ message, onCopy, hideThinking = true }) {
+export function MessageView({ message, onCopy, hideThinking = true, onResolveConfirmation }) {
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
   if (message.role === 'assistant-stream') {
     const reasoning = hideThinking ? '' : message.reasoning;
@@ -49,7 +49,11 @@ export function MessageView({ message, onCopy, hideThinking = true }) {
       <MessageActions text={[reasoning, message.answer].filter(Boolean).join('\n\n')} onCopy={onCopy} />
       <ReasoningBlock value={message.reasoning} streaming hidden={hideThinking} />
       <Markdown className="answer markdown" value={message.answer} />
-      {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline' : '')}>{event.text}{event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}</div>)}
+      {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline' : '')}>
+        <div>{event.text}</div>
+        {event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}
+        {event.confirmation && event.status !== 'resolved' ? <div className="tool-event-actions"><button className="secondary small" onClick={() => onResolveConfirmation?.(event.confirmation.id, true)}>允许一次</button><button className="danger small" onClick={() => onResolveConfirmation?.(event.confirmation.id, false)}>拒绝</button></div> : null}
+      </div>)}
     </div>;
   }
   if (message.role === 'assistant') {

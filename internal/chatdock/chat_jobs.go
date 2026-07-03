@@ -88,6 +88,7 @@ func (s *Store) FinishChatJob(jobID string, status string, answer string, reason
 	defer s.mu.Unlock()
 
 	jobID = strings.TrimSpace(jobID)
+	existing, _ := s.getChatJobLocked(jobID)
 	status = strings.TrimSpace(status)
 	if status == "" {
 		status = "success"
@@ -98,6 +99,12 @@ func (s *Store) FinishChatJob(jobID string, status string, answer string, reason
 	errorText := ""
 	if runErr != nil {
 		errorText = runErr.Error()
+	}
+	if existing.Status == "interrupted" && status != "success" {
+		status = "interrupted"
+		if errorText == "" {
+			errorText = existing.Error
+		}
 	}
 	now := time.Now()
 	_, err := s.db.Exec(`UPDATE chat_jobs SET status = ?, answer = ?, reasoning = ?, error = ?, finished_at = ?, updated_at = ? WHERE id = ?`, status, answer, strings.TrimSpace(reasoning), errorText, formatDBTime(now), formatDBTime(now), jobID)
@@ -151,6 +158,29 @@ func (s *Store) ChatJobEventsAfter(jobID string, after int) (ChatJob, []ChatJobE
 		return ChatJob{}, nil, err
 	}
 	return job, events, nil
+}
+
+func (s *Store) InterruptChatJob(jobID string, reason string) (ChatJob, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	jobID = strings.TrimSpace(jobID)
+	job, err := s.getChatJobLocked(jobID)
+	if err != nil {
+		return ChatJob{}, err
+	}
+	if job.Status != "running" {
+		return job, nil
+	}
+	if strings.TrimSpace(reason) == "" {
+		reason = "用户已停止生成。"
+	}
+	now := time.Now()
+	_, err = s.db.Exec(`UPDATE chat_jobs SET status = 'interrupted', error = ?, finished_at = ?, updated_at = ? WHERE id = ?`, strings.TrimSpace(reason), formatDBTime(now), formatDBTime(now), jobID)
+	if err != nil {
+		return ChatJob{}, err
+	}
+	return s.getChatJobLocked(jobID)
 }
 
 func (s *Store) MarkRunningChatJobsInterrupted() error {
@@ -237,11 +267,41 @@ func (a *App) startChatJob(input ChatRequest) (ChatJob, *Session, error) {
 	if err != nil {
 		return ChatJob{}, nil, err
 	}
-	go a.runChatJob(job.ID, input.SessionID, cfg, history)
+	ctx, cancel := context.WithCancel(context.Background())
+	a.registerChatJobCancel(job.ID, cancel)
+	go a.runChatJob(ctx, job.ID, input.SessionID, cfg, history)
 	return job, session, nil
 }
 
-func (a *App) runChatJob(jobID string, sessionID string, cfg ModelConfig, history []Message) {
+func (a *App) registerChatJobCancel(jobID string, cancel context.CancelFunc) {
+	a.jobMu.Lock()
+	defer a.jobMu.Unlock()
+	a.jobCancel[strings.TrimSpace(jobID)] = cancel
+}
+
+func (a *App) unregisterChatJobCancel(jobID string) {
+	a.jobMu.Lock()
+	defer a.jobMu.Unlock()
+	delete(a.jobCancel, strings.TrimSpace(jobID))
+}
+
+func (a *App) cancelChatJob(jobID string) (ChatJob, error) {
+	jobID = strings.TrimSpace(jobID)
+	a.jobMu.Lock()
+	cancel := a.jobCancel[jobID]
+	a.jobMu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	job, err := a.store.InterruptChatJob(jobID, "用户已停止生成。")
+	if err == nil {
+		_, _ = a.store.AddChatJobEvent(jobID, "job_cancelled", map[string]any{"message": "用户已停止生成。"})
+	}
+	return job, err
+}
+
+func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cfg ModelConfig, history []Message) {
+	defer a.unregisterChatJobCancel(jobID)
 	var reasoning strings.Builder
 	emit := func(event string, value any) error {
 		if event == "delta" {
@@ -253,9 +313,14 @@ func (a *App) runChatJob(jobID string, sessionID string, cfg ModelConfig, histor
 		return err
 	}
 
-	answer, runErr := a.completeWithRecordedTools(context.Background(), sessionID, cfg, history, emit)
+	answer, runErr := a.completeWithRecordedTools(ctx, sessionID, cfg, history, emit)
 	status := "success"
-	if runErr != nil {
+	if isClientCanceled(ctx, runErr) {
+		status = "interrupted"
+		if runErr == nil {
+			runErr = ctx.Err()
+		}
+	} else if runErr != nil {
 		status = "failed"
 	} else if _, err := a.store.AppendAssistantMessageWithReasoning(sessionID, answer, reasoning.String()); err != nil {
 		status = "failed"
@@ -290,6 +355,19 @@ func (a *App) handleListChatJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSONResponse(w, http.StatusOK, map[string]any{"jobs": jobs})
+}
+
+func (a *App) handleCancelChatJob(w http.ResponseWriter, r *http.Request) {
+	job, err := a.cancelChatJob(r.PathValue("id"))
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, sql.ErrNoRows) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, map[string]any{"job": job})
 }
 
 func (a *App) handleChatJobEvents(w http.ResponseWriter, r *http.Request) {

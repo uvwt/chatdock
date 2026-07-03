@@ -163,6 +163,14 @@ func (c *MCPClient) ListServerTools(ctx context.Context, cfg MCPConfig, serverNa
 }
 
 func (c *MCPClient) CallTool(ctx context.Context, cfg MCPConfig, fullName string, arguments map[string]any) (any, error) {
+	return c.callTool(ctx, cfg, fullName, arguments, true)
+}
+
+func (c *MCPClient) CallToolAfterConfirmation(ctx context.Context, cfg MCPConfig, fullName string, arguments map[string]any) (any, error) {
+	return c.callTool(ctx, cfg, fullName, arguments, false)
+}
+
+func (c *MCPClient) callTool(ctx context.Context, cfg MCPConfig, fullName string, arguments map[string]any, enforceConfirmation bool) (any, error) {
 	serverName, toolName := splitToolFullName(fullName)
 	server, ok := cfg.Servers[serverName]
 	if !ok {
@@ -174,7 +182,7 @@ func (c *MCPClient) CallTool(ctx context.Context, cfg MCPConfig, fullName string
 	if !server.allowsTool(toolName, fullName) {
 		return nil, fmt.Errorf("mcp tool is not allowed: %s", fullName)
 	}
-	if server.requiresConfirmation(toolName, fullName) {
+	if enforceConfirmation && server.requiresConfirmation(toolName, fullName) {
 		return nil, fmt.Errorf("mcp tool requires manual confirmation: %s", fullName)
 	}
 	var result any

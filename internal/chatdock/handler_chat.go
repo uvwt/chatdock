@@ -72,6 +72,7 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
+	_ = writeSSE(w, flusher, "job_started", job)
 	streamChatJobEvents(r, w, flusher, a, job.ID, 0)
 }
 

@@ -4,6 +4,14 @@ export function fetchSessions(api) {
   return api('/api/sessions');
 }
 
+export function searchSessions(api, query) {
+  return api('/api/sessions/search?q=' + encodeURIComponent(query));
+}
+
+export function fetchContextPreview(api, id) {
+  return api('/api/sessions/' + encodeURIComponent(id) + '/context-preview');
+}
+
 export function createSessionRecord(api) {
   return api('/api/sessions', {method:'POST', body:'{}'});
 }
