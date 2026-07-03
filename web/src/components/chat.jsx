@@ -28,7 +28,8 @@ export function AttachmentList({ attachments, removable = false, onRemove }) {
 }
 
 function ReasoningBlock({ value, streaming = false, hidden = false }) {
-  const [open, setOpen] = useState(false);
+  // 流式输出时思考内容要实时可见；完成后变成普通 assistant 消息，再默认折叠。
+  const [open, setOpen] = useState(!!streaming);
   if (hidden || !value) return null;
   const title = streaming ? '思考中' : '思考过程';
   return <section className={'reasoning ' + (open ? 'show' : 'collapsed')}>
