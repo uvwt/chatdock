@@ -1594,3 +1594,9 @@ body.theme-light .mcp-inline-warning.danger {
     grid-template-columns: 250px minmax(0, 1fr) !important;
   }
 }
+
+/* 模型供应商支持维护多个候选模型；默认模型仍是当前选中的发送模型。 */
+.model-list-editor {
+  min-height: 118px;
+  resize: vertical;
+}

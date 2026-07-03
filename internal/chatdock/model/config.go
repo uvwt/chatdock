@@ -14,6 +14,7 @@ func DefaultModelConfig() ModelConfig {
 		ProviderID:         "provider_default",
 		BaseURL:            "https://api.openai.com/v1",
 		Model:              "gpt-4o-mini",
+		Models:             []string{"gpt-4o-mini"},
 		SystemPrompt:       "你是 ChatDock，一个简洁、直接、节省 token 的私人 AI 助手。默认用中文回答。",
 		ContextMode:        ContextModeAuto,
 		MaxContextMessages: 12,
@@ -27,6 +28,7 @@ func NormalizeModelConfig(cfg ModelConfig) ModelConfig {
 	cfg.BaseURL = strings.TrimSpace(cfg.BaseURL)
 	cfg.ProviderID = strings.TrimSpace(cfg.ProviderID)
 	cfg.Model = strings.TrimSpace(cfg.Model)
+	cfg.Models = normalizeModelNames(cfg.Models, cfg.Model)
 	cfg.ContextMode = normalizeContextMode(cfg.ContextMode)
 
 	if cfg.ProviderID == "" {
@@ -37,6 +39,12 @@ func NormalizeModelConfig(cfg ModelConfig) ModelConfig {
 	}
 	if cfg.Model == "" {
 		cfg.Model = "gpt-4o-mini"
+	}
+	if len(cfg.Models) == 0 {
+		cfg.Models = []string{cfg.Model}
+	}
+	if !containsModelName(cfg.Models, cfg.Model) {
+		cfg.Models = append([]string{cfg.Model}, cfg.Models...)
 	}
 	if cfg.MaxContextMessages <= 0 {
 		cfg.MaxContextMessages = 12
@@ -53,6 +61,7 @@ func ToPublicModelConfig(cfg ModelConfig) PublicModelConfig {
 		BaseURL:            cfg.BaseURL,
 		HasAPIKey:          strings.TrimSpace(cfg.APIKey) != "",
 		Model:              cfg.Model,
+		Models:             append([]string(nil), cfg.Models...),
 		SystemPrompt:       cfg.SystemPrompt,
 		ContextMode:        cfg.ContextMode,
 		MaxContextMessages: cfg.MaxContextMessages,
@@ -60,6 +69,37 @@ func ToPublicModelConfig(cfg ModelConfig) PublicModelConfig {
 		EnableThinking:     cfg.EnableThinking,
 		HideThinking:       cfg.HideThinking,
 	}
+}
+
+func normalizeModelNames(models []string, selected string) []string {
+	out := make([]string, 0, len(models)+1)
+	seen := map[string]bool{}
+	add := func(value string) {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			return
+		}
+		seen[value] = true
+		out = append(out, value)
+	}
+	for _, model := range models {
+		add(model)
+	}
+	add(selected)
+	return out
+}
+
+func containsModelName(models []string, selected string) bool {
+	selected = strings.TrimSpace(selected)
+	if selected == "" {
+		return false
+	}
+	for _, model := range models {
+		if strings.TrimSpace(model) == selected {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeContextMode(mode string) string {

@@ -24,6 +24,46 @@ function attachmentLooksLikeImage(item) {
   return String(item?.mime_type || item?.type || '').toLowerCase().startsWith('image/');
 }
 
+function uniqueModelNames(value) {
+  const raw = Array.isArray(value) ? value.join('\n') : String(value || '');
+  const seen = new Set();
+  return raw.split(/[\n,，]+/).map(item => item.trim()).filter(Boolean).filter(item => {
+    if (seen.has(item)) return false;
+    seen.add(item);
+    return true;
+  });
+}
+
+function providerChoiceID(provider) {
+  return provider?.workspace_id || provider?.id || '';
+}
+
+function providerLabel(provider) {
+  return provider?.workspace_name || provider?.name || provider?.id || '供应商';
+}
+
+function compactModelName(name) {
+  name = String(name || '').trim();
+  return name.length > 22 ? name.slice(0, 21) + '…' : name;
+}
+
+function ComposerModelPicker({ busy, providers, selectedProvider, selectedModel, open, setOpen, selectModel, openSettings }) {
+  return <div className="model-picker">
+    <button type="button" className="secondary model-picker-trigger" disabled={busy || !providers.length} onClick={() => setOpen(value => !value)} title="选择供应商 / 模型"><span>{providerLabel(selectedProvider)}</span><b>{compactModelName(selectedModel) || '未选择模型'}</b></button>
+    {open ? <div className="model-picker-popover">
+      <div className="model-picker-head"><b>选择供应商模型</b><button type="button" className="secondary small" onClick={() => setOpen(false)}>关闭</button></div>
+      <div className="model-provider-list">
+        {providers.length ? providers.map(provider => <div className="model-provider-item" key={provider.choice_id}>
+          <div className="model-provider-title"><b>{providerLabel(provider)}</b><small>{provider.base_url || '-'}</small></div>
+          <div className="model-chip-list">
+            {provider.models.length ? provider.models.map(name => <button type="button" key={provider.choice_id + name} className={'model-chip ' + (selectedProvider?.choice_id === provider.choice_id && selectedModel === name ? 'active' : '')} onClick={() => selectModel(provider, name)}>{name}</button>) : <button type="button" className="model-chip" onClick={() => openSettings('model')}>添加模型</button>}
+          </div>
+        </div>) : <div className="empty compact">还没有可选模型，请先到配置中心添加。</div>}
+      </div>
+    </div> : null}
+  </div>;
+}
+
 function readableChatError(error, hasImageAttachment = false) {
   const raw = String(error?.message || error || '').trim();
   if (!raw) return '模型调用失败。';
@@ -77,6 +117,8 @@ export default function App() {
   const [workspacePickerOpen, setWorkspacePickerOpen] = useState(false);
   const [sessionActionsOpen, setSessionActionsOpen] = useState(false);
   const [quickPaletteOpen, setQuickPaletteOpen] = useState(false);
+  const [modelPickerOpen, setModelPickerOpen] = useState(false);
+  const [chatModel, setChatModel] = useState({provider_id:'', model:''});
 
   const [setupStatus, setSetupStatus] = useState(null);
   const [workspaces, setWorkspaces] = useState([]);
@@ -109,7 +151,7 @@ export default function App() {
   const [mcpStatus, setMcpStatus] = useState([]);
   const [promptPreview, setPromptPreview] = useState('');
   const [mcpConfig, setMcpConfig] = useState('');
-  const [config, setConfig] = useState({base_url:'', api_key:'', model:'', system_prompt:'', context_mode:'auto', max_context_messages:12, temperature:0.7, enable_thinking:false, hide_thinking:false, has_api_key:false});
+  const [config, setConfig] = useState({base_url:'', api_key:'', model:'', models:[], system_prompt:'', context_mode:'auto', max_context_messages:12, temperature:0.7, enable_thinking:false, hide_thinking:false, has_api_key:false});
 
   const abortRef = useRef(null);
   const activeJobIDRef = useRef('');
@@ -233,6 +275,7 @@ export default function App() {
       base_url: c.base_url || '',
       api_key: '',
       model: c.model || '',
+      models: Array.isArray(c.models) ? c.models : [],
       system_prompt: c.system_prompt || '',
       context_mode: c.context_mode || 'auto',
       max_context_messages: c.max_context_messages || 12,
@@ -722,6 +765,37 @@ export default function App() {
   const activePrompt = useMemo(() => prompts.find(p => p.active) || prompts[0] || null, [prompts]);
   const draftKey = useMemo(() => 'chatdock.draft.' + encodeURIComponent(activePrompt?.name || 'default') + '.' + encodeURIComponent(current || 'new'), [activePrompt?.name, current]);
 
+
+  const providerChoices = useMemo(() => providers.map(provider => {
+    const id = providerChoiceID(provider);
+    const models = uniqueModelNames([...(provider.models || []), provider.default_model].filter(Boolean));
+    return {...provider, choice_id: id, models};
+  }).filter(provider => provider.choice_id && (provider.enabled || provider.models.length)), [providers]);
+  const selectedModelProvider = useMemo(() => {
+    const activeID = activePrompt?.name || '';
+    return providerChoices.find(provider => provider.choice_id === chatModel.provider_id)
+      || providerChoices.find(provider => provider.choice_id === activeID)
+      || providerChoices[0]
+      || null;
+  }, [activePrompt?.name, chatModel.provider_id, providerChoices]);
+  const selectedChatModel = chatModel.model || selectedModelProvider?.default_model || selectedModelProvider?.models?.[0] || config.model || '';
+  const selectedModelBaseURL = selectedModelProvider?.base_url || config.base_url || '';
+
+  useEffect(() => {
+    if (!providerChoices.length) return;
+    const stillValid = providerChoices.some(provider => provider.choice_id === chatModel.provider_id && (!chatModel.model || provider.models.includes(chatModel.model)));
+    if (stillValid) return;
+    const activeID = activePrompt?.name || '';
+    const provider = providerChoices.find(item => item.choice_id === activeID) || providerChoices[0];
+    setChatModel({provider_id: provider.choice_id, model: provider.default_model || provider.models[0] || config.model || ''});
+  }, [activePrompt?.name, chatModel.model, chatModel.provider_id, config.model, providerChoices]);
+
+  const selectChatModel = useCallback((provider, modelName) => {
+    setChatModel({provider_id: provider.choice_id, model: modelName});
+    setModelPickerOpen(false);
+    showToast('已切换模型：' + providerLabel(provider) + ' · ' + modelName, 'success');
+  }, [showToast]);
+
   useEffect(() => {
     setInput(localStorage.getItem(draftKey) || '');
   }, [draftKey]);
@@ -788,8 +862,8 @@ export default function App() {
       showToast('文件还在上传，请上传完成后再发送。', 'error');
       return;
     }
-    if (!String(config.base_url || '').trim() || !String(config.model || '').trim()) {
-      showToast('请先配置模型 Base URL 和 Model，再发送消息。', 'error');
+    if (!String(selectedModelBaseURL || '').trim() || !String(selectedChatModel || '').trim()) {
+      showToast('请先配置模型供应商和模型，再发送消息。', 'error');
       openSettings('model');
       return;
     }
@@ -816,7 +890,7 @@ export default function App() {
       setPendingAttachments([]);
       setStreamStats(prev => ({...prev, state:'streaming'}));
       let finalSession = null;
-      await streamChat({authHeaders, signal: abort.signal, sessionID, message:text, attachmentIDs, onEvent: (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; })});
+      await streamChat({authHeaders, signal: abort.signal, sessionID, message:text, attachmentIDs, providerID: selectedModelProvider?.choice_id || '', model: selectedChatModel, onEvent: (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; })});
       if (finalSession) {
         pendingDeltaRef.current = '';
         pendingReasoningRef.current = '';
@@ -843,7 +917,7 @@ export default function App() {
       setActiveJobID('');
       setStreamPaused(false);
     }
-  }, [authHeaders, busy, config.base_url, config.model, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, createPersistedSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, loadRuns, loadAgentTasks, openSettings, showToast]);
+  }, [authHeaders, busy, selectedModelBaseURL, selectedChatModel, selectedModelProvider, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, createPersistedSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, loadRuns, loadAgentTasks, openSettings, showToast]);
 
   const toggleStreamPause = useCallback(() => {
     if (!busy) return;
@@ -917,6 +991,7 @@ export default function App() {
       base_url: config.base_url,
       api_key: config.api_key,
       model: config.model,
+      models: uniqueModelNames(config.models?.length ? config.models : config.model),
       system_prompt: config.system_prompt,
       context_mode: config.context_mode || 'auto',
       max_context_messages: Number(config.max_context_messages || 12),
@@ -1144,7 +1219,7 @@ export default function App() {
   const currentPinned = !!currentSummary?.pinned;
   const appClass = 'app ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (settingsOpen ? 'settings-open' : '');
   const productReady = setupStatus && !setupStatus.needs_setup;
-  const modelReady = !!String(config.base_url || '').trim() && !!String(config.model || '').trim();
+  const modelReady = !!String(selectedModelBaseURL || '').trim() && !!String(selectedChatModel || '').trim();
   const productStatusText = setupStatus == null ? '加载中' : (productReady ? '就绪' : '待配置');
   const productStatusClass = setupStatus == null ? 'warn' : (productReady ? 'ok' : 'warn');
   const streamElapsed = streamStats.started_at ? Math.max(0, Math.round((Date.now() - streamStats.started_at) / 1000)) : 0;
@@ -1248,6 +1323,7 @@ export default function App() {
         <div className="composer">
           <input ref={fileInputRef} type="file" multiple className="file-input" onChange={handleFileSelect} />
           <button className="secondary attach-control" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} title="上传文件">+</button>
+          <ComposerModelPicker busy={busy} providers={providerChoices} selectedProvider={selectedModelProvider} selectedModel={selectedChatModel} open={modelPickerOpen} setOpen={setModelPickerOpen} selectModel={selectChatModel} openSettings={openSettings} />
           <button className="secondary quick-control" disabled={busy} onClick={() => sendMsg('继续')}>继续</button>
           {busy ? <button className="secondary stream-control" onClick={toggleStreamPause}>{streamPaused ? '继续' : '暂停'}</button> : null}
           {busy ? <button className="danger stream-control" onClick={stopStreaming}>中断</button> : null}

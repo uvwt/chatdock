@@ -1620,3 +1620,82 @@ aside,
     padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+/* 2026-07 输入框左下角供应商/模型选择器：类似附件弹窗，从输入区左侧弹出。 */
+@media (max-width: 720px) {
+  .composer {
+    grid-template-columns: 42px minmax(76px, 96px) minmax(0, 1fr) 44px !important;
+  }
+
+  .model-picker {
+    grid-column: 2;
+    align-self: center;
+    min-width: 0;
+  }
+
+  .model-picker-trigger {
+    width: 100% !important;
+    min-height: 42px !important;
+    padding: 4px 9px !important;
+    border-radius: 16px !important;
+    background: #f8fafc !important;
+    box-shadow: none !important;
+  }
+
+  .model-picker-trigger span {
+    display: none;
+  }
+
+  .model-picker-trigger b {
+    max-width: 100%;
+    color: #0f172a !important;
+    font-size: 13px !important;
+  }
+
+  .composer textarea {
+    grid-column: 3 !important;
+  }
+
+  #send,
+  .stream-control {
+    grid-column: 4 !important;
+  }
+
+  .model-picker-popover {
+    position: fixed !important;
+    left: 18px !important;
+    right: 18px !important;
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    max-height: min(460px, 58vh) !important;
+    padding: 16px !important;
+    border-radius: 26px !important;
+    background: rgba(255, 255, 255, .98) !important;
+    box-shadow: 0 28px 90px rgba(15, 23, 42, .18) !important;
+  }
+
+  .model-provider-item {
+    border-radius: 20px !important;
+    background: #f8fafc !important;
+  }
+
+  .model-chip {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: #ffffff !important;
+  }
+
+  .composer:has(.stream-control) {
+    grid-template-columns: 42px minmax(76px, 96px) minmax(0, 1fr) 42px 42px !important;
+  }
+
+  .composer:has(.stream-control) .stream-control.secondary {
+    grid-column: 4 !important;
+  }
+
+  .composer:has(.stream-control) .stream-control.danger {
+    grid-column: 5 !important;
+  }
+}

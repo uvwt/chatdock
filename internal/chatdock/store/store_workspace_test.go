@@ -72,3 +72,33 @@ func assertResearchSessionsDeleted(t *testing.T, store *Store) {
 		t.Fatalf("session rows for deleted workspace = %d, want 0", got)
 	}
 }
+
+func TestResolveChatModelConfigUsesSelectedWorkspaceProvider(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SaveModelConfig(model.ModelConfig{BaseURL: "https://default.test/v1", Model: "default-model", Models: []string{"default-model"}, SystemPrompt: "当前空间提示词"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreatePrompt(model.CreatePromptRequest{Name: "alt", SystemPrompt: "另一个空间"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SaveWorkspaceConfig("alt", model.ModelConfig{BaseURL: "https://alt.test/v1", Model: "alt-a", Models: []string{"alt-a", "alt-b"}, APIKey: "alt-key", SystemPrompt: "另一个空间提示词"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SelectPrompt(model.SelectPromptRequest{Name: "default"}); err != nil {
+		t.Fatal(err)
+	}
+	base := store.GetModelConfig()
+	selected, err := store.ResolveChatModelConfig(base, "alt", "alt-b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selected.BaseURL != "https://alt.test/v1" || selected.APIKey != "alt-key" || selected.Model != "alt-b" {
+		t.Fatalf("provider/model not selected: %#v", selected)
+	}
+	if selected.SystemPrompt != "当前空间提示词" {
+		t.Fatalf("chat prompt should stay on current workspace: %q", selected.SystemPrompt)
+	}
+}

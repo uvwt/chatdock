@@ -75,6 +75,8 @@ type BranchSessionRequest struct {
 type ChatRequest struct {
 	SessionID     string   `json:"session_id"`
 	Message       string   `json:"message"`
+	ProviderID    string   `json:"provider_id,omitempty"`
+	Model         string   `json:"model,omitempty"`
 	AttachmentIDs []string `json:"attachment_ids,omitempty"`
 }
 

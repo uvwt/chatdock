@@ -2,6 +2,7 @@ package store
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"chatdock/internal/chatdock/model"
@@ -26,6 +27,7 @@ func (s *Store) ListModelProviders() ([]ModelProvider, error) {
 			HasAPIKey:     strings.TrimSpace(cfg.APIKey) != "",
 			APIKeyMasked:  maskSecret(cfg.APIKey),
 			DefaultModel:  cfg.Model,
+			Models:        append([]string(nil), cfg.Models...),
 			TimeoutMS:     120000,
 			Enabled:       strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != "",
 			WorkspaceID:   ws.ID,
@@ -75,4 +77,47 @@ func maskSecret(value string) string {
 		return "******"
 	}
 	return value[:4] + "******" + value[len(value)-4:]
+}
+
+func (s *Store) ResolveChatModelConfig(base model.ModelConfig, providerID string, selectedModel string) (model.ModelConfig, error) {
+	providerID = strings.TrimSpace(providerID)
+	selectedModel = strings.TrimSpace(selectedModel)
+	if providerID == "" && selectedModel == "" {
+		return model.NormalizeModelConfig(base), nil
+	}
+
+	next := model.NormalizeModelConfig(base)
+	if providerID != "" {
+		s.mu.RLock()
+		exists, err := s.promptExistsLocked(providerID)
+		if err != nil {
+			s.mu.RUnlock()
+			return model.ModelConfig{}, err
+		}
+		if !exists {
+			s.mu.RUnlock()
+			return model.ModelConfig{}, fmt.Errorf("model provider not found: %s", providerID)
+		}
+		providerCfg, err := s.modelConfigForPromptLocked(providerID)
+		s.mu.RUnlock()
+		if err != nil {
+			return model.ModelConfig{}, err
+		}
+		// 供应商选择只切换连接、密钥和模型；当前会话的系统提示词、技能和上下文策略继续沿用当前工作空间。
+		next.ProviderID = providerCfg.ProviderID
+		next.BaseURL = providerCfg.BaseURL
+		next.APIKey = providerCfg.APIKey
+		next.Models = append([]string(nil), providerCfg.Models...)
+		if selectedModel == "" {
+			selectedModel = providerCfg.Model
+		}
+	}
+	if selectedModel != "" {
+		next.Model = selectedModel
+	}
+	next = model.NormalizeModelConfig(next)
+	if strings.TrimSpace(next.BaseURL) == "" || strings.TrimSpace(next.Model) == "" {
+		return model.ModelConfig{}, fmt.Errorf("model provider is incomplete")
+	}
+	return next, nil
 }

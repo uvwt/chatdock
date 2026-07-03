@@ -28,6 +28,7 @@ type ModelProvider struct {
 	HasAPIKey     bool      `json:"has_api_key"`
 	APIKeyMasked  string    `json:"api_key_masked,omitempty"`
 	DefaultModel  string    `json:"default_model"`
+	Models        []string  `json:"models,omitempty"`
 	TimeoutMS     int       `json:"timeout_ms"`
 	Enabled       bool      `json:"enabled"`
 	WorkspaceID   string    `json:"workspace_id,omitempty"`
@@ -43,6 +44,7 @@ type Workspace struct {
 	Icon              string    `json:"icon,omitempty"`
 	ProviderID        string    `json:"provider_id"`
 	Model             string    `json:"model"`
+	Models            []string  `json:"models,omitempty"`
 	SystemPrompt      string    `json:"system_prompt"`
 	ContextLimit      int       `json:"context_limit"`
 	Temperature       float64   `json:"temperature"`

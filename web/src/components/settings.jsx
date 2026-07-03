@@ -40,6 +40,21 @@ function moduleLabel(m) {
 }
 function ModuleView({ name, activeModule, children }) { return <div className={'module-view ' + (activeModule === name ? 'active' : '')} data-module-view={name}>{children}</div>; }
 
+function normalizeModelNames(value) {
+  const raw = Array.isArray(value) ? value.join('\n') : String(value || '');
+  const seen = new Set();
+  return raw.split(/[\n,，]+/).map(item => item.trim()).filter(Boolean).filter(item => {
+    if (seen.has(item)) return false;
+    seen.add(item);
+    return true;
+  });
+}
+
+function modelListText(config) {
+  const models = Array.isArray(config.models) && config.models.length ? config.models : [config.model].filter(Boolean);
+  return normalizeModelNames(models).join('\n');
+}
+
 function WorkspaceModule({ setupStatus, workspaces, createWorkspace, selectWorkspace, deleteWorkspace, runSetupWizard }) {
   const activeWorkspace = workspaces.find(ws => ws.active) || workspaces[0] || {};
   const totals = workspaces.reduce((acc, ws) => ({
@@ -63,6 +78,15 @@ function WorkspaceModule({ setupStatus, workspaces, createWorkspace, selectWorks
 
 function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptPreview, testModelProvider, fetchProviderModels, availableModels, loadingModels, providers }) {
   const update = (key, value) => setConfig(c => ({...c, [key]: value}));
+  const chooseModel = (name) => setConfig(c => {
+    const models = normalizeModelNames([...(c.models || []), name]);
+    return {...c, model: name, models};
+  });
+  const updateModels = (value) => setConfig(c => {
+    const models = normalizeModelNames(value);
+    const model = models.includes(c.model) ? c.model : (models[0] || c.model);
+    return {...c, model, models};
+  });
   const contextMode = config.context_mode || 'auto';
   let endpointLabel = '未配置';
   try { endpointLabel = config.base_url ? new URL(config.base_url).host : '未配置'; } catch { endpointLabel = config.base_url || '未配置'; }
@@ -80,9 +104,9 @@ function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptP
       <div className="settings-form-grid">
         <label>Base URL<input value={config.base_url} onChange={e => update('base_url', e.target.value)} placeholder="https://api.openai.com/v1" /></label>
         <label>API Key<input type="password" value={config.api_key} onChange={e => update('api_key', e.target.value)} placeholder={config.has_api_key ? '已保存，留空不修改' : '未设置'} /></label>
-        <label className="model-field-wide">Model<input value={config.model} onChange={e => update('model', e.target.value)} placeholder="gpt-4o-mini" /></label>
+        <label>默认模型<input value={config.model} onChange={e => chooseModel(e.target.value)} placeholder="gpt-4o-mini" /></label><label className="model-field-wide">可选模型（每行一个）<textarea className="model-list-editor" rows={4} value={modelListText(config)} onChange={e => updateModels(e.target.value)} placeholder={"gpt-4o-mini\ngpt-4.1-mini"} /></label>
       </div>
-      {availableModels.length ? <div className="model-options">{availableModels.map(name => <button key={name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => update('model', name)}>{name}</button>)}</div> : <div className="hint">填写 Base URL 和 API Key 后，可从接口获取可用模型名称。</div>}
+      {availableModels.length ? <div className="model-options">{availableModels.map(name => <button key={name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => chooseModel(name)}>{name}</button>)}</div> : <div className="hint">填写 Base URL 和 API Key 后，可从接口获取可用模型名称。</div>}
     </section>
 
     <section className="settings-section model-section">
@@ -98,7 +122,7 @@ function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptP
 
     <section className="settings-section provider-section">
       <div className="settings-section-head"><div><b>模型供应商</b><p>来自各工作空间的供应商配置，仅展示摘要，避免误改密钥。</p></div></div>
-      <div className="provider-grid">{providers.length ? providers.map(p => <TextCard key={(p.workspace_id || '') + p.id} title={p.name || p.id} hint={p.base_url || '-'} badge={p.type || 'openai'}><div className="product-meta">默认模型：{p.default_model || '-'} · Key：{p.has_api_key ? (p.api_key_masked || '******') : '未设置'} · 工作空间：{p.workspace_name || '-'}</div></TextCard>) : <div className="empty compact">还没有模型供应商配置。</div>}</div>
+      <div className="provider-grid">{providers.length ? providers.map(p => <TextCard key={(p.workspace_id || '') + p.id} title={p.name || p.id} hint={p.base_url || '-'} badge={p.type || 'openai'}><div className="product-meta">默认模型：{p.default_model || '-'} · 模型 {p.models?.length || 0} 个 · Key：{p.has_api_key ? (p.api_key_masked || '******') : '未设置'} · 工作空间：{p.workspace_name || '-'}</div></TextCard>) : <div className="empty compact">还没有模型供应商配置。</div>}</div>
     </section>
   </>;
 }

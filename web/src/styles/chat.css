@@ -685,3 +685,120 @@ body.theme-light .composer {
 .tool-event-main {
   min-width: 0;
 }
+
+/* Composer model selector: supplier/model is a lightweight per-message choice, not a full settings panel. */
+.model-picker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.model-picker-trigger {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 42px;
+  max-width: 180px;
+  padding: 6px 12px;
+  border-radius: 18px;
+  line-height: 1.15;
+}
+
+.model-picker-trigger span,
+.model-picker-trigger b {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-picker-trigger span {
+  font-size: 11px;
+  color: var(--gpt-muted-2);
+}
+
+.model-picker-trigger b {
+  font-size: 13px;
+  color: var(--gpt-text);
+}
+
+.model-picker-popover {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 12px);
+  z-index: 30;
+  width: min(420px, 82vw);
+  max-height: min(460px, 62vh);
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid var(--gpt-border-strong);
+  border-radius: 24px;
+  background: var(--gpt-main);
+  box-shadow: 0 26px 90px rgba(0, 0, 0, .28);
+}
+
+.model-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.model-provider-list {
+  display: grid;
+  gap: 10px;
+}
+
+.model-provider-item {
+  padding: 12px;
+  border: 1px solid var(--gpt-border);
+  border-radius: 18px;
+  background: var(--gpt-surface);
+}
+
+.model-provider-title {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 9px;
+}
+
+.model-provider-title small {
+  color: var(--gpt-muted-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.model-chip {
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--gpt-border);
+  background: var(--gpt-panel);
+  color: var(--gpt-text);
+  cursor: pointer;
+}
+
+.model-chip.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, .35) inset;
+}
+
+body.theme-light .model-picker-popover {
+  background: #ffffff;
+  box-shadow: 0 26px 90px rgba(15, 23, 42, .16);
+}
+
+body.theme-light .model-provider-item,
+body.theme-light .model-chip {
+  background: #f8fafc;
+}

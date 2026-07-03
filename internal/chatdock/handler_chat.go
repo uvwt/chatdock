@@ -32,6 +32,12 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cfg, err = a.store.ResolveChatModelConfig(cfg, input.ProviderID, input.Model)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
 	answer, err := a.completeWithOptionalTools(r.Context(), input.SessionID, cfg, history)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err)

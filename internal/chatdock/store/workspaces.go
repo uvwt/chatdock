@@ -39,6 +39,7 @@ func (s *Store) ListWorkspaces() (WorkspaceResponse, error) {
 			Icon:              "message-circle",
 			ProviderID:        cfg.ProviderID,
 			Model:             cfg.Model,
+			Models:            append([]string(nil), cfg.Models...),
 			SystemPrompt:      cfg.SystemPrompt,
 			ContextLimit:      cfg.MaxContextMessages,
 			Temperature:       cfg.Temperature,

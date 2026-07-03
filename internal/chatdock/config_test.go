@@ -33,3 +33,13 @@ func TestNormalizeModelConfigAcceptsContextModes(t *testing.T) {
 		t.Fatalf("unexpected fallback context mode: %s", got.ContextMode)
 	}
 }
+
+func TestNormalizeModelConfigPreservesMultipleModels(t *testing.T) {
+	got := model.NormalizeModelConfig(model.ModelConfig{Model: "gpt-4.1", Models: []string{"gpt-4.1", "gpt-4o-mini", "gpt-4.1"}})
+	if got.Model != "gpt-4.1" {
+		t.Fatalf("unexpected default model: %s", got.Model)
+	}
+	if len(got.Models) != 2 || got.Models[0] != "gpt-4.1" || got.Models[1] != "gpt-4o-mini" {
+		t.Fatalf("unexpected models: %#v", got.Models)
+	}
+}
