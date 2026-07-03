@@ -1,0 +1,76 @@
+package chatdock
+
+import (
+	"context"
+	"log"
+	"strings"
+	"time"
+
+	"chatdock/internal/chatdock/model"
+)
+
+func (a *App) runScheduler(ctx context.Context) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			a.runDueScheduledTasks()
+		}
+	}
+}
+
+func (a *App) runDueScheduledTasks() {
+	tasks, err := a.store.DueScheduledTasksAllPrompts(time.Now())
+	if err != nil {
+		log.Printf("scheduled task scan failed: %v", err)
+		return
+	}
+	for _, task := range tasks {
+		a.startScheduledTask(task.PromptName, task.Task.ID, false)
+	}
+}
+
+func (a *App) startScheduledTask(promptName string, id string, manual bool) {
+	key := strings.TrimSpace(promptName) + ":" + strings.TrimSpace(id)
+	if key == "" {
+		return
+	}
+	a.runningMu.Lock()
+	if a.running[key] {
+		a.runningMu.Unlock()
+		return
+	}
+	a.running[key] = true
+	a.runningMu.Unlock()
+
+	go func() {
+		defer func() {
+			a.runningMu.Lock()
+			delete(a.running, key)
+			a.runningMu.Unlock()
+		}()
+		if _, err := a.executeScheduledTask(context.Background(), promptName, id, manual); err != nil {
+			log.Printf("scheduled task %s failed: %v", key, err)
+		}
+	}()
+}
+
+func (a *App) executeScheduledTask(ctx context.Context, promptName string, id string, manual bool) (model.ScheduledTaskRunResponse, error) {
+	startedAt := time.Now()
+	run, err := a.store.PrepareScheduledTaskRunInPrompt(promptName, id, manual, startedAt)
+	if err != nil {
+		return model.ScheduledTaskRunResponse{}, err
+	}
+	answer, runErr := a.completeWithOptionalTools(ctx, run.SessionID, run.Config, run.History)
+	result, finishErr := a.store.FinishScheduledTaskRun(run.PromptName, run.Task.ID, run.SessionID, answer, startedAt, manual, runErr)
+	if finishErr != nil {
+		return model.ScheduledTaskRunResponse{}, finishErr
+	}
+	if runErr != nil {
+		return result, runErr
+	}
+	return result, nil
+}
