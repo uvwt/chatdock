@@ -1215,3 +1215,220 @@ aside,
     margin-top: 0 !important;
   }
 }
+
+/* 2026-07 侧栏专项复审：手机抽屉按成熟聊天应用处理，列表更轻、更可扫读。 */
+@media (max-width: 720px) {
+  .sidebar-mask.show {
+    background: rgba(15, 23, 42, .38) !important;
+    backdrop-filter: blur(4px) saturate(120%) !important;
+  }
+
+  aside {
+    width: min(86vw, 348px) !important;
+    padding: calc(env(safe-area-inset-top, 0px) + 16px) 14px calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
+    border-right: 1px solid rgba(226, 232, 240, .92) !important;
+    border-radius: 0 26px 26px 0 !important;
+    background: #ffffff !important;
+    box-shadow: 20px 0 70px rgba(15, 23, 42, .20) !important;
+  }
+
+  aside .sidebar-head {
+    min-height: 50px !important;
+    padding: 0 2px 14px !important;
+    border-bottom: 0 !important;
+  }
+
+  aside .brand-logo {
+    flex: 0 0 42px !important;
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 14px !important;
+    font-size: 20px !important;
+    box-shadow: none !important;
+  }
+
+  aside .brand-text {
+    font-size: 19px !important;
+    font-weight: 850 !important;
+  }
+
+  aside .sub {
+    color: #94a3b8 !important;
+    font-size: 12px !important;
+    font-weight: 650 !important;
+  }
+
+  aside .sidebar-toggle {
+    width: 42px !important;
+    height: 42px !important;
+    flex-basis: 42px !important;
+    border-radius: 14px !important;
+    background: #f8fafc !important;
+    box-shadow: none !important;
+    font-size: 24px !important;
+  }
+
+  aside .prompt-box {
+    margin-bottom: 12px !important;
+  }
+
+  aside .workspace-picker-trigger {
+    min-height: 54px !important;
+    padding: 0 14px !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 18px !important;
+    background: #f8fafc !important;
+    box-shadow: none !important;
+  }
+
+  aside .workspace-picker-icon {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: #e0f2fe;
+    color: #0369a1 !important;
+    font-size: 16px !important;
+  }
+
+  aside .workspace-picker-name {
+    font-size: 15px !important;
+    font-weight: 800 !important;
+  }
+
+  aside .workspace-picker-meta {
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #64748b !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+  }
+
+  aside .workspace-picker-arrow {
+    color: #64748b !important;
+    font-size: 18px !important;
+  }
+
+  aside .session-search-row {
+    grid-template-columns: minmax(0, 1fr) 52px !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+  }
+
+  aside .session-search-box,
+  aside .new {
+    min-height: 52px !important;
+    border-radius: 18px !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 26px rgba(15, 23, 42, .04) !important;
+  }
+
+  aside .session-search-box {
+    padding: 0 14px !important;
+  }
+
+  aside .session-search-icon {
+    font-size: 20px !important;
+  }
+
+  aside .session-search {
+    font-size: 15px !important;
+    font-weight: 650 !important;
+  }
+
+  aside .new {
+    background: linear-gradient(135deg, #2563eb, #0f6bff) !important;
+    border-color: transparent !important;
+    color: #ffffff !important;
+  }
+
+  aside .new-symbol {
+    font-size: 30px !important;
+    font-weight: 350 !important;
+    transform: translateY(-1px);
+  }
+
+  aside #sessions {
+    display: grid !important;
+    gap: 7px !important;
+    padding: 2px 0 14px !important;
+  }
+
+  aside .session {
+    min-height: auto !important;
+    padding: 12px 13px !important;
+    border: 1px solid transparent !important;
+    border-radius: 16px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  aside .session::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  aside .session:hover {
+    background: #f8fafc !important;
+  }
+
+  aside .session.active {
+    border-color: #dbeafe !important;
+    background: linear-gradient(180deg, #eff6ff, #f8fbff) !important;
+    box-shadow: inset 3px 0 0 #2563eb !important;
+  }
+
+  aside .session-title {
+    display: -webkit-box;
+    overflow: hidden;
+    color: #0f172a !important;
+    font-size: 15px !important;
+    line-height: 1.28 !important;
+    font-weight: 780 !important;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  aside .session-preview,
+  aside .session-meta {
+    display: block !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #94a3b8 !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+
+  aside .session-preview {
+    margin-top: 5px !important;
+  }
+
+  aside .session-meta {
+    margin-top: 4px !important;
+  }
+
+  aside .pin-mark {
+    padding: 1px 5px !important;
+    border-radius: 999px !important;
+    background: #dbeafe !important;
+    color: #1d4ed8 !important;
+    font-size: 10px !important;
+    vertical-align: 1px;
+  }
+
+  .msg.assistant,
+  .msg.assistant.markdown {
+    padding-left: 0 !important;
+  }
+
+  .msg.assistant::before,
+  .msg.assistant.markdown::before {
+    content: none !important;
+    display: none !important;
+  }
+}
