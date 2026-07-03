@@ -1193,7 +1193,7 @@ export default function App() {
         <div className="prompt-box">
           <button className="workspace-picker-trigger" type="button" disabled={busy || !prompts.length} onClick={() => setWorkspacePickerOpen(true)}>
             <span className="workspace-picker-icon">▣</span>
-            <span className="workspace-picker-name">{activePrompt ? activePrompt.name : '未选择'}</span>
+            <span className="workspace-picker-name">{activePrompt ? (activePrompt.name === 'default' ? '默认工作区' : activePrompt.name) : '未选择'}</span>
             <span className="workspace-picker-meta">{activePrompt ? activePrompt.count : '暂无'}</span>
             <span className="workspace-picker-arrow">⌄</span>
           </button>

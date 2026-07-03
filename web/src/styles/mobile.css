@@ -562,3 +562,108 @@ aside,
     color: #0f766e;
   }
 }
+
+
+/* 手机侧栏二次校准：去掉重复 logo、隐藏列表杂项，避免图标压字。 */
+@media (max-width: 720px) {
+  aside .brand-text::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  aside .brand-logo {
+    flex-basis: 48px;
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    font-size: 24px;
+  }
+
+  aside .brand {
+    gap: 10px;
+  }
+
+  aside .brand-text {
+    font-size: 20px;
+  }
+
+  aside .sub {
+    max-width: 176px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  aside .sidebar-toggle {
+    flex-basis: 46px;
+    width: 46px;
+    height: 46px;
+    font-size: 28px;
+  }
+
+  aside .workspace-picker-trigger {
+    min-height: 56px;
+    padding: 0 16px;
+    border-radius: 17px;
+  }
+
+  aside .workspace-picker-name,
+  aside .workspace-picker-meta {
+    font-size: 17px;
+  }
+
+  aside .session-search-row {
+    grid-template-columns: minmax(0, 1fr) 58px;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  aside .session-search-box,
+  aside .new {
+    min-height: 58px;
+    border-radius: 17px;
+  }
+
+  aside #sessions {
+    gap: 0;
+  }
+
+  aside .session {
+    min-height: 58px;
+    padding: 14px 12px 14px 50px;
+    border-radius: 0;
+    border-left: 0 !important;
+    border-bottom: 1px solid rgba(226, 232, 240, .88);
+    box-shadow: none;
+  }
+
+  aside .session::before {
+    content: "";
+    left: 18px;
+    width: 15px;
+    height: 15px;
+    border: 2px solid #14a085;
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  aside .session.active {
+    border-radius: 12px;
+    border-bottom-color: transparent;
+    background: rgba(225, 245, 244, .95);
+  }
+
+  aside .session.active::before {
+    background: rgba(20, 160, 133, .12);
+  }
+
+  aside .session-title {
+    font-size: 18px;
+    line-height: 1.22;
+  }
+
+  aside .session-preview,
+  aside .session-meta {
+    display: none;
+  }
+}
