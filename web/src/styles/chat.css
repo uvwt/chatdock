@@ -667,3 +667,21 @@ body.theme-light .composer {
   flex-wrap: wrap;
   margin-top: 8px;
 }
+
+.tool-event.has-details .tool-event-main {
+  cursor: pointer;
+}
+
+.tool-event.has-details .tool-event-main:focus {
+  outline: 2px solid rgba(37, 99, 235, .45);
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+
+.tool-event.has-details:hover {
+  border-color: rgba(37, 99, 235, .38);
+}
+
+.tool-event-main {
+  min-width: 0;
+}

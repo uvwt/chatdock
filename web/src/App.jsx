@@ -43,6 +43,11 @@ function readableChatError(error, hasImageAttachment = false) {
   return raw.replace(/^model api failed:\s*/i, '');
 }
 
+function safeJSONStringify(value) {
+  try { return JSON.stringify(value, null, 2); }
+  catch { return String(value || ''); }
+}
+
 function contextPreviewText(data) {
   const lines = [];
   lines.push('工作空间：' + (data.workspace || '-'));
@@ -610,29 +615,29 @@ export default function App() {
       }
     } else if (event === 'tool_setup_ready') {
       setStreamStats(prev => ({...prev, events: prev.events + 1}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🧰 MCP 已接入：' + (data.tool_count || 0) + ' 个工具'}]}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🧰 MCP 已接入：' + (data.tool_count || 0) + ' 个工具', details:{event, data}}]}));
     } else if (event === 'tool_setup_error') {
       setStreamStats(prev => ({...prev, events: prev.events + 1, error: data.message || 'MCP 工具未接入'}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'⚠️ MCP 未接入：' + (data.message || '工具初始化失败')}]}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'⚠️ MCP 未接入：' + (data.message || '工具初始化失败'), details:{event, data}}]}));
     } else if (event === 'tool_call_start') {
       setStreamStats(prev => ({...prev, events: prev.events + 1, tools: prev.tools + 1}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🔧 开始调用：' + (data.tool || 'tool')}]}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🔧 开始调用：' + (data.tool || 'tool'), details:{event, tool:data.tool || '', arguments:data.arguments || {}, data}}]}));
     } else if (event === 'tool_call_result') {
       setStreamStats(prev => ({...prev, events: prev.events + 1}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🔧 ' + (data.ok ? '调用完成：' : '调用失败：') + (data.tool || 'tool')}]}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🔧 ' + (data.ok ? '调用完成：' : '调用失败：') + (data.tool || 'tool'), details:{event, tool:data.tool || '', ok:!!data.ok, result:data.result, error:data.error || '', data}}]}));
     } else if (event === 'tool_confirmation_required') {
       setStreamStats(prev => ({...prev, events: prev.events + 1, state:'paused'}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'confirm', text:'⏳ 等待确认工具：' + (data.tool || 'MCP 工具'), meta:'确认后模型会继续执行；拒绝则把拒绝结果返回给模型。', confirmation:data, status:'pending'}]}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'confirm', text:'⏳ 等待确认工具：' + (data.tool || 'MCP 工具'), meta:'确认后模型会继续执行；拒绝则把拒绝结果返回给模型。', confirmation:data, status:'pending', details:{event, tool:data.tool || '', arguments:data.arguments || {}, data}}]}));
     } else if (event === 'tool_confirmation_resolved') {
       setStreamStats(prev => ({...prev, events: prev.events + 1, state:'streaming'}));
       appendToActiveAssistant(m => ({...m, events:(m.events || []).map(item => item.confirmation?.id === data.id ? {...item, status:'resolved', text:(data.approved ? '✅ 已允许工具：' : '⛔ 已拒绝工具：') + (data.tool || item.confirmation?.tool || 'MCP 工具')} : item)}));
     } else if (event === 'job_cancelled') {
       setStreamStats(prev => ({...prev, events: prev.events + 1, state:'stopping'}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'⏹️ 已请求停止生成'}]}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'⏹️ 已请求停止生成', details:{event, data}}]}));
     } else if (event === 'run_event') {
       const meta = [runStatusLabel(data.status || ''), data.server, data.action, fmtDuration(data.duration_ms)].filter(Boolean).join(' · ');
       setStreamStats(prev => ({...prev, events: prev.events + 1}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'run', text:'🧭 ' + (data.summary || data.tool || 'MCP 工具事件'), meta}]}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'run', text:'🧭 ' + (data.summary || data.tool || 'MCP 工具事件'), meta, details:{event, tool:data.tool || '', arguments:data.arguments, result:data.result, error:data.error || '', duration_ms:data.duration_ms, data}}]}));
     } else if (event === 'run_finish') {
       loadRuns().catch(() => {});
       loadAgentTasks().catch(() => {});
@@ -665,7 +670,7 @@ export default function App() {
         pendingReasoningRef.current = '';
         abortRef.current = abort;
         setStreamStats({state:'streaming', started_at:Date.now(), chars:0, events:0, tools:0, error:''});
-        setMessages(prev => prev.some(m => m.role === 'assistant-stream') ? prev : [...prev, {role:'assistant-stream', answer:'', reasoning:'', events:[{kind:'tool', text:'↩️ 已恢复后台生成'}]}]);
+        setMessages(prev => prev.some(m => m.role === 'assistant-stream') ? prev : [...prev, {role:'assistant-stream', answer:'', reasoning:'', events:[{kind:'tool', text:'↩️ 已恢复后台生成', details:{event:'resume_running_job', job}}]}]);
         let finalSession = null;
         await streamChatJobEvents({jobID: job.id, authHeaders, signal: abort.signal, onEvent: (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; })});
         if (finalSession && !stopped) {
@@ -1083,6 +1088,13 @@ export default function App() {
     } catch (e) { await loadScheduledTasks().catch(() => {}); showToast('运行失败：' + e.message, 'error'); }
   }, [api, closeSettings, loadScheduledTasks, loadSessions, refreshProductState, scheduledTasks, showDialog, showToast]);
 
+  const inspectToolEvent = useCallback(async (event) => {
+    if (!event?.details) return;
+    const title = event.text || '工具事件详情';
+    const body = safeJSONStringify(event.details);
+    await showDialog({title:'工具事件详情', message:title, confirmText:'关闭', hideCancel:true, fields:[{name:'details', label:'参数、响应与原始事件', type:'textarea', rows:18, value:body}]});
+  }, [showDialog]);
+
   const showContextPreview = useCallback(async () => {
     if (!current) return;
     try {
@@ -1211,7 +1223,7 @@ export default function App() {
             <button className="danger" onClick={deleteCurrent} disabled={!current || busy}>删除</button>
           </div>
         </div>
-        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
+        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
         <div className="composer-shell">
         {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} /> : null}
         <div className="composer">

@@ -41,7 +41,7 @@ function ReasoningBlock({ value, streaming = false, hidden = false }) {
   </section>;
 }
 
-export function MessageView({ message, onCopy, hideThinking = true, onResolveConfirmation }) {
+export function MessageView({ message, onCopy, hideThinking = true, onResolveConfirmation, onInspectToolEvent }) {
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
   if (message.role === 'assistant-stream') {
     const reasoning = hideThinking ? '' : message.reasoning;
@@ -49,10 +49,15 @@ export function MessageView({ message, onCopy, hideThinking = true, onResolveCon
       <MessageActions text={[reasoning, message.answer].filter(Boolean).join('\n\n')} onCopy={onCopy} />
       <ReasoningBlock value={message.reasoning} streaming hidden={hideThinking} />
       <Markdown className="answer markdown" value={message.answer} />
-      {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline' : '')}>
-        <div>{event.text}</div>
-        {event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}
-        {event.confirmation && event.status !== 'resolved' ? <div className="tool-event-actions"><button className="secondary small" onClick={() => onResolveConfirmation?.(event.confirmation.id, true)}>允许一次</button><button className="danger small" onClick={() => onResolveConfirmation?.(event.confirmation.id, false)}>拒绝</button></div> : null}
+      {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline' : '') + (event.details ? ' has-details' : '')}>
+        <div className="tool-event-main" onClick={() => event.details ? onInspectToolEvent?.(event) : null} role={event.details ? 'button' : undefined} tabIndex={event.details ? 0 : undefined} onKeyDown={e => { if (event.details && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onInspectToolEvent?.(event); } }}>
+          <div>{event.text}</div>
+          {event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}
+        </div>
+        <div className="tool-event-actions">
+          {event.details ? <button className="secondary small" type="button" onClick={() => onInspectToolEvent?.(event)}>详情</button> : null}
+          {event.confirmation && event.status !== 'resolved' ? <><button className="secondary small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, true)}>允许一次</button><button className="danger small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, false)}>拒绝</button></> : null}
+        </div>
       </div>)}
     </div>;
   }
