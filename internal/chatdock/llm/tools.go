@@ -1,4 +1,4 @@
-package chatdock
+package llm
 
 import (
 	"bytes"
@@ -204,6 +204,10 @@ func BuildChatMessagesAny(cfg ModelConfig, history []Message) []map[string]any {
 		messages = append(messages, map[string]any{"role": item.Role, "content": messageContentForModel(item)})
 	}
 	return messages
+}
+
+func FirstNonEmptyString(values ...string) string {
+	return firstNonEmptyString(values...)
 }
 
 func firstNonEmptyString(values ...string) string {

@@ -51,7 +51,7 @@ func (a *App) handleMCPStatus(w http.ResponseWriter, r *http.Request) {
 			URL:          server.URL,
 			Disabled:     server.Disabled,
 			AuthType:     server.Auth.Type,
-			HasToken:     server.bearerToken() != "",
+			HasToken:     server.BearerToken() != "",
 			AllowCount:   len(server.AllowTools),
 			DenyCount:    len(server.DenyTools),
 			ConfirmCount: len(server.ConfirmTools),

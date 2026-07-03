@@ -1,7 +1,8 @@
-package chatdock
+package mcp
 
 import (
 	"bytes"
+	"chatdock/internal/chatdock/model"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -53,14 +54,7 @@ type MCPAuthConfig struct {
 	TokenEnv string `json:"token_env"`
 }
 
-type MCPTool struct {
-	Server      string         `json:"server"`
-	Name        string         `json:"name"`
-	FullName    string         `json:"full_name"`
-	Title       string         `json:"title,omitempty"`
-	Description string         `json:"description,omitempty"`
-	InputSchema map[string]any `json:"input_schema,omitempty"`
-}
+type MCPTool = model.MCPTool
 
 type MCPToolCallRequest struct {
 	Name      string         `json:"name"`
@@ -83,6 +77,10 @@ type mcpJSONRPCError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    any    `json:"data,omitempty"`
+}
+
+func DefaultMCPConfig() string {
+	return "{\n  \"servers\": {}\n}\n"
 }
 
 func ParseMCPConfig(content string) (MCPConfig, error) {
@@ -280,6 +278,10 @@ func cloneTools(tools []MCPTool) []MCPTool {
 	return out
 }
 
+func (s MCPServerConfig) BearerToken() string {
+	return s.bearerToken()
+}
+
 func (s MCPServerConfig) bearerToken() string {
 	if !strings.EqualFold(strings.TrimSpace(s.Auth.Type), "bearer") {
 		return ""
@@ -309,6 +311,10 @@ func (s MCPServerConfig) allowsTool(toolName, fullName string) bool {
 		return true
 	}
 	return matchesAny(toolName, fullName, s.AllowTools)
+}
+
+func (s MCPServerConfig) RequiresConfirmation(toolName, fullName string) bool {
+	return s.requiresConfirmation(toolName, fullName)
 }
 
 func (s MCPServerConfig) requiresConfirmation(toolName, fullName string) bool {
@@ -343,8 +349,24 @@ func matchToolPattern(value, pattern string) bool {
 	return false
 }
 
+func ToolFullName(serverName, toolName string) string {
+	return toolFullName(serverName, toolName)
+}
+
+func CompactJSON(value any) string {
+	return compactJSON(value)
+}
+
+func NormalizeJSONSchema(schema map[string]any) map[string]any {
+	return normalizeJSONSchema(schema)
+}
+
 func toolFullName(serverName, toolName string) string {
 	return safeToolName(serverName) + "__" + safeToolName(toolName)
+}
+
+func SplitToolFullName(fullName string) (string, string) {
+	return splitToolFullName(fullName)
 }
 
 func splitToolFullName(fullName string) (string, string) {

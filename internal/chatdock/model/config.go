@@ -1,4 +1,4 @@
-package chatdock
+package model
 
 import "strings"
 

@@ -1,4 +1,4 @@
-package chatdock
+package llm
 
 import (
 	"bufio"
@@ -272,6 +272,10 @@ func parseStreamDelta(data string) (StreamDelta, error) {
 	return chunk.Choices[0].Delta, nil
 }
 
+// ContextMessage 是模型上下文预览和请求构建共用的内部消息形态。
+// 导出这个轻量类型，是为了让 App 层能展示上下文预览，但不接触 LLM 请求细节。
+type ContextMessage = chatContextMessage
+
 type chatContextMessage struct {
 	Role             string
 	Content          string
@@ -285,6 +289,10 @@ func BuildChatMessages(cfg ModelConfig, history []Message) []map[string]string {
 		messages = append(messages, map[string]string{"role": item.Role, "content": item.Content})
 	}
 	return messages
+}
+
+func BuildChatContextMessages(cfg ModelConfig, history []Message) []ContextMessage {
+	return buildChatContextMessages(cfg, history)
 }
 
 func buildChatContextMessages(cfg ModelConfig, history []Message) []chatContextMessage {
@@ -326,6 +334,10 @@ func messageContentForModel(item chatContextMessage) any {
 	}
 	blocks = append(blocks, images...)
 	return blocks
+}
+
+func ContextPlan(cfg ModelConfig) (int, bool) {
+	return contextPlan(cfg)
 }
 
 func contextPlan(cfg ModelConfig) (int, bool) {
@@ -382,6 +394,10 @@ func summarizeEarlierContext(history []Message) string {
 	return "# 早期会话摘要\n\n以下内容由 ChatDock 自动从更早的会话历史提炼，用于延续上下文；最近消息仍保留原文。\n" + strings.Join(lines, "\n")
 }
 
+func ContextRoleLabel(role string) string {
+	return contextRoleLabel(role)
+}
+
 func contextRoleLabel(role string) string {
 	switch role {
 	case "user":
@@ -395,6 +411,10 @@ func contextRoleLabel(role string) string {
 	}
 }
 
+func CompactContextText(content string, limit int) string {
+	return compactContextText(content, limit)
+}
+
 func compactContextText(content string, limit int) string {
 	content = strings.Join(strings.Fields(strings.TrimSpace(content)), " ")
 	runes := []rune(content)
@@ -402,6 +422,10 @@ func compactContextText(content string, limit int) string {
 		return content
 	}
 	return string(runes[:limit]) + "..."
+}
+
+func BuildSystemPrompt(cfg ModelConfig) string {
+	return buildSystemPrompt(cfg)
 }
 
 func buildSystemPrompt(cfg ModelConfig) string {

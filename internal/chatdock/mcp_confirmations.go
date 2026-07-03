@@ -28,7 +28,7 @@ type MCPConfirmationResolveRequest struct {
 func mcpToolNeedsConfirmation(cfg MCPConfig, fullName string) bool {
 	serverName, toolName := splitToolFullName(fullName)
 	server, ok := cfg.Servers[serverName]
-	return ok && server.requiresConfirmation(toolName, fullName)
+	return ok && server.RequiresConfirmation(toolName, fullName)
 }
 
 func (a *App) requestMCPConfirmation(ctx context.Context, sessionID string, tool string, args map[string]any, emit func(string, any) error) error {
