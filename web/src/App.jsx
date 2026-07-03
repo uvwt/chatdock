@@ -1187,23 +1187,22 @@ export default function App() {
     {settingsOpen ? <div id="settingsPage" className="settings-page">{settingsPanel}</div> : <div id="app" className={appClass}>
       <aside>
         <div className="sidebar-head">
-          <div className="brand"><span className="brand-text">ChatDock</span><div className="sub">本地优先 AI 工作台</div></div>
+          <div className="brand"><span className="brand-logo">✦</span><div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">本地优先的 AI 工作台</div></div></div>
           <button id="sidebarToggle" className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}>{sidebarCollapsed ? '›' : '‹'}</button>
         </div>
         <div className="prompt-box">
-          <label>工作空间</label>
-          <div className="prompt-row">
-            <button className="workspace-picker-trigger" type="button" disabled={busy || !prompts.length} onClick={() => setWorkspacePickerOpen(true)}>
-              <span className="workspace-picker-name">{activePrompt ? activePrompt.name : '未选择'}</span>
-              <span className="workspace-picker-meta">{activePrompt ? activePrompt.count + ' 条' : '暂无工作空间'}</span>
-              <span className="workspace-picker-arrow">⌄</span>
-            </button>
-            <button className="prompt-add" disabled={busy} onClick={createWorkspace}>+</button>
-          </div>
+          <button className="workspace-picker-trigger" type="button" disabled={busy || !prompts.length} onClick={() => setWorkspacePickerOpen(true)}>
+            <span className="workspace-picker-icon">▣</span>
+            <span className="workspace-picker-name">{activePrompt ? activePrompt.name : '未选择'}</span>
+            <span className="workspace-picker-meta">{activePrompt ? activePrompt.count : '暂无'}</span>
+            <span className="workspace-picker-arrow">⌄</span>
+          </button>
         </div>
-        <input className="session-search" placeholder="搜索会话全文" value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} />
+        <div className="session-search-row">
+          <label className="session-search-box"><span className="session-search-icon">⌕</span><input className="session-search" placeholder="搜索聊天记录" value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} /></label>
+          <button className="new" disabled={busy} onClick={newSession}><span className="new-symbol">+</span><span className="new-label">新会话</span></button>
+        </div>
         {sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : '全文搜索 ' + filteredSessions.length + ' 条'}</div> : null}
-        <button className="new" disabled={busy} onClick={newSession}>+ <span className="new-label">新会话</span></button>
         <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => <div key={s.id} className={'session ' + (current === s.id ? 'active ' : '') + (s.pinned ? 'pinned' : '')} onClick={() => openSession(s.id)}><div className="session-title">{s.pinned ? <span className="pin-mark">置顶</span> : null}{s.title}</div>{s.match_snippet ? <div className="session-preview search-hit">{s.match_field ? s.match_field + '：' : ''}{s.match_snippet}</div> : (s.preview ? <div className="session-preview">{s.preview}</div> : null)}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div>) : <div className="empty compact">没有匹配会话</div>}</div>
       </aside>
       <main>
