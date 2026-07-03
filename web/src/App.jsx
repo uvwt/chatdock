@@ -994,9 +994,23 @@ export default function App() {
     {id:'theme', title:'切换明暗主题', hint:'当前：' + (theme === 'day' ? '白天' : '夜晚'), run:() => setThemeState(theme === 'day' ? 'night' : 'day')},
   ], [busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, exportCurrent, openSettings, pinCurrent, productDiagnostics, prompts.length, renameCurrent, sendMsg, theme]);
 
+  const settingsPanel = (
+    <SettingsPanel
+      activeModule={activeModule} busy={busy} closeSettings={closeSettings} config={config} continueAgentTask={continueAgentTask}
+      createWorkspace={createWorkspace} dataStatus={dataStatus} deleteScheduledTask={deleteScheduledTask} deleteSkill={deleteSkill} deleteWorkspace={deleteWorkspace}
+      editScheduledTask={editScheduledTask} editSkill={editSkill} loadAgentTasks={loadAgentTasks} loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig}
+      loadMCPStatus={loadMCPStatus} loadRuns={loadRuns} loadScheduledTasks={loadScheduledTasks} loadSkills={loadSkills} loadSystemStatus={loadSystemStatus}
+      mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers} promptPreview={promptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
+      runScheduledTaskNow={runScheduledTaskNow} runSetupWizard={runSetupWizard} runs={runs} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
+      scheduledTasks={scheduledTasks} selectWorkspace={selectWorkspace} setConfig={setConfig} setMcpConfig={setMcpConfig} setTaskSearch={setTaskSearch}
+      setupStatus={setupStatus} showPromptPreview={showPromptPreview} skillSearch={skillSearch} skills={skills} switchSettingsModule={switchSettingsModule}
+      systemStatus={systemStatus} taskSearch={taskSearch} testMCP={testMCP} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} loadingModels={loadingModels} toggleScheduledTask={toggleScheduledTask}
+      toggleSkill={toggleSkill} workspaces={workspaces} agentTasks={agentTasks} setSkillSearch={setSkillSearch} logout={logout}
+    />
+  );
+
   return <>
-    <div id="sidebarMask" className={'sidebar-mask ' + (!sidebarCollapsed ? 'show' : '')} onClick={() => setSidebarCollapsed(true)} />
-    <div id="settingsMask" className={'settings-mask ' + (settingsOpen ? 'show' : '')} onClick={() => closeSettings()} />
+    <div id="sidebarMask" className={'sidebar-mask ' + (!settingsOpen && !sidebarCollapsed ? 'show' : '')} onClick={() => setSidebarCollapsed(true)} />
     <div className={'session-actions-backdrop ' + (sessionActionsOpen ? 'show' : '')} onClick={() => setSessionActionsOpen(false)}>
       <div className="session-actions-sheet" onClick={e => e.stopPropagation()}>
         <div className="session-actions-head"><b>会话操作</b><button className="secondary small" onClick={() => setSessionActionsOpen(false)}>关闭</button></div>
@@ -1008,7 +1022,7 @@ export default function App() {
         <button className="danger" disabled={!current || busy} onClick={() => { setSessionActionsOpen(false); deleteCurrent(); }}>删除会话</button>
       </div>
     </div>
-    <div id="app" className={appClass}>
+    {settingsOpen ? <div id="settingsPage" className="settings-page">{settingsPanel}</div> : <div id="app" className={appClass}>
       <aside>
         <div className="sidebar-head">
           <div className="brand"><span className="brand-text">ChatDock</span><div className="sub">本地优先 AI 工作台</div></div>
@@ -1061,19 +1075,8 @@ export default function App() {
         <div className="composer-meta">{inputStats}</div>
         </div>
       </main>
-      <SettingsPanel
-        activeModule={activeModule} busy={busy} closeSettings={closeSettings} config={config} continueAgentTask={continueAgentTask}
-        createWorkspace={createWorkspace} dataStatus={dataStatus} deleteScheduledTask={deleteScheduledTask} deleteSkill={deleteSkill} deleteWorkspace={deleteWorkspace}
-        editScheduledTask={editScheduledTask} editSkill={editSkill} loadAgentTasks={loadAgentTasks} loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig}
-        loadMCPStatus={loadMCPStatus} loadRuns={loadRuns} loadScheduledTasks={loadScheduledTasks} loadSkills={loadSkills} loadSystemStatus={loadSystemStatus}
-        mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers} promptPreview={promptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
-        runScheduledTaskNow={runScheduledTaskNow} runSetupWizard={runSetupWizard} runs={runs} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
-        scheduledTasks={scheduledTasks} selectWorkspace={selectWorkspace} setConfig={setConfig} setMcpConfig={setMcpConfig} setTaskSearch={setTaskSearch}
-        setupStatus={setupStatus} showPromptPreview={showPromptPreview} skillSearch={skillSearch} skills={skills} switchSettingsModule={switchSettingsModule}
-        systemStatus={systemStatus} taskSearch={taskSearch} testMCP={testMCP} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} loadingModels={loadingModels} toggleScheduledTask={toggleScheduledTask}
-        toggleSkill={toggleSkill} workspaces={workspaces} agentTasks={agentTasks} setSkillSearch={setSkillSearch} logout={logout}
-      />
-    </div>
+
+    </div>}
     <WorkspacePicker open={workspacePickerOpen} prompts={prompts} busy={busy} activeName={activePrompt?.name || ''} onClose={() => setWorkspacePickerOpen(false)} onSelect={selectWorkspace} />
     <QuickPalette open={quickPaletteOpen} actions={quickActions} onClose={() => setQuickPaletteOpen(false)} />
     {authPage ? <LoginPage api={api} error={authPage} refreshAfterLogin={refreshAfterLogin} setAuthPage={setAuthPage} /> : null}

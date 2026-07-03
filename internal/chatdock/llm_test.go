@@ -171,6 +171,82 @@ func TestCompleteWithMCPToolsEventsStreamsWhenNoToolCall(t *testing.T) {
 	}
 }
 
+func TestCompleteWithMCPToolsEventsAllowsMultipleToolRoundsBeforeStreaming(t *testing.T) {
+	requestCount := 0
+	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		switch requestCount {
+		case 1:
+			if body["stream"] != false {
+				t.Fatalf("first request should be tool decision, got %#v", body["stream"])
+			}
+			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"call_1","type":"function","function":{"name":"first_tool","arguments":"{\"step\":1}"}}]}}]}`))
+		case 2:
+			if body["stream"] != false {
+				t.Fatalf("second request should still be non-stream tool decision, got %#v", body["stream"])
+			}
+			messages := body["messages"].([]any)
+			last := messages[len(messages)-1].(map[string]any)
+			if last["role"] != "tool" || last["name"] != "first_tool" {
+				t.Fatalf("second request should include first tool result, got %#v", last)
+			}
+			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"call_2","type":"function","function":{"name":"second_tool","arguments":"{\"step\":2}"}}]}}]}`))
+		case 3:
+			if body["stream"] != false {
+				t.Fatalf("third request should decide no more tools before streaming, got %#v", body["stream"])
+			}
+			messages := body["messages"].([]any)
+			last := messages[len(messages)-1].(map[string]any)
+			if last["role"] != "tool" || last["name"] != "second_tool" {
+				t.Fatalf("third request should include second tool result, got %#v", last)
+			}
+			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"ready to stream"}}]}`))
+		case 4:
+			if body["stream"] != true {
+				t.Fatalf("fourth request should stream final answer, got %#v", body["stream"])
+			}
+			if _, ok := body["tools"]; ok {
+				t.Fatal("final stream request should not include tools")
+			}
+			w.Header().Set("Content-Type", "text/event-stream")
+			flusher := w.(http.Flusher)
+			_, _ = w.Write([]byte(`data: {"choices":[{"delta":{"content":"完成"}}]}` + "\n\n"))
+			flusher.Flush()
+			_, _ = w.Write([]byte("data: [DONE]\n\n"))
+			flusher.Flush()
+		default:
+			t.Fatalf("unexpected request %d", requestCount)
+		}
+	}))
+	defer model.Close()
+
+	client := NewChatClient()
+	cfg := ModelConfig{BaseURL: model.URL, Model: "fake", HideThinking: true}
+	tools := []MCPTool{{Name: "noop", FullName: "noop", Description: "noop", InputSchema: map[string]any{"type": "object"}}}
+	var called []string
+	answer, err := client.CompleteWithMCPToolsEvents(context.Background(), cfg, []Message{{Role: "user", Content: "hi"}}, tools, func(name string, args map[string]any) (any, error) {
+		called = append(called, name)
+		return map[string]any{"name": name, "args": args}, nil
+	}, func(kind string, payload any) error { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if answer != "完成" {
+		t.Fatalf("unexpected streamed answer: %q", answer)
+	}
+	if requestCount != 4 {
+		t.Fatalf("expected four model requests, got %d", requestCount)
+	}
+	if len(called) != 2 || called[0] != "first_tool" || called[1] != "second_tool" {
+		t.Fatalf("expected two tool rounds, got %#v", called)
+	}
+}
+
 func TestAppendMCPToolUseHint(t *testing.T) {
 	messages := []map[string]any{{"role": "system", "content": "base"}, {"role": "user", "content": "hi"}}
 	out := appendMCPToolUseHint(messages, []MCPTool{{Name: "read", FullName: "agentdock__read"}})

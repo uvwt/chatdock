@@ -40,7 +40,7 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg ModelCo
 		}
 		return c.Complete(ctx, cfg, history)
 	}
-	for round := 0; round < 4; round++ {
+	for round := 0; round < 8; round++ {
 		resp, err := c.completeChatWithRawMessages(ctx, cfg, messages, openAITools)
 		if err != nil {
 			return "", err
@@ -56,7 +56,6 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg ModelCo
 			return answer, nil
 		}
 		messages = append(messages, map[string]any{"role": "assistant", "content": resp.Content, "tool" + "_calls": encodeModelToolCalls(resp.ToolCalls)})
-		streamFinalAfterTools := emit != nil
 		for index, tc := range resp.ToolCalls {
 			args := map[string]any{}
 			if strings.TrimSpace(tc.Function.Arguments) != "" {
@@ -81,9 +80,9 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg ModelCo
 			}
 			messages = append(messages, map[string]any{"role": "tool", "tool" + "_call_id": id, "name": tc.Function.Name, "content": compactJSON(payload)})
 		}
-		if streamFinalAfterTools {
-			return c.StreamRawMessages(ctx, cfg, messages, func(delta StreamDelta) error { return emit("delta", delta) })
-		}
+		// 不要在第一轮工具结果后直接进入最终流式回答。
+		// 复杂任务常常需要 template_match -> template_get -> execute 这种多轮工具链；
+		// 提前切成无 tools 的最终回答，会让模型只能说“现在读取完整定义”却无法继续调用工具。
 	}
 	return "", fmt.Errorf("too many tool rounds")
 }
