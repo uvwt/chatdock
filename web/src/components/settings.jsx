@@ -41,7 +41,20 @@ function moduleLabel(m) {
 function ModuleView({ name, activeModule, children }) { return <div className={'module-view ' + (activeModule === name ? 'active' : '')} data-module-view={name}>{children}</div>; }
 
 function WorkspaceModule({ setupStatus, workspaces, createWorkspace, selectWorkspace, deleteWorkspace, runSetupWizard }) {
+  const activeWorkspace = workspaces.find(ws => ws.active) || workspaces[0] || {};
+  const totals = workspaces.reduce((acc, ws) => ({
+    sessions: acc.sessions + Number(ws.session_count || 0),
+    skills: acc.skills + Number(ws.enabled_skill_count || 0),
+    tasks: acc.tasks + Number(ws.task_count || 0),
+  }), {sessions: 0, skills: 0, tasks: 0});
+  const summaryItems = [
+    ['当前工作空间', setupStatus?.active_workspace || activeWorkspace.name || '-'],
+    ['工作空间', String(workspaces.length || 0)],
+    ['会话总数', String(totals.sessions)],
+    ['启用技能 / 任务', totals.skills + ' / ' + totals.tasks],
+  ];
   return <>
+    <div className="workspace-summary-grid">{summaryItems.map(([label, value]) => <div className="workspace-summary-card" key={label}><span>{label}</span><b>{value}</b></div>)}</div>
     <div className={'setup-banner show ' + (setupStatus && !setupStatus.needs_setup ? 'ok' : '')}>{setupStatus?.needs_setup ? <><div><b>首次配置未完成</b><div className="hint">请配置模型供应商和默认工作空间，完成后即可开始对话。</div></div><button className="small" onClick={runSetupWizard}>开始引导</button></> : <div><b>系统已就绪</b><div className="hint">当前工作空间：{setupStatus?.active_workspace || '-'} · 数据目录：{setupStatus?.data_dir || '-'}</div></div>}</div>
     <div className="settings-block-head"><label>工作空间概览</label><button className="secondary small" onClick={createWorkspace}>新增工作空间</button></div>
     <div id="workspaceCards">{workspaces.length ? workspaces.map(ws => <TextCard key={ws.id || ws.name} title={ws.name} hint={ws.description || ''} badge={ws.active ? '当前' : '可切换'} active={ws.active}><div className="product-meta">模型：{ws.model || '-'} · 会话 {ws.session_count || 0} · 技能 {ws.enabled_skill_count || 0}/{ws.skill_count || 0} · 任务 {ws.task_count || 0}</div><div className="product-actions">{!ws.active ? <button className="secondary small" onClick={() => selectWorkspace(ws.id || ws.name)}>切换到此工作空间</button> : null}{(ws.id || ws.name) !== 'default' && workspaces.length > 1 ? <button className="danger small" onClick={() => deleteWorkspace(ws.id || ws.name, ws.name || ws.id)}>{ws.active ? '删除当前工作空间' : '删除'}</button> : null}</div></TextCard>) : <div className="empty compact">还没有工作空间，请创建第一个工作空间。</div>}</div>

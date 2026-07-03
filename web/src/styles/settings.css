@@ -1431,3 +1431,140 @@ body.theme-light .mcp-inline-warning.danger {
   .settings-page .settings { grid-template-columns: 300px minmax(0, 1fr); }
   .settings-page .module-view.active { padding: 30px; }
 }
+
+/* 2026-07 前端美化收尾：配置中心更像独立控制台，先给用户扫一眼关键状态。 */
+.workspace-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 2px 0 18px;
+}
+
+.workspace-summary-card {
+  position: relative;
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--gpt-border);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(16, 163, 127, .12), transparent 34%),
+    var(--gpt-surface-2);
+}
+
+.workspace-summary-card span {
+  display: block;
+  color: var(--gpt-muted);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: .02em;
+}
+
+.workspace-summary-card b {
+  display: block;
+  min-width: 0;
+  margin-top: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gpt-text);
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -.03em;
+}
+
+@media (min-width: 1040px) {
+  .settings-page .settings-header {
+    overflow: hidden;
+  }
+
+  .settings-page .settings-header::after {
+    content: "";
+    position: absolute;
+    right: 18%;
+    bottom: -70px;
+    width: 340px;
+    height: 150px;
+    pointer-events: none;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(45, 212, 191, .18), transparent 68%);
+  }
+
+  .settings-page .settings-header > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .settings-page .module-view.active {
+    min-height: calc(100dvh - 222px);
+  }
+
+  .settings-page .workspace-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+
+  .settings-page .workspace-summary-card {
+    padding: 20px 22px;
+    border-color: #dbe4f0;
+    border-radius: 16px;
+    background:
+      radial-gradient(circle at 86% 10%, rgba(37, 99, 235, .10), transparent 32%),
+      linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,250,252,.86));
+    box-shadow: 0 12px 30px rgba(15, 23, 42, .05);
+  }
+
+  .settings-page .workspace-summary-card span {
+    color: #64748b;
+    font-size: 13px;
+  }
+
+  .settings-page .workspace-summary-card b {
+    color: #0f172a;
+    font-size: 24px;
+  }
+
+  .settings-page #workspaceCards .product-card,
+  .settings-page .provider-grid .product-card,
+  .settings-page .skill-card,
+  .settings-page .task-card,
+  .settings-page .mcp-status-grid .product-card {
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+  }
+
+  .settings-page #workspaceCards .product-card:hover,
+  .settings-page .provider-grid .product-card:hover,
+  .settings-page .skill-card:hover,
+  .settings-page .task-card:hover,
+  .settings-page .mcp-status-grid .product-card:hover {
+    transform: translateY(-2px);
+    border-color: #bfdbfe;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, .08);
+  }
+
+  .settings-page .product-actions {
+    margin-top: 18px;
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .workspace-summary-card {
+    padding: 13px 14px;
+    border-radius: 16px;
+  }
+
+  .workspace-summary-card b {
+    font-size: 18px;
+  }
+}
+
+@media (min-width: 1040px) {
+  .settings-page .settings-header {
+    position: relative;
+  }
+}
