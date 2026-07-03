@@ -49,9 +49,9 @@ export function EmptyState({ createSession, openSettings, openWorkspacePicker, b
   return <div className="empty-state product-empty-state">
     <section className="product-hero">
       <div className="hero-copy">
-        <div className="empty-state-kicker"><span className="kicker-dot" /> ChatDock · Local-first AI Workspace</div>
-        <h1>把会话、模型、工具和自动化放进一个工作台</h1>
-        <p>为本地优先的 AI 工作流设计：会话不只是聊天窗口，模型配置、MCP 工具、技能、任务记录和数据状态都能在同一个界面里闭环。</p>
+        <div className="empty-state-kicker"><span className="kicker-dot" /> ChatDock 工作台</div>
+        <h1>今天想完成什么？</h1>
+        <p>从一个会话开始，把模型配置、工具调用、任务记录和数据状态收在同一个工作流里。</p>
         <div className="empty-state-actions hero-actions">
           <button disabled={busy || !modelReady} onClick={createSession}>{modelReady ? '开始新会话' : '先配置模型'}</button>
           <button className="secondary" onClick={() => openSettings('model')}>{modelReady ? '检查模型' : '配置模型'}</button>
@@ -62,10 +62,10 @@ export function EmptyState({ createSession, openSettings, openWorkspacePicker, b
         </div>
       </div>
       <div className="hero-panel" aria-label="ChatDock 工作台能力概览">
-        <div className="hero-panel-top"><span>今日工作台</span><b>Ready</b></div>
-        <div className="hero-metric-row"><div><b>会话</b><span>多工作空间管理</span></div><strong>∞</strong></div>
-        <div className="hero-metric-row"><div><b>模型</b><span>OpenAI 兼容配置</span></div><strong>API</strong></div>
-        <div className="hero-metric-row"><div><b>工具</b><span>MCP / Skill / 自动化</span></div><strong>Live</strong></div>
+        <div className="hero-panel-top"><span>当前流程</span><b>Ready</b></div>
+        <div className="hero-metric-row"><div><b>1. 开始</b><span>新建会话，保留上下文</span></div><strong>↵</strong></div>
+        <div className="hero-metric-row"><div><b>2. 调用</b><span>模型、MCP、Skill 统一入口</span></div><strong>⌘K</strong></div>
+        <div className="hero-metric-row"><div><b>3. 追踪</b><span>任务、数据和运行记录可复查</span></div><strong>✓</strong></div>
       </div>
     </section>
     <section className="starter-grid">
