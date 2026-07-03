@@ -1231,7 +1231,7 @@ export default function App() {
           <button className="secondary quick-control" disabled={busy} onClick={() => sendMsg('继续')}>继续</button>
           {busy ? <button className="secondary stream-control" onClick={toggleStreamPause}>{streamPaused ? '继续' : '暂停'}</button> : null}
           {busy ? <button className="danger stream-control" onClick={stopStreaming}>中断</button> : null}
-          <textarea ref={inputRef} id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendMsg(); } }} placeholder="输入消息，Enter 发送；点击 + 上传文件" />
+          <textarea ref={inputRef} id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendMsg(); } }} placeholder="输入消息" />
           <button id="send" disabled={busy || uploadingFiles || (!input.trim() && !pendingAttachmentIDs.length) || !modelReady} onClick={() => sendMsg()} title={!modelReady ? '请先配置模型' : '发送'}>发送</button>
         </div>
         <div className="composer-meta">{inputStats}</div>
