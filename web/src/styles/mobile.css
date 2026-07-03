@@ -1186,3 +1186,32 @@ aside,
     transform: translateY(-1px);
   }
 }
+
+
+/* 2026-07 多截图复审补齐：移动端顶部只留三枚快捷按钮，输入区去掉辅助文案。 */
+@media (max-width: 720px) {
+  .top-actions .theme-toggle {
+    display: none !important;
+  }
+
+  .composer-meta {
+    display: none !important;
+  }
+
+  .composer-shell {
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .messages {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .reasoning-toggle {
+    justify-content: space-between !important;
+  }
+
+  .msg.assistant .markdown > :first-child,
+  .msg.assistant.markdown > :first-child {
+    margin-top: 0 !important;
+  }
+}
