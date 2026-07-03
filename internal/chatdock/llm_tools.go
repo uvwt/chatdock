@@ -40,7 +40,7 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg ModelCo
 		}
 		return c.Complete(ctx, cfg, history)
 	}
-	for round := 0; round < 8; round++ {
+	for {
 		resp, err := c.completeChatWithRawMessages(ctx, cfg, messages, openAITools)
 		if err != nil {
 			return "", err
@@ -84,7 +84,6 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg ModelCo
 		// 复杂任务常常需要 template_match -> template_get -> execute 这种多轮工具链；
 		// 提前切成无 tools 的最终回答，会让模型只能说“现在读取完整定义”却无法继续调用工具。
 	}
-	return "", fmt.Errorf("too many tool rounds")
 }
 
 func appendMCPToolUseHint(messages []map[string]any, tools []MCPTool) []map[string]any {

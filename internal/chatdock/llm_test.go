@@ -247,6 +247,64 @@ func TestCompleteWithMCPToolsEventsAllowsMultipleToolRoundsBeforeStreaming(t *te
 	}
 }
 
+func TestCompleteWithMCPToolsEventsHasNoFixedRoundCap(t *testing.T) {
+	requestCount := 0
+	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if requestCount <= 9 {
+			if body["stream"] != false {
+				t.Fatalf("tool decision request %d should be non-stream, got %#v", requestCount, body["stream"])
+			}
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"call_%d","type":"function","function":{"name":"loop_tool","arguments":"{\"round\":%d}"}}]}}]}`, requestCount, requestCount)))
+			return
+		}
+		if requestCount == 10 {
+			if body["stream"] != false {
+				t.Fatalf("final decision should still be non-stream, got %#v", body["stream"])
+			}
+			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"ready"}}]}`))
+			return
+		}
+		if requestCount == 11 {
+			if body["stream"] != true {
+				t.Fatalf("final answer should stream, got %#v", body["stream"])
+			}
+			w.Header().Set("Content-Type", "text/event-stream")
+			flusher := w.(http.Flusher)
+			_, _ = w.Write([]byte(`data: {"choices":[{"delta":{"content":"完成"}}]}` + "\n\n"))
+			flusher.Flush()
+			_, _ = w.Write([]byte("data: [DONE]\n\n"))
+			flusher.Flush()
+			return
+		}
+		t.Fatalf("unexpected request %d", requestCount)
+	}))
+	defer model.Close()
+
+	client := NewChatClient()
+	cfg := ModelConfig{BaseURL: model.URL, Model: "fake", HideThinking: true}
+	tools := []MCPTool{{Name: "loop", FullName: "loop_tool", Description: "loop", InputSchema: map[string]any{"type": "object"}}}
+	calls := 0
+	answer, err := client.CompleteWithMCPToolsEvents(context.Background(), cfg, []Message{{Role: "user", Content: "hi"}}, tools, func(name string, args map[string]any) (any, error) {
+		calls++
+		return map[string]any{"ok": true, "name": name, "args": args}, nil
+	}, func(kind string, payload any) error { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if answer != "完成" {
+		t.Fatalf("unexpected answer: %q", answer)
+	}
+	if calls != 9 {
+		t.Fatalf("expected 9 tool calls beyond old cap, got %d", calls)
+	}
+}
+
 func TestAppendMCPToolUseHint(t *testing.T) {
 	messages := []map[string]any{{"role": "system", "content": "base"}, {"role": "user", "content": "hi"}}
 	out := appendMCPToolUseHint(messages, []MCPTool{{Name: "read", FullName: "agentdock__read"}})
