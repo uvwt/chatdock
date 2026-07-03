@@ -496,50 +496,6 @@ body.theme-light .mcp-raw-json {
     display: none !important;
   }
 
-  .workbench-brief {
-    width: calc(100% - 22px) !important;
-    margin: 8px auto 0 !important;
-    padding: 10px !important;
-    grid-template-columns: 1fr !important;
-    gap: 8px !important;
-    border-radius: 20px !important;
-  }
-
-  .brief-main {
-    padding: 0 2px !important;
-  }
-
-  .brief-title {
-    font-size: 14px !important;
-  }
-
-  .brief-subtitle {
-    margin-top: 3px !important;
-  }
-
-  .brief-checks {
-    display: flex !important;
-    grid-template-columns: none !important;
-    gap: 8px !important;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 1px 0 3px;
-    scroll-snap-type: x proximity;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .brief-checks::-webkit-scrollbar {
-    display: none;
-  }
-
-  .brief-check {
-    flex: 0 0 132px;
-    min-height: 54px !important;
-    padding: 9px 9px 9px 13px !important;
-    scroll-snap-align: start;
-  }
-
   .messages {
     flex: 1;
     min-height: 0;

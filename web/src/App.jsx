@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AttachmentList, EmptyState, MessageView, WorkbenchBrief } from './components/chat.jsx';
+import { AttachmentList, EmptyState, MessageView } from './components/chat.jsx';
 import { DialogHost, LoginPage, Markdown, QuickPalette, WorkspacePicker } from './components/base.jsx';
 import { SettingsPanel } from './components/settings.jsx';
 import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtDuration, fmtTime, normalizeSettingsModule, runStatusLabel, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
@@ -8,6 +8,17 @@ import { fetchChatJobs, streamChat, streamChatJobEvents } from './lib/chatApi.js
 import { cloneSession, createSessionRecord, deleteSession, fetchSession, fetchSessionMarkdown, fetchSessions, pinSession, renameSession } from './lib/sessionApi.js';
 import { createWorkspaceRecord, deleteScheduledTaskRecord, deleteSkillRecord, deleteWorkspaceRecord, fetchAgentTasks, fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchPrompts, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchRuns, fetchScheduledTasks, fetchSetupStatus, fetchSkills, fetchSystemStatus, fetchWorkspaces, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveSkillRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest } from './lib/settingsApi.js';
 import { uploadFileRequest } from './lib/upload.js';
+
+function streamStatusText(stats, elapsed) {
+  const labels = {connecting:'连接模型中', streaming:'流式输出中', paused:'已暂停，后台继续接收', stopping:'正在中断', done:'已完成', error:'输出失败'};
+  const parts = [labels[stats.state] || '待命'];
+  if (elapsed) parts.push(elapsed + 's');
+  if (stats.chars) parts.push(stats.chars + ' 字');
+  if (stats.tools) parts.push(stats.tools + ' 个工具');
+  if (stats.events) parts.push(stats.events + ' 个事件');
+  if (stats.error) parts.push(stats.error);
+  return parts.join(' · ');
+}
 
 export default function App() {
   const [authPage, setAuthPage] = useState(null);
@@ -1059,7 +1070,6 @@ export default function App() {
             <button className="danger" onClick={deleteCurrent} disabled={!current || busy}>删除</button>
           </div>
         </div>
-        {!hasVisibleChatMessages ? <WorkbenchBrief setupStatus={setupStatus} config={config} activePrompt={activePrompt} sessions={sessions} skills={skills} scheduledTasks={scheduledTasks} mcpStatus={mcpStatus} dataStatus={dataStatus} productReady={!!productReady} busy={busy} streamStats={streamStats} openSettings={openSettings} /> : null}
         <div className="messages" ref={messagesRef}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
         <div className="composer-shell">
         {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} /> : null}

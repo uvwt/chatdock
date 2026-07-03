@@ -3,44 +3,6 @@ import React from 'react';
 import { fmtBytes } from '../lib/appUtils.js';
 import { Markdown } from './base.jsx';
 
-function streamStatusText(stats, elapsed) {
-  const labels = {connecting:'连接模型中', streaming:'流式输出中', paused:'已暂停，后台继续接收', stopping:'正在中断', done:'已完成', error:'输出失败'};
-  const parts = [labels[stats.state] || '待命'];
-  if (elapsed) parts.push(elapsed + 's');
-  if (stats.chars) parts.push(stats.chars + ' 字');
-  if (stats.tools) parts.push(stats.tools + ' 个工具');
-  if (stats.events) parts.push(stats.events + ' 个事件');
-  if (stats.error) parts.push(stats.error);
-  return parts.join(' · ');
-}
-
-export function WorkbenchBrief({ setupStatus, config, activePrompt, sessions, skills, scheduledTasks, mcpStatus, dataStatus, productReady, busy, streamStats, openSettings }) {
-  const modelReady = !!String(config.base_url || '').trim() && !!String(config.model || '').trim();
-  const keyReady = !!config.has_api_key || !!String(config.api_key || '').trim();
-  const mcpReady = (mcpStatus || []).some(s => !s.disabled && s.last_status === 'ok');
-  const dbHealthy = dataStatus == null ? true : dataStatus.database_healthy !== false;
-  const items = [
-    {label:'工作空间', value:activePrompt?.name || setupStatus?.active_workspace || 'default', ok:!!activePrompt || !!setupStatus?.has_workspace, action:'workspace'},
-    {label:'模型', value:config.model || '未配置', ok:modelReady, action:'model'},
-    {label:'API Key', value:keyReady ? '已保存' : '可选 / 未设置', ok:keyReady || modelReady, action:'model'},
-    {label:'MCP', value:mcpReady ? '可用' : '未启用', ok:true, action:'tools'},
-    {label:'数据', value:dbHealthy ? fmtBytes(dataStatus?.database_size_bytes || 0) : '异常', ok:dbHealthy, action:'data'},
-  ];
-  const summary = [
-    (sessions || []).length + ' 个会话',
-    (skills || []).filter(s => s.enabled).length + '/' + (skills || []).length + ' 个技能启用',
-    (scheduledTasks || []).length + ' 个自动化任务',
-  ].join(' · ');
-  return <section className={'workbench-brief ' + (productReady ? 'ready' : 'needs-setup') + (busy ? ' busy' : '')}>
-    <div className="brief-main">
-      <div className="brief-title"><span className="brief-dot" />{busy ? '正在生成回复' : (productReady ? '工作台已就绪' : '完成配置后即可开始')}</div>
-      <div className="brief-subtitle">{busy ? streamStatusText(streamStats, streamStats.started_at ? Math.max(0, Math.round((Date.now() - streamStats.started_at) / 1000)) : 0) : summary}</div>
-    </div>
-    <div className="brief-checks">{items.map(item => <button key={item.label} type="button" className={'brief-check ' + (item.ok ? 'ok' : 'warn')} onClick={() => openSettings(item.action)}><span>{item.label}</span><b>{item.value}</b></button>)}</div>
-  </section>;
-}
-
-
 function MessageActions({ text, onCopy }) {
   return <div className="msg-actions"><button type="button" className="secondary small" onClick={() => onCopy(text)}>复制</button></div>;
 }
