@@ -385,21 +385,33 @@ export default function App() {
     closeSidebarOnMobile();
   }, [api, busy, refreshProductState, loadPrompts, loadConfig, loadMCPConfig, loadSkills, loadScheduledTasks, loadSessions, closeSidebarOnMobile, showToast]);
 
-  const createSession = useCallback(async () => {
-    if (busy) {
-      showToast('当前回复还在进行中，请先暂停或中断后再新建会话。', 'error');
-      return null;
-    }
+  const createPersistedSession = useCallback(async ({refreshList = true} = {}) => {
     const s = await createSessionRecord(api);
     setCurrent(s.id);
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
     setPendingAttachments([]);
-    await loadSessions();
+    if (refreshList) await loadSessions();
     if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({chatdock:true}, '', sessionPath(s.id));
-    closeSidebarOnMobile();
     return s;
-  }, [api, busy, loadSessions, closeSidebarOnMobile, showToast]);
+  }, [api, loadSessions]);
+
+  const createSession = useCallback(() => {
+    if (busy) {
+      showToast('当前回复还在进行中，请先暂停或中断后再新建会话。', 'error');
+      return null;
+    }
+    // “新会话”只是进入一个本地草稿，不应该提前写入后端。
+    // 真正的 session id 只有在发送首条消息、或上传附件需要绑定会话时才创建。
+    setCurrent(null);
+    setCurrentTitle('新会话');
+    setMessages([]);
+    setPendingAttachments([]);
+    if (window.location.pathname !== '/') window.history.pushState({chatdock:true}, '', '/');
+    closeSidebarOnMobile();
+    window.setTimeout(() => inputRef.current?.focus(), 0);
+    return {id:'', title:'新会话', messages:[], draft:true};
+  }, [busy, closeSidebarOnMobile, showToast]);
 
   const openSession = useCallback(async (id) => {
     if (busy) {
@@ -619,7 +631,7 @@ export default function App() {
     }
     let sessionID = current;
     if (!sessionID) {
-      const s = await createSession();
+      const s = await createPersistedSession();
       if (!s) return;
       sessionID = s.id;
     }
@@ -642,7 +654,7 @@ export default function App() {
     } finally {
       setUploadingFiles(false);
     }
-  }, [authHeaders, busy, createSession, current, setAuthPage, showToast]);
+  }, [authHeaders, busy, createPersistedSession, current, setAuthPage, showToast]);
 
   const sendMsg = useCallback(async (overrideText) => {
     if (busy) return;
@@ -664,7 +676,7 @@ export default function App() {
     }
     let sessionID = current;
     if (!sessionID) {
-      const s = await createSession();
+      const s = await createPersistedSession({refreshList:false});
       if (!s) return;
       sessionID = s.id;
     }
@@ -707,7 +719,7 @@ export default function App() {
       abortRef.current = null;
       setStreamPaused(false);
     }
-  }, [api, authHeaders, busy, config.base_url, config.model, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, createSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, loadRuns, loadAgentTasks, openSettings, showToast]);
+  }, [authHeaders, busy, config.base_url, config.model, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, createPersistedSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, loadRuns, loadAgentTasks, openSettings, showToast]);
 
   const toggleStreamPause = useCallback(() => {
     if (!busy) return;
