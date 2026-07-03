@@ -6,7 +6,8 @@ import { Markdown } from './base.jsx';
 function MessageActions({ text, onCopy, onBranch }) {
   return <div className="msg-actions">
     <button type="button" className="secondary small msg-action-copy" onClick={() => onCopy(text)} aria-label="复制当前回复" title="复制当前回复">复制</button>
-    {onBranch ? <button type="button" className="secondary small msg-action-more" onClick={onBranch} aria-label="在新聊天中创建分支对话" title="在新聊天中创建分支对话">更多</button> : null}
+    {onBranch ? <button type="button" className="secondary small msg-action-branch" onClick={onBranch} aria-label="在新聊天中创建分支对话" title="在新聊天中创建分支对话">分支</button> : null}
+    <button type="button" className="secondary small msg-action-more" aria-label="更多操作" title="更多操作">更多</button>
   </div>;
 }
 

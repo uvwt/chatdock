@@ -1537,3 +1537,86 @@ aside,
     line-height: 1;
   }
 }
+
+
+/* 2026-07 分支专属按钮：分支和更多拆开，避免三点承担实际分支动作。 */
+@media (max-width: 720px) {
+  .msg-actions {
+    gap: 16px !important;
+  }
+
+  .msg-action-branch::before {
+    content: "⑂";
+    font-size: 22px;
+    line-height: 1;
+    transform: translateY(-1px);
+  }
+}
+
+/* 2026-07 高度微调：移动端导航栏和输入框再压低一档，给消息区多留空间。 */
+@media (max-width: 720px) {
+  .topbar {
+    min-height: 60px !important;
+    padding: 7px 8px !important;
+    grid-template-columns: 46px minmax(0, 1fr) auto !important;
+  }
+
+  .mobile-menu,
+  .quick-palette-toggle,
+  .config-toggle,
+  .session-actions-toggle {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    border-radius: 14px !important;
+  }
+
+  #title {
+    font-size: 20px !important;
+  }
+
+  .top-actions {
+    gap: 6px !important;
+  }
+
+  .composer-shell {
+    padding: 6px 10px max(8px, env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .composer {
+    min-height: 54px !important;
+    grid-template-columns: 42px minmax(0, 1fr) 44px !important;
+    gap: 7px !important;
+    padding: 6px !important;
+    border-radius: 22px !important;
+  }
+
+  .attach-control,
+  #send,
+  .stream-control {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+  }
+
+  .attach-control {
+    border-radius: 14px !important;
+    font-size: 27px !important;
+  }
+
+  .composer textarea {
+    min-height: 34px !important;
+    padding: 7px 6px !important;
+    font-size: 15px !important;
+  }
+
+  #send::before {
+    font-size: 27px !important;
+  }
+
+  .messages {
+    padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
