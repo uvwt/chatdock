@@ -70,6 +70,12 @@ func (a *App) handleSessionRoute(w http.ResponseWriter, r *http.Request) {
 		a.handleCloneSession(w, r)
 		return
 	}
+
+	if len(parts) == 2 && parts[1] == "branch" && r.Method == http.MethodPost {
+		r.SetPathValue("id", id)
+		a.handleBranchSession(w, r)
+		return
+	}
 	if len(parts) == 2 && parts[1] == "export" && r.Method == http.MethodGet {
 		r.SetPathValue("id", id)
 		a.handleExportSession(w, r)
@@ -121,6 +127,24 @@ func (a *App) handleRenameSession(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleCloneSession(w http.ResponseWriter, r *http.Request) {
 	session, err := a.store.CloneSession(r.PathValue("id"))
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, model.ErrSessionNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, session)
+}
+
+func (a *App) handleBranchSession(w http.ResponseWriter, r *http.Request) {
+	var input model.BranchSessionRequest
+	if err := readJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	session, err := a.store.BranchSession(r.PathValue("id"), input.MessageIndex)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {

@@ -95,3 +95,42 @@ func TestSessionCloneAPI(t *testing.T) {
 		t.Fatalf("expected cloned session and preview in list: %#v", summaries)
 	}
 }
+
+func TestSessionBranchAPI(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/api/sessions", bytes.NewReader([]byte(`{}`)))
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("create status %d: %s", w.Code, w.Body.String())
+	}
+	var session model.Session
+	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := app.store.AppendUserMessage(session.ID, "需要分支的用户消息"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.store.AppendAssistantMessage(session.ID, "需要分支的助手回复"); err != nil {
+		t.Fatal(err)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/api/sessions/"+session.ID+"/branch", bytes.NewReader([]byte(`{"message_index":0}`)))
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("branch status %d: %s", w.Code, w.Body.String())
+	}
+	var branched model.Session
+	if err := json.Unmarshal(w.Body.Bytes(), &branched); err != nil {
+		t.Fatal(err)
+	}
+	if branched.ID == session.ID || len(branched.Messages) != 1 || !strings.Contains(branched.Title, "分支") {
+		t.Fatalf("unexpected branched session: %#v", branched)
+	}
+}

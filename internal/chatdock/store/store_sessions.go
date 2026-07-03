@@ -67,6 +67,18 @@ func (s *Store) GetSession(id string) (*model.Session, bool) {
 	return cloneSession(session), true
 }
 
+func branchTitle(title string) string {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		title = "新会话"
+	}
+	title = strings.TrimSpace(title + " 分支")
+	if len([]rune(title)) > 80 {
+		title = string([]rune(title)[:80])
+	}
+	return title
+}
+
 func (s *Store) CloneSession(id string) (*model.Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -95,6 +107,37 @@ func (s *Store) CloneSession(id string) (*model.Session, error) {
 		return nil, err
 	}
 	return cloneSession(copySession), nil
+}
+
+func (s *Store) BranchSession(id string, messageIndex *int) (*model.Session, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	source, ok := s.sessions[id]
+	if !ok {
+		return nil, model.ErrSessionNotFound
+	}
+	cut := len(source.Messages)
+	if messageIndex != nil {
+		if *messageIndex < 0 || *messageIndex >= len(source.Messages) {
+			return nil, fmt.Errorf("message index out of range")
+		}
+		cut = *messageIndex + 1
+	}
+	now := time.Now()
+	branch := cloneSession(source)
+	branch.ID = model.NewID()
+	branch.Title = branchTitle(source.Title)
+	branch.Pinned = false
+	branch.CreatedAt = now
+	branch.UpdatedAt = now
+	branch.Messages = cloneMessages(source.Messages[:cut])
+	s.sessions[branch.ID] = branch
+	if err := s.saveSessionLocked(branch); err != nil {
+		delete(s.sessions, branch.ID)
+		return nil, err
+	}
+	return cloneSession(branch), nil
 }
 
 func (s *Store) DeleteSession(id string) bool {

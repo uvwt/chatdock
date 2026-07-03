@@ -66,6 +66,12 @@ type PinSessionRequest struct {
 	Pinned bool `json:"pinned"`
 }
 
+// BranchSessionRequest 指定从当前会话的哪条消息创建分支。
+// message_index 为空时默认复制整个会话，前端消息操作会传入具体索引。
+type BranchSessionRequest struct {
+	MessageIndex *int `json:"message_index,omitempty"`
+}
+
 type ChatRequest struct {
 	SessionID     string   `json:"session_id"`
 	Message       string   `json:"message"`

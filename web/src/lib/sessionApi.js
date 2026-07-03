@@ -32,6 +32,10 @@ export function cloneSession(api, id) {
   return api('/api/sessions/' + encodeURIComponent(id) + '/clone', {method:'POST', body:'{}'});
 }
 
+export function branchSession(api, id, messageIndex) {
+  return api('/api/sessions/' + encodeURIComponent(id) + '/branch', {method:'POST', body: JSON.stringify({message_index: messageIndex})});
+}
+
 export function deleteSession(api, id) {
   return api('/api/sessions/' + encodeURIComponent(id), {method:'DELETE'});
 }

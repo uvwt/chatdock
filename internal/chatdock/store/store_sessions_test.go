@@ -77,3 +77,34 @@ func TestStoreSessionSummaryPreviewAndClone(t *testing.T) {
 		t.Fatalf("clone should appear in session list: %#v", summaries)
 	}
 }
+
+func TestStoreBranchSessionCutsAtMessageIndex(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := store.CreateSession()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := store.AppendUserMessage(session.ID, "第一条用户消息"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.AppendAssistantMessage(session.ID, "第一条助手回复"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := store.AppendUserMessage(session.ID, "第二条用户消息"); err != nil {
+		t.Fatal(err)
+	}
+	idx := 1
+	branched, err := store.BranchSession(session.ID, &idx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if branched.ID == session.ID || !strings.Contains(branched.Title, "分支") || len(branched.Messages) != 2 {
+		t.Fatalf("bad branched session: %#v", branched)
+	}
+	if branched.Messages[1].Content != "第一条助手回复" {
+		t.Fatalf("branch should keep messages through index 1: %#v", branched.Messages)
+	}
+}

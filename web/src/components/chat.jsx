@@ -3,10 +3,10 @@ import React, { useState } from 'react';
 import { fmtBytes } from '../lib/appUtils.js';
 import { Markdown } from './base.jsx';
 
-function MessageActions({ text, onCopy }) {
+function MessageActions({ text, onCopy, onBranch }) {
   return <div className="msg-actions">
     <button type="button" className="secondary small msg-action-copy" onClick={() => onCopy(text)} aria-label="复制当前回复" title="复制当前回复">复制</button>
-    <button type="button" className="secondary small msg-action-more" aria-label="更多操作" title="更多操作">更多</button>
+    {onBranch ? <button type="button" className="secondary small msg-action-more" onClick={onBranch} aria-label="在新聊天中创建分支对话" title="在新聊天中创建分支对话">更多</button> : null}
   </div>;
 }
 
@@ -44,7 +44,7 @@ function ReasoningBlock({ value, streaming = false, hidden = false }) {
   </section>;
 }
 
-export function MessageView({ message, onCopy, hideThinking = true, onResolveConfirmation, onInspectToolEvent }) {
+export function MessageView({ message, messageIndex = -1, onCopy, onBranch, hideThinking = true, onResolveConfirmation, onInspectToolEvent }) {
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
   if (message.role === 'assistant-stream') {
     const reasoning = hideThinking ? '' : message.reasoning;
@@ -60,7 +60,7 @@ export function MessageView({ message, onCopy, hideThinking = true, onResolveCon
           {event.confirmation && event.status !== 'resolved' ? <><button className="secondary small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, true)}>允许一次</button><button className="danger small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, false)}>拒绝</button></> : null}
         </div>
       </div>)}
-      <MessageActions text={[reasoning, message.answer].filter(Boolean).join('\n\n')} onCopy={onCopy} />
+      <MessageActions text={[reasoning, message.answer].filter(Boolean).join('\n\n')} onCopy={onCopy} onBranch={onBranch ? () => onBranch(messageIndex) : null} />
     </div>;
   }
   if (message.role === 'assistant') {
@@ -68,7 +68,7 @@ export function MessageView({ message, onCopy, hideThinking = true, onResolveCon
     return <div className="msg assistant markdown">
       <ReasoningBlock value={message.reasoning} hidden={hideThinking} />
       <Markdown value={message.content} />
-      <MessageActions text={[reasoning, message.content].filter(Boolean).join('\n\n')} onCopy={onCopy} />
+      <MessageActions text={[reasoning, message.content].filter(Boolean).join('\n\n')} onCopy={onCopy} onBranch={onBranch ? () => onBranch(messageIndex) : null} />
     </div>;
   }
   return <div className={'msg ' + (message.role || 'user')}>{message.content ? <div>{message.content}</div> : null}<AttachmentList attachments={message.attachments || []} /></div>;

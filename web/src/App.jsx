@@ -5,7 +5,7 @@ import { SettingsPanel } from './components/settings.jsx';
 import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtDuration, fmtTime, normalizeSettingsModule, runStatusLabel, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
-import { cloneSession, createSessionRecord, deleteSession, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessions, pinSession, renameSession, searchSessions } from './lib/sessionApi.js';
+import { branchSession, cloneSession, createSessionRecord, deleteSession, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessions, pinSession, renameSession, searchSessions } from './lib/sessionApi.js';
 import { createWorkspaceRecord, deleteScheduledTaskRecord, deleteSkillRecord, deleteWorkspaceRecord, fetchAgentTasks, fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchPrompts, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchRuns, fetchScheduledTasks, fetchSetupStatus, fetchSkills, fetchSystemStatus, fetchWorkspaces, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveSkillRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest } from './lib/settingsApi.js';
 import { uploadFileRequest } from './lib/upload.js';
 
@@ -572,6 +572,24 @@ export default function App() {
       showToast('复制会话失败：' + e.message, 'error');
     }
   }, [api, busy, current, loadSessions, showToast]);
+
+
+  const branchCurrent = useCallback(async (messageIndex = messages.length - 1) => {
+    if (!current || busy) return;
+    try {
+      const s = await branchSession(api, current, messageIndex);
+      setCurrent(s.id);
+      setCurrentTitle(s.title || '分支对话');
+      setMessages(s.messages || []);
+      setPendingAttachments([]);
+      await loadSessions();
+      if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({chatdock:true}, '', sessionPath(s.id));
+      closeSidebarOnMobile();
+      showToast('已在新聊天中创建分支对话', 'success');
+    } catch (e) {
+      showToast('创建分支对话失败：' + e.message, 'error');
+    }
+  }, [api, busy, closeSidebarOnMobile, current, loadSessions, messages.length, showToast]);
 
   const pinCurrent = useCallback(async () => {
     if (!current) return;
@@ -1151,9 +1169,10 @@ export default function App() {
     {id:'context-preview', title:'查看上下文 / Token 预览', hint:'查看实际发送给模型的消息构成', disabled:!current, run:showContextPreview},
     {id:'rename-session', title:'重命名当前会话', hint:'整理侧栏会话列表', disabled:!current || busy, run:renameCurrent},
     {id:'clone-session', title:'复制当前会话', hint:'保留上下文开一个副本', disabled:!current || busy, run:cloneCurrent},
+    {id:'branch-session', title:'创建分支对话', hint:'在新聊天中从当前上下文继续', disabled:!current || busy || !messages.length, run:() => branchCurrent()},
     {id:'pin-session', title: currentPinned ? '取消置顶当前会话' : '置顶当前会话', hint:'让重要会话固定在列表顶部', disabled:!current, run:pinCurrent},
     {id:'theme', title:'切换明暗主题', hint:'当前：' + (theme === 'day' ? '白天' : '夜晚'), run:() => setThemeState(theme === 'day' ? 'night' : 'day')},
-  ], [busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, exportCurrent, openSettings, pinCurrent, productDiagnostics, prompts.length, renameCurrent, sendMsg, showContextPreview, theme]);
+  ], [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, exportCurrent, messages.length, openSettings, pinCurrent, productDiagnostics, prompts.length, renameCurrent, sendMsg, showContextPreview, theme]);
 
   const settingsPanel = (
     <SettingsPanel
@@ -1179,6 +1198,7 @@ export default function App() {
         <button className="secondary" disabled={!current || busy} onClick={() => { setSessionActionsOpen(false); renameCurrent(); }}>重命名</button>
         <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); copyCurrentMarkdown(); }}>复制全文</button>
         <button className="secondary" disabled={!current || busy} onClick={() => { setSessionActionsOpen(false); cloneCurrent(); }}>复制会话</button>
+        <button className="secondary" disabled={!current || busy || !messages.length} onClick={() => { setSessionActionsOpen(false); branchCurrent(); }}>创建分支对话</button>
         <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); exportCurrent(); }}>导出 Markdown</button>
         <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); showContextPreview(); }}>上下文 / Token</button>
         <button className="danger" disabled={!current || busy} onClick={() => { setSessionActionsOpen(false); deleteCurrent(); }}>删除会话</button>
@@ -1222,7 +1242,7 @@ export default function App() {
             <button className="danger" onClick={deleteCurrent} disabled={!current || busy}>删除</button>
           </div>
         </div>
-        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
+        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
         <div className="composer-shell">
         {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} /> : null}
         <div className="composer">
