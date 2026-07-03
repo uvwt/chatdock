@@ -1,4 +1,4 @@
-package chatdock
+package store
 
 import "time"
 

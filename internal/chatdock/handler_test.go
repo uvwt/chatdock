@@ -3,6 +3,7 @@ package chatdock
 import (
 	"bytes"
 	"chatdock/internal/chatdock/model"
+	storepkg "chatdock/internal/chatdock/store"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -455,7 +456,7 @@ func TestProductizedAPIs(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("prompt preview status %d: %s", w.Code, w.Body.String())
 	}
-	var preview PromptPreviewResponse
+	var preview storepkg.PromptPreviewResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &preview); err != nil {
 		t.Fatal(err)
 	}
@@ -477,7 +478,7 @@ func TestWorkspaceResourceAPIs(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("create workspace status %d: %s", w.Code, w.Body.String())
 	}
-	var spaces WorkspaceResponse
+	var spaces storepkg.WorkspaceResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &spaces); err != nil {
 		t.Fatal(err)
 	}
@@ -601,7 +602,7 @@ func TestSetupInitPersistsAcrossRestart(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("setup status after restart %d: %s", w.Code, w.Body.String())
 	}
-	var status SetupStatus
+	var status storepkg.SetupStatus
 	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil {
 		t.Fatal(err)
 	}

@@ -5,6 +5,7 @@ import (
 	"chatdock/internal/chatdock/llm"
 	"chatdock/internal/chatdock/mcp"
 	"chatdock/internal/chatdock/model"
+	storepkg "chatdock/internal/chatdock/store"
 	"context"
 	"crypto/subtle"
 	"fmt"
@@ -23,7 +24,7 @@ import (
 
 type App struct {
 	cfg           model.ServerConfig
-	store         *Store
+	store         *storepkg.Store
 	client        *llm.ChatClient
 	mcpClient     *mcp.MCPClient
 	server        *http.Server
@@ -36,14 +37,14 @@ type App struct {
 }
 
 func NewApp(cfg model.ServerConfig) (*App, error) {
-	store, err := NewStore(cfg.DataDir)
+	st, err := storepkg.NewStore(cfg.DataDir)
 	if err != nil {
 		return nil, err
 	}
 
 	app := &App{
 		cfg:           cfg,
-		store:         store,
+		store:         st,
 		client:        llm.NewChatClient(),
 		mcpClient:     mcp.NewMCPClient(),
 		jobCancel:     make(map[string]context.CancelFunc),

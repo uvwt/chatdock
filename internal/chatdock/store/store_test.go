@@ -1,4 +1,4 @@
-package chatdock
+package store
 
 import (
 	"chatdock/internal/chatdock/llm"
@@ -30,10 +30,20 @@ func TestStoreSessionRenameAndExport(t *testing.T) {
 	if renamed.Title != "new title" {
 		t.Fatalf("unexpected title: %s", renamed.Title)
 	}
-	md := sessionToMarkdown(renamed)
+	md := sessionToMarkdownForTest(renamed)
 	if !strings.Contains(md, "hello world") || !strings.Contains(md, "new title") {
 		t.Fatalf("bad markdown export: %s", md)
 	}
+}
+
+func sessionToMarkdownForTest(session *model.Session) string {
+	var b strings.Builder
+	b.WriteString("# " + session.Title + "\n\n")
+	for _, msg := range session.Messages {
+		b.WriteString("## " + msg.Role + "\n\n")
+		b.WriteString(msg.Content + "\n\n")
+	}
+	return b.String()
 }
 
 func TestStoreSessionSummaryPreviewAndClone(t *testing.T) {
@@ -373,7 +383,7 @@ func TestStoreMCPRunsAndAgentTasks(t *testing.T) {
 	}
 	args := map[string]any{"action": "create", "title": "ChatDock MCP"}
 	result := map[string]any{"ok": true, "task_id": "task-1", "status": "active"}
-	if _, err := store.AddMCPRunEvent(run.ID, runEventInput{Kind: "tool_call", Status: "success", Tool: "DockMini__task_manage", Arguments: args, Result: result}); err != nil {
+	if _, err := store.AddMCPRunEvent(run.ID, RunEventInput{Kind: "tool_call", Status: "success", Tool: "DockMini__task_manage", Arguments: args, Result: result}); err != nil {
 		t.Fatal(err)
 	}
 	finished, err := store.FinishMCPRun(run.ID, "success", "done", nil)

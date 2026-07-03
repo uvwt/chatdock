@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	storepkg "chatdock/internal/chatdock/store"
 )
 
 func (a *App) handleSystemStatus(w http.ResponseWriter, r *http.Request) {
@@ -43,10 +45,10 @@ func (a *App) handleMCPStatus(w http.ResponseWriter, r *http.Request) {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	servers := make([]MCPServerStatus, 0, len(names))
+	servers := make([]storepkg.MCPServerStatus, 0, len(names))
 	for _, name := range names {
 		server := cfg.Servers[name]
-		status := MCPServerStatus{
+		status := storepkg.MCPServerStatus{
 			Name:         name,
 			URL:          server.URL,
 			Disabled:     server.Disabled,
@@ -69,5 +71,5 @@ func (a *App) handleMCPStatus(w http.ResponseWriter, r *http.Request) {
 		}
 		servers = append(servers, status)
 	}
-	writeJSONResponse(w, http.StatusOK, MCPStatusResponse{Servers: servers})
+	writeJSONResponse(w, http.StatusOK, storepkg.MCPStatusResponse{Servers: servers})
 }
