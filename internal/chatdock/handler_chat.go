@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/model"
 	"context"
 	"errors"
 	"fmt"
@@ -9,7 +10,7 @@ import (
 )
 
 func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
-	var input ChatRequest
+	var input model.ChatRequest
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -24,7 +25,7 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 	_, cfg, history, err := a.store.AppendUserMessageWithAttachments(input.SessionID, input.Message, input.AttachmentIDs)
 	if err != nil {
 		status := http.StatusInternalServerError
-		if errors.Is(err, ErrSessionNotFound) {
+		if errors.Is(err, model.ErrSessionNotFound) {
 			status = http.StatusNotFound
 		}
 		writeError(w, status, err)
@@ -42,11 +43,11 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, ChatResponse{Answer: answer, Session: session})
+	writeJSONResponse(w, http.StatusOK, model.ChatResponse{Answer: answer, Session: session})
 }
 
 func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
-	var input ChatRequest
+	var input model.ChatRequest
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -55,7 +56,7 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 	job, _, err := a.startChatJob(input)
 	if err != nil {
 		status := http.StatusBadGateway
-		if errors.Is(err, ErrSessionNotFound) {
+		if errors.Is(err, model.ErrSessionNotFound) {
 			status = http.StatusNotFound
 		}
 		writeError(w, status, err)
@@ -76,11 +77,11 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 	streamChatJobEvents(r, w, flusher, a, job.ID, 0)
 }
 
-func (a *App) completeWithOptionalTools(ctx context.Context, sessionID string, cfg ModelConfig, history []Message) (string, error) {
+func (a *App) completeWithOptionalTools(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message) (string, error) {
 	return a.completeWithRecordedTools(ctx, sessionID, cfg, history, nil)
 }
 
-func (a *App) streamWithOptionalTools(ctx context.Context, sessionID string, cfg ModelConfig, history []Message, emit func(string, any) error) (string, error) {
+func (a *App) streamWithOptionalTools(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message, emit func(string, any) error) (string, error) {
 	return a.completeWithRecordedTools(ctx, sessionID, cfg, history, emit)
 }
 

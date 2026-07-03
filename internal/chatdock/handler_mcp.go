@@ -1,6 +1,8 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/mcp"
+	"chatdock/internal/chatdock/model"
 	"fmt"
 	"net/http"
 	"strings"
@@ -12,11 +14,11 @@ func (a *App) handleGetMCPConfig(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, MCPConfigResponse{Content: content})
+	writeJSONResponse(w, http.StatusOK, model.MCPConfigResponse{Content: content})
 }
 
 func (a *App) handleSaveMCPConfig(w http.ResponseWriter, r *http.Request) {
-	var input SaveMCPConfigRequest
+	var input model.SaveMCPConfigRequest
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -26,15 +28,15 @@ func (a *App) handleSaveMCPConfig(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, MCPConfigResponse{Content: content})
+	writeJSONResponse(w, http.StatusOK, model.MCPConfigResponse{Content: content})
 }
 
-func (a *App) activeMCPConfig() (MCPConfig, error) {
+func (a *App) activeMCPConfig() (mcp.MCPConfig, error) {
 	content, err := a.store.GetEffectiveMCPConfig()
 	if err != nil {
-		return MCPConfig{}, err
+		return mcp.MCPConfig{}, err
 	}
-	return ParseMCPConfig(content)
+	return mcp.ParseMCPConfig(content)
 }
 
 func (a *App) handleListMCPTools(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +50,7 @@ func (a *App) handleListMCPTools(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, err)
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, MCPToolsResponse{Tools: tools})
+	writeJSONResponse(w, http.StatusOK, model.MCPToolsResponse{Tools: tools})
 }
 
 func (a *App) handleTestMCPServer(w http.ResponseWriter, r *http.Request) {
@@ -70,7 +72,7 @@ func (a *App) handleTestMCPServer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleCallMCPTool(w http.ResponseWriter, r *http.Request) {
-	var input MCPToolCallRequest
+	var input mcp.MCPToolCallRequest
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -89,5 +91,5 @@ func (a *App) handleCallMCPTool(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, err)
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, MCPToolCallResponse{Name: input.Name, Result: result})
+	writeJSONResponse(w, http.StatusOK, mcp.MCPToolCallResponse{Name: input.Name, Result: result})
 }

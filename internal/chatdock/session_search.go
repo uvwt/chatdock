@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/llm"
 	"fmt"
 	"net/http"
 	"sort"
@@ -42,7 +43,7 @@ func (s *Store) SearchSessions(query string, limit int) ([]SessionSearchResult, 
 			bestScore, field, snippet = score, f, snip
 		}
 		for _, msg := range session.Messages {
-			label := contextRoleLabel(msg.Role)
+			label := llm.ContextRoleLabel(msg.Role)
 			if score, f, snip := matchSessionText(msg.Content, label, needle, query); score > bestScore {
 				bestScore, field, snippet = score, f, snip
 			}

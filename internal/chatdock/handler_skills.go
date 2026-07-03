@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/model"
 	"fmt"
 	"net/http"
 	"strings"
@@ -16,7 +17,7 @@ func (a *App) handleListSkills(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleCreateSkill(w http.ResponseWriter, r *http.Request) {
-	var input SaveSkillRequest
+	var input model.SaveSkillRequest
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -38,7 +39,7 @@ func (a *App) handleSkillRoute(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.Method {
 	case http.MethodPut:
-		var input SaveSkillRequest
+		var input model.SaveSkillRequest
 		if err := readJSON(r, &input); err != nil {
 			writeError(w, http.StatusBadRequest, err)
 			return

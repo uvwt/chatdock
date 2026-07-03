@@ -3,6 +3,7 @@ package llm
 import (
 	"bufio"
 	"bytes"
+	"chatdock/internal/chatdock/model"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -21,14 +22,14 @@ func NewChatClient() *ChatClient {
 	return &ChatClient{httpClient: &http.Client{Timeout: 120 * time.Second}}
 }
 
-func applyModelRequestParams(body map[string]any, cfg ModelConfig) {
+func applyModelRequestParams(body map[string]any, cfg model.ModelConfig) {
 	// Qwen3 / llama.cpp / LM Studio compatible servers usually read this through
 	// the chat template renderer. This is the actual thinking switch; do not fake it
 	// by mutating the system prompt.
 	body["chat_template_kwargs"] = map[string]any{"enable_thinking": cfg.EnableThinking}
 }
 
-func (c *ChatClient) Complete(ctx context.Context, cfg ModelConfig, history []Message) (string, error) {
+func (c *ChatClient) Complete(ctx context.Context, cfg model.ModelConfig, history []model.Message) (string, error) {
 	messages := BuildChatMessagesAny(cfg, history)
 	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/chat/completions"
 
@@ -85,8 +86,8 @@ func (c *ChatClient) Complete(ctx context.Context, cfg ModelConfig, history []Me
 	return content, nil
 }
 
-func (c *ChatClient) ListModels(ctx context.Context, cfg ModelConfig) ([]string, error) {
-	cfg = NormalizeModelConfig(cfg)
+func (c *ChatClient) ListModels(ctx context.Context, cfg model.ModelConfig) ([]string, error) {
+	cfg = model.NormalizeModelConfig(cfg)
 	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/models"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -146,16 +147,16 @@ func summarizeModelProviderBody(contentType string, body []byte) string {
 	return text
 }
 
-func (c *ChatClient) TestModelProvider(ctx context.Context, cfg ModelConfig) error {
+func (c *ChatClient) TestModelProvider(ctx context.Context, cfg model.ModelConfig) error {
 	_, err := c.ListModels(ctx, cfg)
 	return err
 }
 
-func (c *ChatClient) Stream(ctx context.Context, cfg ModelConfig, history []Message, onDelta func(StreamDelta) error) (string, error) {
+func (c *ChatClient) Stream(ctx context.Context, cfg model.ModelConfig, history []model.Message, onDelta func(StreamDelta) error) (string, error) {
 	return c.StreamRawMessages(ctx, cfg, BuildChatMessagesAny(cfg, history), onDelta)
 }
 
-func (c *ChatClient) StreamRawMessages(ctx context.Context, cfg ModelConfig, messages []map[string]any, onDelta func(StreamDelta) error) (string, error) {
+func (c *ChatClient) StreamRawMessages(ctx context.Context, cfg model.ModelConfig, messages []map[string]any, onDelta func(StreamDelta) error) (string, error) {
 	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/chat/completions"
 	body := map[string]any{
 		"model":       cfg.Model,
@@ -193,7 +194,7 @@ func (c *ChatClient) StreamRawMessages(ctx context.Context, cfg ModelConfig, mes
 	return readModelStream(resp.Body, cfg, onDelta)
 }
 
-func readModelStream(body io.Reader, cfg ModelConfig, onDelta func(StreamDelta) error) (string, error) {
+func readModelStream(body io.Reader, cfg model.ModelConfig, onDelta func(StreamDelta) error) (string, error) {
 	var full strings.Builder
 	filter := NewThinkingFilter(cfg.HideThinking)
 	scanner := bufio.NewScanner(body)
@@ -279,10 +280,10 @@ type ContextMessage = chatContextMessage
 type chatContextMessage struct {
 	Role             string
 	Content          string
-	ModelAttachments []AttachmentRecord
+	ModelAttachments []model.AttachmentRecord
 }
 
-func BuildChatMessages(cfg ModelConfig, history []Message) []map[string]string {
+func BuildChatMessages(cfg model.ModelConfig, history []model.Message) []map[string]string {
 	prepared := buildChatContextMessages(cfg, history)
 	messages := make([]map[string]string, 0, len(prepared))
 	for _, item := range prepared {
@@ -291,12 +292,12 @@ func BuildChatMessages(cfg ModelConfig, history []Message) []map[string]string {
 	return messages
 }
 
-func BuildChatContextMessages(cfg ModelConfig, history []Message) []ContextMessage {
+func BuildChatContextMessages(cfg model.ModelConfig, history []model.Message) []ContextMessage {
 	return buildChatContextMessages(cfg, history)
 }
 
-func buildChatContextMessages(cfg ModelConfig, history []Message) []chatContextMessage {
-	cfg = NormalizeModelConfig(cfg)
+func buildChatContextMessages(cfg model.ModelConfig, history []model.Message) []chatContextMessage {
+	cfg = model.NormalizeModelConfig(cfg)
 	recentCount, summarizeOld := contextPlan(cfg)
 	valid := validChatHistory(history)
 	start := len(valid) - recentCount
@@ -324,7 +325,7 @@ func buildChatContextMessages(cfg ModelConfig, history []Message) []chatContextM
 }
 
 func messageContentForModel(item chatContextMessage) any {
-	images := imageContentBlocks(item.ModelAttachments)
+	images := model.ImageContentBlocks(item.ModelAttachments)
 	if item.Role != "user" || len(images) == 0 {
 		return item.Content
 	}
@@ -336,17 +337,30 @@ func messageContentForModel(item chatContextMessage) any {
 	return blocks
 }
 
-func ContextPlan(cfg ModelConfig) (int, bool) {
+func normalizeContextMode(mode string) string {
+	switch strings.TrimSpace(mode) {
+	case model.ContextModeCompact:
+		return model.ContextModeCompact
+	case model.ContextModeExpanded:
+		return model.ContextModeExpanded
+	case model.ContextModeCustom:
+		return model.ContextModeCustom
+	default:
+		return model.ContextModeAuto
+	}
+}
+
+func ContextPlan(cfg model.ModelConfig) (int, bool) {
 	return contextPlan(cfg)
 }
 
-func contextPlan(cfg ModelConfig) (int, bool) {
+func contextPlan(cfg model.ModelConfig) (int, bool) {
 	switch normalizeContextMode(cfg.ContextMode) {
-	case ContextModeCompact:
+	case model.ContextModeCompact:
 		return 8, true
-	case ContextModeExpanded:
+	case model.ContextModeExpanded:
 		return 20, true
-	case ContextModeCustom:
+	case model.ContextModeCustom:
 		if cfg.MaxContextMessages <= 0 {
 			return 12, false
 		}
@@ -356,8 +370,8 @@ func contextPlan(cfg ModelConfig) (int, bool) {
 	}
 }
 
-func validChatHistory(history []Message) []Message {
-	valid := make([]Message, 0, len(history))
+func validChatHistory(history []model.Message) []model.Message {
+	valid := make([]model.Message, 0, len(history))
 	for _, item := range history {
 		if item.Role != "user" && item.Role != "assistant" && item.Role != "system" {
 			continue
@@ -372,7 +386,7 @@ func validChatHistory(history []Message) []Message {
 	return valid
 }
 
-func summarizeEarlierContext(history []Message) string {
+func summarizeEarlierContext(history []model.Message) string {
 	if len(history) == 0 {
 		return ""
 	}
@@ -424,11 +438,11 @@ func compactContextText(content string, limit int) string {
 	return string(runes[:limit]) + "..."
 }
 
-func BuildSystemPrompt(cfg ModelConfig) string {
+func BuildSystemPrompt(cfg model.ModelConfig) string {
 	return buildSystemPrompt(cfg)
 }
 
-func buildSystemPrompt(cfg ModelConfig) string {
+func buildSystemPrompt(cfg model.ModelConfig) string {
 	base := strings.TrimSpace(cfg.SystemPrompt)
 	skills := buildEnabledSkillsPrompt(cfg.Skills)
 	if base == "" {
@@ -440,7 +454,7 @@ func buildSystemPrompt(cfg ModelConfig) string {
 	return base + "\n\n" + skills
 }
 
-func buildEnabledSkillsPrompt(skills []Skill) string {
+func buildEnabledSkillsPrompt(skills []model.Skill) string {
 	items := make([]string, 0, len(skills))
 	for _, skill := range skills {
 		name := strings.TrimSpace(skill.Name)

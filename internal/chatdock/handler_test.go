@@ -2,6 +2,7 @@ package chatdock
 
 import (
 	"bytes"
+	"chatdock/internal/chatdock/model"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -14,7 +15,7 @@ import (
 
 func TestChatAPIWritesSingleJSONResponse(t *testing.T) {
 	seenPath := make(chan string, 1)
-	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case seenPath <- r.URL.Path:
 		default:
@@ -22,13 +23,13 @@ func TestChatAPIWritesSingleJSONResponse(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"模型回答"}}]}`))
 	}))
-	defer model.Close()
+	defer modelServer.Close()
 
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig(ModelConfig{BaseURL: model.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: modelServer.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
@@ -39,7 +40,7 @@ func TestChatAPIWritesSingleJSONResponse(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("create session status %d: %s", w.Code, w.Body.String())
 	}
-	var session Session
+	var session model.Session
 	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +53,7 @@ func TestChatAPIWritesSingleJSONResponse(t *testing.T) {
 	}
 
 	decoder := json.NewDecoder(bytes.NewReader(w.Body.Bytes()))
-	var result ChatResponse
+	var result model.ChatResponse
 	if err := decoder.Decode(&result); err != nil {
 		t.Fatalf("decode chat response: %v; body=%q", err, w.Body.String())
 	}
@@ -71,7 +72,7 @@ func TestChatAPIWritesSingleJSONResponse(t *testing.T) {
 }
 
 func TestSessionRenameAndExportAPI(t *testing.T) {
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +84,7 @@ func TestSessionRenameAndExportAPI(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("create status %d: %s", w.Code, w.Body.String())
 	}
-	var s Session
+	var s model.Session
 	if err := json.Unmarshal(w.Body.Bytes(), &s); err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +108,7 @@ func TestSessionRenameAndExportAPI(t *testing.T) {
 }
 
 func TestSessionCloneAPI(t *testing.T) {
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +120,7 @@ func TestSessionCloneAPI(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("create status %d: %s", w.Code, w.Body.String())
 	}
-	var session Session
+	var session model.Session
 	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +134,7 @@ func TestSessionCloneAPI(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("clone status %d: %s", w.Code, w.Body.String())
 	}
-	var cloned Session
+	var cloned model.Session
 	if err := json.Unmarshal(w.Body.Bytes(), &cloned); err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +148,7 @@ func TestSessionCloneAPI(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("list status %d: %s", w.Code, w.Body.String())
 	}
-	var summaries []SessionSummary
+	var summaries []model.SessionSummary
 	if err := json.Unmarshal(w.Body.Bytes(), &summaries); err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +158,7 @@ func TestSessionCloneAPI(t *testing.T) {
 }
 
 func TestSkillsAPI(t *testing.T) {
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +170,7 @@ func TestSkillsAPI(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("create skill status %d: %s", w.Code, w.Body.String())
 	}
-	var result SkillResponse
+	var result model.SkillResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +195,7 @@ func TestSkillsAPI(t *testing.T) {
 }
 
 func TestScheduledTasksAPI(t *testing.T) {
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +207,7 @@ func TestScheduledTasksAPI(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("create scheduled task status %d: %s", w.Code, w.Body.String())
 	}
-	var result ScheduledTaskResponse
+	var result model.ScheduledTaskResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +233,7 @@ func TestScheduledTasksAPI(t *testing.T) {
 
 func TestModelProviderTestUsesRequestConfig(t *testing.T) {
 	seenPath := make(chan string, 1)
-	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case seenPath <- r.URL.Path:
 		default:
@@ -240,14 +241,14 @@ func TestModelProviderTestUsesRequestConfig(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"data":[]}`))
 	}))
-	defer model.Close()
+	defer modelServer.Close()
 
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
-	body := `{"base_url":"` + model.URL + `","model":"draft-model","api_key":""}`
+	body := `{"base_url":"` + modelServer.URL + `","model":"draft-model","api_key":""}`
 	r := httptest.NewRequest(http.MethodPost, "/api/model-providers/test", bytes.NewReader([]byte(body)))
 	w := httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
@@ -268,7 +269,7 @@ func TestModelProviderTestUsesRequestConfig(t *testing.T) {
 
 func TestModelProviderTestKeepsSavedAPIKeyWhenMasked(t *testing.T) {
 	seenAuth := make(chan string, 1)
-	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case seenAuth <- r.Header.Get("Authorization"):
 		default:
@@ -276,17 +277,17 @@ func TestModelProviderTestKeepsSavedAPIKeyWhenMasked(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"data":[]}`))
 	}))
-	defer model.Close()
+	defer modelServer.Close()
 
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig(ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "saved-secret"}); err != nil {
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "saved-secret"}); err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
-	body := `{"base_url":"` + model.URL + `","model":"draft-model","api_key":"********"}`
+	body := `{"base_url":"` + modelServer.URL + `","model":"draft-model","api_key":"********"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/model-providers/test", bytes.NewReader([]byte(body)))
 	w := httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
@@ -300,7 +301,7 @@ func TestModelProviderTestKeepsSavedAPIKeyWhenMasked(t *testing.T) {
 
 func TestModelProviderModelsReturnsAvailableNames(t *testing.T) {
 	seenPath := make(chan string, 1)
-	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case seenPath <- r.URL.Path:
 		default:
@@ -308,14 +309,14 @@ func TestModelProviderModelsReturnsAvailableNames(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"data":[{"id":"zeta-model"},{"id":""},{"id":"alpha-model"},{"id":"zeta-model"}]}`))
 	}))
-	defer model.Close()
+	defer modelServer.Close()
 
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
-	body := `{"base_url":"` + model.URL + `","model":"draft-model","api_key":""}`
+	body := `{"base_url":"` + modelServer.URL + `","model":"draft-model","api_key":""}`
 	r := httptest.NewRequest(http.MethodPost, "/api/model-providers/models", bytes.NewReader([]byte(body)))
 	w := httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
@@ -344,19 +345,19 @@ func TestModelProviderModelsReturnsAvailableNames(t *testing.T) {
 }
 
 func TestModelProviderModelsHidesHTMLChallengeBody(t *testing.T) {
-	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`<!DOCTYPE html><html><head><title>Just a moment...</title></head><body><script>window._cf_chl_opt={};</script>cloudflare challenge-platform very long body</body></html>`))
 	}))
-	defer model.Close()
+	defer modelServer.Close()
 
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
-	body := `{"base_url":"` + model.URL + `","model":"draft-model","api_key":""}`
+	body := `{"base_url":"` + modelServer.URL + `","model":"draft-model","api_key":""}`
 	r := httptest.NewRequest(http.MethodPost, "/api/model-providers/models", bytes.NewReader([]byte(body)))
 	w := httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
@@ -373,18 +374,18 @@ func TestModelProviderModelsHidesHTMLChallengeBody(t *testing.T) {
 }
 
 func TestModelProviderModelsHidesNonJSONBody(t *testing.T) {
-	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		_, _ = w.Write([]byte(`not-json-response`))
 	}))
-	defer model.Close()
+	defer modelServer.Close()
 
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
-	body := `{"base_url":"` + model.URL + `","model":"draft-model","api_key":""}`
+	body := `{"base_url":"` + modelServer.URL + `","model":"draft-model","api_key":""}`
 	r := httptest.NewRequest(http.MethodPost, "/api/model-providers/models", bytes.NewReader([]byte(body)))
 	w := httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
@@ -399,7 +400,7 @@ func TestModelProviderModelsHidesNonJSONBody(t *testing.T) {
 
 func TestModelProviderModelsKeepsSavedAPIKeyWhenMasked(t *testing.T) {
 	seenAuth := make(chan string, 1)
-	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case seenAuth <- r.Header.Get("Authorization"):
 		default:
@@ -407,17 +408,17 @@ func TestModelProviderModelsKeepsSavedAPIKeyWhenMasked(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"data":[{"id":"saved-key-model"}]}`))
 	}))
-	defer model.Close()
+	defer modelServer.Close()
 
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig(ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "saved-secret"}); err != nil {
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "saved-secret"}); err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
-	body := `{"base_url":"` + model.URL + `","model":"draft-model","api_key":"********"}`
+	body := `{"base_url":"` + modelServer.URL + `","model":"draft-model","api_key":"********"}`
 	r := httptest.NewRequest(http.MethodPost, "/api/model-providers/models", bytes.NewReader([]byte(body)))
 	w := httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
@@ -433,7 +434,7 @@ func TestModelProviderModelsKeepsSavedAPIKeyWhenMasked(t *testing.T) {
 }
 
 func TestProductizedAPIs(t *testing.T) {
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -464,7 +465,7 @@ func TestProductizedAPIs(t *testing.T) {
 }
 
 func TestWorkspaceResourceAPIs(t *testing.T) {
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -490,7 +491,7 @@ func TestWorkspaceResourceAPIs(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("save workspace config status %d: %s", w.Code, w.Body.String())
 	}
-	var cfg PublicModelConfig
+	var cfg model.PublicModelConfig
 	if err := json.Unmarshal(w.Body.Bytes(), &cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -567,7 +568,7 @@ func TestWorkspaceResourceAPIs(t *testing.T) {
 
 func TestSetupInitPersistsAcrossRestart(t *testing.T) {
 	dataDir := t.TempDir()
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: dataDir, WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: dataDir, WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -583,7 +584,7 @@ func TestSetupInitPersistsAcrossRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	restarted, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: dataDir, WebDir: "../../web"})
+	restarted, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: dataDir, WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -622,7 +623,7 @@ func TestSPAFallbackAndBackendBoundary(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: webDir})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: webDir})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -658,7 +659,7 @@ func TestAuthLoginWithCredential(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: webDir, AuthToken: "server-token", AuthUsername: "admin", AuthCredential: "demo-value"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: webDir, AuthToken: "server-token", AuthUsername: "admin", AuthCredential: "demo-value"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -670,7 +671,7 @@ func TestAuthLoginWithCredential(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("auth status %d: %s", w.Code, w.Body.String())
 	}
-	var status AuthStatusResponse
+	var status model.AuthStatusResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil {
 		t.Fatal(err)
 	}
@@ -691,7 +692,7 @@ func TestAuthLoginWithCredential(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("login status %d: %s", w.Code, w.Body.String())
 	}
-	var login AuthLoginResponse
+	var login model.AuthLoginResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &login); err != nil {
 		t.Fatal(err)
 	}
@@ -714,7 +715,7 @@ func TestAuthLoginRequiresConfiguredCredential(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: webDir, AuthToken: "server-token"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: webDir, AuthToken: "server-token"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -734,7 +735,7 @@ func TestAuthProtectsBackendButNotEmbeddedWeb(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: webDir, AuthToken: "secret"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: webDir, AuthToken: "secret"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -2,6 +2,8 @@ package llm
 
 import (
 	"bytes"
+	"chatdock/internal/chatdock/mcp"
+	"chatdock/internal/chatdock/model"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -26,11 +28,11 @@ type ModelChatResponse struct {
 	ToolCalls []ModelToolCall
 }
 
-func (c *ChatClient) CompleteWithMCPTools(ctx context.Context, cfg ModelConfig, history []Message, tools []MCPTool, call func(string, map[string]any) (any, error)) (string, error) {
+func (c *ChatClient) CompleteWithMCPTools(ctx context.Context, cfg model.ModelConfig, history []model.Message, tools []mcp.MCPTool, call func(string, map[string]any) (any, error)) (string, error) {
 	return c.CompleteWithMCPToolsEvents(ctx, cfg, history, tools, call, nil)
 }
 
-func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg ModelConfig, history []Message, tools []MCPTool, call func(string, map[string]any) (any, error), emit func(string, any) error) (string, error) {
+func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.ModelConfig, history []model.Message, tools []mcp.MCPTool, call func(string, map[string]any) (any, error), emit func(string, any) error) (string, error) {
 	messages := BuildChatMessagesAny(cfg, history)
 	messages = appendMCPToolUseHint(messages, tools)
 	openAITools := MCPToolsToOpenAITools(tools)
@@ -78,7 +80,7 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg ModelCo
 			if emit != nil {
 				_ = emit("tool_call_result", payload)
 			}
-			messages = append(messages, map[string]any{"role": "tool", "tool" + "_call_id": id, "name": tc.Function.Name, "content": compactJSON(payload)})
+			messages = append(messages, map[string]any{"role": "tool", "tool" + "_call_id": id, "name": tc.Function.Name, "content": mcp.CompactJSON(payload)})
 		}
 		// 不要在第一轮工具结果后直接进入最终流式回答。
 		// 复杂任务常常需要 template_match -> template_get -> execute 这种多轮工具链；
@@ -86,7 +88,7 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg ModelCo
 	}
 }
 
-func appendMCPToolUseHint(messages []map[string]any, tools []MCPTool) []map[string]any {
+func appendMCPToolUseHint(messages []map[string]any, tools []mcp.MCPTool) []map[string]any {
 	if len(tools) == 0 {
 		return messages
 	}
@@ -106,7 +108,7 @@ func appendMCPToolUseHint(messages []map[string]any, tools []MCPTool) []map[stri
 	return out
 }
 
-func (c *ChatClient) completeChatWithRawMessages(ctx context.Context, cfg ModelConfig, messages []map[string]any, tools []map[string]any) (ModelChatResponse, error) {
+func (c *ChatClient) completeChatWithRawMessages(ctx context.Context, cfg model.ModelConfig, messages []map[string]any, tools []map[string]any) (ModelChatResponse, error) {
 	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/chat/completions"
 	body := map[string]any{"model": cfg.Model, "messages": messages, "temperature": cfg.Temperature, "stream": false}
 	if len(tools) > 0 {
@@ -181,23 +183,23 @@ func decodeModelToolCalls(value any) []ModelToolCall {
 	return out
 }
 
-func MCPToolsToOpenAITools(tools []MCPTool) []map[string]any {
+func MCPToolsToOpenAITools(tools []mcp.MCPTool) []map[string]any {
 	out := make([]map[string]any, 0, len(tools))
 	for _, tool := range tools {
 		name := tool.FullName
 		if strings.TrimSpace(name) == "" {
-			name = toolFullName(tool.Server, tool.Name)
+			name = mcp.ToolFullName(tool.Server, tool.Name)
 		}
 		desc := strings.TrimSpace(tool.Description)
 		if desc == "" {
 			desc = tool.Title
 		}
-		out = append(out, map[string]any{"type": "function", "function": map[string]any{"name": name, "description": desc, "parameters": normalizeJSONSchema(tool.InputSchema)}})
+		out = append(out, map[string]any{"type": "function", "function": map[string]any{"name": name, "description": desc, "parameters": mcp.NormalizeJSONSchema(tool.InputSchema)}})
 	}
 	return out
 }
 
-func BuildChatMessagesAny(cfg ModelConfig, history []Message) []map[string]any {
+func BuildChatMessagesAny(cfg model.ModelConfig, history []model.Message) []map[string]any {
 	prepared := buildChatContextMessages(cfg, history)
 	messages := make([]map[string]any, 0, len(prepared))
 	for _, item := range prepared {

@@ -1,6 +1,8 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/llm"
+	"chatdock/internal/chatdock/model"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -49,7 +51,7 @@ func (s *Store) CreateChatJob(sessionID string) (ChatJob, error) {
 		return ChatJob{}, fmt.Errorf("session id is empty")
 	}
 	now := time.Now()
-	job := ChatJob{Workspace: s.activePrompt, ID: NewID(), SessionID: strings.TrimSpace(sessionID), Status: "running", StartedAt: now, UpdatedAt: now}
+	job := ChatJob{Workspace: s.activePrompt, ID: model.NewID(), SessionID: strings.TrimSpace(sessionID), Status: "running", StartedAt: now, UpdatedAt: now}
 	_, err := s.db.Exec(`INSERT INTO chat_jobs(prompt, id, session_id, status, answer, reasoning, error, started_at, finished_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, job.Workspace, job.ID, job.SessionID, job.Status, "", "", "", formatDBTime(job.StartedAt), "", formatDBTime(job.UpdatedAt))
 	if err != nil {
 		return ChatJob{}, err
@@ -254,7 +256,7 @@ func scanChatJobEvents(rows *sql.Rows) ([]ChatJobEvent, error) {
 	return events, rows.Err()
 }
 
-func (a *App) startChatJob(input ChatRequest) (ChatJob, *Session, error) {
+func (a *App) startChatJob(input model.ChatRequest) (ChatJob, *model.Session, error) {
 	input.Message = strings.TrimSpace(input.Message)
 	if input.Message == "" && len(input.AttachmentIDs) == 0 {
 		return ChatJob{}, nil, fmt.Errorf("message is empty")
@@ -300,12 +302,12 @@ func (a *App) cancelChatJob(jobID string) (ChatJob, error) {
 	return job, err
 }
 
-func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cfg ModelConfig, history []Message) {
+func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cfg model.ModelConfig, history []model.Message) {
 	defer a.unregisterChatJobCancel(jobID)
 	var reasoning strings.Builder
 	emit := func(event string, value any) error {
 		if event == "delta" {
-			if delta, ok := value.(StreamDelta); ok && delta.ReasoningContent != "" {
+			if delta, ok := value.(llm.StreamDelta); ok && delta.ReasoningContent != "" {
 				reasoning.WriteString(delta.ReasoningContent)
 			}
 		}
@@ -330,7 +332,7 @@ func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cf
 }
 
 func (a *App) handleCreateChatJob(w http.ResponseWriter, r *http.Request) {
-	var input ChatRequest
+	var input model.ChatRequest
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -338,7 +340,7 @@ func (a *App) handleCreateChatJob(w http.ResponseWriter, r *http.Request) {
 	job, session, err := a.startChatJob(input)
 	if err != nil {
 		status := http.StatusBadGateway
-		if errors.Is(err, ErrSessionNotFound) {
+		if errors.Is(err, model.ErrSessionNotFound) {
 			status = http.StatusNotFound
 		}
 		writeError(w, status, err)
@@ -402,7 +404,7 @@ func streamChatJobEvents(r *http.Request, w http.ResponseWriter, flusher http.Fl
 		}
 		if job.Status != "running" {
 			if job.Status == "failed" {
-				_ = writeSSE(w, flusher, "error", map[string]string{"message": firstNonEmptyString(job.Error, "chat job failed")})
+				_ = writeSSE(w, flusher, "error", map[string]string{"message": llm.FirstNonEmptyString(job.Error, "chat job failed")})
 				return
 			}
 			if session, ok := a.store.GetSession(job.SessionID); ok {

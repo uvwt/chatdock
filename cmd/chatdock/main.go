@@ -5,10 +5,11 @@ import (
 	"os"
 
 	"chatdock/internal/chatdock"
+	"chatdock/internal/chatdock/model"
 )
 
 func main() {
-	cfg := chatdock.ServerConfig{
+	cfg := model.ServerConfig{
 		Addr:           getenv("CHATDOCK_ADDR", ":8720"),
 		DataDir:        getenv("CHATDOCK_DATA", defaultDataDir()),
 		WebDir:         os.Getenv("CHATDOCK_WEB"),

@@ -1,6 +1,8 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/llm"
+	"chatdock/internal/chatdock/model"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -55,29 +57,29 @@ func (s *Store) ListWorkspaces() (WorkspaceResponse, error) {
 	return WorkspaceResponse{Active: active, Workspaces: items}, nil
 }
 
-func (s *Store) WorkspaceConfig(workspaceID string) (PublicModelConfig, error) {
+func (s *Store) WorkspaceConfig(workspaceID string) (model.PublicModelConfig, error) {
 	workspaceID, err := normalizePromptName(workspaceID)
 	if err != nil {
-		return PublicModelConfig{}, err
+		return model.PublicModelConfig{}, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if exists, err := s.promptExistsLocked(workspaceID); err != nil {
-		return PublicModelConfig{}, err
+		return model.PublicModelConfig{}, err
 	} else if !exists {
-		return PublicModelConfig{}, fmt.Errorf("workspace not found: %s", workspaceID)
+		return model.PublicModelConfig{}, fmt.Errorf("workspace not found: %s", workspaceID)
 	}
 	cfg, err := s.modelConfigForPromptLocked(workspaceID)
 	if err != nil {
-		return PublicModelConfig{}, err
+		return model.PublicModelConfig{}, err
 	}
-	return ToPublicModelConfig(cfg), nil
+	return model.ToPublicModelConfig(cfg), nil
 }
 
-func (s *Store) SaveWorkspaceConfig(workspaceID string, next ModelConfig) (PublicModelConfig, error) {
+func (s *Store) SaveWorkspaceConfig(workspaceID string, next model.ModelConfig) (model.PublicModelConfig, error) {
 	workspaceID, err := normalizePromptName(workspaceID)
 	if err != nil {
-		return PublicModelConfig{}, err
+		return model.PublicModelConfig{}, err
 	}
 
 	s.mu.Lock()
@@ -85,14 +87,14 @@ func (s *Store) SaveWorkspaceConfig(workspaceID string, next ModelConfig) (Publi
 
 	exists, err := s.promptExistsLocked(workspaceID)
 	if err != nil {
-		return PublicModelConfig{}, err
+		return model.PublicModelConfig{}, err
 	}
 	if !exists {
-		return PublicModelConfig{}, fmt.Errorf("workspace not found: %s", workspaceID)
+		return model.PublicModelConfig{}, fmt.Errorf("workspace not found: %s", workspaceID)
 	}
 	current, err := s.modelConfigForPromptLocked(workspaceID)
 	if err != nil {
-		return PublicModelConfig{}, err
+		return model.PublicModelConfig{}, err
 	}
 	if strings.TrimSpace(next.APIKey) == "" || strings.TrimSpace(next.APIKey) == "********" {
 		next.APIKey = current.APIKey
@@ -100,15 +102,15 @@ func (s *Store) SaveWorkspaceConfig(workspaceID string, next ModelConfig) (Publi
 	if strings.TrimSpace(next.SystemPrompt) == "" {
 		next.SystemPrompt = current.SystemPrompt
 	}
-	next = NormalizeModelConfig(next)
+	next = model.NormalizeModelConfig(next)
 	// 工作空间配置可以在不切换当前会话空间的情况下保存；如果保存的是当前空间，同步内存态，避免后续聊天继续用旧配置。
 	if workspaceID == s.activePrompt {
 		s.modelCfg = next
 	}
 	if err := s.setPromptJSONLocked(workspaceID, "config", next); err != nil {
-		return PublicModelConfig{}, err
+		return model.PublicModelConfig{}, err
 	}
-	return ToPublicModelConfig(next), nil
+	return model.ToPublicModelConfig(next), nil
 }
 
 func (s *Store) PromptPreview(workspaceID string) (PromptPreviewResponse, error) {
@@ -133,7 +135,7 @@ func (s *Store) PromptPreview(workspaceID string) (PromptPreviewResponse, error)
 	for _, skill := range skills {
 		names = append(names, skill.Name)
 	}
-	content := buildSystemPrompt(cfg)
+	content := llm.BuildSystemPrompt(cfg)
 	if previous != workspaceID {
 		if restoreErr := s.loadPromptLocked(previous); restoreErr != nil && err == nil {
 			err = restoreErr
@@ -145,14 +147,14 @@ func (s *Store) PromptPreview(workspaceID string) (PromptPreviewResponse, error)
 	return PromptPreviewResponse{WorkspaceID: workspaceID, WorkspaceName: workspaceID, SkillNames: names, Content: content}, nil
 }
 
-func (s *Store) skillsForPrompt(prompt string) ([]Skill, error) {
+func (s *Store) skillsForPrompt(prompt string) ([]model.Skill, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	raw, ok, err := s.getPromptRawLocked(prompt, "skills")
 	if err != nil || !ok || strings.TrimSpace(raw) == "" {
-		return []Skill{}, err
+		return []model.Skill{}, err
 	}
-	var skills []Skill
+	var skills []model.Skill
 	if err := json.Unmarshal([]byte(raw), &skills); err != nil {
 		return nil, err
 	}
@@ -160,14 +162,14 @@ func (s *Store) skillsForPrompt(prompt string) ([]Skill, error) {
 	return cloneSkills(skills), nil
 }
 
-func (s *Store) scheduledTasksForPrompt(prompt string) ([]ScheduledTask, error) {
+func (s *Store) scheduledTasksForPrompt(prompt string) ([]model.ScheduledTask, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	raw, ok, err := s.getPromptRawLocked(prompt, "scheduled_tasks")
 	if err != nil || !ok || strings.TrimSpace(raw) == "" {
-		return []ScheduledTask{}, err
+		return []model.ScheduledTask{}, err
 	}
-	var tasks []ScheduledTask
+	var tasks []model.ScheduledTask
 	if err := json.Unmarshal([]byte(raw), &tasks); err != nil {
 		return nil, err
 	}
@@ -192,7 +194,7 @@ func (a *App) handleListWorkspaces(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
-	var input CreatePromptRequest
+	var input model.CreatePromptRequest
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -219,7 +221,7 @@ func (a *App) handleWorkspaceRoute(w http.ResponseWriter, r *http.Request) {
 
 	workspaceID := parts[0]
 	if len(parts) == 1 && r.Method == http.MethodDelete {
-		if _, err := a.store.DeletePrompt(SelectPromptRequest{Name: workspaceID}); err != nil {
+		if _, err := a.store.DeletePrompt(model.SelectPromptRequest{Name: workspaceID}); err != nil {
 			writeError(w, http.StatusBadRequest, err)
 			return
 		}
@@ -237,7 +239,7 @@ func (a *App) handleWorkspaceRoute(w http.ResponseWriter, r *http.Request) {
 	}
 	// 配置中心使用 /api/workspaces 作为产品化资源入口；旧 /api/prompts 继续兼容侧栏提示词空间。
 	if parts[1] == "select" && r.Method == http.MethodPost {
-		if _, err := a.store.SelectPrompt(SelectPromptRequest{Name: workspaceID}); err != nil {
+		if _, err := a.store.SelectPrompt(model.SelectPromptRequest{Name: workspaceID}); err != nil {
 			writeError(w, http.StatusBadRequest, err)
 			return
 		}
@@ -259,7 +261,7 @@ func (a *App) handleWorkspaceRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if parts[1] == "config" && r.Method == http.MethodPost {
-		var input ModelConfig
+		var input model.ModelConfig
 		if err := readJSON(r, &input); err != nil {
 			writeError(w, http.StatusBadRequest, err)
 			return

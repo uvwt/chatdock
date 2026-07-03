@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/model"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -82,7 +83,7 @@ func (s *Store) importLegacyDefaultFiles() error {
 				return err
 			}
 		} else if errors.Is(err, os.ErrNotExist) {
-			if err := s.setPromptJSONLocked(defaultPromptName, "config", DefaultModelConfig()); err != nil {
+			if err := s.setPromptJSONLocked(defaultPromptName, "config", model.DefaultModelConfig()); err != nil {
 				return err
 			}
 		} else {
@@ -162,7 +163,7 @@ func (s *Store) importSessionFile(prompt string, path string) error {
 	if err != nil {
 		return err
 	}
-	var session Session
+	var session model.Session
 	if err := json.Unmarshal(raw, &session); err != nil || session.ID == "" {
 		return nil
 	}

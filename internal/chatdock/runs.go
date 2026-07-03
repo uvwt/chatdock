@@ -1,6 +1,9 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/llm"
+	"chatdock/internal/chatdock/mcp"
+	"chatdock/internal/chatdock/model"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -99,7 +102,7 @@ func (s *Store) StartMCPRun(sessionID string, title string) (MCPRun, error) {
 	if title == "" {
 		title = "MCP tool run"
 	}
-	run := MCPRun{ID: NewID(), Workspace: s.ActivePrompt(), SessionID: strings.TrimSpace(sessionID), Title: title, Status: "running", StartedAt: now, UpdatedAt: now}
+	run := MCPRun{ID: model.NewID(), Workspace: s.ActivePrompt(), SessionID: strings.TrimSpace(sessionID), Title: title, Status: "running", StartedAt: now, UpdatedAt: now}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	_, err := s.db.Exec(`INSERT INTO mcp_runs(prompt, id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, run.Workspace, run.ID, run.SessionID, run.Title, run.Status, run.Summary, run.Error, formatDBTime(run.StartedAt), "", run.DurationMS, run.EventCount, formatDBTime(run.UpdatedAt))
@@ -120,12 +123,12 @@ func (s *Store) AddMCPRunEvent(runID string, input runEventInput) (MCPRunEvent, 
 	if status == "" {
 		status = "success"
 	}
-	server, tool := splitToolFullName(strings.TrimSpace(input.Tool))
+	server, tool := mcp.SplitToolFullName(strings.TrimSpace(input.Tool))
 	if strings.TrimSpace(input.Tool) == "" {
 		server, tool = "", ""
 	}
 	action := actionFromArguments(input.Arguments)
-	event := MCPRunEvent{ID: NewID(), RunID: runID, Kind: firstNonEmptyString(input.Kind, "tool_call"), Status: status, Server: server, Tool: tool, Action: action, Summary: summarizeRunEvent(status, input.Tool, action, input.Error), Arguments: input.Arguments, Result: input.Result, Error: strings.TrimSpace(input.Error), DurationMS: input.DurationMS, StartedAt: started, FinishedAt: input.FinishedAt, CreatedAt: now}
+	event := MCPRunEvent{ID: model.NewID(), RunID: runID, Kind: llm.FirstNonEmptyString(input.Kind, "tool_call"), Status: status, Server: server, Tool: tool, Action: action, Summary: summarizeRunEvent(status, input.Tool, action, input.Error), Arguments: input.Arguments, Result: input.Result, Error: strings.TrimSpace(input.Error), DurationMS: input.DurationMS, StartedAt: started, FinishedAt: input.FinishedAt, CreatedAt: now}
 	if event.FinishedAt == nil && status != "running" {
 		finished := now
 		event.FinishedAt = &finished
@@ -250,12 +253,12 @@ ORDER BY e.created_at DESC LIMIT ?`, prompt, limit*4)
 		_ = tool
 		args := decodeJSONMap(argsRaw)
 		result := decodeJSONMap(resultRaw)
-		id := firstNonEmptyString(stringFromMap(args, "task_id"), stringFromNestedResult(result, "task_id"), runID)
+		id := llm.FirstNonEmptyString(stringFromMap(args, "task_id"), stringFromNestedResult(result, "task_id"), runID)
 		if _, exists := tasksByID[id]; exists {
 			continue
 		}
-		title := firstNonEmptyString(stringFromMap(args, "title"), stringFromMap(args, "goal"), stringFromNestedResult(result, "title"), "AgentDock task")
-		tasksByID[id] = AgentTask{ID: id, Title: title, Status: agentTaskStatus(action, status, errorText, result), Workspace: workspace, SessionID: sessionID, SourceRun: runID, Server: server, Action: action, Phase: firstNonEmptyString(stringFromNestedResult(result, "phase"), stringFromNestedResult(result, "current_phase")), Summary: firstNonEmptyString(summary, stringFromNestedResult(result, "summary")), Error: errorText, UpdatedAt: parseDBTime(createdRaw)}
+		title := llm.FirstNonEmptyString(stringFromMap(args, "title"), stringFromMap(args, "goal"), stringFromNestedResult(result, "title"), "AgentDock task")
+		tasksByID[id] = AgentTask{ID: id, Title: title, Status: agentTaskStatus(action, status, errorText, result), Workspace: workspace, SessionID: sessionID, SourceRun: runID, Server: server, Action: action, Phase: llm.FirstNonEmptyString(stringFromNestedResult(result, "phase"), stringFromNestedResult(result, "current_phase")), Summary: llm.FirstNonEmptyString(summary, stringFromNestedResult(result, "summary")), Error: errorText, UpdatedAt: parseDBTime(createdRaw)}
 	}
 	if err := rows.Err(); err != nil {
 		return AgentTaskResponse{}, err
@@ -396,11 +399,11 @@ func (a *App) handleListAgentTasks(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, result)
 }
 
-func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, cfg ModelConfig, history []Message, emit func(string, any) error) (string, error) {
+func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message, emit func(string, any) error) (string, error) {
 	mcpCfg, err := a.activeMCPConfig()
 	if err != nil || len(mcpCfg.Servers) == 0 {
 		if emit != nil {
-			return a.client.Stream(ctx, cfg, history, func(delta StreamDelta) error { return emit("delta", delta) })
+			return a.client.Stream(ctx, cfg, history, func(delta llm.StreamDelta) error { return emit("delta", delta) })
 		}
 		return a.client.Complete(ctx, cfg, history)
 	}
@@ -414,7 +417,7 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 			if emitErr := emit("tool_setup_error", map[string]any{"message": message}); emitErr != nil {
 				return "", emitErr
 			}
-			return a.client.Stream(ctx, cfg, history, func(delta StreamDelta) error { return emit("delta", delta) })
+			return a.client.Stream(ctx, cfg, history, func(delta llm.StreamDelta) error { return emit("delta", delta) })
 		}
 		return a.client.Complete(ctx, cfg, history)
 	}
@@ -513,7 +516,7 @@ func compactJSONForDB(value any) string {
 	if value == nil {
 		return "null"
 	}
-	return compactJSON(value)
+	return mcp.CompactJSON(value)
 }
 
 func decodeJSONValue(raw string) any {
@@ -601,6 +604,6 @@ func agentTaskStatus(action string, status string, errorText string, result map[
 	case "create", "resume", "phase_checkpoint", "complete_step", "record_attempt", "advance":
 		return "active"
 	default:
-		return firstNonEmptyString(status, "active")
+		return llm.FirstNonEmptyString(status, "active")
 	}
 }

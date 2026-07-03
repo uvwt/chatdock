@@ -1,6 +1,9 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/llm"
+	"chatdock/internal/chatdock/mcp"
+	"chatdock/internal/chatdock/model"
 	"os"
 	"path/filepath"
 	"strings"
@@ -75,7 +78,7 @@ func TestStoreSkillsInjectedIntoChatConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	created, err := store.CreateSkill(SaveSkillRequest{Name: "代码审查", Description: "审查 Go 代码", Content: "指出风险并给出修改建议。", Enabled: true})
+	created, err := store.CreateSkill(model.SaveSkillRequest{Name: "代码审查", Description: "审查 Go 代码", Content: "指出风险并给出修改建议。", Enabled: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +96,7 @@ func TestStoreSkillsInjectedIntoChatConfig(t *testing.T) {
 	if len(cfg.Skills) != 1 || cfg.Skills[0].Name != "代码审查" {
 		t.Fatalf("skill not injected into config: %#v", cfg.Skills)
 	}
-	prompt := buildSystemPrompt(cfg)
+	prompt := llm.BuildSystemPrompt(cfg)
 	if !strings.Contains(prompt, "# 已启用技能") || !strings.Contains(prompt, "指出风险并给出修改建议") {
 		t.Fatalf("skill not injected into system prompt: %s", prompt)
 	}
@@ -135,7 +138,7 @@ func TestStoreScheduledTaskLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	runAt := time.Now().Add(time.Hour).Format("2006-01-02T15:04")
-	created, err := store.CreateScheduledTask(ScheduledTaskRequest{Title: "日报", Prompt: "总结今天", Enabled: true, ScheduleType: "once", RunAt: runAt})
+	created, err := store.CreateScheduledTask(model.ScheduledTaskRequest{Title: "日报", Prompt: "总结今天", Enabled: true, ScheduleType: "once", RunAt: runAt})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +146,7 @@ func TestStoreScheduledTaskLifecycle(t *testing.T) {
 		t.Fatalf("unexpected created tasks: %#v", created.Tasks)
 	}
 
-	updated, err := store.UpdateScheduledTask(created.Tasks[0].ID, ScheduledTaskRequest{Title: "日报", Prompt: "总结今天", Enabled: true, ScheduleType: "interval", IntervalMinutes: 5})
+	updated, err := store.UpdateScheduledTask(created.Tasks[0].ID, model.ScheduledTaskRequest{Title: "日报", Prompt: "总结今天", Enabled: true, ScheduleType: "interval", IntervalMinutes: 5})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,19 +169,19 @@ func TestStoreDeleteWorkspaceCascadesPromptData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := store.CreatePrompt(CreatePromptRequest{Name: "research", SystemPrompt: "研究空间"}); err != nil {
+	if _, err := store.CreatePrompt(model.CreatePromptRequest{Name: "research", SystemPrompt: "研究空间"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.SaveModelConfig(ModelConfig{BaseURL: "https://example.test/v1", Model: "demo", SystemPrompt: "研究助手"}); err != nil {
+	if _, err := store.SaveModelConfig(model.ModelConfig{BaseURL: "https://example.test/v1", Model: "demo", SystemPrompt: "研究助手"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.SaveMCPConfig(`{"servers":{}}`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.CreateSkill(SaveSkillRequest{Name: "研究技能", Content: "只做研究总结。", Enabled: true}); err != nil {
+	if _, err := store.CreateSkill(model.SaveSkillRequest{Name: "研究技能", Content: "只做研究总结。", Enabled: true}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.CreateScheduledTask(ScheduledTaskRequest{Title: "研究任务", Prompt: "总结研究", Enabled: true, ScheduleType: "interval", IntervalMinutes: 30}); err != nil {
+	if _, err := store.CreateScheduledTask(model.ScheduledTaskRequest{Title: "研究任务", Prompt: "总结研究", Enabled: true, ScheduleType: "interval", IntervalMinutes: 30}); err != nil {
 		t.Fatal(err)
 	}
 	session, err := store.CreateSession()
@@ -189,10 +192,10 @@ func TestStoreDeleteWorkspaceCascadesPromptData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := store.SelectPrompt(SelectPromptRequest{Name: "default"}); err != nil {
+	if _, err := store.SelectPrompt(model.SelectPromptRequest{Name: "default"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.DeletePrompt(SelectPromptRequest{Name: "research"}); err != nil {
+	if _, err := store.DeletePrompt(model.SelectPromptRequest{Name: "research"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -412,7 +415,7 @@ func TestStoreEffectiveMCPConfigFallsBackToDefaultWorkspace(t *testing.T) {
 	if _, err := store.SaveMCPConfig(defaultConfig); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.CreatePrompt(CreatePromptRequest{Name: "model", SystemPrompt: "model workspace"}); err != nil {
+	if _, err := store.CreatePrompt(model.CreatePromptRequest{Name: "model", SystemPrompt: "model workspace"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.SaveMCPConfig(`{"servers":{}}`); err != nil {
@@ -422,7 +425,7 @@ func TestStoreEffectiveMCPConfigFallsBackToDefaultWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := ParseMCPConfig(content)
+	cfg, err := mcp.ParseMCPConfig(content)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -444,7 +447,7 @@ func TestStoreChatJobEventsPersistAndFinish(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.AddChatJobEvent(job.ID, "delta", StreamDelta{Content: "hello"}); err != nil {
+	if _, err := store.AddChatJobEvent(job.ID, "delta", llm.StreamDelta{Content: "hello"}); err != nil {
 		t.Fatal(err)
 	}
 	loaded, events, err := store.ChatJobEventsAfter(job.ID, 0)

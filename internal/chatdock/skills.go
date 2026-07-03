@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/model"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -9,21 +10,21 @@ import (
 	"unicode/utf8"
 )
 
-func (s *Store) ListSkills() (SkillResponse, error) {
+func (s *Store) ListSkills() (model.SkillResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	skills, err := s.loadSkillsLocked()
 	if err != nil {
-		return SkillResponse{}, err
+		return model.SkillResponse{}, err
 	}
-	return SkillResponse{Skills: cloneSkills(skills)}, nil
+	return model.SkillResponse{Skills: cloneSkills(skills)}, nil
 }
 
-func (s *Store) CreateSkill(input SaveSkillRequest) (SkillResponse, error) {
+func (s *Store) CreateSkill(input model.SaveSkillRequest) (model.SkillResponse, error) {
 	next, err := normalizeSkillInput(input)
 	if err != nil {
-		return SkillResponse{}, err
+		return model.SkillResponse{}, err
 	}
 
 	s.mu.Lock()
@@ -31,32 +32,32 @@ func (s *Store) CreateSkill(input SaveSkillRequest) (SkillResponse, error) {
 
 	skills, err := s.loadSkillsLocked()
 	if err != nil {
-		return SkillResponse{}, err
+		return model.SkillResponse{}, err
 	}
 	for _, skill := range skills {
 		if strings.EqualFold(skill.Name, next.Name) {
-			return SkillResponse{}, fmt.Errorf("skill already exists: %s", next.Name)
+			return model.SkillResponse{}, fmt.Errorf("skill already exists: %s", next.Name)
 		}
 	}
 	now := time.Now()
-	next.ID = NewID()
+	next.ID = model.NewID()
 	next.CreatedAt = now
 	next.UpdatedAt = now
 	skills = append(skills, next)
 	if err := s.saveSkillsLocked(skills); err != nil {
-		return SkillResponse{}, err
+		return model.SkillResponse{}, err
 	}
-	return SkillResponse{Skills: cloneSkills(skills)}, nil
+	return model.SkillResponse{Skills: cloneSkills(skills)}, nil
 }
 
-func (s *Store) UpdateSkill(id string, input SaveSkillRequest) (SkillResponse, error) {
+func (s *Store) UpdateSkill(id string, input model.SaveSkillRequest) (model.SkillResponse, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
-		return SkillResponse{}, fmt.Errorf("skill id is empty")
+		return model.SkillResponse{}, fmt.Errorf("skill id is empty")
 	}
 	next, err := normalizeSkillInput(input)
 	if err != nil {
-		return SkillResponse{}, err
+		return model.SkillResponse{}, err
 	}
 
 	s.mu.Lock()
@@ -64,13 +65,13 @@ func (s *Store) UpdateSkill(id string, input SaveSkillRequest) (SkillResponse, e
 
 	skills, err := s.loadSkillsLocked()
 	if err != nil {
-		return SkillResponse{}, err
+		return model.SkillResponse{}, err
 	}
 	found := false
 	for i := range skills {
 		if skills[i].ID != id {
 			if strings.EqualFold(skills[i].Name, next.Name) {
-				return SkillResponse{}, fmt.Errorf("skill already exists: %s", next.Name)
+				return model.SkillResponse{}, fmt.Errorf("skill already exists: %s", next.Name)
 			}
 			continue
 		}
@@ -84,18 +85,18 @@ func (s *Store) UpdateSkill(id string, input SaveSkillRequest) (SkillResponse, e
 		found = true
 	}
 	if !found {
-		return SkillResponse{}, fmt.Errorf("skill not found: %s", id)
+		return model.SkillResponse{}, fmt.Errorf("skill not found: %s", id)
 	}
 	if err := s.saveSkillsLocked(skills); err != nil {
-		return SkillResponse{}, err
+		return model.SkillResponse{}, err
 	}
-	return SkillResponse{Skills: cloneSkills(skills)}, nil
+	return model.SkillResponse{Skills: cloneSkills(skills)}, nil
 }
 
-func (s *Store) DeleteSkill(id string) (SkillResponse, error) {
+func (s *Store) DeleteSkill(id string) (model.SkillResponse, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
-		return SkillResponse{}, fmt.Errorf("skill id is empty")
+		return model.SkillResponse{}, fmt.Errorf("skill id is empty")
 	}
 
 	s.mu.Lock()
@@ -103,7 +104,7 @@ func (s *Store) DeleteSkill(id string) (SkillResponse, error) {
 
 	skills, err := s.loadSkillsLocked()
 	if err != nil {
-		return SkillResponse{}, err
+		return model.SkillResponse{}, err
 	}
 	index := -1
 	for i, skill := range skills {
@@ -113,21 +114,21 @@ func (s *Store) DeleteSkill(id string) (SkillResponse, error) {
 		}
 	}
 	if index < 0 {
-		return SkillResponse{}, fmt.Errorf("skill not found: %s", id)
+		return model.SkillResponse{}, fmt.Errorf("skill not found: %s", id)
 	}
 	skills = append(skills[:index], skills[index+1:]...)
 	if err := s.saveSkillsLocked(skills); err != nil {
-		return SkillResponse{}, err
+		return model.SkillResponse{}, err
 	}
-	return SkillResponse{Skills: cloneSkills(skills)}, nil
+	return model.SkillResponse{Skills: cloneSkills(skills)}, nil
 }
 
-func (s *Store) enabledSkillsLocked() ([]Skill, error) {
+func (s *Store) enabledSkillsLocked() ([]model.Skill, error) {
 	skills, err := s.loadSkillsLocked()
 	if err != nil {
 		return nil, err
 	}
-	out := make([]Skill, 0, len(skills))
+	out := make([]model.Skill, 0, len(skills))
 	for _, skill := range skills {
 		if skill.Enabled {
 			out = append(out, skill)
@@ -136,16 +137,16 @@ func (s *Store) enabledSkillsLocked() ([]Skill, error) {
 	return cloneSkills(out), nil
 }
 
-func (s *Store) loadSkillsLocked() ([]Skill, error) {
+func (s *Store) loadSkillsLocked() ([]model.Skill, error) {
 	raw, ok, err := s.getPromptRawLocked(s.activePrompt, "skills")
 	if err != nil {
 		return nil, err
 	}
 	if !ok || strings.TrimSpace(raw) == "" {
-		skills := []Skill{}
+		skills := []model.Skill{}
 		return skills, s.saveSkillsLocked(skills)
 	}
-	var skills []Skill
+	var skills []model.Skill
 	if err := json.Unmarshal([]byte(raw), &skills); err != nil {
 		return nil, fmt.Errorf("skills config must be valid json: %w", err)
 	}
@@ -153,12 +154,12 @@ func (s *Store) loadSkillsLocked() ([]Skill, error) {
 	return skills, nil
 }
 
-func (s *Store) saveSkillsLocked(skills []Skill) error {
+func (s *Store) saveSkillsLocked(skills []model.Skill) error {
 	sortSkills(skills)
 	return s.setPromptJSONLocked(s.activePrompt, "skills", skills)
 }
 
-func sortSkills(skills []Skill) {
+func sortSkills(skills []model.Skill) {
 	sort.SliceStable(skills, func(i, j int) bool {
 		if skills[i].Enabled != skills[j].Enabled {
 			return skills[i].Enabled
@@ -167,20 +168,20 @@ func sortSkills(skills []Skill) {
 	})
 }
 
-func normalizeSkillInput(input SaveSkillRequest) (Skill, error) {
+func normalizeSkillInput(input model.SaveSkillRequest) (model.Skill, error) {
 	name, err := normalizeSkillName(input.Name)
 	if err != nil {
-		return Skill{}, err
+		return model.Skill{}, err
 	}
 	desc := limitRunes(strings.TrimSpace(input.Description), 240)
 	content := strings.TrimSpace(input.Content)
 	if content == "" {
-		return Skill{}, fmt.Errorf("skill content is empty")
+		return model.Skill{}, fmt.Errorf("skill content is empty")
 	}
 	if len([]byte(content)) > 40000 {
-		return Skill{}, fmt.Errorf("skill content is too large")
+		return model.Skill{}, fmt.Errorf("skill content is too large")
 	}
-	return Skill{Name: name, Description: desc, Content: content, Enabled: input.Enabled}, nil
+	return model.Skill{Name: name, Description: desc, Content: content, Enabled: input.Enabled}, nil
 }
 
 func normalizeSkillName(name string) (string, error) {
@@ -210,8 +211,8 @@ func limitRunes(value string, max int) string {
 	return string(runes[:max])
 }
 
-func cloneSkills(skills []Skill) []Skill {
-	out := make([]Skill, len(skills))
+func cloneSkills(skills []model.Skill) []model.Skill {
+	out := make([]model.Skill, len(skills))
 	copy(out, skills)
 	return out
 }

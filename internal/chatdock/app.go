@@ -2,6 +2,9 @@ package chatdock
 
 import (
 	"bytes"
+	"chatdock/internal/chatdock/llm"
+	"chatdock/internal/chatdock/mcp"
+	"chatdock/internal/chatdock/model"
 	"context"
 	"crypto/subtle"
 	"fmt"
@@ -19,10 +22,10 @@ import (
 )
 
 type App struct {
-	cfg           ServerConfig
+	cfg           model.ServerConfig
 	store         *Store
-	client        *ChatClient
-	mcpClient     *MCPClient
+	client        *llm.ChatClient
+	mcpClient     *mcp.MCPClient
 	server        *http.Server
 	jobMu         sync.Mutex
 	jobCancel     map[string]context.CancelFunc
@@ -32,7 +35,7 @@ type App struct {
 	running       map[string]bool
 }
 
-func NewApp(cfg ServerConfig) (*App, error) {
+func NewApp(cfg model.ServerConfig) (*App, error) {
 	store, err := NewStore(cfg.DataDir)
 	if err != nil {
 		return nil, err
@@ -41,8 +44,8 @@ func NewApp(cfg ServerConfig) (*App, error) {
 	app := &App{
 		cfg:           cfg,
 		store:         store,
-		client:        NewChatClient(),
-		mcpClient:     NewMCPClient(),
+		client:        llm.NewChatClient(),
+		mcpClient:     mcp.NewMCPClient(),
 		jobCancel:     make(map[string]context.CancelFunc),
 		confirmations: make(map[string]*MCPConfirmation),
 		running:       make(map[string]bool),
@@ -126,16 +129,16 @@ func (a *App) startScheduledTask(promptName string, id string, manual bool) {
 	}()
 }
 
-func (a *App) executeScheduledTask(ctx context.Context, promptName string, id string, manual bool) (ScheduledTaskRunResponse, error) {
+func (a *App) executeScheduledTask(ctx context.Context, promptName string, id string, manual bool) (model.ScheduledTaskRunResponse, error) {
 	startedAt := time.Now()
 	run, err := a.store.PrepareScheduledTaskRunInPrompt(promptName, id, manual, startedAt)
 	if err != nil {
-		return ScheduledTaskRunResponse{}, err
+		return model.ScheduledTaskRunResponse{}, err
 	}
 	answer, runErr := a.completeWithOptionalTools(ctx, run.SessionID, run.Config, run.History)
 	result, finishErr := a.store.FinishScheduledTaskRun(run.PromptName, run.Task.ID, run.SessionID, answer, startedAt, manual, runErr)
 	if finishErr != nil {
-		return ScheduledTaskRunResponse{}, finishErr
+		return model.ScheduledTaskRunResponse{}, finishErr
 	}
 	if runErr != nil {
 		return result, runErr
@@ -210,7 +213,7 @@ func (a *App) routes() http.Handler {
 
 func (a *App) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(a.cfg.AuthUsername)
-	writeJSONResponse(w, http.StatusOK, AuthStatusResponse{
+	writeJSONResponse(w, http.StatusOK, model.AuthStatusResponse{
 		Enabled:      strings.TrimSpace(a.cfg.AuthToken) != "",
 		LoginEnabled: username != "" && strings.TrimSpace(a.cfg.AuthCredential) != "",
 		Username:     username,
@@ -218,7 +221,7 @@ func (a *App) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
-	var input AuthLoginRequest
+	var input model.AuthLoginRequest
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -226,7 +229,7 @@ func (a *App) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 
 	token := strings.TrimSpace(a.cfg.AuthToken)
 	if token == "" {
-		writeJSONResponse(w, http.StatusOK, AuthLoginResponse{OK: true})
+		writeJSONResponse(w, http.StatusOK, model.AuthLoginResponse{OK: true})
 		return
 	}
 
@@ -237,7 +240,7 @@ func (a *App) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if subtle.ConstantTimeCompare([]byte(input.Username), []byte(username)) == 1 && subtle.ConstantTimeCompare([]byte(input.Credential), []byte(credential)) == 1 {
-		writeJSONResponse(w, http.StatusOK, AuthLoginResponse{OK: true, Token: token, Username: username})
+		writeJSONResponse(w, http.StatusOK, model.AuthLoginResponse{OK: true, Token: token, Username: username})
 		return
 	}
 	writeError(w, http.StatusUnauthorized, fmt.Errorf("invalid login"))

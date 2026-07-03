@@ -1,6 +1,8 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/mcp"
+	"chatdock/internal/chatdock/model"
 	"context"
 	"fmt"
 	"net/http"
@@ -25,15 +27,15 @@ type MCPConfirmationResolveRequest struct {
 	Approve bool `json:"approve"`
 }
 
-func mcpToolNeedsConfirmation(cfg MCPConfig, fullName string) bool {
-	serverName, toolName := splitToolFullName(fullName)
+func mcpToolNeedsConfirmation(cfg mcp.MCPConfig, fullName string) bool {
+	serverName, toolName := mcp.SplitToolFullName(fullName)
 	server, ok := cfg.Servers[serverName]
 	return ok && server.RequiresConfirmation(toolName, fullName)
 }
 
 func (a *App) requestMCPConfirmation(ctx context.Context, sessionID string, tool string, args map[string]any, emit func(string, any) error) error {
 	confirmation := &MCPConfirmation{
-		ID:          NewID(),
+		ID:          model.NewID(),
 		Workspace:   a.store.ActivePrompt(),
 		SessionID:   strings.TrimSpace(sessionID),
 		Tool:        strings.TrimSpace(tool),

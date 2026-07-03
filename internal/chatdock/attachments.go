@@ -3,6 +3,8 @@ package chatdock
 import (
 	"archive/zip"
 	"bytes"
+	"chatdock/internal/chatdock/llm"
+	"chatdock/internal/chatdock/model"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -41,7 +43,7 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	name := cleanUploadName(header.Filename)
-	id := NewID()
+	id := model.NewID()
 	sessionID := strings.TrimSpace(r.FormValue("session_id"))
 	prompt := a.store.ActivePrompt()
 	uploadDir := filepath.Join(a.cfg.DataDir, "uploads", safeFileComponent(prompt))
@@ -74,13 +76,13 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mimeType := firstNonEmptyString(header.Header.Get("Content-Type"), mime.TypeByExtension(strings.ToLower(filepath.Ext(name))), "application/octet-stream")
+	mimeType := llm.FirstNonEmptyString(header.Header.Get("Content-Type"), mime.TypeByExtension(strings.ToLower(filepath.Ext(name))), "application/octet-stream")
 	text, status, extractErr := extractAttachmentText(storagePath, name, mimeType)
 	if extractErr != nil && strings.TrimSpace(text) == "" {
 		status = "stored"
 	}
-	record := AttachmentRecord{
-		Attachment: Attachment{
+	record := model.AttachmentRecord{
+		Attachment: model.Attachment{
 			ID:        id,
 			Name:      name,
 			MIMEType:  mimeType,
@@ -100,14 +102,14 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, FileUploadResponse{Attachment: record.Attachment})
+	writeJSONResponse(w, http.StatusOK, model.FileUploadResponse{Attachment: record.Attachment})
 }
 
-func (s *Store) SaveAttachment(record AttachmentRecord) error {
+func (s *Store) SaveAttachment(record model.AttachmentRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if strings.TrimSpace(record.ID) == "" {
-		record.ID = NewID()
+		record.ID = model.NewID()
 	}
 	if record.CreatedAt.IsZero() {
 		record.CreatedAt = time.Now()
@@ -120,7 +122,7 @@ func (s *Store) SaveAttachment(record AttachmentRecord) error {
 	return err
 }
 
-func (s *Store) attachmentRecordsByIDsLocked(ids []string) ([]AttachmentRecord, error) {
+func (s *Store) attachmentRecordsByIDsLocked(ids []string) ([]model.AttachmentRecord, error) {
 	ids = uniqueAttachmentIDs(ids)
 	if len(ids) == 0 {
 		return nil, nil
@@ -136,7 +138,7 @@ func (s *Store) attachmentRecordsByIDsLocked(ids []string) ([]AttachmentRecord, 
 		return nil, err
 	}
 	defer rows.Close()
-	found := map[string]AttachmentRecord{}
+	found := map[string]model.AttachmentRecord{}
 	for rows.Next() {
 		record, err := scanAttachmentRecord(rows)
 		if err != nil {
@@ -147,7 +149,7 @@ func (s *Store) attachmentRecordsByIDsLocked(ids []string) ([]AttachmentRecord, 
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	records := make([]AttachmentRecord, 0, len(ids))
+	records := make([]model.AttachmentRecord, 0, len(ids))
 	for _, id := range ids {
 		record, ok := found[id]
 		if !ok {
@@ -158,12 +160,12 @@ func (s *Store) attachmentRecordsByIDsLocked(ids []string) ([]AttachmentRecord, 
 	return records, nil
 }
 
-func scanAttachmentRecord(rows interface{ Scan(dest ...any) error }) (AttachmentRecord, error) {
-	var record AttachmentRecord
+func scanAttachmentRecord(rows interface{ Scan(dest ...any) error }) (model.AttachmentRecord, error) {
+	var record model.AttachmentRecord
 	var createdRaw string
 	var text sql.NullString
 	if err := rows.Scan(&record.Prompt, &record.ID, &record.SessionID, &record.MessageID, &record.Name, &record.MIMEType, &record.Size, &record.StoragePath, &record.SHA256, &text, &record.Status, &createdRaw); err != nil {
-		return AttachmentRecord{}, err
+		return model.AttachmentRecord{}, err
 	}
 	if text.Valid {
 		record.TextContent = text.String
@@ -188,8 +190,8 @@ func uniqueAttachmentIDs(ids []string) []string {
 	return out
 }
 
-func publicAttachments(records []AttachmentRecord) []Attachment {
-	out := make([]Attachment, 0, len(records))
+func publicAttachments(records []model.AttachmentRecord) []model.Attachment {
+	out := make([]model.Attachment, 0, len(records))
 	for _, record := range records {
 		item := record.Attachment
 		item.HasText = strings.TrimSpace(record.TextContent) != ""

@@ -1,6 +1,8 @@
 package llm
 
 import (
+	"chatdock/internal/chatdock/mcp"
+	"chatdock/internal/chatdock/model"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -36,8 +38,8 @@ func TestThinkingFilterAcrossChunks(t *testing.T) {
 }
 
 func TestBuildChatMessagesCustomModeLimitsContext(t *testing.T) {
-	cfg := ModelConfig{SystemPrompt: "sys", ContextMode: ContextModeCustom, MaxContextMessages: 2}
-	history := []Message{{Role: "user", Content: "a"}, {Role: "assistant", Content: "b"}, {Role: "tool", Content: "ignored"}, {Role: "user", Content: "c"}}
+	cfg := model.ModelConfig{SystemPrompt: "sys", ContextMode: model.ContextModeCustom, MaxContextMessages: 2}
+	history := []model.Message{{Role: "user", Content: "a"}, {Role: "assistant", Content: "b"}, {Role: "tool", Content: "ignored"}, {Role: "user", Content: "c"}}
 	got := BuildChatMessages(cfg, history)
 	if len(got) != 3 {
 		t.Fatalf("expected system plus last two valid messages, got %#v", got)
@@ -48,10 +50,10 @@ func TestBuildChatMessagesCustomModeLimitsContext(t *testing.T) {
 }
 
 func TestBuildChatMessagesAutoSummarizesEarlierContext(t *testing.T) {
-	cfg := ModelConfig{SystemPrompt: "sys", ContextMode: ContextModeAuto}
-	history := make([]Message, 0, 14)
+	cfg := model.ModelConfig{SystemPrompt: "sys", ContextMode: model.ContextModeAuto}
+	history := make([]model.Message, 0, 14)
 	for i := 1; i <= 14; i++ {
-		history = append(history, Message{Role: "user", Content: fmt.Sprintf("message-%02d", i)})
+		history = append(history, model.Message{Role: "user", Content: fmt.Sprintf("message-%02d", i)})
 	}
 	got := BuildChatMessages(cfg, history)
 	if len(got) != 14 {
@@ -66,7 +68,7 @@ func TestBuildChatMessagesAutoSummarizesEarlierContext(t *testing.T) {
 }
 
 func TestStreamRawMessagesEmitsIncrementalDeltas(t *testing.T) {
-	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatal(err)
@@ -87,10 +89,10 @@ func TestStreamRawMessagesEmitsIncrementalDeltas(t *testing.T) {
 		_, _ = w.Write([]byte("data: [DONE]\n\n"))
 		flusher.Flush()
 	}))
-	defer model.Close()
+	defer modelServer.Close()
 
 	client := NewChatClient()
-	cfg := ModelConfig{BaseURL: model.URL, Model: "fake", HideThinking: true}
+	cfg := model.ModelConfig{BaseURL: modelServer.URL, Model: "fake", HideThinking: true}
 	var got []string
 	start := time.Now()
 	answer, err := client.StreamRawMessages(context.Background(), cfg, []map[string]any{{"role": "user", "content": "hi"}}, func(delta StreamDelta) error {
@@ -113,7 +115,7 @@ func TestStreamRawMessagesEmitsIncrementalDeltas(t *testing.T) {
 
 func TestCompleteWithMCPToolsEventsStreamsWhenNoToolCall(t *testing.T) {
 	requestCount := 0
-	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
 		var body map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -145,13 +147,13 @@ func TestCompleteWithMCPToolsEventsStreamsWhenNoToolCall(t *testing.T) {
 		_, _ = w.Write([]byte("data: [DONE]\n\n"))
 		flusher.Flush()
 	}))
-	defer model.Close()
+	defer modelServer.Close()
 
 	client := NewChatClient()
-	cfg := ModelConfig{BaseURL: model.URL, Model: "fake", HideThinking: true}
-	tools := []MCPTool{{Name: "noop", FullName: "noop", Description: "noop", InputSchema: map[string]any{"type": "object"}}}
+	cfg := model.ModelConfig{BaseURL: modelServer.URL, Model: "fake", HideThinking: true}
+	tools := []mcp.MCPTool{{Name: "noop", FullName: "noop", Description: "noop", InputSchema: map[string]any{"type": "object"}}}
 	var events []string
-	answer, err := client.CompleteWithMCPToolsEvents(context.Background(), cfg, []Message{{Role: "user", Content: "hi"}}, tools, func(string, map[string]any) (any, error) {
+	answer, err := client.CompleteWithMCPToolsEvents(context.Background(), cfg, []model.Message{{Role: "user", Content: "hi"}}, tools, func(string, map[string]any) (any, error) {
 		t.Fatal("tool should not be called")
 		return nil, nil
 	}, func(kind string, payload any) error {
@@ -173,7 +175,7 @@ func TestCompleteWithMCPToolsEventsStreamsWhenNoToolCall(t *testing.T) {
 
 func TestCompleteWithMCPToolsEventsAllowsMultipleToolRoundsBeforeStreaming(t *testing.T) {
 	requestCount := 0
-	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
 		var body map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -223,13 +225,13 @@ func TestCompleteWithMCPToolsEventsAllowsMultipleToolRoundsBeforeStreaming(t *te
 			t.Fatalf("unexpected request %d", requestCount)
 		}
 	}))
-	defer model.Close()
+	defer modelServer.Close()
 
 	client := NewChatClient()
-	cfg := ModelConfig{BaseURL: model.URL, Model: "fake", HideThinking: true}
-	tools := []MCPTool{{Name: "noop", FullName: "noop", Description: "noop", InputSchema: map[string]any{"type": "object"}}}
+	cfg := model.ModelConfig{BaseURL: modelServer.URL, Model: "fake", HideThinking: true}
+	tools := []mcp.MCPTool{{Name: "noop", FullName: "noop", Description: "noop", InputSchema: map[string]any{"type": "object"}}}
 	var called []string
-	answer, err := client.CompleteWithMCPToolsEvents(context.Background(), cfg, []Message{{Role: "user", Content: "hi"}}, tools, func(name string, args map[string]any) (any, error) {
+	answer, err := client.CompleteWithMCPToolsEvents(context.Background(), cfg, []model.Message{{Role: "user", Content: "hi"}}, tools, func(name string, args map[string]any) (any, error) {
 		called = append(called, name)
 		return map[string]any{"name": name, "args": args}, nil
 	}, func(kind string, payload any) error { return nil })
@@ -249,7 +251,7 @@ func TestCompleteWithMCPToolsEventsAllowsMultipleToolRoundsBeforeStreaming(t *te
 
 func TestCompleteWithMCPToolsEventsHasNoFixedRoundCap(t *testing.T) {
 	requestCount := 0
-	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
 		var body map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -284,13 +286,13 @@ func TestCompleteWithMCPToolsEventsHasNoFixedRoundCap(t *testing.T) {
 		}
 		t.Fatalf("unexpected request %d", requestCount)
 	}))
-	defer model.Close()
+	defer modelServer.Close()
 
 	client := NewChatClient()
-	cfg := ModelConfig{BaseURL: model.URL, Model: "fake", HideThinking: true}
-	tools := []MCPTool{{Name: "loop", FullName: "loop_tool", Description: "loop", InputSchema: map[string]any{"type": "object"}}}
+	cfg := model.ModelConfig{BaseURL: modelServer.URL, Model: "fake", HideThinking: true}
+	tools := []mcp.MCPTool{{Name: "loop", FullName: "loop_tool", Description: "loop", InputSchema: map[string]any{"type": "object"}}}
 	calls := 0
-	answer, err := client.CompleteWithMCPToolsEvents(context.Background(), cfg, []Message{{Role: "user", Content: "hi"}}, tools, func(name string, args map[string]any) (any, error) {
+	answer, err := client.CompleteWithMCPToolsEvents(context.Background(), cfg, []model.Message{{Role: "user", Content: "hi"}}, tools, func(name string, args map[string]any) (any, error) {
 		calls++
 		return map[string]any{"ok": true, "name": name, "args": args}, nil
 	}, func(kind string, payload any) error { return nil })
@@ -307,7 +309,7 @@ func TestCompleteWithMCPToolsEventsHasNoFixedRoundCap(t *testing.T) {
 
 func TestAppendMCPToolUseHint(t *testing.T) {
 	messages := []map[string]any{{"role": "system", "content": "base"}, {"role": "user", "content": "hi"}}
-	out := appendMCPToolUseHint(messages, []MCPTool{{Name: "read", FullName: "agentdock__read"}})
+	out := appendMCPToolUseHint(messages, []mcp.MCPTool{{Name: "read", FullName: "agentdock__read"}})
 	if len(out) != 3 {
 		t.Fatalf("expected hint to be inserted, got %#v", out)
 	}

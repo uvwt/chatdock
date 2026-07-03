@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/model"
 	"fmt"
 	"net/http"
 	"strings"
@@ -16,7 +17,7 @@ func (a *App) handleListScheduledTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleCreateScheduledTask(w http.ResponseWriter, r *http.Request) {
-	var input ScheduledTaskRequest
+	var input model.ScheduledTaskRequest
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -53,7 +54,7 @@ func (a *App) handleScheduledTaskRoute(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.Method {
 	case http.MethodPut:
-		var input ScheduledTaskRequest
+		var input model.ScheduledTaskRequest
 		if err := readJSON(r, &input); err != nil {
 			writeError(w, http.StatusBadRequest, err)
 			return

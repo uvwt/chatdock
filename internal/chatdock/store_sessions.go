@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/model"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -8,17 +9,17 @@ import (
 	"time"
 )
 
-// 会话方法集中处理 Session 的生命周期和消息追加。
+// 会话方法集中处理 model.Session 的生命周期和消息追加。
 // 持久化仍通过 Store 的 SQLite helper 完成，保持单 package 内的简单边界。
 
-func (s *Store) ListSessions() []SessionSummary {
+func (s *Store) ListSessions() []model.SessionSummary {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	items := make([]SessionSummary, 0, len(s.sessions))
+	items := make([]model.SessionSummary, 0, len(s.sessions))
 	for _, session := range s.sessions {
 		lastRole, preview := sessionPreview(session)
-		items = append(items, SessionSummary{
+		items = append(items, model.SessionSummary{
 			ID:        session.ID,
 			Title:     session.Title,
 			Pinned:    session.Pinned,
@@ -38,14 +39,14 @@ func (s *Store) ListSessions() []SessionSummary {
 	return items
 }
 
-func (s *Store) CreateSession() (*Session, error) {
+func (s *Store) CreateSession() (*model.Session, error) {
 	now := time.Now()
-	session := &Session{
-		ID:        NewID(),
+	session := &model.Session{
+		ID:        model.NewID(),
 		Title:     "新会话",
 		CreatedAt: now,
 		UpdatedAt: now,
-		Messages:  []Message{},
+		Messages:  []model.Message{},
 	}
 
 	s.mu.Lock()
@@ -55,7 +56,7 @@ func (s *Store) CreateSession() (*Session, error) {
 	return cloneSession(session), s.saveSessionLocked(session)
 }
 
-func (s *Store) GetSession(id string) (*Session, bool) {
+func (s *Store) GetSession(id string) (*model.Session, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -66,17 +67,17 @@ func (s *Store) GetSession(id string) (*Session, bool) {
 	return cloneSession(session), true
 }
 
-func (s *Store) CloneSession(id string) (*Session, error) {
+func (s *Store) CloneSession(id string) (*model.Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	source, ok := s.sessions[id]
 	if !ok {
-		return nil, ErrSessionNotFound
+		return nil, model.ErrSessionNotFound
 	}
 	now := time.Now()
 	copySession := cloneSession(source)
-	copySession.ID = NewID()
+	copySession.ID = model.NewID()
 	copySession.Title = strings.TrimSpace(source.Title)
 	if copySession.Title == "" {
 		copySession.Title = "新会话"
@@ -109,13 +110,13 @@ func (s *Store) DeleteSession(id string) bool {
 	return true
 }
 
-func (s *Store) PinSession(id string, pinned bool) (*Session, error) {
+func (s *Store) PinSession(id string, pinned bool) (*model.Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	session, ok := s.sessions[id]
 	if !ok {
-		return nil, ErrSessionNotFound
+		return nil, model.ErrSessionNotFound
 	}
 	if session.Pinned == pinned {
 		return cloneSession(session), nil
@@ -127,7 +128,7 @@ func (s *Store) PinSession(id string, pinned bool) (*Session, error) {
 	return cloneSession(session), nil
 }
 
-func (s *Store) RenameSession(id string, title string) (*Session, error) {
+func (s *Store) RenameSession(id string, title string) (*model.Session, error) {
 	title = strings.TrimSpace(strings.ReplaceAll(title, "\n", " "))
 	if title == "" {
 		return nil, fmt.Errorf("session title is empty")
@@ -142,7 +143,7 @@ func (s *Store) RenameSession(id string, title string) (*Session, error) {
 
 	session, ok := s.sessions[id]
 	if !ok {
-		return nil, ErrSessionNotFound
+		return nil, model.ErrSessionNotFound
 	}
 	session.Title = title
 	session.UpdatedAt = time.Now()
@@ -152,26 +153,26 @@ func (s *Store) RenameSession(id string, title string) (*Session, error) {
 	return cloneSession(session), nil
 }
 
-func (s *Store) AppendUserMessage(sessionID string, content string) (*Session, ModelConfig, []Message, error) {
+func (s *Store) AppendUserMessage(sessionID string, content string) (*model.Session, model.ModelConfig, []model.Message, error) {
 	return s.AppendUserMessageWithAttachments(sessionID, content, nil)
 }
 
-func (s *Store) AppendUserMessageWithAttachments(sessionID string, content string, attachmentIDs []string) (*Session, ModelConfig, []Message, error) {
+func (s *Store) AppendUserMessageWithAttachments(sessionID string, content string, attachmentIDs []string) (*model.Session, model.ModelConfig, []model.Message, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	session, ok := s.sessions[sessionID]
 	if !ok {
-		return nil, ModelConfig{}, nil, ErrSessionNotFound
+		return nil, model.ModelConfig{}, nil, model.ErrSessionNotFound
 	}
 
 	attachments, err := s.attachmentRecordsByIDsLocked(attachmentIDs)
 	if err != nil {
-		return nil, ModelConfig{}, nil, err
+		return nil, model.ModelConfig{}, nil, err
 	}
 	content = strings.TrimSpace(content)
 	if content == "" && len(attachments) == 0 {
-		return nil, ModelConfig{}, nil, fmt.Errorf("message is empty")
+		return nil, model.ModelConfig{}, nil, fmt.Errorf("message is empty")
 	}
 
 	titleSource := content
@@ -183,8 +184,8 @@ func (s *Store) AppendUserMessageWithAttachments(sessionID string, content strin
 	}
 
 	now := time.Now()
-	messageID := NewID()
-	session.Messages = append(session.Messages, Message{ID: messageID, Role: "user", Content: content, Attachments: publicAttachments(attachments), CreatedAt: now})
+	messageID := model.NewID()
+	session.Messages = append(session.Messages, model.Message{ID: messageID, Role: "user", Content: content, Attachments: publicAttachments(attachments), CreatedAt: now})
 	session.UpdatedAt = now
 
 	if len(attachments) > 0 {
@@ -195,44 +196,44 @@ func (s *Store) AppendUserMessageWithAttachments(sessionID string, content strin
 			args = append(args, id)
 		}
 		if _, err := s.db.Exec(`UPDATE attachments SET session_id = ?, message_id = ? WHERE prompt = ? AND id IN (`+placeholders+`)`, args...); err != nil {
-			return nil, ModelConfig{}, nil, err
+			return nil, model.ModelConfig{}, nil, err
 		}
 	}
 
 	if err := s.saveSessionLocked(session); err != nil {
-		return nil, ModelConfig{}, nil, err
+		return nil, model.ModelConfig{}, nil, err
 	}
 
 	cfg := s.modelCfg
 	skills, err := s.enabledSkillsLocked()
 	if err != nil {
-		return nil, ModelConfig{}, nil, err
+		return nil, model.ModelConfig{}, nil, err
 	}
 	cfg.Skills = skills
 	history := cloneMessages(session.Messages)
 	if len(history) > 0 {
-		history[len(history)-1].Content = buildUserContentForModel(content, attachments)
+		history[len(history)-1].Content = model.BuildUserContentForModel(content, attachments)
 		history[len(history)-1].ModelAttachments = attachments
 		history[len(history)-1].Attachments = nil
 	}
 	return cloneSession(session), cfg, history, nil
 }
 
-func (s *Store) AppendAssistantMessage(sessionID string, content string) (*Session, error) {
+func (s *Store) AppendAssistantMessage(sessionID string, content string) (*model.Session, error) {
 	return s.AppendAssistantMessageWithReasoning(sessionID, content, "")
 }
 
-func (s *Store) AppendAssistantMessageWithReasoning(sessionID string, content string, reasoning string) (*Session, error) {
+func (s *Store) AppendAssistantMessageWithReasoning(sessionID string, content string, reasoning string) (*model.Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	session, ok := s.sessions[sessionID]
 	if !ok {
-		return nil, ErrSessionNotFound
+		return nil, model.ErrSessionNotFound
 	}
 
 	now := time.Now()
-	session.Messages = append(session.Messages, Message{ID: NewID(), Role: "assistant", Content: content, Reasoning: strings.TrimSpace(reasoning), CreatedAt: now})
+	session.Messages = append(session.Messages, model.Message{ID: model.NewID(), Role: "assistant", Content: content, Reasoning: strings.TrimSpace(reasoning), CreatedAt: now})
 	session.UpdatedAt = now
 
 	if err := s.saveSessionLocked(session); err != nil {
@@ -252,7 +253,7 @@ func (s *Store) loadSessionsLocked() error {
 		if err := rows.Scan(&raw); err != nil {
 			return err
 		}
-		var session Session
+		var session model.Session
 		if err := json.Unmarshal([]byte(raw), &session); err != nil {
 			return err
 		}
@@ -263,11 +264,11 @@ func (s *Store) loadSessionsLocked() error {
 	return rows.Err()
 }
 
-func (s *Store) saveSessionLocked(session *Session) error {
+func (s *Store) saveSessionLocked(session *model.Session) error {
 	return s.saveSessionForPromptLocked(s.activePrompt, session)
 }
 
-func (s *Store) saveSessionForPromptLocked(prompt string, session *Session) error {
+func (s *Store) saveSessionForPromptLocked(prompt string, session *model.Session) error {
 	if session == nil || strings.TrimSpace(session.ID) == "" {
 		return fmt.Errorf("session id is empty")
 	}
@@ -293,7 +294,7 @@ ON CONFLICT(prompt, id) DO UPDATE SET json = excluded.json, updated_at = exclude
 	return s.touchPromptLocked(prompt, now)
 }
 
-func sessionPreview(session *Session) (string, string) {
+func sessionPreview(session *model.Session) (string, string) {
 	if session == nil || len(session.Messages) == 0 {
 		return "", ""
 	}
@@ -306,7 +307,7 @@ func sessionPreview(session *Session) (string, string) {
 	return strings.TrimSpace(msg.Role), content
 }
 
-func cloneSession(session *Session) *Session {
+func cloneSession(session *model.Session) *model.Session {
 	if session == nil {
 		return nil
 	}
@@ -315,8 +316,8 @@ func cloneSession(session *Session) *Session {
 	return &copySession
 }
 
-func cloneMessages(messages []Message) []Message {
-	out := make([]Message, len(messages))
+func cloneMessages(messages []model.Message) []model.Message {
+	out := make([]model.Message, len(messages))
 	copy(out, messages)
 	return out
 }

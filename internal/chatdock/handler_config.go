@@ -1,15 +1,16 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/model"
 	"net/http"
 )
 
 func (a *App) handleGetConfig(w http.ResponseWriter, r *http.Request) {
-	writeJSONResponse(w, http.StatusOK, ToPublicModelConfig(a.store.GetModelConfig()))
+	writeJSONResponse(w, http.StatusOK, model.ToPublicModelConfig(a.store.GetModelConfig()))
 }
 
 func (a *App) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
-	var input ModelConfig
+	var input model.ModelConfig
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -20,7 +21,7 @@ func (a *App) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, ToPublicModelConfig(cfg))
+	writeJSONResponse(w, http.StatusOK, model.ToPublicModelConfig(cfg))
 }
 
 func (a *App) handleListPrompts(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +34,7 @@ func (a *App) handleListPrompts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleCreatePrompt(w http.ResponseWriter, r *http.Request) {
-	var input CreatePromptRequest
+	var input model.CreatePromptRequest
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -47,7 +48,7 @@ func (a *App) handleCreatePrompt(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleSelectPrompt(w http.ResponseWriter, r *http.Request) {
-	var input SelectPromptRequest
+	var input model.SelectPromptRequest
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

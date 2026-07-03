@@ -1,6 +1,8 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/mcp"
+	"chatdock/internal/chatdock/model"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -11,7 +13,7 @@ import (
 	"unicode/utf8"
 )
 
-// 工作空间、模型配置和 MCP 配置是一组同生命周期的 PromptSpace 数据。
+// 工作空间、模型配置和 MCP 配置是一组同生命周期的 model.PromptSpace 数据。
 // 这些方法只负责选择、校验和保存当前工作空间配置，不直接处理消息追加。
 
 func (s *Store) ActivePrompt() string {
@@ -20,22 +22,22 @@ func (s *Store) ActivePrompt() string {
 	return s.activePrompt
 }
 
-func (s *Store) ListPrompts() (PromptResponse, error) {
+func (s *Store) ListPrompts() (model.PromptResponse, error) {
 	s.mu.RLock()
 	active := s.activePrompt
 	s.mu.RUnlock()
 
 	prompts, err := s.listPrompts(active)
 	if err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
-	return PromptResponse{Active: active, Prompts: prompts}, nil
+	return model.PromptResponse{Active: active, Prompts: prompts}, nil
 }
 
-func (s *Store) CreatePrompt(input CreatePromptRequest) (PromptResponse, error) {
+func (s *Store) CreatePrompt(input model.CreatePromptRequest) (model.PromptResponse, error) {
 	name, err := normalizePromptName(input.Name)
 	if err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
 
 	s.mu.Lock()
@@ -43,67 +45,67 @@ func (s *Store) CreatePrompt(input CreatePromptRequest) (PromptResponse, error) 
 
 	exists, err := s.promptExistsLocked(name)
 	if err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
 	if exists {
-		return PromptResponse{}, fmt.Errorf("prompt already exists: %s", name)
+		return model.PromptResponse{}, fmt.Errorf("prompt already exists: %s", name)
 	}
 
 	now := time.Now()
 	if err := s.insertPromptLocked(name, now); err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
 	cfg := s.modelCfg
 	if strings.TrimSpace(cfg.BaseURL) == "" {
-		cfg = DefaultModelConfig()
+		cfg = model.DefaultModelConfig()
 	}
 	cfg.SystemPrompt = strings.TrimSpace(input.SystemPrompt)
 	if cfg.SystemPrompt == "" {
-		cfg.SystemPrompt = DefaultModelConfig().SystemPrompt
+		cfg.SystemPrompt = model.DefaultModelConfig().SystemPrompt
 	}
-	cfg = NormalizeModelConfig(cfg)
+	cfg = model.NormalizeModelConfig(cfg)
 	if err := s.setPromptJSONLocked(name, "config", cfg); err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
 	if err := s.setPromptRawLocked(name, "mcp", DefaultMCPConfig()); err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
 
 	if err := s.loadPromptLocked(name); err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
 	prompts, err := s.listPromptsLocked()
 	if err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
-	return PromptResponse{Active: s.activePrompt, Prompts: prompts}, nil
+	return model.PromptResponse{Active: s.activePrompt, Prompts: prompts}, nil
 }
 
-func (s *Store) DeletePrompt(input SelectPromptRequest) (PromptResponse, error) {
+func (s *Store) DeletePrompt(input model.SelectPromptRequest) (model.PromptResponse, error) {
 	name, err := normalizePromptName(input.Name)
 	if err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if name == defaultPromptName {
-		return PromptResponse{}, fmt.Errorf("default workspace cannot be deleted")
+		return model.PromptResponse{}, fmt.Errorf("default workspace cannot be deleted")
 	}
 	exists, err := s.promptExistsLocked(name)
 	if err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
 	if !exists {
-		return PromptResponse{}, fmt.Errorf("prompt not found: %s", name)
+		return model.PromptResponse{}, fmt.Errorf("prompt not found: %s", name)
 	}
 	names, err := s.listPromptNamesLocked()
 	if err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
 	if len(names) <= 1 {
-		return PromptResponse{}, fmt.Errorf("last workspace cannot be deleted")
+		return model.PromptResponse{}, fmt.Errorf("last workspace cannot be deleted")
 	}
 	if name == s.activePrompt {
 		fallback := defaultPromptName
@@ -116,28 +118,28 @@ func (s *Store) DeletePrompt(input SelectPromptRequest) (PromptResponse, error) 
 			}
 		}
 		if fallback == "" {
-			return PromptResponse{}, fmt.Errorf("no fallback workspace available")
+			return model.PromptResponse{}, fmt.Errorf("no fallback workspace available")
 		}
 		if err := s.loadPromptLocked(fallback); err != nil {
-			return PromptResponse{}, err
+			return model.PromptResponse{}, err
 		}
 	}
 	// prompt_kv 和 sessions 都声明了 ON DELETE CASCADE；删除 workspace 时必须只删 prompts 主表，
 	// 让 SQLite 在同一个连接内级联清理关联数据，避免前后端各自补删造成状态不一致。
 	if _, err := s.db.Exec(`DELETE FROM prompts WHERE name = ?`, name); err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
 	prompts, err := s.listPromptsLocked()
 	if err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
-	return PromptResponse{Active: s.activePrompt, Prompts: prompts}, nil
+	return model.PromptResponse{Active: s.activePrompt, Prompts: prompts}, nil
 }
 
-func (s *Store) SelectPrompt(input SelectPromptRequest) (PromptResponse, error) {
+func (s *Store) SelectPrompt(input model.SelectPromptRequest) (model.PromptResponse, error) {
 	name, err := normalizePromptName(input.Name)
 	if err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
 
 	s.mu.Lock()
@@ -145,19 +147,19 @@ func (s *Store) SelectPrompt(input SelectPromptRequest) (PromptResponse, error) 
 
 	exists, err := s.promptExistsLocked(name)
 	if err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
 	if !exists {
-		return PromptResponse{}, fmt.Errorf("prompt not found: %s", name)
+		return model.PromptResponse{}, fmt.Errorf("prompt not found: %s", name)
 	}
 	if err := s.loadPromptLocked(name); err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
 	prompts, err := s.listPromptsLocked()
 	if err != nil {
-		return PromptResponse{}, err
+		return model.PromptResponse{}, err
 	}
-	return PromptResponse{Active: s.activePrompt, Prompts: prompts}, nil
+	return model.PromptResponse{Active: s.activePrompt, Prompts: prompts}, nil
 }
 
 func (s *Store) GetMCPConfig() (string, error) {
@@ -204,7 +206,7 @@ func (s *Store) GetEffectiveMCPConfig() (string, error) {
 }
 
 func mcpConfigHasServers(content string) bool {
-	cfg, err := ParseMCPConfig(content)
+	cfg, err := mcp.ParseMCPConfig(content)
 	return err == nil && len(cfg.Servers) > 0
 }
 
@@ -234,13 +236,13 @@ func DefaultMCPConfig() string {
 `
 }
 
-func (s *Store) GetModelConfig() ModelConfig {
+func (s *Store) GetModelConfig() model.ModelConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.modelCfg
 }
 
-func (s *Store) SaveModelConfig(next ModelConfig) (ModelConfig, error) {
+func (s *Store) SaveModelConfig(next model.ModelConfig) (model.ModelConfig, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -248,7 +250,7 @@ func (s *Store) SaveModelConfig(next ModelConfig) (ModelConfig, error) {
 		next.APIKey = s.modelCfg.APIKey
 	}
 
-	s.modelCfg = NormalizeModelConfig(next)
+	s.modelCfg = model.NormalizeModelConfig(next)
 	return s.modelCfg, s.setPromptJSONLocked(s.activePrompt, "config", s.modelCfg)
 }
 
@@ -261,7 +263,7 @@ func (s *Store) loadPromptLocked(name string) error {
 		return err
 	}
 	s.activePrompt = name
-	s.sessions = make(map[string]*Session)
+	s.sessions = make(map[string]*model.Session)
 	if err := s.loadModelConfigLocked(); err != nil {
 		return err
 	}
@@ -274,17 +276,17 @@ func (s *Store) loadModelConfigLocked() error {
 		return err
 	}
 	if !ok || strings.TrimSpace(raw) == "" {
-		s.modelCfg = DefaultModelConfig()
+		s.modelCfg = model.DefaultModelConfig()
 		return s.setPromptJSONLocked(s.activePrompt, "config", s.modelCfg)
 	}
 	if err := json.Unmarshal([]byte(raw), &s.modelCfg); err != nil {
 		return err
 	}
-	s.modelCfg = NormalizeModelConfig(s.modelCfg)
+	s.modelCfg = model.NormalizeModelConfig(s.modelCfg)
 	return nil
 }
 
-func (s *Store) listPrompts(active string) ([]PromptSpace, error) {
+func (s *Store) listPrompts(active string) ([]model.PromptSpace, error) {
 	type promptRow struct {
 		name       string
 		createdRaw string
@@ -311,7 +313,7 @@ func (s *Store) listPrompts(active string) ([]PromptSpace, error) {
 		return nil, err
 	}
 
-	items := []PromptSpace{}
+	items := []model.PromptSpace{}
 	for _, row := range promptRows {
 		item, err := s.promptSummaryFromDB(row.name, active, row.createdRaw, row.updatedRaw)
 		if err != nil {
@@ -352,24 +354,24 @@ func (s *Store) listPromptNamesLocked() ([]string, error) {
 	return names, nil
 }
 
-func (s *Store) listPromptsLocked() ([]PromptSpace, error) {
+func (s *Store) listPromptsLocked() ([]model.PromptSpace, error) {
 	return s.listPrompts(s.activePrompt)
 }
 
-func (s *Store) promptSummaryFromDB(name string, active string, createdRaw string, updatedRaw string) (PromptSpace, error) {
+func (s *Store) promptSummaryFromDB(name string, active string, createdRaw string, updatedRaw string) (model.PromptSpace, error) {
 	createdAt := parseDBTime(createdRaw)
 	updatedAt := parseDBTime(updatedRaw)
 	var count int
 	var latest sql.NullString
 	if err := s.db.QueryRow(`SELECT COUNT(*), MAX(updated_at) FROM sessions WHERE prompt = ?`, name).Scan(&count, &latest); err != nil {
-		return PromptSpace{}, err
+		return model.PromptSpace{}, err
 	}
 	if latest.Valid {
 		if t := parseDBTime(latest.String); t.After(updatedAt) {
 			updatedAt = t
 		}
 	}
-	return PromptSpace{Name: name, Active: name == active, CreatedAt: createdAt, UpdatedAt: updatedAt, Count: count}, nil
+	return model.PromptSpace{Name: name, Active: name == active, CreatedAt: createdAt, UpdatedAt: updatedAt, Count: count}, nil
 }
 
 func (s *Store) promptExistsLocked(name string) (bool, error) {

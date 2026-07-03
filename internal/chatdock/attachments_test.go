@@ -2,6 +2,7 @@ package chatdock
 
 import (
 	"bytes"
+	"chatdock/internal/chatdock/model"
 	"encoding/json"
 	"io"
 	"mime/multipart"
@@ -13,7 +14,7 @@ import (
 
 func TestUploadAttachmentInjectsTextIntoModelContext(t *testing.T) {
 	seen := make(chan string, 1)
-	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Messages []map[string]string `json:"messages"`
 		}
@@ -29,13 +30,13 @@ func TestUploadAttachmentInjectsTextIntoModelContext(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"已读取附件"}}]}`))
 	}))
-	defer model.Close()
+	defer modelServer.Close()
 
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig(ModelConfig{BaseURL: model.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: modelServer.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
@@ -46,7 +47,7 @@ func TestUploadAttachmentInjectsTextIntoModelContext(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("create session status %d: %s", w.Code, w.Body.String())
 	}
-	var session Session
+	var session model.Session
 	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +70,7 @@ func TestUploadAttachmentInjectsTextIntoModelContext(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("upload status %d: %s", w.Code, w.Body.String())
 	}
-	var uploaded FileUploadResponse
+	var uploaded model.FileUploadResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &uploaded); err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +89,7 @@ func TestUploadAttachmentInjectsTextIntoModelContext(t *testing.T) {
 	if !strings.Contains(got, "附件里的关键内容：青山计划") || !strings.Contains(got, "请总结附件") {
 		t.Fatalf("model context did not include attachment and question: %s", got)
 	}
-	var result ChatResponse
+	var result model.ChatResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +103,7 @@ func TestUploadAttachmentInjectsTextIntoModelContext(t *testing.T) {
 
 func TestUploadImageAttachmentSendsMultimodalContent(t *testing.T) {
 	seen := make(chan map[string]any, 1)
-	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Messages []map[string]any `json:"messages"`
 		}
@@ -118,13 +119,13 @@ func TestUploadImageAttachmentSendsMultimodalContent(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"看到了图片"}}]}`))
 	}))
-	defer model.Close()
+	defer modelServer.Close()
 
-	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig(ModelConfig{BaseURL: model.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: modelServer.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
@@ -135,7 +136,7 @@ func TestUploadImageAttachmentSendsMultimodalContent(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("create session status %d: %s", w.Code, w.Body.String())
 	}
-	var session Session
+	var session model.Session
 	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +159,7 @@ func TestUploadImageAttachmentSendsMultimodalContent(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("upload status %d: %s", w.Code, w.Body.String())
 	}
-	var uploaded FileUploadResponse
+	var uploaded model.FileUploadResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &uploaded); err != nil {
 		t.Fatal(err)
 	}

@@ -1,16 +1,18 @@
 package chatdock
 
+import "chatdock/internal/chatdock/model"
+
 import "testing"
 
 func TestNormalizeModelConfigDefaults(t *testing.T) {
-	got := NormalizeModelConfig(ModelConfig{Temperature: 9})
+	got := model.NormalizeModelConfig(model.ModelConfig{Temperature: 9})
 	if got.BaseURL != "https://api.openai.com/v1" {
 		t.Fatalf("unexpected base url: %s", got.BaseURL)
 	}
 	if got.Model != "gpt-4o-mini" {
 		t.Fatalf("unexpected model: %s", got.Model)
 	}
-	if got.ContextMode != ContextModeAuto {
+	if got.ContextMode != model.ContextModeAuto {
 		t.Fatalf("unexpected context mode: %s", got.ContextMode)
 	}
 	if got.MaxContextMessages != 12 {
@@ -22,12 +24,12 @@ func TestNormalizeModelConfigDefaults(t *testing.T) {
 }
 
 func TestNormalizeModelConfigAcceptsContextModes(t *testing.T) {
-	got := NormalizeModelConfig(ModelConfig{ContextMode: ContextModeExpanded, MaxContextMessages: 99})
-	if got.ContextMode != ContextModeExpanded {
+	got := model.NormalizeModelConfig(model.ModelConfig{ContextMode: model.ContextModeExpanded, MaxContextMessages: 99})
+	if got.ContextMode != model.ContextModeExpanded {
 		t.Fatalf("unexpected context mode: %s", got.ContextMode)
 	}
-	got = NormalizeModelConfig(ModelConfig{ContextMode: "bad"})
-	if got.ContextMode != ContextModeAuto {
+	got = model.NormalizeModelConfig(model.ModelConfig{ContextMode: "bad"})
+	if got.ContextMode != model.ContextModeAuto {
 		t.Fatalf("unexpected fallback context mode: %s", got.ContextMode)
 	}
 }

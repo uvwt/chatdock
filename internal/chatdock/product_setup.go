@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/model"
 	"net/http"
 	"strings"
 	"time"
@@ -17,7 +18,7 @@ func (s *Store) SetupStatus() (SetupStatus, error) {
 	if err != nil {
 		return SetupStatus{}, err
 	}
-	defaultCfg := DefaultModelConfig()
+	defaultCfg := model.DefaultModelConfig()
 	hasProvider := strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != ""
 	hasKey := strings.TrimSpace(cfg.APIKey) != ""
 	looksDefaultWithoutKey := !hasKey && cfg.BaseURL == defaultCfg.BaseURL && cfg.Model == defaultCfg.Model
@@ -62,9 +63,9 @@ func (s *Store) InitializeSetup(input SetupInitRequest) (SetupStatus, error) {
 	cfg.Model = strings.TrimSpace(input.Model)
 	cfg.SystemPrompt = strings.TrimSpace(input.SystemPrompt)
 	if cfg.SystemPrompt == "" {
-		cfg.SystemPrompt = DefaultModelConfig().SystemPrompt
+		cfg.SystemPrompt = model.DefaultModelConfig().SystemPrompt
 	}
-	s.modelCfg = NormalizeModelConfig(cfg)
+	s.modelCfg = model.NormalizeModelConfig(cfg)
 	err = s.setPromptJSONLocked(s.activePrompt, "config", s.modelCfg)
 	s.mu.Unlock()
 	if err != nil {

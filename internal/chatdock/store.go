@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/model"
 	"database/sql"
 	"os"
 	"path/filepath"
@@ -18,8 +19,8 @@ type Store struct {
 	dbPath       string
 	db           *sql.DB
 	activePrompt string
-	modelCfg     ModelConfig
-	sessions     map[string]*Session
+	modelCfg     model.ModelConfig
+	sessions     map[string]*model.Session
 }
 
 func NewStore(dataDir string) (*Store, error) {
@@ -40,7 +41,7 @@ func NewStore(dataDir string) (*Store, error) {
 		dbPath:       dbPath,
 		db:           db,
 		activePrompt: defaultPromptName,
-		sessions:     make(map[string]*Session),
+		sessions:     make(map[string]*model.Session),
 	}
 	if err := store.initSQLite(); err != nil {
 		_ = db.Close()

@@ -1,6 +1,8 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/llm"
+	"chatdock/internal/chatdock/model"
 	"fmt"
 	"net/http"
 	"strings"
@@ -34,7 +36,7 @@ func (s *Store) ContextPreview(sessionID string) (ContextPreviewResponse, error)
 
 	session, ok := s.sessions[strings.TrimSpace(sessionID)]
 	if !ok {
-		return ContextPreviewResponse{}, ErrSessionNotFound
+		return ContextPreviewResponse{}, model.ErrSessionNotFound
 	}
 	cfg := s.modelCfg
 	skills, err := s.enabledSkillsLocked()
@@ -42,8 +44,8 @@ func (s *Store) ContextPreview(sessionID string) (ContextPreviewResponse, error)
 		return ContextPreviewResponse{}, err
 	}
 	cfg.Skills = skills
-	recent, summarize := contextPlan(cfg)
-	prepared := buildChatContextMessages(cfg, cloneMessages(session.Messages))
+	recent, summarize := llm.ContextPlan(cfg)
+	prepared := llm.BuildChatContextMessages(cfg, cloneMessages(session.Messages))
 	items := make([]ContextPreviewItem, 0, len(prepared))
 	totalChars, totalTokens := 0, 0
 	for i, msg := range prepared {
@@ -57,7 +59,7 @@ func (s *Store) ContextPreview(sessionID string) (ContextPreviewResponse, error)
 		} else if msg.Role == "system" && strings.Contains(msg.Content, "早期会话摘要") {
 			source = "早期摘要"
 		}
-		items = append(items, ContextPreviewItem{Role: msg.Role, Source: source, Chars: chars, EstimatedTokens: tokens, ContentPreview: compactContextText(msg.Content, 360)})
+		items = append(items, ContextPreviewItem{Role: msg.Role, Source: source, Chars: chars, EstimatedTokens: tokens, ContentPreview: llm.CompactContextText(msg.Content, 360)})
 	}
 	return ContextPreviewResponse{SessionID: session.ID, Workspace: s.activePrompt, ContextMode: cfg.ContextMode, RecentMessages: recent, SummarizeOld: summarize, MessageCount: len(session.Messages), ContextCount: len(items), TotalChars: totalChars, EstimatedTokens: totalTokens, Items: items}, nil
 }
@@ -78,7 +80,7 @@ func (a *App) handleContextPreview(w http.ResponseWriter, r *http.Request) {
 	preview, err := a.store.ContextPreview(r.PathValue("id"))
 	if err != nil {
 		status := http.StatusInternalServerError
-		if err == ErrSessionNotFound {
+		if err == model.ErrSessionNotFound {
 			status = http.StatusNotFound
 		}
 		writeError(w, status, fmt.Errorf("context preview failed: %w", err))

@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/model"
 	"context"
 	"encoding/json"
 	"io"
@@ -39,28 +40,28 @@ func (s *Store) ListModelProviders() ([]ModelProvider, error) {
 	return providers, nil
 }
 
-func (s *Store) modelConfigForPrompt(prompt string) (ModelConfig, error) {
+func (s *Store) modelConfigForPrompt(prompt string) (model.ModelConfig, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.modelConfigForPromptLocked(prompt)
 }
 
-func (s *Store) modelConfigForPromptLocked(prompt string) (ModelConfig, error) {
+func (s *Store) modelConfigForPromptLocked(prompt string) (model.ModelConfig, error) {
 	raw, ok, err := s.getPromptRawLocked(prompt, "config")
 	if err != nil {
-		return ModelConfig{}, err
+		return model.ModelConfig{}, err
 	}
 	if !ok || strings.TrimSpace(raw) == "" {
-		return DefaultModelConfig(), nil
+		return model.DefaultModelConfig(), nil
 	}
-	var cfg ModelConfig
+	var cfg model.ModelConfig
 	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
-		return ModelConfig{}, err
+		return model.ModelConfig{}, err
 	}
-	return NormalizeModelConfig(cfg), nil
+	return model.NormalizeModelConfig(cfg), nil
 }
 
-func providerName(workspace string, cfg ModelConfig) string {
+func providerName(workspace string, cfg model.ModelConfig) string {
 	base := strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(cfg.BaseURL), "https://"), "http://")
 	if base == "" {
 		base = "OpenAI Compatible"
@@ -88,7 +89,7 @@ func (a *App) handleListModelProviders(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, map[string]any{"providers": providers})
 }
 
-func (a *App) modelConfigFromRequest(r *http.Request) (ModelConfig, error) {
+func (a *App) modelConfigFromRequest(r *http.Request) (model.ModelConfig, error) {
 	cfg := a.store.GetModelConfig()
 	if r.Body == nil {
 		return cfg, nil
@@ -96,20 +97,20 @@ func (a *App) modelConfigFromRequest(r *http.Request) (ModelConfig, error) {
 	defer r.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(r.Body, 2<<20))
 	if err != nil {
-		return ModelConfig{}, err
+		return model.ModelConfig{}, err
 	}
 	if strings.TrimSpace(string(raw)) == "" || strings.TrimSpace(string(raw)) == "{}" {
 		return cfg, nil
 	}
 	next := cfg
 	if err := json.Unmarshal(raw, &next); err != nil {
-		return ModelConfig{}, err
+		return model.ModelConfig{}, err
 	}
 	// 前端密码框为空或显示掩码时，继续复用已保存 Key；接口响应绝不回显 Key。
 	if strings.TrimSpace(next.APIKey) == "" || strings.TrimSpace(next.APIKey) == "********" {
 		next.APIKey = cfg.APIKey
 	}
-	return NormalizeModelConfig(next), nil
+	return model.NormalizeModelConfig(next), nil
 }
 
 func (a *App) handleTestModelProvider(w http.ResponseWriter, r *http.Request) {

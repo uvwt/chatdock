@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/model"
 	"errors"
 	"fmt"
 	"io"
@@ -26,7 +27,7 @@ func (a *App) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleGetSession(w http.ResponseWriter, r *http.Request) {
 	session, ok := a.store.GetSession(r.PathValue("id"))
 	if !ok {
-		writeError(w, http.StatusNotFound, ErrSessionNotFound)
+		writeError(w, http.StatusNotFound, model.ErrSessionNotFound)
 		return
 	}
 	writeJSONResponse(w, http.StatusOK, session)
@@ -36,7 +37,7 @@ func (a *App) handleSessionRoute(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/sessions/")
 	path = strings.Trim(path, "/")
 	if path == "" {
-		writeError(w, http.StatusNotFound, ErrSessionNotFound)
+		writeError(w, http.StatusNotFound, model.ErrSessionNotFound)
 		return
 	}
 	parts := strings.Split(path, "/")
@@ -79,11 +80,11 @@ func (a *App) handleSessionRoute(w http.ResponseWriter, r *http.Request) {
 		a.handleContextPreview(w, r)
 		return
 	}
-	writeError(w, http.StatusNotFound, ErrSessionNotFound)
+	writeError(w, http.StatusNotFound, model.ErrSessionNotFound)
 }
 
 func (a *App) handlePinSession(w http.ResponseWriter, r *http.Request) {
-	var input PinSessionRequest
+	var input model.PinSessionRequest
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -91,7 +92,7 @@ func (a *App) handlePinSession(w http.ResponseWriter, r *http.Request) {
 	session, err := a.store.PinSession(r.PathValue("id"), input.Pinned)
 	if err != nil {
 		status := http.StatusBadRequest
-		if errors.Is(err, ErrSessionNotFound) {
+		if errors.Is(err, model.ErrSessionNotFound) {
 			status = http.StatusNotFound
 		}
 		writeError(w, status, err)
@@ -101,7 +102,7 @@ func (a *App) handlePinSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleRenameSession(w http.ResponseWriter, r *http.Request) {
-	var input RenameSessionRequest
+	var input model.RenameSessionRequest
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -109,7 +110,7 @@ func (a *App) handleRenameSession(w http.ResponseWriter, r *http.Request) {
 	session, err := a.store.RenameSession(r.PathValue("id"), input.Title)
 	if err != nil {
 		status := http.StatusBadRequest
-		if errors.Is(err, ErrSessionNotFound) {
+		if errors.Is(err, model.ErrSessionNotFound) {
 			status = http.StatusNotFound
 		}
 		writeError(w, status, err)
@@ -122,7 +123,7 @@ func (a *App) handleCloneSession(w http.ResponseWriter, r *http.Request) {
 	session, err := a.store.CloneSession(r.PathValue("id"))
 	if err != nil {
 		status := http.StatusBadRequest
-		if errors.Is(err, ErrSessionNotFound) {
+		if errors.Is(err, model.ErrSessionNotFound) {
 			status = http.StatusNotFound
 		}
 		writeError(w, status, err)
@@ -134,7 +135,7 @@ func (a *App) handleCloneSession(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleExportSession(w http.ResponseWriter, r *http.Request) {
 	session, ok := a.store.GetSession(r.PathValue("id"))
 	if !ok {
-		writeError(w, http.StatusNotFound, ErrSessionNotFound)
+		writeError(w, http.StatusNotFound, model.ErrSessionNotFound)
 		return
 	}
 	format := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format")))
@@ -156,13 +157,13 @@ func (a *App) handleExportSession(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	if ok := a.store.DeleteSession(r.PathValue("id")); !ok {
-		writeError(w, http.StatusNotFound, ErrSessionNotFound)
+		writeError(w, http.StatusNotFound, model.ErrSessionNotFound)
 		return
 	}
 	writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true})
 }
 
-func sessionToMarkdown(session *Session) string {
+func sessionToMarkdown(session *model.Session) string {
 	var b strings.Builder
 	title := strings.TrimSpace(session.Title)
 	if title == "" {
