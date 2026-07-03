@@ -157,12 +157,13 @@ type ScheduledTaskRunResponse struct {
 }
 
 type Message struct {
-	ID          string       `json:"id,omitempty"`
-	Role        string       `json:"role"`
-	Content     string       `json:"content"`
-	Reasoning   string       `json:"reasoning,omitempty"`
-	Attachments []Attachment `json:"attachments,omitempty"`
-	CreatedAt   time.Time    `json:"created_at"`
+	ID               string             `json:"id,omitempty"`
+	Role             string             `json:"role"`
+	Content          string             `json:"content"`
+	Reasoning        string             `json:"reasoning,omitempty"`
+	Attachments      []Attachment       `json:"attachments,omitempty"`
+	ModelAttachments []AttachmentRecord `json:"-"`
+	CreatedAt        time.Time          `json:"created_at"`
 }
 
 type Attachment struct {

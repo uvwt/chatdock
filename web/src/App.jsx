@@ -973,6 +973,8 @@ export default function App() {
   const streamStatsText = busy ? streamStatusText(streamStats, streamElapsed) : '';
   const inputStats = busy ? streamStatsText : (pendingAttachments.length ? pendingAttachments.length + ' 个附件 · ' + (input.trim() ? input.trim().length + ' 字' : '可直接发送') : (input.trim() ? input.trim().length + ' 字 · 草稿自动保存' : (modelReady ? 'Enter 发送 · Shift+Enter 换行 · 点击 + 上传文件' : '请先在配置中心完成模型 Base URL 和 Model')));
   const productDiagnostics = diagnosticsText({setupStatus, systemStatus, dataStatus, mcpStatus, providers});
+  const hasVisibleChatMessages = messages.some(m => m.role !== 'empty');
+
   const quickActions = useMemo(() => [
     {id:'focus-input', title:'聚焦输入框', hint:'按 / 也可以快速输入', run:() => inputRef.current?.focus()},
     {id:'new-session', title:'新建会话', hint:'在当前工作空间开始新对话', disabled:busy, run:createSession},
@@ -1043,7 +1045,7 @@ export default function App() {
             <button className="danger" onClick={deleteCurrent} disabled={!current || busy}>删除</button>
           </div>
         </div>
-        <WorkbenchBrief setupStatus={setupStatus} config={config} activePrompt={activePrompt} sessions={sessions} skills={skills} scheduledTasks={scheduledTasks} mcpStatus={mcpStatus} dataStatus={dataStatus} productReady={!!productReady} busy={busy} streamStats={streamStats} openSettings={openSettings} />
+        {!hasVisibleChatMessages ? <WorkbenchBrief setupStatus={setupStatus} config={config} activePrompt={activePrompt} sessions={sessions} skills={skills} scheduledTasks={scheduledTasks} mcpStatus={mcpStatus} dataStatus={dataStatus} productReady={!!productReady} busy={busy} streamStats={streamStats} openSettings={openSettings} /> : null}
         <div className="messages" ref={messagesRef}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
         <div className="composer-shell">
         {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} /> : null}

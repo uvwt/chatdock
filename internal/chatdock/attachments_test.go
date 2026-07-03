@@ -99,3 +99,95 @@ func TestUploadAttachmentInjectsTextIntoModelContext(t *testing.T) {
 		t.Fatalf("visible message should not be replaced by injected file content: %s", result.Session.Messages[0].Content)
 	}
 }
+
+func TestUploadImageAttachmentSendsMultimodalContent(t *testing.T) {
+	seen := make(chan map[string]any, 1)
+	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Messages []map[string]any `json:"messages"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		for i := len(body.Messages) - 1; i >= 0; i-- {
+			if body.Messages[i]["role"] == "user" {
+				seen <- body.Messages[i]
+				break
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"看到了图片"}}]}`))
+	}))
+	defer model.Close()
+
+	app, err := NewApp(ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.store.SaveModelConfig(ModelConfig{BaseURL: model.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/api/sessions", bytes.NewReader([]byte(`{}`)))
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("create session status %d: %s", w.Code, w.Body.String())
+	}
+	var session Session
+	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
+		t.Fatal(err)
+	}
+
+	var uploadBody bytes.Buffer
+	mw := multipart.NewWriter(&uploadBody)
+	_ = mw.WriteField("session_id", session.ID)
+	part, err := mw.CreateFormFile("file", "pixel.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = part.Write([]byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n', 0x00, 0x00, 0x00, 0x0d})
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/api/files", &uploadBody)
+	r.Header.Set("Content-Type", mw.FormDataContentType())
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("upload status %d: %s", w.Code, w.Body.String())
+	}
+	var uploaded FileUploadResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &uploaded); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := `{"session_id":"` + session.ID + `","message":"这张图是什么","attachment_ids":["` + uploaded.Attachment.ID + `"]}`
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/api/chat", strings.NewReader(payload))
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("chat status %d: %s", w.Code, w.Body.String())
+	}
+	msg := <-seen
+	blocks, ok := msg["content"].([]any)
+	if !ok || len(blocks) < 2 {
+		t.Fatalf("expected multimodal content blocks, got %#v", msg["content"])
+	}
+	var hasText, hasImage bool
+	for _, raw := range blocks {
+		block, _ := raw.(map[string]any)
+		if block["type"] == "text" && strings.Contains(block["text"].(string), "这张图是什么") {
+			hasText = true
+		}
+		if block["type"] == "image_url" {
+			imageURL, _ := block["image_url"].(map[string]any)
+			url, _ := imageURL["url"].(string)
+			hasImage = strings.HasPrefix(url, "data:image/") && strings.Contains(url, ";base64,")
+		}
+	}
+	if !hasText || !hasImage {
+		t.Fatalf("expected text and image blocks, got %#v", blocks)
+	}
+}

@@ -29,7 +29,7 @@ func applyModelRequestParams(body map[string]any, cfg ModelConfig) {
 }
 
 func (c *ChatClient) Complete(ctx context.Context, cfg ModelConfig, history []Message) (string, error) {
-	messages := BuildChatMessages(cfg, history)
+	messages := BuildChatMessagesAny(cfg, history)
 	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/chat/completions"
 
 	body := map[string]any{
@@ -273,8 +273,9 @@ func parseStreamDelta(data string) (StreamDelta, error) {
 }
 
 type chatContextMessage struct {
-	Role    string
-	Content string
+	Role             string
+	Content          string
+	ModelAttachments []AttachmentRecord
 }
 
 func BuildChatMessages(cfg ModelConfig, history []Message) []map[string]string {
@@ -309,9 +310,22 @@ func buildChatContextMessages(cfg ModelConfig, history []Message) []chatContextM
 	}
 
 	for _, item := range valid[start:] {
-		messages = append(messages, chatContextMessage{Role: item.Role, Content: item.Content})
+		messages = append(messages, chatContextMessage{Role: item.Role, Content: item.Content, ModelAttachments: item.ModelAttachments})
 	}
 	return messages
+}
+
+func messageContentForModel(item chatContextMessage) any {
+	images := imageContentBlocks(item.ModelAttachments)
+	if item.Role != "user" || len(images) == 0 {
+		return item.Content
+	}
+	blocks := make([]map[string]any, 0, len(images)+1)
+	if strings.TrimSpace(item.Content) != "" {
+		blocks = append(blocks, map[string]any{"type": "text", "text": item.Content})
+	}
+	blocks = append(blocks, images...)
+	return blocks
 }
 
 func contextPlan(cfg ModelConfig) (int, bool) {

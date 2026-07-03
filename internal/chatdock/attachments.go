@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/xml"
 	"fmt"
@@ -215,13 +216,17 @@ func buildUserContentForModel(content string, attachments []AttachmentRecord) st
 		return content
 	}
 	var b strings.Builder
-	b.WriteString("用户上传了以下附件。请优先结合附件内容回答；如果附件没有可提取文本，请说明你只能看到附件元信息。\n")
+	b.WriteString("用户上传了以下附件。请优先结合附件内容回答；图片附件会作为视觉内容随模型请求发送。\n")
 	for i, item := range attachments {
 		fmt.Fprintf(&b, "\n## 附件 %d：%s\n", i+1, item.Name)
 		fmt.Fprintf(&b, "- 类型：%s\n- 大小：%s\n", item.MIMEType, humanBytes(item.Size))
 		text := strings.TrimSpace(item.TextContent)
 		if text == "" {
-			b.WriteString("- 状态：已上传，但未提取到文本内容。\n")
+			if isImageAttachment(item) {
+				b.WriteString("- 状态：图片内容已随模型请求发送。\n")
+			} else {
+				b.WriteString("- 状态：已上传，但未提取到文本内容。\n")
+			}
 			continue
 		}
 		b.WriteString("\n```text\n")
@@ -234,6 +239,54 @@ func buildUserContentForModel(content string, attachments []AttachmentRecord) st
 	}
 	b.WriteString(content)
 	return b.String()
+}
+
+func imageContentBlocks(attachments []AttachmentRecord) []map[string]any {
+	blocks := make([]map[string]any, 0, len(attachments))
+	for _, item := range attachments {
+		if !isImageAttachment(item) {
+			continue
+		}
+		url, err := attachmentDataURL(item)
+		if err != nil {
+			continue
+		}
+		blocks = append(blocks, map[string]any{
+			"type": "image_url",
+			"image_url": map[string]any{
+				"url": url,
+			},
+		})
+	}
+	return blocks
+}
+
+func isImageAttachment(item AttachmentRecord) bool {
+	mimeType := strings.ToLower(strings.TrimSpace(item.MIMEType))
+	if strings.HasPrefix(mimeType, "image/") {
+		return true
+	}
+	ext := strings.ToLower(filepath.Ext(item.Name))
+	return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".webp" || ext == ".gif"
+}
+
+func attachmentDataURL(item AttachmentRecord) (string, error) {
+	path := strings.TrimSpace(item.StoragePath)
+	if path == "" {
+		return "", fmt.Errorf("attachment storage path is empty")
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	mimeType := strings.TrimSpace(item.MIMEType)
+	if mimeType == "" || mimeType == "application/octet-stream" {
+		mimeType = http.DetectContentType(raw)
+	}
+	if !strings.HasPrefix(strings.ToLower(mimeType), "image/") {
+		return "", fmt.Errorf("attachment is not an image: %s", mimeType)
+	}
+	return "data:" + mimeType + ";base64," + base64.StdEncoding.EncodeToString(raw), nil
 }
 
 func limitAttachmentContext(text string) string {

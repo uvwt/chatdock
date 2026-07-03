@@ -212,6 +212,7 @@ func (s *Store) AppendUserMessageWithAttachments(sessionID string, content strin
 	history := cloneMessages(session.Messages)
 	if len(history) > 0 {
 		history[len(history)-1].Content = buildUserContentForModel(content, attachments)
+		history[len(history)-1].ModelAttachments = attachments
 		history[len(history)-1].Attachments = nil
 	}
 	return cloneSession(session), cfg, history, nil

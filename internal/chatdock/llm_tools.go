@@ -203,7 +203,7 @@ func BuildChatMessagesAny(cfg ModelConfig, history []Message) []map[string]any {
 	prepared := buildChatContextMessages(cfg, history)
 	messages := make([]map[string]any, 0, len(prepared))
 	for _, item := range prepared {
-		messages = append(messages, map[string]any{"role": item.Role, "content": item.Content})
+		messages = append(messages, map[string]any{"role": item.Role, "content": messageContentForModel(item)})
 	}
 	return messages
 }
