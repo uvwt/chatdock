@@ -1432,3 +1432,108 @@ aside,
     display: none !important;
   }
 }
+
+/* 2026-07 模型输出专项修复：整张工具卡可点、隐藏抽屉残影，运行中不再堆出多个发送箭头。 */
+@media (max-width: 720px) {
+  #app.app main::before {
+    display: none !important;
+  }
+
+  .app.sidebar-collapsed aside {
+    transform: translateX(-112%) !important;
+    box-shadow: none !important;
+  }
+
+  .app:not(.sidebar-collapsed) aside {
+    box-shadow: 20px 0 70px rgba(15, 23, 42, .18) !important;
+  }
+
+  .msg.assistant,
+  .msg.assistant.markdown,
+  .tool-event {
+    box-shadow: none !important;
+  }
+
+  .tool-event {
+    margin: 12px 0 !important;
+    padding: 14px 16px !important;
+    border: 1px dashed #dbe3ee !important;
+    border-radius: 17px !important;
+    background: #ffffff !important;
+    color: #64748b !important;
+    font-size: 15px !important;
+    line-height: 1.45 !important;
+  }
+
+  .tool-event.has-details {
+    cursor: pointer;
+  }
+
+  .tool-event.has-details:active {
+    background: #f8fafc !important;
+  }
+
+  .tool-event.has-details:focus {
+    outline: 2px solid rgba(37, 99, 235, .28) !important;
+    outline-offset: 2px;
+  }
+
+  .tool-event-main {
+    display: grid;
+    gap: 8px;
+  }
+
+  .tool-event-actions:empty {
+    display: none !important;
+  }
+
+  .composer:has(.stream-control) {
+    grid-template-columns: 48px minmax(0, 1fr) 46px 46px !important;
+  }
+
+  .composer:has(.stream-control) #send {
+    display: none !important;
+  }
+
+  .composer .stream-control {
+    width: 46px !important;
+    height: 46px !important;
+    min-width: 46px !important;
+    min-height: 46px !important;
+    padding: 0 !important;
+    border-radius: 999px !important;
+    box-shadow: none !important;
+    font-size: 0 !important;
+  }
+
+  .composer .stream-control::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  .composer .stream-control.secondary {
+    grid-column: 3 !important;
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+  }
+
+  .composer .stream-control.danger {
+    grid-column: 4 !important;
+    background: #fee2e2 !important;
+    color: #b91c1c !important;
+  }
+
+  .composer .stream-control.secondary::after {
+    content: "Ⅱ";
+    font-size: 18px;
+    font-weight: 850;
+    line-height: 1;
+  }
+
+  .composer .stream-control.danger::after {
+    content: "■";
+    font-size: 15px;
+    font-weight: 850;
+    line-height: 1;
+  }
+}

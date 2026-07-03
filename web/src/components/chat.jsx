@@ -51,13 +51,12 @@ export function MessageView({ message, onCopy, hideThinking = true, onResolveCon
     return <div className="msg assistant">
       <ReasoningBlock value={message.reasoning} streaming hidden={hideThinking} />
       <Markdown className="answer markdown" value={message.answer} />
-      {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline' : '') + (event.details ? ' has-details' : '')}>
-        <div className="tool-event-main" onClick={() => event.details ? onInspectToolEvent?.(event) : null} role={event.details ? 'button' : undefined} tabIndex={event.details ? 0 : undefined} onKeyDown={e => { if (event.details && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onInspectToolEvent?.(event); } }}>
+      {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline' : '') + (event.details ? ' has-details' : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} role={event.details ? 'button' : undefined} tabIndex={event.details ? 0 : undefined} onKeyDown={e => { if (event.details && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onInspectToolEvent?.(event); } }}>
+        <div className="tool-event-main">
           <div>{event.text}</div>
           {event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}
         </div>
-        <div className="tool-event-actions">
-          {event.details ? <button className="secondary small" type="button" onClick={() => onInspectToolEvent?.(event)}>详情</button> : null}
+        <div className="tool-event-actions" onClick={e => e.stopPropagation()}>
           {event.confirmation && event.status !== 'resolved' ? <><button className="secondary small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, true)}>允许一次</button><button className="danger small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, false)}>拒绝</button></> : null}
         </div>
       </div>)}
