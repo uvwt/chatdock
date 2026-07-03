@@ -771,10 +771,10 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .settings {
   position: static;
   transform: none;
-  width: min(1040px, 100%);
+  width: min(1520px, calc(100vw - 48px));
   min-height: auto;
   margin: 0 auto;
-  padding: 20px;
+  padding: 24px clamp(20px, 2.2vw, 34px);
   border: 1px solid var(--gpt-border);
   border-radius: 26px;
   background: var(--gpt-sidebar);
@@ -793,7 +793,47 @@ body.theme-light .mcp-inline-warning.danger {
 }
 
 .settings-page .module-view.active {
-  max-width: 900px;
+  width: 100%;
+  max-width: none;
+}
+
+
+@media (min-width: 1200px) {
+  .settings-page {
+    padding-left: clamp(24px, 4vw, 72px);
+    padding-right: clamp(24px, 4vw, 72px);
+  }
+
+  .settings-page .settings-header,
+  .settings-page .module-tabs,
+  .settings-page .module-view.active {
+    max-width: none;
+  }
+
+  .settings-page .stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .settings-page .backup-list,
+  .settings-page .mcp-status-grid,
+  .settings-page .tasks-list,
+  .settings-page .skills-list,
+  .settings-page #workspaceCards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .settings-page .diagnostics-preview,
+  .settings-page .code-preview {
+    max-height: min(52vh, 620px);
+  }
+}
+
+@media (min-width: 1600px) {
+  .settings-page .settings {
+    width: min(1680px, calc(100vw - 72px));
+  }
 }
 
 @media (max-width: 720px) {
