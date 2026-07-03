@@ -51,22 +51,42 @@ function WorkspaceModule({ setupStatus, workspaces, createWorkspace, selectWorks
 function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptPreview, testModelProvider, fetchProviderModels, availableModels, loadingModels, providers }) {
   const update = (key, value) => setConfig(c => ({...c, [key]: value}));
   const contextMode = config.context_mode || 'auto';
+  let endpointLabel = '未配置';
+  try { endpointLabel = config.base_url ? new URL(config.base_url).host : '未配置'; } catch { endpointLabel = config.base_url || '未配置'; }
+  const thinkingLabel = config.hide_thinking ? '隐藏思考' : (config.enable_thinking ? '显示思考' : '未启用');
   return <>
-    <div className="settings-block-head"><label>当前工作空间模型</label></div>
-    <label>Base URL</label><input value={config.base_url} onChange={e => update('base_url', e.target.value)} placeholder="https://api.openai.com/v1" />
-    <label>API Key</label><input type="password" value={config.api_key} onChange={e => update('api_key', e.target.value)} placeholder={config.has_api_key ? '已保存，留空不修改' : '未设置'} />
-    <div className="settings-block-head inline-head"><label>Model</label><button className="secondary small" onClick={fetchProviderModels} disabled={loadingModels}>{loadingModels ? '获取中…' : '获取模型列表'}</button></div>
-    <input value={config.model} onChange={e => update('model', e.target.value)} placeholder="gpt-4o-mini" />
-    {availableModels.length ? <div className="model-options">{availableModels.map(name => <button key={name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => update('model', name)}>{name}</button>)}</div> : <div className="hint">填写 Base URL 和 API Key 后，可从接口获取可用模型名称。</div>}
-    <label>System Prompt</label><textarea value={config.system_prompt} onChange={e => update('system_prompt', e.target.value)} />
-    <div className="row"><div><label>上下文模式</label><select value={contextMode} onChange={e => update('context_mode', e.target.value)}><option value="auto">自动，推荐</option><option value="compact">精简</option><option value="expanded">更多历史</option><option value="custom">自定义</option></select><div className="hint">自动模式会保留最近消息原文，并把更早内容提炼成摘要，不需要手动填数量。</div></div><div><label>Temperature</label><input type="number" step="0.1" min="0" max="2" value={config.temperature} onChange={e => update('temperature', e.target.value)} /></div></div>
-    {contextMode === 'custom' ? <div className="row"><div><label>自定义最近消息数</label><input type="number" min="1" value={config.max_context_messages} onChange={e => update('max_context_messages', e.target.value)} /><div className="hint">只在自定义模式下生效；自动/精简/更多历史由 ChatDock 自动压缩上下文。</div></div></div> : null}
-    <label className="check-row"><input type="checkbox" checked={!!config.enable_thinking} onChange={e => update('enable_thinking', e.target.checked)} /> 启用模型思考</label>
-    <label className="check-row"><input type="checkbox" checked={!!config.hide_thinking} onChange={e => update('hide_thinking', e.target.checked)} /> 隐藏思考内容</label>
-    <div className="settings-actions"><button onClick={saveConfig}>保存模型设置</button><button className="secondary" onClick={showPromptPreview}>查看最终 Prompt</button><button className="secondary" onClick={testModelProvider}>测试连接</button></div>
+    <div className="settings-block-head model-page-head"><label>当前工作空间模型</label><span className="hint">先看概览，再改连接、模型和上下文。</span></div>
+    <div className="model-summary-grid">
+      <div className="model-summary-card"><span>接口</span><b>{endpointLabel}</b><small>{config.has_api_key ? 'API Key 已保存' : 'API Key 未保存'}</small></div>
+      <div className="model-summary-card"><span>模型</span><b>{config.model || '未选择模型'}</b><small>{contextMode === 'auto' ? '上下文自动管理' : '上下文：' + contextMode}</small></div>
+      <div className="model-summary-card"><span>思考</span><b>{thinkingLabel}</b><small>{config.hide_thinking ? '完全不展示思考内容' : '输出完成后默认折叠'}</small></div>
+    </div>
+
+    <section className="settings-section model-section">
+      <div className="settings-section-head"><div><b>连接与模型</b><p>配置兼容 OpenAI 的接口、密钥和模型名称。</p></div><button className="secondary small" onClick={fetchProviderModels} disabled={loadingModels}>{loadingModels ? '获取中…' : '获取模型列表'}</button></div>
+      <div className="settings-form-grid">
+        <label>Base URL<input value={config.base_url} onChange={e => update('base_url', e.target.value)} placeholder="https://api.openai.com/v1" /></label>
+        <label>API Key<input type="password" value={config.api_key} onChange={e => update('api_key', e.target.value)} placeholder={config.has_api_key ? '已保存，留空不修改' : '未设置'} /></label>
+        <label className="model-field-wide">Model<input value={config.model} onChange={e => update('model', e.target.value)} placeholder="gpt-4o-mini" /></label>
+      </div>
+      {availableModels.length ? <div className="model-options">{availableModels.map(name => <button key={name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => update('model', name)}>{name}</button>)}</div> : <div className="hint">填写 Base URL 和 API Key 后，可从接口获取可用模型名称。</div>}
+    </section>
+
+    <section className="settings-section model-section">
+      <div className="settings-section-head"><div><b>回复行为</b><p>控制系统提示词、上下文压缩和思考内容展示方式。</p></div></div>
+      <label>System Prompt<textarea className="system-prompt-editor" value={config.system_prompt} onChange={e => update('system_prompt', e.target.value)} /></label>
+      <div className="settings-form-grid compact"><div><label>上下文模式<select value={contextMode} onChange={e => update('context_mode', e.target.value)}><option value="auto">自动，推荐</option><option value="compact">精简</option><option value="expanded">更多历史</option><option value="custom">自定义</option></select></label><div className="hint">自动模式会保留最近消息原文，并把更早内容提炼成摘要。</div></div><label>Temperature<input type="number" step="0.1" min="0" max="2" value={config.temperature} onChange={e => update('temperature', e.target.value)} /></label></div>
+      {contextMode === 'custom' ? <div className="settings-form-grid compact"><div><label>自定义最近消息数<input type="number" min="1" value={config.max_context_messages} onChange={e => update('max_context_messages', e.target.value)} /></label><div className="hint">只在自定义模式下生效；自动/精简/更多历史由 ChatDock 自动压缩上下文。</div></div></div> : null}
+      <div className="thinking-options"><label className="check-row"><input type="checkbox" checked={!!config.enable_thinking} onChange={e => update('enable_thinking', e.target.checked)} /> 启用模型思考</label><label className="check-row"><input type="checkbox" checked={!!config.hide_thinking} onChange={e => update('hide_thinking', e.target.checked)} /> 隐藏思考内容</label></div>
+    </section>
+
+    <div className="settings-actions model-primary-actions"><button onClick={saveConfig}>保存模型设置</button><button className="secondary" onClick={showPromptPreview}>查看最终 Prompt</button><button className="secondary" onClick={testModelProvider}>测试连接</button></div>
     {promptPreview ? <pre className="code-preview">{promptPreview}</pre> : null}
-    <div className="settings-block-head"><label>模型供应商</label></div>
-    {providers.length ? providers.map(p => <TextCard key={(p.workspace_id || '') + p.id} title={p.name || p.id} hint={p.base_url || '-'} badge={p.type || 'openai'}><div className="product-meta">默认模型：{p.default_model || '-'} · Key：{p.has_api_key ? (p.api_key_masked || '******') : '未设置'} · 工作空间：{p.workspace_name || '-'}</div></TextCard>) : <div className="empty compact">还没有模型供应商配置。</div>}
+
+    <section className="settings-section provider-section">
+      <div className="settings-section-head"><div><b>模型供应商</b><p>来自各工作空间的供应商配置，仅展示摘要，避免误改密钥。</p></div></div>
+      <div className="provider-grid">{providers.length ? providers.map(p => <TextCard key={(p.workspace_id || '') + p.id} title={p.name || p.id} hint={p.base_url || '-'} badge={p.type || 'openai'}><div className="product-meta">默认模型：{p.default_model || '-'} · Key：{p.has_api_key ? (p.api_key_masked || '******') : '未设置'} · 工作空间：{p.workspace_name || '-'}</div></TextCard>) : <div className="empty compact">还没有模型供应商配置。</div>}</div>
+    </section>
   </>;
 }
 

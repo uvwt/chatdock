@@ -814,3 +814,179 @@ body.theme-light .mcp-inline-warning.danger {
     justify-content: flex-end;
   }
 }
+
+/* 2026-07 配置页截图优化：模型页分区、概览卡片和移动端断行。 */
+.settings-page,
+.settings-page .settings,
+.settings-page .module-view.active,
+.settings .product-card,
+.settings .product-card-head,
+.settings .product-card-head > div {
+  min-width: 0;
+}
+
+.settings .product-card {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.settings .product-card-head b,
+.settings .product-card-head .hint,
+.settings .product-meta {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.model-page-head {
+  align-items: flex-end;
+}
+
+.model-summary-grid,
+.settings-form-grid,
+.provider-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.model-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 10px 0 16px;
+}
+
+.model-summary-card,
+.settings-section {
+  border: 1px solid var(--gpt-border);
+  border-radius: 20px;
+  background: var(--gpt-surface-2);
+}
+
+.model-summary-card {
+  padding: 14px;
+  display: grid;
+  gap: 5px;
+}
+
+.model-summary-card span,
+.model-summary-card small,
+.settings-section-head p {
+  color: var(--gpt-muted);
+}
+
+.model-summary-card span {
+  font-size: 12px;
+}
+
+.model-summary-card b {
+  color: var(--gpt-text);
+  font-size: 16px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.settings-section {
+  padding: 16px;
+  margin: 12px 0;
+}
+
+.settings-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.settings-section-head b {
+  color: var(--gpt-text);
+  font-size: 17px;
+}
+
+.settings-section-head p {
+  margin: 4px 0 0;
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.settings-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-form-grid.compact {
+  align-items: start;
+}
+
+.settings-form-grid label,
+.settings-section label {
+  margin-top: 0;
+}
+
+.model-field-wide {
+  grid-column: 1 / -1;
+}
+
+.thinking-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 12px;
+}
+
+.thinking-options .check-row {
+  margin: 0;
+}
+
+.model-primary-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 12px 0 2px;
+  background: linear-gradient(180deg, transparent, var(--gpt-bg) 28%);
+}
+
+.provider-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.provider-grid .product-card {
+  min-height: 118px;
+}
+
+@media (max-width: 760px) {
+  .model-page-head {
+    align-items: flex-start;
+  }
+
+  .model-summary-grid,
+  .settings-form-grid,
+  .provider-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-section {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .settings-section-head {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .settings-section-head button,
+  .model-primary-actions button {
+    width: 100%;
+  }
+
+  .model-primary-actions {
+    margin: 0 -2px;
+  }
+
+  .settings-page .module-view.active {
+    overflow: hidden;
+  }
+
+  .provider-grid .product-card {
+    min-height: 0;
+  }
+}
