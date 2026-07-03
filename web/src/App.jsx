@@ -20,6 +20,29 @@ function streamStatusText(stats, elapsed) {
   return parts.join(' · ');
 }
 
+function attachmentLooksLikeImage(item) {
+  return String(item?.mime_type || item?.type || '').toLowerCase().startsWith('image/');
+}
+
+function readableChatError(error, hasImageAttachment = false) {
+  const raw = String(error?.message || error || '').trim();
+  if (!raw) return '模型调用失败。';
+  if (/only support text input|model only support text|不支持.*图片|只支持文本/i.test(raw)) {
+    return hasImageAttachment
+      ? '当前模型只支持文本输入，不能读取图片。请切换支持图片/视觉的模型，或移除图片附件后再发送。'
+      : '当前模型只支持文本输入，不能处理这次请求里的非文本内容。';
+  }
+  const jsonStart = raw.indexOf('{');
+  if (jsonStart >= 0) {
+    try {
+      const data = JSON.parse(raw.slice(jsonStart));
+      const message = data?.error?.message || data?.message || '';
+      if (message) return String(message);
+    } catch {}
+  }
+  return raw.replace(/^model api failed:\s*/i, '');
+}
+
 export default function App() {
   const [authPage, setAuthPage] = useState(null);
   const [theme, setThemeState] = useState(() => localStorage.getItem('chatdock.theme') === 'day' ? 'day' : 'night');
@@ -64,13 +87,15 @@ export default function App() {
   const [mcpStatus, setMcpStatus] = useState([]);
   const [promptPreview, setPromptPreview] = useState('');
   const [mcpConfig, setMcpConfig] = useState('');
-  const [config, setConfig] = useState({base_url:'', api_key:'', model:'', system_prompt:'', context_mode:'auto', max_context_messages:12, temperature:0.7, enable_thinking:false, hide_thinking:true, has_api_key:false});
+  const [config, setConfig] = useState({base_url:'', api_key:'', model:'', system_prompt:'', context_mode:'auto', max_context_messages:12, temperature:0.7, enable_thinking:false, hide_thinking:false, has_api_key:false});
 
   const abortRef = useRef(null);
   const pausedRef = useRef(false);
   const pendingDeltaRef = useRef('');
   const pendingReasoningRef = useRef('');
   const messagesRef = useRef(null);
+  const stickToBottomRef = useRef(true);
+  const forceScrollRef = useRef(false);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -168,7 +193,7 @@ export default function App() {
       max_context_messages: c.max_context_messages || 12,
       temperature: c.temperature ?? 0.7,
       enable_thinking: !!c.enable_thinking,
-      hide_thinking: c.hide_thinking !== false,
+      hide_thinking: !!c.hide_thinking,
       has_api_key: !!c.has_api_key,
     });
   }, [api]);
@@ -311,8 +336,20 @@ export default function App() {
   }, [settingsOpen, activeModule, loadMCPStatus, loadRuns, loadAgentTasks, loadDataStatus, loadSystemStatus, showToast]);
 
   useEffect(() => {
-    if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    const box = messagesRef.current;
+    if (!box) return;
+    if (forceScrollRef.current || stickToBottomRef.current) {
+      box.scrollTop = box.scrollHeight;
+      forceScrollRef.current = false;
+    }
   }, [messages]);
+
+  const handleMessagesScroll = useCallback(() => {
+    const box = messagesRef.current;
+    if (!box) return;
+    // 用户手动上滑时停止跟随流式输出；只有接近底部时继续自动贴底。
+    stickToBottomRef.current = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
+  }, []);
 
   const setSidebarCollapsed = useCallback((value) => {
     setSidebarCollapsedState(value);
@@ -585,8 +622,9 @@ export default function App() {
         }
       } catch (e) {
         if (!abort.signal.aborted && !stopped) {
-          setStreamStats(prev => ({...prev, state:'error', error:e.message}));
-          appendToActiveAssistant(m => ({...m, answer:'错误：' + e.message}));
+          const message = readableChatError(e);
+          setStreamStats(prev => ({...prev, state:'error', error:message}));
+          appendToActiveAssistant(m => ({...m, answer:'错误：' + message}));
         }
       } finally {
         if (!stopped) {
@@ -690,6 +728,8 @@ export default function App() {
     pendingReasoningRef.current = '';
     const abort = new AbortController();
     abortRef.current = abort;
+    forceScrollRef.current = true;
+    stickToBottomRef.current = true;
     setMessages(prev => [...prev, {role:'user', content:text, attachments:attachmentsForMessage}, {role:'assistant-stream', answer:'', reasoning:'', events:[]}]);
     try {
       setPendingAttachments([]);
@@ -711,8 +751,9 @@ export default function App() {
         appendAnswer('\n\n【已中断】');
         await loadSessions().catch(() => {});
       } else {
-        setStreamStats(prev => ({...prev, state:'error', error:e.message}));
-        appendToActiveAssistant(m => ({...m, answer:'错误：' + e.message}));
+        const message = readableChatError(e, attachmentsForMessage.some(attachmentLooksLikeImage));
+        setStreamStats(prev => ({...prev, state:'error', error:message}));
+        appendToActiveAssistant(m => ({...m, answer:'错误：' + message}));
       }
     } finally {
       setBusy(false);
@@ -1082,7 +1123,7 @@ export default function App() {
             <button className="danger" onClick={deleteCurrent} disabled={!current || busy}>删除</button>
           </div>
         </div>
-        <div className="messages" ref={messagesRef}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
+        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} onCopy={copyText} hideThinking={!!config.hide_thinking} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
         <div className="composer-shell">
         {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} /> : null}
         <div className="composer">

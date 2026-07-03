@@ -5,9 +5,12 @@
     .msg-actions button { min-height: 28px; padding: 4px 8px; font-size: 12px; }
     .user { background: #1d4ed8; color: white; }
     .assistant { background: #111827; border: 1px solid #263244; }
-    .reasoning { display: none; margin-bottom: 12px; padding: 10px 12px; border-left: 3px solid #64748b; border-radius: 10px; background: #0b1220; color: #94a3b8; font-size: 13px; line-height: 1.6; }
-    .reasoning.show { display: block; }
-    .reasoning-title { font-weight: 700; color: #cbd5e1; margin-bottom: 6px; }
+    .reasoning { margin-bottom: 12px; border: 1px solid rgba(148,163,184,.28); border-radius: 12px; background: #0b1220; color: #94a3b8; font-size: 13px; line-height: 1.6; overflow: hidden; }
+    .reasoning-toggle { width: 100%; min-height: 38px; padding: 8px 11px; border: 0; background: transparent; color: inherit; display: flex; align-items: center; justify-content: space-between; text-align: left; }
+    .reasoning-toggle b { display: block; color: #cbd5e1; font-size: 13px; }
+    .reasoning-toggle small { display: block; margin-top: 1px; color: #94a3b8; font-size: 12px; }
+    .reasoning-chevron { color: #94a3b8; font-weight: 800; }
+    .reasoning-content { padding: 0 12px 12px; }
     .answer { min-height: 1.5em; }
     .markdown { white-space: normal; overflow-wrap: anywhere; }
     .markdown p { margin: 0 0 10px; }
@@ -219,10 +222,14 @@ body.theme-light .markdown code {
 }
 
 .reasoning {
-  border-left-color: var(--gpt-border-strong);
+  border-color: var(--gpt-border);
   background: rgba(255,255,255,.05);
   color: var(--gpt-muted);
 }
+
+.reasoning-toggle b { color: var(--gpt-text); }
+.reasoning-toggle small,
+.reasoning-chevron { color: var(--gpt-muted); }
 
 .composer-shell {
   position: sticky;

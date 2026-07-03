@@ -19,7 +19,7 @@ func DefaultModelConfig() ModelConfig {
 		MaxContextMessages: 12,
 		Temperature:        0.7,
 		EnableThinking:     false,
-		HideThinking:       true,
+		HideThinking:       false,
 	}
 }
 

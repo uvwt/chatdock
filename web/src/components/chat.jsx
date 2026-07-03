@@ -1,5 +1,5 @@
 // Chat workbench, message rendering, empty state, and attachment chips.
-import React from 'react';
+import React, { useState } from 'react';
 import { fmtBytes } from '../lib/appUtils.js';
 import { Markdown } from './base.jsx';
 
@@ -27,15 +27,38 @@ export function AttachmentList({ attachments, removable = false, onRemove }) {
   </div>;
 }
 
-export function MessageView({ message, onCopy }) {
+function ReasoningBlock({ value, streaming = false, hidden = false }) {
+  const [open, setOpen] = useState(false);
+  if (hidden || !value) return null;
+  const title = streaming ? '思考中' : '思考过程';
+  return <section className={'reasoning ' + (open ? 'show' : 'collapsed')}>
+    <button type="button" className="reasoning-toggle" onClick={() => setOpen(v => !v)} aria-expanded={open}>
+      <span><b>{title}</b><small>{open ? '点击收起' : '已折叠，点击展开'}</small></span>
+      <span className="reasoning-chevron">{open ? '⌃' : '⌄'}</span>
+    </button>
+    {open ? <Markdown className="reasoning-content markdown" value={value} /> : null}
+  </section>;
+}
+
+export function MessageView({ message, onCopy, hideThinking = true }) {
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
-  if (message.role === 'assistant-stream') return <div className="msg assistant">
-    <MessageActions text={[message.reasoning, message.answer].filter(Boolean).join('\n\n')} onCopy={onCopy} />
-    {message.reasoning ? <div className="reasoning show"><div className="reasoning-title">思考中</div><Markdown className="reasoning-content markdown" value={message.reasoning} /></div> : null}
-    <Markdown className="answer markdown" value={message.answer} />
-    {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline' : '')}>{event.text}{event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}</div>)}
-  </div>;
-  if (message.role === 'assistant') return <div className="msg assistant markdown"><MessageActions text={[message.reasoning, message.content].filter(Boolean).join('\n\n')} onCopy={onCopy} />{message.reasoning ? <details className="reasoning reasoning-collapsed"><summary>思考</summary><Markdown className="reasoning-content markdown" value={message.reasoning} /></details> : null}<Markdown value={message.content} /></div>;
+  if (message.role === 'assistant-stream') {
+    const reasoning = hideThinking ? '' : message.reasoning;
+    return <div className="msg assistant">
+      <MessageActions text={[reasoning, message.answer].filter(Boolean).join('\n\n')} onCopy={onCopy} />
+      <ReasoningBlock value={message.reasoning} streaming hidden={hideThinking} />
+      <Markdown className="answer markdown" value={message.answer} />
+      {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline' : '')}>{event.text}{event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}</div>)}
+    </div>;
+  }
+  if (message.role === 'assistant') {
+    const reasoning = hideThinking ? '' : message.reasoning;
+    return <div className="msg assistant markdown">
+      <MessageActions text={[reasoning, message.content].filter(Boolean).join('\n\n')} onCopy={onCopy} />
+      <ReasoningBlock value={message.reasoning} hidden={hideThinking} />
+      <Markdown value={message.content} />
+    </div>;
+  }
   return <div className={'msg ' + (message.role || 'user')}><MessageActions text={message.content} onCopy={onCopy} />{message.content ? <div>{message.content}</div> : null}<AttachmentList attachments={message.attachments || []} /></div>;
 }
 
