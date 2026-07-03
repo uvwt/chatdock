@@ -1211,7 +1211,7 @@ export default function App() {
           <div className="top-actions">
             <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)} title="快捷指令（⌘/Ctrl K）">快捷</button>
             <button className="secondary config-toggle" onClick={() => openSettings()} title="配置中心">配置</button>
-            <button className="secondary session-actions-toggle" onClick={() => setSessionActionsOpen(true)} disabled={!current} title="会话操作">会话</button>
+            <button className="secondary session-actions-toggle mobile-new-toggle" onClick={newSession} disabled={busy} title="新会话">新会话</button>
             <button className="theme-toggle" onClick={() => setThemeState(theme === 'day' ? 'night' : 'day')}>{theme === 'day' ? '白天' : '夜晚'}</button>
             <button className="secondary" onClick={renameCurrent} disabled={!current || busy}>重命名</button>
             <button className="secondary" onClick={copyCurrentMarkdown} disabled={!current}>复制全文</button>

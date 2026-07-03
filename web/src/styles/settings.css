@@ -1568,3 +1568,29 @@ body.theme-light .mcp-inline-warning.danger {
     position: relative;
   }
 }
+
+
+/* 2026-07 像用户截图一样校准桌面配置页：左侧导航收窄到截图比例，内容区更宽。 */
+@media (min-width: 1040px) {
+  .settings-page .settings,
+  .settings-page .settings[style] {
+    grid-template-columns: 250px minmax(0, 1fr) !important;
+    gap: 22px 28px !important;
+  }
+
+  .settings-page .module-tabs {
+    width: 250px !important;
+    margin: 0 !important;
+    padding: 20px 18px !important;
+  }
+
+  .settings-page .module-view.active {
+    margin: 0 !important;
+  }
+}
+
+@media (min-width: 1500px) {
+  .settings-page .settings {
+    grid-template-columns: 250px minmax(0, 1fr) !important;
+  }
+}
