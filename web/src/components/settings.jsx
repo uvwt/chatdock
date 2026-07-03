@@ -50,6 +50,7 @@ function WorkspaceModule({ setupStatus, workspaces, createWorkspace, selectWorks
 
 function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptPreview, testModelProvider, fetchProviderModels, availableModels, loadingModels, providers }) {
   const update = (key, value) => setConfig(c => ({...c, [key]: value}));
+  const contextMode = config.context_mode || 'auto';
   return <>
     <div className="settings-block-head"><label>当前工作空间模型</label></div>
     <label>Base URL</label><input value={config.base_url} onChange={e => update('base_url', e.target.value)} placeholder="https://api.openai.com/v1" />
@@ -58,7 +59,8 @@ function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptP
     <input value={config.model} onChange={e => update('model', e.target.value)} placeholder="gpt-4o-mini" />
     {availableModels.length ? <div className="model-options">{availableModels.map(name => <button key={name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => update('model', name)}>{name}</button>)}</div> : <div className="hint">填写 Base URL 和 API Key 后，可从接口获取可用模型名称。</div>}
     <label>System Prompt</label><textarea value={config.system_prompt} onChange={e => update('system_prompt', e.target.value)} />
-    <div className="row"><div><label>上下文消息数</label><input type="number" value={config.max_context_messages} onChange={e => update('max_context_messages', e.target.value)} /></div><div><label>Temperature</label><input type="number" step="0.1" min="0" max="2" value={config.temperature} onChange={e => update('temperature', e.target.value)} /></div></div>
+    <div className="row"><div><label>上下文模式</label><select value={contextMode} onChange={e => update('context_mode', e.target.value)}><option value="auto">自动，推荐</option><option value="compact">精简</option><option value="expanded">更多历史</option><option value="custom">自定义</option></select><div className="hint">自动模式会保留最近消息原文，并把更早内容提炼成摘要，不需要手动填数量。</div></div><div><label>Temperature</label><input type="number" step="0.1" min="0" max="2" value={config.temperature} onChange={e => update('temperature', e.target.value)} /></div></div>
+    {contextMode === 'custom' ? <div className="row"><div><label>自定义最近消息数</label><input type="number" min="1" value={config.max_context_messages} onChange={e => update('max_context_messages', e.target.value)} /><div className="hint">只在自定义模式下生效；自动/精简/更多历史由 ChatDock 自动压缩上下文。</div></div></div> : null}
     <label className="check-row"><input type="checkbox" checked={!!config.enable_thinking} onChange={e => update('enable_thinking', e.target.checked)} /> 启用模型思考</label>
     <label className="check-row"><input type="checkbox" checked={!!config.hide_thinking} onChange={e => update('hide_thinking', e.target.checked)} /> 隐藏思考内容</label>
     <div className="settings-actions"><button onClick={saveConfig}>保存模型设置</button><button className="secondary" onClick={showPromptPreview}>查看最终 Prompt</button><button className="secondary" onClick={testModelProvider}>测试连接</button></div>

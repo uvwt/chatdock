@@ -53,7 +53,7 @@ export default function App() {
   const [mcpStatus, setMcpStatus] = useState([]);
   const [promptPreview, setPromptPreview] = useState('');
   const [mcpConfig, setMcpConfig] = useState('');
-  const [config, setConfig] = useState({base_url:'', api_key:'', model:'', system_prompt:'', max_context_messages:12, temperature:0.7, enable_thinking:false, hide_thinking:true, has_api_key:false});
+  const [config, setConfig] = useState({base_url:'', api_key:'', model:'', system_prompt:'', context_mode:'auto', max_context_messages:12, temperature:0.7, enable_thinking:false, hide_thinking:true, has_api_key:false});
 
   const abortRef = useRef(null);
   const pausedRef = useRef(false);
@@ -153,6 +153,7 @@ export default function App() {
       api_key: '',
       model: c.model || '',
       system_prompt: c.system_prompt || '',
+      context_mode: c.context_mode || 'auto',
       max_context_messages: c.max_context_messages || 12,
       temperature: c.temperature ?? 0.7,
       enable_thinking: !!c.enable_thinking,
@@ -757,6 +758,7 @@ export default function App() {
       api_key: config.api_key,
       model: config.model,
       system_prompt: config.system_prompt,
+      context_mode: config.context_mode || 'auto',
       max_context_messages: Number(config.max_context_messages || 12),
       temperature: Number(config.temperature || 0.7),
       enable_thinking: !!config.enable_thinking,
@@ -795,6 +797,7 @@ export default function App() {
         api_key: config.api_key,
         model: config.model,
         system_prompt: config.system_prompt,
+        context_mode: config.context_mode || 'auto',
         max_context_messages: Number(config.max_context_messages || 12),
         temperature: Number(config.temperature || 0.7),
         enable_thinking: !!config.enable_thinking,
@@ -812,6 +815,7 @@ export default function App() {
         api_key: config.api_key,
         model: config.model,
         system_prompt: config.system_prompt,
+        context_mode: config.context_mode || 'auto',
         max_context_messages: Number(config.max_context_messages || 12),
         temperature: Number(config.temperature || 0.7),
         enable_thinking: !!config.enable_thinking,

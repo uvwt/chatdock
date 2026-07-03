@@ -200,22 +200,9 @@ func MCPToolsToOpenAITools(tools []MCPTool) []map[string]any {
 }
 
 func BuildChatMessagesAny(cfg ModelConfig, history []Message) []map[string]any {
-	maxMessages := cfg.MaxContextMessages
-	if maxMessages <= 0 {
-		maxMessages = 12
-	}
-	start := len(history) - maxMessages
-	if start < 0 {
-		start = 0
-	}
-	messages := make([]map[string]any, 0, maxMessages+1)
-	if systemPrompt := buildSystemPrompt(cfg); strings.TrimSpace(systemPrompt) != "" {
-		messages = append(messages, map[string]any{"role": "system", "content": systemPrompt})
-	}
-	for _, item := range history[start:] {
-		if item.Role != "user" && item.Role != "assistant" && item.Role != "system" {
-			continue
-		}
+	prepared := buildChatContextMessages(cfg, history)
+	messages := make([]map[string]any, 0, len(prepared))
+	for _, item := range prepared {
 		messages = append(messages, map[string]any{"role": item.Role, "content": item.Content})
 	}
 	return messages

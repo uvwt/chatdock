@@ -3,6 +3,7 @@ package chatdock
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -34,15 +35,33 @@ func TestThinkingFilterAcrossChunks(t *testing.T) {
 	}
 }
 
-func TestBuildChatMessagesLimitsContext(t *testing.T) {
-	cfg := ModelConfig{SystemPrompt: "sys", MaxContextMessages: 2}
+func TestBuildChatMessagesCustomModeLimitsContext(t *testing.T) {
+	cfg := ModelConfig{SystemPrompt: "sys", ContextMode: ContextModeCustom, MaxContextMessages: 2}
 	history := []Message{{Role: "user", Content: "a"}, {Role: "assistant", Content: "b"}, {Role: "tool", Content: "ignored"}, {Role: "user", Content: "c"}}
 	got := BuildChatMessages(cfg, history)
-	if len(got) != 2 {
-		t.Fatalf("expected system plus last valid message, got %#v", got)
+	if len(got) != 3 {
+		t.Fatalf("expected system plus last two valid messages, got %#v", got)
 	}
-	if got[0]["role"] != "system" || got[1]["content"] != "c" {
+	if got[0]["role"] != "system" || got[1]["content"] != "b" || got[2]["content"] != "c" {
 		t.Fatalf("unexpected messages: %#v", got)
+	}
+}
+
+func TestBuildChatMessagesAutoSummarizesEarlierContext(t *testing.T) {
+	cfg := ModelConfig{SystemPrompt: "sys", ContextMode: ContextModeAuto}
+	history := make([]Message, 0, 14)
+	for i := 1; i <= 14; i++ {
+		history = append(history, Message{Role: "user", Content: fmt.Sprintf("message-%02d", i)})
+	}
+	got := BuildChatMessages(cfg, history)
+	if len(got) != 14 {
+		t.Fatalf("expected system, summary, and 12 recent messages, got %#v", got)
+	}
+	if !strings.Contains(got[1]["content"], "早期会话摘要") || !strings.Contains(got[1]["content"], "message-02") {
+		t.Fatalf("expected earlier context summary, got %#v", got[1])
+	}
+	if got[2]["content"] != "message-03" || got[len(got)-1]["content"] != "message-14" {
+		t.Fatalf("recent messages were not preserved: %#v", got)
 	}
 }
 

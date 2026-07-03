@@ -45,7 +45,7 @@ store_prompt.go           工作空间 / Prompt / 模型配置 / MCP 配置
 store_sessions.go         会话 CRUD、消息追加、会话标题与预览
 store_files.go            文件读写、JSON 格式化、DB 时间格式工具
 attachments.go            附件上传、落盘、文本提取、模型上下文注入
-llm.go / llm_tools.go     OpenAI 兼容模型请求与工具调用适配
+llm.go / llm_tools.go     OpenAI 兼容模型请求、自动上下文整理与工具调用适配
 mcp_client.go             MCP 客户端
 runs.go                   MCP 执行记录
 scheduled_tasks.go        自动化任务存储与执行
@@ -58,6 +58,7 @@ skills.go                 工作空间技能
 2. 产品化状态 API 放到 `product_*.go`；`product.go` 只放共享 DTO，不再继续堆实现。
 3. Store 仍保持直接方法调用，不提前抽 repository/interface；只有真实需要跨 package 复用时再讨论 package 拆分。
 4. 复杂业务流程需要中文注释说明原因、约束和坑点，不写“解释语法”的无效注释。
+5. 聊天上下文默认使用 `context_mode=auto`：最近消息保留原文，更早消息在模型请求前提炼成系统摘要；只有 `custom` 模式才把 `max_context_messages` 当作硬性最近消息数。
 
 ## 前端分层
 
@@ -78,7 +79,7 @@ web/src/lib/appUtils.js     时间、容量、状态标签、路由路径、诊�
 
 web/src/components/base.jsx      通用 UI：Markdown、弹窗、登录页、快捷面板、工作空间选择
 web/src/components/chat.jsx      对话工作台、消息、附件卡片、空状态
-web/src/components/settings.jsx  配置中心：工作空间、模型、技能、MCP、运行记录、自动化、数据、安全
+web/src/components/settings.jsx  配置中心：工作空间、模型、上下文模式、技能、MCP、运行记录、自动化、数据、安全
 ```
 
 ### 前端新增代码规则
@@ -87,6 +88,7 @@ web/src/components/settings.jsx  配置中心：工作空间、模型、技能�
 2. `App.jsx` 可以持有状态和组合流程，但不要继续塞协议解析、请求细节或通用格式化函数。
 3. 可复用 UI 放 `components/`；只被单一页面使用且和状态强绑定的回调可以留在 `App.jsx`，避免为了拆而拆。
 4. 上传、SSE、Markdown 这类传输/协议能力保持独立文件，方便后续测试和替换。
+5. 模型上下文设置对普通用户只展示自动、精简、更多历史和自定义；不要让用户必填底层 JSON 或消息数量。
 
 ## CSS 分层
 

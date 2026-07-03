@@ -35,6 +35,7 @@ type ModelConfig struct {
 	Model              string  `json:"model"`
 	SystemPrompt       string  `json:"system_prompt"`
 	Skills             []Skill `json:"-"`
+	ContextMode        string  `json:"context_mode,omitempty"`
 	MaxContextMessages int     `json:"max_context_messages"`
 	Temperature        float64 `json:"temperature"`
 	EnableThinking     bool    `json:"enable_thinking"`
@@ -47,6 +48,7 @@ type PublicModelConfig struct {
 	HasAPIKey          bool    `json:"has_api_key"`
 	Model              string  `json:"model"`
 	SystemPrompt       string  `json:"system_prompt"`
+	ContextMode        string  `json:"context_mode,omitempty"`
 	MaxContextMessages int     `json:"max_context_messages"`
 	Temperature        float64 `json:"temperature"`
 	EnableThinking     bool    `json:"enable_thinking"`
