@@ -4,7 +4,10 @@ import { fmtBytes } from '../lib/appUtils.js';
 import { Markdown } from './base.jsx';
 
 function MessageActions({ text, onCopy }) {
-  return <div className="msg-actions"><button type="button" className="secondary small" onClick={() => onCopy(text)}>复制</button></div>;
+  return <div className="msg-actions">
+    <button type="button" className="secondary small msg-action-copy" onClick={() => onCopy(text)} aria-label="复制当前回复" title="复制当前回复">复制</button>
+    <button type="button" className="secondary small msg-action-more" aria-label="更多操作" title="更多操作">更多</button>
+  </div>;
 }
 
 function attachmentStatusLabel(item) {
@@ -34,7 +37,7 @@ function ReasoningBlock({ value, streaming = false, hidden = false }) {
   const title = streaming ? '思考中' : '思考过程';
   return <section className={'reasoning ' + (open ? 'show' : 'collapsed')}>
     <button type="button" className="reasoning-toggle" onClick={() => setOpen(v => !v)} aria-expanded={open}>
-      <span><b>{title}</b><small>{open ? '点击收起' : '已折叠，点击展开'}</small></span>
+      <span><b>{title}</b></span>
       <span className="reasoning-chevron">{open ? '⌃' : '⌄'}</span>
     </button>
     {open ? <Markdown className="reasoning-content markdown" value={value} /> : null}
@@ -46,7 +49,6 @@ export function MessageView({ message, onCopy, hideThinking = true, onResolveCon
   if (message.role === 'assistant-stream') {
     const reasoning = hideThinking ? '' : message.reasoning;
     return <div className="msg assistant">
-      <MessageActions text={[reasoning, message.answer].filter(Boolean).join('\n\n')} onCopy={onCopy} />
       <ReasoningBlock value={message.reasoning} streaming hidden={hideThinking} />
       <Markdown className="answer markdown" value={message.answer} />
       {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline' : '') + (event.details ? ' has-details' : '')}>
@@ -59,17 +61,18 @@ export function MessageView({ message, onCopy, hideThinking = true, onResolveCon
           {event.confirmation && event.status !== 'resolved' ? <><button className="secondary small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, true)}>允许一次</button><button className="danger small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, false)}>拒绝</button></> : null}
         </div>
       </div>)}
+      <MessageActions text={[reasoning, message.answer].filter(Boolean).join('\n\n')} onCopy={onCopy} />
     </div>;
   }
   if (message.role === 'assistant') {
     const reasoning = hideThinking ? '' : message.reasoning;
     return <div className="msg assistant markdown">
-      <MessageActions text={[reasoning, message.content].filter(Boolean).join('\n\n')} onCopy={onCopy} />
       <ReasoningBlock value={message.reasoning} hidden={hideThinking} />
       <Markdown value={message.content} />
+      <MessageActions text={[reasoning, message.content].filter(Boolean).join('\n\n')} onCopy={onCopy} />
     </div>;
   }
-  return <div className={'msg ' + (message.role || 'user')}><MessageActions text={message.content} onCopy={onCopy} />{message.content ? <div>{message.content}</div> : null}<AttachmentList attachments={message.attachments || []} /></div>;
+  return <div className={'msg ' + (message.role || 'user')}>{message.content ? <div>{message.content}</div> : null}<AttachmentList attachments={message.attachments || []} /></div>;
 }
 
 
