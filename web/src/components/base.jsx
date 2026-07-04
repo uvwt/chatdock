@@ -1,9 +1,22 @@
 // Reusable shell components: markdown rendering, product cards, modal, auth, palette, and workspace picker.
 import React, { useEffect, useRef, useState } from 'react';
-import { renderMarkdown } from '../lib/markdown.js';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+const markdownComponents = {
+  table({node, ...props}) {
+    return <div className="table-wrap"><table {...props} /></div>;
+  },
+  a({node, ...props}) {
+    const href = String(props.href || '');
+    const external = /^https?:\/\//i.test(href);
+    return <a {...props} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined} />;
+  },
+};
 
 export function Markdown({ value, className = '' }) {
-  return <div className={className} dangerouslySetInnerHTML={{__html: renderMarkdown(value || '')}} />;
+  const content = <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{value || ''}</ReactMarkdown>;
+  return className ? <div className={className}>{content}</div> : content;
 }
 
 export function TextCard({ title, hint, badge, badgeClass = '', active, children }) {
