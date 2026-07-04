@@ -1897,3 +1897,372 @@
     pointer-events: none !important;
   }
 }
+
+/* 2026-07-04 手机侧栏缩小：不再接近全屏，整体控件降一档。 */
+@media (max-width: 720px) {
+  #app.app:not(.sidebar-collapsed) aside {
+    width: min(304px, calc(100vw - 56px)) !important;
+    max-width: calc(100vw - 56px) !important;
+    padding: max(18px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom)) !important;
+    border-radius: 0 22px 22px 0 !important;
+    box-shadow: 16px 0 40px rgba(15, 23, 42, .16) !important;
+  }
+
+  #app.app .sidebar-head {
+    margin-bottom: 16px !important;
+    min-height: 44px !important;
+  }
+
+  #app.app .brand {
+    gap: 11px !important;
+  }
+
+  #app.app .brand-logo {
+    flex-basis: 40px !important;
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 13px !important;
+    font-size: 22px !important;
+  }
+
+  #app.app .brand-text {
+    font-size: 19px !important;
+    line-height: 1.05 !important;
+  }
+
+  #app.app .sub {
+    margin-top: 4px !important;
+    font-size: 11px !important;
+  }
+
+  #app.app .prompt-box {
+    margin-bottom: 16px !important;
+  }
+
+  #app.app .workspace-picker-trigger {
+    min-height: 52px !important;
+    border-radius: 17px !important;
+    padding: 0 14px !important;
+    grid-template-columns: 24px minmax(0, 1fr) auto auto !important;
+    gap: 9px !important;
+  }
+
+  #app.app .workspace-picker-icon,
+  #app.app .session-search-icon {
+    width: 22px !important;
+    height: 22px !important;
+    flex-basis: 22px !important;
+  }
+
+  #app.app .workspace-picker-icon::before,
+  #app.app .session-search-icon::before {
+    left: 3px !important;
+    top: 3px !important;
+    width: 12px !important;
+    height: 12px !important;
+    border-width: 2.5px !important;
+  }
+
+  #app.app .workspace-picker-icon::after,
+  #app.app .session-search-icon::after {
+    left: 15px !important;
+    top: 15px !important;
+    width: 7px !important;
+    height: 2.5px !important;
+  }
+
+  #app.app .workspace-picker-name {
+    font-size: 15px !important;
+  }
+
+  #app.app .workspace-picker-meta,
+  #app.app .workspace-picker-arrow {
+    font-size: 14px !important;
+  }
+
+  #app.app .session-search-row {
+    margin-bottom: 18px !important;
+    grid-template-columns: minmax(0, 1fr) 48px !important;
+    gap: 10px !important;
+  }
+
+  #app.app .session-search-box,
+  #app.app .new {
+    min-height: 48px !important;
+    height: 48px !important;
+    border-radius: 15px !important;
+  }
+
+  #app.app .session-search-box {
+    padding: 0 13px !important;
+    gap: 10px !important;
+  }
+
+  #app.app .session-search {
+    font-size: 14px !important;
+  }
+
+  #app.app .new {
+    width: 48px !important;
+    min-width: 48px !important;
+    max-width: 48px !important;
+  }
+
+  #app.app .new-symbol {
+    font-size: 27px !important;
+  }
+
+  #app.app .sidebar-section-head {
+    margin-bottom: 10px !important;
+  }
+
+  #app.app .sidebar-section-title {
+    font-size: 14px !important;
+  }
+
+  #app.app .sidebar-section-dot {
+    width: 12px !important;
+    height: 12px !important;
+    border-width: 3px !important;
+  }
+
+  #app.app .sidebar-manage {
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 0 12px !important;
+    font-size: 12px !important;
+  }
+
+  #app.app .session {
+    min-height: 39px !important;
+    padding: 8px 18px 8px 43px !important;
+    border-radius: 12px !important;
+  }
+
+  #app.app .session::before {
+    left: 14px !important;
+    top: 12px !important;
+    width: 15px !important;
+    height: 15px !important;
+    border-width: 2.5px !important;
+  }
+
+  #app.app .session::after {
+    left: 26px !important;
+    top: 25px !important;
+    width: 5px !important;
+    height: 5px !important;
+    border-left-width: 2.5px !important;
+    border-bottom-width: 2.5px !important;
+  }
+
+  #app.app .session-title {
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+  }
+
+  #app.app .sidebar-footer {
+    margin-top: 8px !important;
+    padding-top: 12px !important;
+  }
+
+  #app.app .sidebar-settings-entry {
+    min-height: 40px !important;
+    padding: 0 12px !important;
+    gap: 12px !important;
+    font-size: 14px !important;
+    border-radius: 12px !important;
+  }
+
+  #app.app .sidebar-settings-icon {
+    width: 20px !important;
+    font-size: 20px !important;
+  }
+}
+
+/* 2026-07-04 侧边栏整体缩小：桌面和手机都不再用大号控件。 */
+@media (min-width: 721px) {
+  #app.app,
+  #app.app.settings-open {
+    --gpt-sidebar-width: 276px !important;
+    grid-template-columns: var(--gpt-sidebar-width) minmax(0, 1fr) !important;
+  }
+
+  #app.app aside {
+    padding: 20px 16px 16px !important;
+    box-shadow: 10px 0 28px rgba(15, 23, 42, .04) !important;
+  }
+
+  #app.app .sidebar-head {
+    min-height: 44px !important;
+    margin-bottom: 18px !important;
+  }
+
+  #app.app .brand {
+    gap: 11px !important;
+  }
+
+  #app.app .brand-logo {
+    flex-basis: 42px !important;
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 13px !important;
+    font-size: 23px !important;
+    box-shadow: 0 10px 22px rgba(59, 130, 246, .15) !important;
+  }
+
+  #app.app .brand-text {
+    font-size: 20px !important;
+    letter-spacing: -.03em !important;
+  }
+
+  #app.app .sub {
+    margin-top: 5px !important;
+    font-size: 12px !important;
+  }
+
+  #app.app .prompt-box {
+    margin-bottom: 18px !important;
+  }
+
+  #app.app .workspace-picker-trigger {
+    min-height: 54px !important;
+    padding: 0 14px !important;
+    border-radius: 18px !important;
+    grid-template-columns: 24px minmax(0, 1fr) auto auto !important;
+    gap: 9px !important;
+  }
+
+  #app.app .workspace-picker-icon,
+  #app.app .session-search-icon {
+    width: 22px !important;
+    height: 22px !important;
+    flex-basis: 22px !important;
+  }
+
+  #app.app .workspace-picker-icon::before,
+  #app.app .session-search-icon::before {
+    left: 3px !important;
+    top: 3px !important;
+    width: 12px !important;
+    height: 12px !important;
+    border-width: 2.4px !important;
+  }
+
+  #app.app .workspace-picker-icon::after,
+  #app.app .session-search-icon::after {
+    left: 15px !important;
+    top: 15px !important;
+    width: 7px !important;
+    height: 2.4px !important;
+  }
+
+  #app.app .workspace-picker-name {
+    font-size: 15px !important;
+  }
+
+  #app.app .workspace-picker-meta,
+  #app.app .workspace-picker-arrow {
+    font-size: 14px !important;
+  }
+
+  #app.app .session-search-row {
+    grid-template-columns: minmax(0, 1fr) 48px !important;
+    gap: 10px !important;
+    margin-bottom: 22px !important;
+  }
+
+  #app.app .session-search-box,
+  #app.app .new {
+    min-height: 48px !important;
+    height: 48px !important;
+    border-radius: 15px !important;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, .035) !important;
+  }
+
+  #app.app .session-search-box {
+    padding: 0 13px !important;
+    gap: 10px !important;
+  }
+
+  #app.app .session-search {
+    font-size: 14px !important;
+  }
+
+  #app.app .new {
+    width: 48px !important;
+    min-width: 48px !important;
+    max-width: 48px !important;
+  }
+
+  #app.app .new-symbol {
+    font-size: 27px !important;
+  }
+
+  #app.app .sidebar-section-head {
+    margin-bottom: 12px !important;
+  }
+
+  #app.app .sidebar-section-title {
+    font-size: 14px !important;
+  }
+
+  #app.app .sidebar-section-dot {
+    width: 12px !important;
+    height: 12px !important;
+    border-width: 3px !important;
+  }
+
+  #app.app .sidebar-manage {
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 0 12px !important;
+    font-size: 12px !important;
+  }
+
+  #app.app .session {
+    min-height: 40px !important;
+    padding: 8px 18px 8px 43px !important;
+    border-radius: 12px !important;
+  }
+
+  #app.app .session::before {
+    left: 14px !important;
+    top: 12px !important;
+    width: 15px !important;
+    height: 15px !important;
+    border-width: 2.5px !important;
+  }
+
+  #app.app .session::after {
+    left: 26px !important;
+    top: 25px !important;
+    width: 5px !important;
+    height: 5px !important;
+    border-left-width: 2.5px !important;
+    border-bottom-width: 2.5px !important;
+  }
+
+  #app.app .session-title {
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+  }
+
+  #app.app .sidebar-footer {
+    margin-top: 10px !important;
+    padding-top: 14px !important;
+  }
+
+  #app.app .sidebar-settings-entry {
+    min-height: 42px !important;
+    padding: 0 12px !important;
+    gap: 12px !important;
+    font-size: 14px !important;
+    border-radius: 12px !important;
+  }
+
+  #app.app .sidebar-settings-icon {
+    width: 20px !important;
+    font-size: 20px !important;
+  }
+}
