@@ -121,22 +121,11 @@ func TestCompleteWithMCPToolsEventsStreamsWhenNoToolCall(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatal(err)
 		}
-		if requestCount == 1 {
-			if body["stream"] != false {
-				t.Fatalf("first request should be non-stream tool decision, got %#v", body["stream"])
-			}
-			if _, ok := body["tools"]; !ok {
-				t.Fatal("first request should include tools")
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"non streamed draft"}}]}`))
-			return
-		}
 		if body["stream"] != true {
-			t.Fatalf("second request should stream final answer, got %#v", body["stream"])
+			t.Fatalf("tool request should stream, got %#v", body["stream"])
 		}
-		if _, ok := body["tools"]; ok {
-			t.Fatal("stream final answer should not include tools")
+		if _, ok := body["tools"]; !ok {
+			t.Fatal("streaming request should still include tools")
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		flusher := w.(http.Flusher)
@@ -168,6 +157,9 @@ func TestCompleteWithMCPToolsEventsStreamsWhenNoToolCall(t *testing.T) {
 	if answer != "流式" {
 		t.Fatalf("unexpected answer: %q", answer)
 	}
+	if requestCount != 1 {
+		t.Fatalf("plain tool-aware response should complete in one streaming request, got %d", requestCount)
+	}
 	if len(events) != 2 || events[0] != "流" || events[1] != "式" {
 		t.Fatalf("expected streamed events, got %#v", events)
 	}
@@ -181,49 +173,42 @@ func TestCompleteWithMCPToolsEventsAllowsMultipleToolRoundsBeforeStreaming(t *te
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatal(err)
 		}
-		w.Header().Set("Content-Type", "application/json")
+		if body["stream"] != true {
+			t.Fatalf("request %d should stream, got %#v", requestCount, body["stream"])
+		}
+		if _, ok := body["tools"]; !ok {
+			t.Fatalf("request %d should keep tools available", requestCount)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher := w.(http.Flusher)
+		send := func(data string) {
+			_, _ = w.Write([]byte("data: " + data + "\n\n"))
+			flusher.Flush()
+		}
 		switch requestCount {
 		case 1:
-			if body["stream"] != false {
-				t.Fatalf("first request should be tool decision, got %#v", body["stream"])
-			}
-			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"call_1","type":"function","function":{"name":"first_tool","arguments":"{\"step\":1}"}}]}}]}`))
+			send(`{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"first_tool","arguments":"{\"step\":"}}]}}]}`)
+			send(`{"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"1}"}}]}}]}`)
 		case 2:
-			if body["stream"] != false {
-				t.Fatalf("second request should still be non-stream tool decision, got %#v", body["stream"])
-			}
 			messages := body["messages"].([]any)
 			last := messages[len(messages)-1].(map[string]any)
 			if last["role"] != "tool" || last["name"] != "first_tool" {
 				t.Fatalf("second request should include first tool result, got %#v", last)
 			}
-			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"call_2","type":"function","function":{"name":"second_tool","arguments":"{\"step\":2}"}}]}}]}`))
+			send(`{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_2","type":"function","function":{"name":"second_tool","arguments":"{\"step\":"}}]}}]}`)
+			send(`{"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"2}"}}]}}]}`)
 		case 3:
-			if body["stream"] != false {
-				t.Fatalf("third request should decide no more tools before streaming, got %#v", body["stream"])
-			}
 			messages := body["messages"].([]any)
 			last := messages[len(messages)-1].(map[string]any)
 			if last["role"] != "tool" || last["name"] != "second_tool" {
 				t.Fatalf("third request should include second tool result, got %#v", last)
 			}
-			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"ready to stream"}}]}`))
-		case 4:
-			if body["stream"] != true {
-				t.Fatalf("fourth request should stream final answer, got %#v", body["stream"])
-			}
-			if _, ok := body["tools"]; ok {
-				t.Fatal("final stream request should not include tools")
-			}
-			w.Header().Set("Content-Type", "text/event-stream")
-			flusher := w.(http.Flusher)
-			_, _ = w.Write([]byte(`data: {"choices":[{"delta":{"content":"完成"}}]}` + "\n\n"))
-			flusher.Flush()
-			_, _ = w.Write([]byte("data: [DONE]\n\n"))
-			flusher.Flush()
+			send(`{"choices":[{"delta":{"content":"完成"}}]}`)
 		default:
 			t.Fatalf("unexpected request %d", requestCount)
 		}
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+		flusher.Flush()
 	}))
 	defer modelServer.Close()
 
@@ -241,8 +226,8 @@ func TestCompleteWithMCPToolsEventsAllowsMultipleToolRoundsBeforeStreaming(t *te
 	if answer != "完成" {
 		t.Fatalf("unexpected streamed answer: %q", answer)
 	}
-	if requestCount != 4 {
-		t.Fatalf("expected four model requests, got %d", requestCount)
+	if requestCount != 3 {
+		t.Fatalf("expected three streaming model requests, got %d", requestCount)
 	}
 	if len(called) != 2 || called[0] != "first_tool" || called[1] != "second_tool" {
 		t.Fatalf("expected two tool rounds, got %#v", called)
@@ -257,34 +242,22 @@ func TestCompleteWithMCPToolsEventsHasNoFixedRoundCap(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatal(err)
 		}
-		w.Header().Set("Content-Type", "application/json")
+		if body["stream"] != true {
+			t.Fatalf("tool-aware request %d should stream, got %#v", requestCount, body["stream"])
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher := w.(http.Flusher)
 		if requestCount <= 9 {
-			if body["stream"] != false {
-				t.Fatalf("tool decision request %d should be non-stream, got %#v", requestCount, body["stream"])
-			}
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"call_%d","type":"function","function":{"name":"loop_tool","arguments":"{\"round\":%d}"}}]}}]}`, requestCount, requestCount)))
-			return
-		}
-		if requestCount == 10 {
-			if body["stream"] != false {
-				t.Fatalf("final decision should still be non-stream, got %#v", body["stream"])
-			}
-			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"ready"}}]}`))
-			return
-		}
-		if requestCount == 11 {
-			if body["stream"] != true {
-				t.Fatalf("final answer should stream, got %#v", body["stream"])
-			}
-			w.Header().Set("Content-Type", "text/event-stream")
-			flusher := w.(http.Flusher)
+			_, _ = w.Write([]byte(fmt.Sprintf("data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_%d\",\"type\":\"function\",\"function\":{\"name\":\"loop_tool\",\"arguments\":\"{\\\"round\\\":%d}\"}}]}}]}\n\n", requestCount, requestCount)))
+			flusher.Flush()
+		} else if requestCount == 10 {
 			_, _ = w.Write([]byte(`data: {"choices":[{"delta":{"content":"完成"}}]}` + "\n\n"))
 			flusher.Flush()
-			_, _ = w.Write([]byte("data: [DONE]\n\n"))
-			flusher.Flush()
-			return
+		} else {
+			t.Fatalf("unexpected request %d", requestCount)
 		}
-		t.Fatalf("unexpected request %d", requestCount)
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+		flusher.Flush()
 	}))
 	defer modelServer.Close()
 
@@ -304,6 +277,9 @@ func TestCompleteWithMCPToolsEventsHasNoFixedRoundCap(t *testing.T) {
 	}
 	if calls != 9 {
 		t.Fatalf("expected 9 tool calls beyond old cap, got %d", calls)
+	}
+	if requestCount != 10 {
+		t.Fatalf("expected final streamed answer on request 10, got %d", requestCount)
 	}
 }
 
