@@ -106,9 +106,7 @@ func (a *App) semanticToolScores(ctx context.Context, catalog toolCatalog, query
 	if strings.TrimSpace(query) == "" || strings.TrimSpace(cfg.EmbeddingBaseURL) == "" {
 		return nil
 	}
-	indexCtx, indexCancel := context.WithTimeout(ctx, 30*time.Second)
-	records, err := a.ensureToolEmbeddingIndex(indexCtx, catalog, cfg.EmbeddingModel)
-	indexCancel()
+	records, err := a.availableToolEmbeddingIndex(catalog, cfg.EmbeddingModel)
 	if err != nil || len(records) == 0 {
 		return nil
 	}
@@ -171,6 +169,26 @@ func (a *App) ensureToolEmbeddingIndex(ctx context.Context, catalog toolCatalog,
 		return nil, err
 	}
 	return a.saveMissingToolEmbeddings(ctx, model, existing, catalog)
+}
+
+func (a *App) availableToolEmbeddingIndex(catalog toolCatalog, model string) (map[string]storepkg.ToolEmbeddingRecord, error) {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		model = "BAAI/bge-m3"
+	}
+	existing, err := a.store.ToolEmbeddings(model)
+	if err != nil {
+		return nil, err
+	}
+	records := make(map[string]storepkg.ToolEmbeddingRecord, len(existing))
+	for _, tool := range catalog.tools {
+		record, ok := existing[tool.FullName]
+		if !ok || record.SourceHash != toolSourceHash(tool) || len(record.Embedding) == 0 {
+			continue
+		}
+		records[tool.FullName] = record
+	}
+	return records, nil
 }
 
 func (a *App) saveMissingToolEmbeddings(ctx context.Context, model string, existing map[string]storepkg.ToolEmbeddingRecord, catalog toolCatalog) (map[string]storepkg.ToolEmbeddingRecord, error) {
