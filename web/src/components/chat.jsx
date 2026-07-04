@@ -101,26 +101,22 @@ function ToolEventRow({ event, onInspectToolEvent }) {
 }
 
 function ToolEvents({ events = [], onResolveConfirmation, onInspectToolEvent }) {
-  const [open, setOpen] = useState(false);
   if (!events.length) return null;
 
   const confirmations = events.filter(event => event.kind === 'confirm' && event.status !== 'resolved');
   const normalEvents = events.filter(event => !(event.kind === 'confirm' && event.status !== 'resolved') && toolEventName(event));
   const toolNames = uniqueToolNames(normalEvents);
-  const visibleEvents = open ? normalEvents : normalEvents.slice(0, 4);
-  const hiddenCount = Math.max(0, normalEvents.length - visibleEvents.length);
   const title = toolNames.length ? toolNames.slice(0, 3).join('、') + (toolNames.length > 3 ? ' 等' : '') : '运行步骤';
 
   return <>
-    {normalEvents.length ? <section className="tool-steps-card">
+    {normalEvents.length ? <section className="tool-steps-card inline">
       <div className="tool-steps-head">
         <span className="tool-steps-title">{title}</span>
         <span className="tool-steps-count">{normalEvents.length} 次</span>
       </div>
       <div className="tool-steps-list">
-        {visibleEvents.map((event, i) => <ToolEventRow key={i} event={event} onInspectToolEvent={onInspectToolEvent} />)}
+        {normalEvents.map((event, i) => <ToolEventRow key={i} event={event} onInspectToolEvent={onInspectToolEvent} />)}
       </div>
-      {hiddenCount ? <button type="button" className="tool-steps-more" onClick={() => setOpen(true)}>展开剩余 {hiddenCount} 次</button> : (open && normalEvents.length > 4 ? <button type="button" className="tool-steps-more" onClick={() => setOpen(false)}>收起</button> : null)}
     </section> : null}
     {confirmations.map((event, i) => <div key={'confirm-' + i} className={'tool-event ' + (event.details ? 'has-details' : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} role={event.details ? 'button' : undefined} tabIndex={event.details ? 0 : undefined} onKeyDown={e => { if (event.details && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onInspectToolEvent?.(event); } }}>
       <div className="tool-event-main">
@@ -133,6 +129,39 @@ function ToolEvents({ events = [], onResolveConfirmation, onInspectToolEvent }) 
       </div>
     </div>)}
   </>;
+}
+
+function AssistantContent({ message, streaming = false, hideThinking = false, onResolveConfirmation, onInspectToolEvent }) {
+  const fallbackText = streaming ? (message.answer || '') : (message.content || message.answer || '');
+  const parts = Array.isArray(message.parts) ? message.parts : [];
+  if (!parts.length) {
+    return <>
+      <Markdown className={streaming ? 'answer markdown' : undefined} value={fallbackText} />
+      <ToolEvents events={message.events || []} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
+    </>;
+  }
+
+  const blocks = [];
+  let pendingEvents = [];
+  const flushEvents = (key) => {
+    if (!pendingEvents.length) return;
+    blocks.push(<ToolEvents key={'tools-' + key} events={pendingEvents} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />);
+    pendingEvents = [];
+  };
+  parts.forEach((part, index) => {
+    if (part.kind === 'tool' && part.event) {
+      pendingEvents.push(part.event);
+      return;
+    }
+    flushEvents(index);
+    if (part.kind === 'text' && part.text) {
+      blocks.push(<Markdown key={'text-' + index} className={streaming ? 'answer markdown' : undefined} value={part.text} />);
+    } else if (part.kind === 'reasoning' && part.text) {
+      blocks.push(<ReasoningBlock key={'reasoning-' + index} value={part.text} streaming={streaming} hidden={hideThinking} />);
+    }
+  });
+  flushEvents('end');
+  return <>{blocks}</>;
 }
 
 function UserMessageView({ message, messageIndex, onCopy, onEditUserMessage, onDownloadAttachment }) {
@@ -181,18 +210,19 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEd
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
   if (message.role === 'assistant-stream') {
     const reasoning = hideThinking ? '' : message.reasoning;
+    const hasInlineParts = Array.isArray(message.parts) && message.parts.length > 0;
     return <div className="msg assistant" data-model-message="true">
-      <ReasoningBlock value={message.reasoning} streaming hidden={hideThinking} />
-      <Markdown className="answer markdown" value={message.answer} />
-      <ToolEvents events={message.events || []} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
+      <ReasoningBlock value={message.reasoning} streaming hidden={hideThinking || hasInlineParts} />
+      <AssistantContent message={message} streaming hideThinking={hideThinking} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
       <MessageActions text={[reasoning, message.answer].filter(Boolean).join('\n\n')} onCopy={onCopy} onBranch={onBranch ? () => onBranch(messageIndex) : null} />
     </div>;
   }
   if (message.role === 'assistant') {
     const reasoning = hideThinking ? '' : message.reasoning;
+    const hasInlineParts = Array.isArray(message.parts) && message.parts.length > 0;
     return <div className="msg assistant markdown" data-model-message="true">
-      <ReasoningBlock value={message.reasoning} hidden={hideThinking} />
-      <Markdown value={message.content} />
+      <ReasoningBlock value={message.reasoning} hidden={hideThinking || hasInlineParts} />
+      <AssistantContent message={message} hideThinking={hideThinking} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
       <MessageActions text={[reasoning, message.content].filter(Boolean).join('\n\n')} onCopy={onCopy} onBranch={onBranch ? () => onBranch(messageIndex) : null} />
     </div>;
   }

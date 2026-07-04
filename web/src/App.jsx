@@ -119,21 +119,41 @@ function toolEventMeta(data = {}) {
   return '';
 }
 
+function appendInlineTextPart(message, text) {
+  const parts = [...(message.parts || [])];
+  const last = parts[parts.length - 1];
+  if (last?.kind === 'text') parts[parts.length - 1] = {...last, text: (last.text || '') + text};
+  else parts.push({kind: 'text', text});
+  return {...message, answer: (message.answer || '') + text, parts};
+}
+
+function appendInlineReasoningPart(message, text) {
+  const parts = [...(message.parts || [])];
+  const last = parts[parts.length - 1];
+  if (last?.kind === 'reasoning') parts[parts.length - 1] = {...last, text: (last.text || '') + text};
+  else parts.push({kind: 'reasoning', text});
+  return {...message, reasoning: (message.reasoning || '') + text, parts};
+}
+
+function eventHasDisplayName(item = {}) {
+  return !!(item.details?.arguments?.name || item.details?.data?.arguments?.name || item.details?.data?.result?.tool || item.details?.tool || item.details?.data?.tool);
+}
+
+function appendEventPart(message, item) {
+  const events = [...(message.events || []), item];
+  const parts = eventHasDisplayName(item) ? [...(message.parts || []), {kind: 'tool', callKey: item.callKey || '', event: item}] : (message.parts || []);
+  return {...message, events, parts};
+}
+
 function appendToolStartEvent(message, event, data) {
-  return {
-    ...message,
-    events: [
-      ...(message.events || []),
-      {
-        kind: 'tool',
-        phase: 'running',
-        callKey: toolCallKey(data),
-        text: toolEventText('start', data),
-        meta: toolEventMeta(data),
-        details: {event, tool: data.tool || '', arguments: data.arguments || {}, data},
-      },
-    ],
-  };
+  return appendEventPart(message, {
+    kind: 'tool',
+    phase: 'running',
+    callKey: toolCallKey(data),
+    text: toolEventText('start', data),
+    meta: toolEventMeta(data),
+    details: {event, tool: data.tool || '', arguments: data.arguments || {}, data},
+  });
 }
 
 function mergeToolResultEvent(message, event, data) {
@@ -147,17 +167,28 @@ function mergeToolResultEvent(message, event, data) {
     details: {event, tool: data.tool || '', ok: !!data.ok, result: data.result, error: data.error || '', data},
   };
   const events = [...(message.events || [])];
+  const parts = [...(message.parts || [])];
   const hasArguments = Object.keys(data.arguments || {}).length > 0;
-  // ChatDock 同一工具调用会同时收到 run_event 和 tool_call_* 两套事件。
-  // UI 只保留 tool_call_*，并在 result 回来时原地更新 start 行，避免 started/finished 重复刷屏。
-  const index = events.findLastIndex(item => {
+  const sameRunningEvent = item => {
     if (item.kind !== 'tool' || item.phase !== 'running') return false;
     if (item.callKey === key) return true;
     return !hasArguments && item.details?.tool === data.tool;
-  });
+  };
+  const index = events.findLastIndex(sameRunningEvent);
   if (index >= 0) events[index] = {...events[index], ...nextEvent, callKey: events[index].callKey || key};
   else events.push(nextEvent);
-  return {...message, events};
+  const partIndex = parts.findLastIndex(part => part.kind === 'tool' && sameRunningEvent(part.event || {}));
+  if (partIndex >= 0) parts[partIndex] = {...parts[partIndex], event: {...parts[partIndex].event, ...nextEvent, callKey: parts[partIndex].event?.callKey || key}};
+  else if (eventHasDisplayName(nextEvent)) parts.push({kind: 'tool', callKey: key, event: nextEvent});
+  return {...message, events, parts};
+}
+
+function finalAssistantMessageFromSession(session) {
+  const messages = session?.messages || [];
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i]?.role === 'assistant') return messages[i];
+  }
+  return null;
 }
 
 function hasDialogValue(value) {
@@ -906,13 +937,23 @@ export default function App() {
 
   const appendAnswer = useCallback((text) => {
     if (!text) return;
-    appendToActiveAssistant(m => ({...m, answer: (m.answer || '') + text}));
+    appendToActiveAssistant(m => appendInlineTextPart(m, text));
   }, [appendToActiveAssistant]);
 
   const appendReasoning = useCallback((text) => {
     if (!text) return;
-    appendToActiveAssistant(m => ({...m, reasoning: (m.reasoning || '') + text}));
+    appendToActiveAssistant(m => appendInlineReasoningPart(m, text));
   }, [appendToActiveAssistant]);
+
+
+  const finishActiveAssistant = useCallback((finalSession) => {
+    const finalAssistant = finalAssistantMessageFromSession(finalSession);
+    setMessages(prev => prev.map((m, index) => {
+      if (index !== prev.length - 1 || m.role !== 'assistant-stream') return m;
+      const content = finalAssistant?.content || m.answer || '';
+      return {...m, role: 'assistant', content, answer: content, reasoning: finalAssistant?.reasoning || m.reasoning || '', created_at: finalAssistant?.created_at || m.created_at};
+    }));
+  }, []);
 
   const handleChatStreamEvent = useCallback((event, data, setFinalSession) => {
     if (event === 'job_started') {
@@ -995,7 +1036,7 @@ export default function App() {
         if (finalSession && !stopped) {
           pendingDeltaRef.current = '';
           pendingReasoningRef.current = '';
-          setMessages(finalSession.messages || []);
+          finishActiveAssistant(finalSession);
           setCurrentTitle(finalSession.title || currentTitle || '新会话');
           await loadSessions();
           await Promise.allSettled([loadRuns(), loadAgentTasks()]);
@@ -1019,7 +1060,7 @@ export default function App() {
     }
     resumeRunningJob();
     return () => { stopped = true; abort.abort(); };
-  }, [current, api, authHeaders, handleChatStreamEvent, appendToActiveAssistant, currentTitle, loadSessions, loadRuns, loadAgentTasks]);
+  }, [current, api, authHeaders, handleChatStreamEvent, appendToActiveAssistant, currentTitle, loadSessions, loadRuns, loadAgentTasks, finishActiveAssistant]);
 
   const activePrompt = useMemo(() => prompts.find(p => p.active) || prompts[0] || null, [prompts]);
   const draftKey = useMemo(() => 'chatdock.draft.' + encodeURIComponent(activePrompt?.name || 'default') + '.' + encodeURIComponent(current || 'new'), [activePrompt?.name, current]);
@@ -1176,7 +1217,7 @@ export default function App() {
         pendingDeltaRef.current = '';
         pendingReasoningRef.current = '';
         if (currentRef.current === sessionID) {
-          setMessages(finalSession.messages || []);
+          finishActiveAssistant(finalSession);
           setCurrentTitle(finalSession.title || currentTitle || '新会话');
         }
         await loadSessions();
@@ -1205,7 +1246,7 @@ export default function App() {
         setStreamPaused(false);
       }
     }
-  }, [authHeaders, busy, selectedModelBaseURL, selectedChatModel, selectedModelProvider, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, createPersistedSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, loadRuns, loadAgentTasks, openSettings, showToast]);
+  }, [authHeaders, busy, selectedModelBaseURL, selectedChatModel, selectedModelProvider, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, createPersistedSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, finishActiveAssistant, loadRuns, loadAgentTasks, openSettings, showToast]);
 
   const toggleStreamPause = useCallback(() => {
     if (!busy) return;
