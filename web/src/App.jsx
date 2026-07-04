@@ -1462,7 +1462,7 @@ export default function App() {
       </aside>
       <main>
         <div className="topbar">
-          <div className="top-left"><button className="mobile-menu" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>☰</button><b id="title">{currentTitle}</b><span className={'status-pill ' + productStatusClass}>{productStatusText}</span></div>
+          <div className="top-left"><button className="mobile-menu" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>☰</button><b id="title">{currentTitle}</b></div>
           <div className="top-actions">
             <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)} title="快捷指令（⌘/Ctrl K）"><span className="action-icon" aria-hidden="true">✦</span><span className="action-label">快捷</span></button>
             <button className="secondary config-toggle" onClick={() => openSettings()} title="配置中心"><span className="action-icon" aria-hidden="true">⚙</span><span className="action-label">配置</span></button>
