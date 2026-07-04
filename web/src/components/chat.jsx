@@ -81,11 +81,6 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onDo
 
 
 export function EmptyState({ createSession, openSettings, openWorkspacePicker, busy, hasWorkspaces, setInput, modelReady }) {
-  const starterCards = [
-    {title:'规划一个任务', text:'把目标拆成可执行步骤，并保留上下文。', prompt:'帮我把这个任务拆成可执行计划：'},
-    {title:'整理一段资料', text:'提取结论、风险点和下一步动作。', prompt:'请帮我整理这段资料，并输出重点：'},
-    {title:'排查一个问题', text:'按现象、证据、假设和验证步骤推进。', prompt:'我遇到一个问题，请按排障流程分析：'},
-  ];
   const flowSteps = [
     {title:'开始', text:'先开一个干净会话，保留后续上下文。', key:'↵'},
     {title:'调用', text:'模型、MCP、Skill 和附件统一进同一入口。', key:'⌘K'},
@@ -117,14 +112,6 @@ export function EmptyState({ createSession, openSettings, openWorkspacePicker, b
           <div><small>{String(index + 1).padStart(2, '0')}</small><b>{step.title}</b><span>{step.text}</span></div><strong>{step.key}</strong>
         </div>)}
       </div>
-    </section>
-    <section className="starter-grid">
-      {starterCards.map(card => <button key={card.title} type="button" className="starter-card" disabled={busy} onClick={() => { setInput(card.prompt); createSession(); }}>
-        <span className="starter-icon">✦</span>
-        <span className="starter-card-arrow" aria-hidden="true">↗</span>
-        <b>{card.title}</b>
-        <span>{card.text}</span>
-      </button>)}
     </section>
     <section className="empty-capability-strip">
       {capabilityItems.map((item, index) => <div key={item.title}><i aria-hidden="true">{String(index + 1).padStart(2, '0')}</i><b>{item.title}</b><span>{item.text}</span></div>)}

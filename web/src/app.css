@@ -2544,3 +2544,62 @@
     max-height: 42px !important;
   }
 }
+
+/* 2026-07-04 搜索框与 + 最终对齐：同一个 42px 网格行，去掉按钮旧规则造成的下沉。 */
+#app.app aside .session-search-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 42px !important;
+  grid-auto-rows: 42px !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+  min-height: 42px !important;
+}
+
+#app.app aside .session-search-box,
+#app.app aside .new {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  max-height: 42px !important;
+  margin: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border-radius: 9px !important;
+  line-height: 1 !important;
+  transform: none !important;
+}
+
+#app.app aside .session-search-box {
+  justify-content: flex-start !important;
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+}
+
+#app.app aside .session-search {
+  display: block !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  line-height: 40px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+#app.app aside .new {
+  min-width: 42px !important;
+  max-width: 42px !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+#app.app aside .new-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  line-height: 1 !important;
+  transform: translateY(-1px) !important;
+}
