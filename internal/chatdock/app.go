@@ -69,7 +69,6 @@ func (a *App) ListenAndServe() error {
 	defer cancel()
 	go a.runScheduler(ctx)
 	go a.warmToolEmbeddingIndex(ctx)
-	go a.keepEmbeddingModelWarm(ctx)
 	return a.server.Serve(listener)
 }
 
