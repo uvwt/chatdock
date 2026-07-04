@@ -1477,3 +1477,39 @@ body.theme-light .empty-capability-strip i {
     display: none;
   }
 }
+
+
+.chat-error-card {
+  margin: 12px 0 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(239, 68, 68, .28);
+  border-radius: 14px;
+  background: rgba(239, 68, 68, .08);
+  color: var(--text);
+  display: grid;
+  gap: 5px;
+}
+
+.chat-error-card b {
+  color: #fecaca;
+  font-size: 13px;
+}
+
+.chat-error-card span {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-error-card small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+body.theme-light .chat-error-card {
+  background: #fff7f7;
+  border-color: #fecaca;
+}
+
+body.theme-light .chat-error-card b {
+  color: #b91c1c;
+}

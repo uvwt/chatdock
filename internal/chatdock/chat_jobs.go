@@ -15,7 +15,7 @@ import (
 	storepkg "chatdock/internal/chatdock/store"
 )
 
-func (a *App) startChatJob(input model.ChatRequest) (storepkg.ChatJob, *model.Session, error) {
+func (a *App) startChatJob(ctx context.Context, input model.ChatRequest) (storepkg.ChatJob, *model.Session, error) {
 	var session *model.Session
 	var cfg model.ModelConfig
 	var history []model.Message
@@ -39,13 +39,18 @@ func (a *App) startChatJob(input model.ChatRequest) (storepkg.ChatJob, *model.Se
 	if _, err := a.store.UpdateSessionModel(input.SessionID, cfg.ProviderID, cfg.Model); err != nil {
 		return storepkg.ChatJob{}, nil, err
 	}
-	job, err := a.store.CreateChatJob(input.SessionID)
+	requestID := requestIDFromContext(ctx)
+	if requestID == "" {
+		requestID = newRequestID()
+	}
+	job, err := a.store.CreateChatJob(input.SessionID, requestID)
 	if err != nil {
 		return storepkg.ChatJob{}, nil, err
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	jobCtx, cancel := context.WithCancel(withRequestID(context.Background(), requestID))
 	a.registerChatJobCancel(job.ID, cancel)
-	go a.runChatJob(ctx, job.ID, input.SessionID, cfg, history)
+	logInfo("chat_job_started", logFields{"request_id": requestID, "job_id": job.ID, "session_id": input.SessionID, "provider_id": cfg.ProviderID, "model": cfg.Model})
+	go a.runChatJob(jobCtx, job.ID, input.SessionID, cfg, history)
 	return job, session, nil
 }
 
@@ -106,7 +111,18 @@ func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cf
 	} else {
 		_ = a.maybeGenerateSessionTitle(ctx, sessionID, cfg)
 	}
-	_, _ = a.store.FinishChatJob(jobID, status, answer, reasoning.String(), runErr)
+	finishedJob, finishErr := a.store.FinishChatJob(jobID, status, answer, reasoning.String(), runErr)
+	fields := logFields{"request_id": requestIDFromContext(ctx), "job_id": jobID, "session_id": sessionID, "status": status, "provider_id": cfg.ProviderID, "model": cfg.Model}
+	if finishErr != nil {
+		logError("chat_job_finish_failed", finishErr, fields)
+		return
+	}
+	fields["duration_ms"] = time.Since(finishedJob.StartedAt).Milliseconds()
+	if runErr != nil {
+		logError("chat_job_failed", runErr, fields)
+	} else {
+		logInfo("chat_job_finished", fields)
+	}
 }
 
 func (a *App) handleCreateChatJob(w http.ResponseWriter, r *http.Request) {
@@ -115,7 +131,7 @@ func (a *App) handleCreateChatJob(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	job, session, err := a.startChatJob(input)
+	job, session, err := a.startChatJob(r.Context(), input)
 	if err != nil {
 		status := http.StatusBadGateway
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -181,15 +197,17 @@ func streamChatJobEvents(r *http.Request, w http.ResponseWriter, flusher http.Fl
 			after = event.Seq
 		}
 		if job.Status != "running" {
+			endPayload := map[string]any{"status": job.Status, "job": job, "request_id": job.RequestID}
+			if session, ok := a.store.GetSession(job.SessionID); ok {
+				endPayload["session"] = session
+			}
 			if job.Status == "failed" {
-				_ = writeSSE(w, flusher, "error", map[string]string{"message": llm.FirstNonEmptyString(job.Error, "chat job failed")})
+				_ = writeSSE(w, flusher, "error", chatStreamErrorPayload(job, llm.FirstNonEmptyString(job.Error, "chat job failed")))
+				_ = writeSSE(w, flusher, "message_end", endPayload)
 				return
 			}
-			if session, ok := a.store.GetSession(job.SessionID); ok {
-				_ = writeSSE(w, flusher, "done", map[string]any{"session": session, "job": job})
-			} else {
-				_ = writeSSE(w, flusher, "done", map[string]any{"job": job})
-			}
+			_ = writeSSE(w, flusher, "message_end", endPayload)
+			_ = writeSSE(w, flusher, "done", endPayload)
 			return
 		}
 		select {
@@ -198,4 +216,61 @@ func streamChatJobEvents(r *http.Request, w http.ResponseWriter, flusher http.Fl
 		case <-ticker.C:
 		}
 	}
+}
+
+func chatStreamErrorPayload(job storepkg.ChatJob, rawMessage string) map[string]any {
+	message := publicChatErrorMessage(rawMessage)
+	return map[string]any{
+		"type":       "error",
+		"code":       chatErrorCode(rawMessage),
+		"message":    message,
+		"request_id": job.RequestID,
+		"retryable":  isRetryableChatError(rawMessage),
+		"status":     "failed",
+	}
+}
+
+func publicChatErrorMessage(raw string) string {
+	text := strings.TrimSpace(raw)
+	if text == "" {
+		return "模型响应中断：未知错误。"
+	}
+	lower := strings.ToLower(text)
+	switch {
+	case strings.Contains(lower, "context canceled"):
+		return "生成已中断。"
+	case strings.Contains(lower, "client.timeout") || strings.Contains(lower, "timeout") || strings.Contains(lower, "deadline exceeded"):
+		return "模型响应中断：上游连接超时。"
+	case strings.Contains(lower, "connection refused") || strings.Contains(lower, "no such host") || strings.Contains(lower, "connection reset"):
+		return "模型响应中断：无法连接上游模型服务。"
+	case strings.Contains(lower, "401") || strings.Contains(lower, "unauthorized"):
+		return "模型调用失败：模型供应商鉴权失败，请检查 API Key。"
+	case strings.Contains(lower, "429") || strings.Contains(lower, "rate limit"):
+		return "模型调用失败：请求过于频繁或额度受限。"
+	case strings.Contains(lower, "model api failed"):
+		return "模型调用失败：上游模型服务返回错误。"
+	default:
+		return sanitizeLogText(text, 600)
+	}
+}
+
+func chatErrorCode(raw string) string {
+	lower := strings.ToLower(raw)
+	switch {
+	case strings.Contains(lower, "timeout") || strings.Contains(lower, "deadline exceeded"):
+		return "UPSTREAM_TIMEOUT"
+	case strings.Contains(lower, "connection refused") || strings.Contains(lower, "no such host") || strings.Contains(lower, "connection reset"):
+		return "UPSTREAM_UNAVAILABLE"
+	case strings.Contains(lower, "401") || strings.Contains(lower, "unauthorized"):
+		return "UPSTREAM_UNAUTHORIZED"
+	case strings.Contains(lower, "429") || strings.Contains(lower, "rate limit"):
+		return "UPSTREAM_RATE_LIMITED"
+	default:
+		return "CHAT_STREAM_FAILED"
+	}
+}
+
+func isRetryableChatError(raw string) bool {
+	code := chatErrorCode(raw)
+	return code == "UPSTREAM_TIMEOUT" || code == "UPSTREAM_UNAVAILABLE" || code == "UPSTREAM_RATE_LIMITED" || code == "CHAT_STREAM_FAILED"
 }

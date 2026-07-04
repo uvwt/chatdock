@@ -88,7 +88,7 @@ func TestStoreChatJobEventsPersistAndFinish(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	job, err := store.CreateChatJob(session.ID)
+	job, err := store.CreateChatJob(session.ID, "req_test")
 	if err != nil {
 		t.Fatal(err)
 	}

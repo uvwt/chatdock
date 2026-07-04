@@ -16,7 +16,7 @@ export async function streamChatJobEvents({jobID, authHeaders, signal, onEvent})
   const res = await fetch('/api/chat/jobs/' + encodeURIComponent(jobID) + '/events?after=0', {headers: authHeaders(), signal});
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || res.statusText);
+    throw requestError(res, data);
   }
   await readSSE(res, onEvent);
 }
@@ -30,7 +30,17 @@ export async function streamChat({authHeaders, signal, sessionID, message, attac
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || res.statusText);
+    throw requestError(res, data);
   }
   await readSSE(res, onEvent);
+}
+
+
+function requestError(res, data = {}) {
+  const requestID = res.headers.get('X-Request-ID') || data.request_id || '';
+  const message = data.error || data.message || res.statusText || '请求失败';
+  const err = new Error(message);
+  err.request_id = requestID;
+  err.status = res.status;
+  return err;
 }

@@ -134,12 +134,25 @@ function ToolEvents({ events = [], onResolveConfirmation, onInspectToolEvent }) 
   </>;
 }
 
+
+function ErrorNotice({ error }) {
+  const message = String(error?.message || error || '').trim();
+  if (!message) return null;
+  const requestID = String(error?.request_id || '').trim();
+  return <div className="chat-error-card" role="alert">
+    <b>响应中断</b>
+    <span>{message}</span>
+    {requestID ? <small>请求 ID：{requestID}</small> : null}
+  </div>;
+}
+
 function AssistantContent({ message, streaming = false, hideThinking = false, onResolveConfirmation, onInspectToolEvent }) {
   const fallbackText = streaming ? (message.answer || '') : (message.content || message.answer || '');
   const parts = Array.isArray(message.parts) ? message.parts : [];
   if (!parts.length) {
     return <>
       <Markdown className={streaming ? 'answer markdown' : undefined} value={fallbackText} />
+      <ErrorNotice error={message.error} />
       <ToolEvents events={message.events || []} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
     </>;
   }
@@ -166,6 +179,7 @@ function AssistantContent({ message, streaming = false, hideThinking = false, on
     }
   });
   flushEvents('end');
+  if (message.error) blocks.push(<ErrorNotice key="stream-error" error={message.error} />);
   return <>{blocks}</>;
 }
 

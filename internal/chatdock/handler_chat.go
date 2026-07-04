@@ -64,7 +64,7 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job, _, err := a.startChatJob(input)
+	job, _, err := a.startChatJob(r.Context(), input)
 	if err != nil {
 		status := http.StatusBadGateway
 		if errors.Is(err, model.ErrSessionNotFound) {

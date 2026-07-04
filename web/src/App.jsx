@@ -87,7 +87,17 @@ function readableChatError(error, hasImageAttachment = false) {
       if (message) return String(message);
     } catch { }
   }
-  return raw.replace(/^model api failed:\s*/i, '');
+  return appendRequestID(raw.replace(/^model api failed:\s*/i, ''), error?.request_id);
+}
+
+function appendRequestID(message, requestID) {
+  requestID = String(requestID || '').trim();
+  return requestID ? message + '\n请求 ID：' + requestID : message;
+}
+
+function streamErrorMessage(data = {}) {
+  const message = String(data.message || '模型响应中断。').trim();
+  return appendRequestID(message, data.request_id);
 }
 
 function safeJSONStringify(value) {
@@ -1086,13 +1096,23 @@ export default function App() {
     } else if (event === 'run_finish') {
       loadRuns().catch(() => { });
       loadAgentTasks().catch(() => { });
+    } else if (event === 'message_end') {
+      activeJobIDRef.current = '';
+      setActiveJobID('');
+      if (data.status === 'failed') {
+        setStreamStats(prev => ({ ...prev, state: 'error' }));
+      } else if (data.status === 'interrupted') {
+        setStreamStats(prev => ({ ...prev, state: 'done' }));
+      }
     } else if (event === 'done') {
       setFinalSession(data.session);
       activeJobIDRef.current = '';
       setActiveJobID('');
       setStreamStats(prev => ({ ...prev, state: 'done' }));
     } else if (event === 'error') {
-      throw new Error(data.message || 'stream error');
+      const message = streamErrorMessage(data);
+      setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
+      appendToActiveAssistant(m => ({ ...m, error: data, answer: m.answer || '', events: [...(m.events || []), { kind: 'error', phase: 'error', text: '⚠️ ' + message, details: { event, error: message, data } }] }));
     }
   }, [appendAnswer, appendReasoning, appendToActiveAssistant, loadRuns, loadAgentTasks]);
 
@@ -1131,7 +1151,7 @@ export default function App() {
         if (!abort.signal.aborted && !stopped) {
           const message = readableChatError(e);
           setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
-          appendToActiveAssistant(m => ({ ...m, answer: '错误：' + message }));
+          appendToActiveAssistant(m => ({ ...m, error: { message }, answer: m.answer || '' }));
         }
       } finally {
         if (!stopped) {
@@ -1331,7 +1351,7 @@ export default function App() {
       } else {
         const message = readableChatError(e, attachmentsForMessage.some(attachmentLooksLikeImage));
         setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
-        appendToActiveAssistant(m => ({ ...m, answer: '错误：' + message }));
+        appendToActiveAssistant(m => ({ ...m, error: { message }, answer: m.answer || '' }));
       }
     } finally {
       if (abortRef.current === abort || activeJobSessionRef.current === sessionID) {
@@ -1394,7 +1414,7 @@ export default function App() {
       } else {
         const message = readableChatError(e);
         setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
-        appendToActiveAssistant(m => ({ ...m, answer: '错误：' + message }));
+        appendToActiveAssistant(m => ({ ...m, error: { message }, answer: m.answer || '' }));
       }
     } finally {
       if (abortRef.current === abort || activeJobSessionRef.current === sessionID) {
