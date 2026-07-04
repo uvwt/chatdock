@@ -2634,3 +2634,25 @@
     padding-right: 10px !important;
   }
 }
+
+/* 2026-07-04 浅色主题会话气泡：用户消息不再使用高饱和蓝色。 */
+body.theme-light #app.app .msg.user {
+  border: 1px solid #dbe7f3 !important;
+  background: linear-gradient(180deg, #f8fbff, #edf6ff) !important;
+  color: #102033 !important;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, .08) !important;
+}
+
+body.theme-light #app.app .msg.user .attachment-chip {
+  background: rgba(255, 255, 255, .72) !important;
+  border-color: #dbe7f3 !important;
+  color: #102033 !important;
+}
+
+body.theme-light #app.app .msg.user .attachment-main b {
+  color: #102033 !important;
+}
+
+body.theme-light #app.app .msg.user .attachment-main span {
+  color: #64748b !important;
+}

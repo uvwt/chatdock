@@ -1741,18 +1741,18 @@ aside,
   .quick-palette-backdrop.show {
     align-items: flex-start !important;
     justify-content: center !important;
-    padding: calc(14px + env(safe-area-inset-top, 0px)) 12px 12px !important;
+    padding: calc(14px + env(safe-area-inset-top, 0px)) 10px 10px !important;
     background: rgba(15, 23, 42, .42) !important;
     backdrop-filter: blur(6px) !important;
   }
 
   .quick-palette {
     width: min(100%, 420px) !important;
-    max-height: calc(100dvh - 28px - env(safe-area-inset-top, 0px)) !important;
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px)) !important;
     border: 1px solid rgba(226, 232, 240, .96) !important;
-    border-radius: 28px !important;
+    border-radius: 24px !important;
     background: rgba(255, 255, 255, .98) !important;
-    box-shadow: 0 28px 90px rgba(15, 23, 42, .22) !important;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, .2) !important;
   }
 
   .quick-palette-head {
@@ -1760,52 +1760,54 @@ aside,
     top: 0;
     z-index: 2;
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) 42px !important;
-    gap: 10px !important;
-    padding: 14px 14px 12px !important;
+    grid-template-columns: minmax(0, 1fr) 38px !important;
+    gap: 8px !important;
+    padding: 12px 12px 10px !important;
     border-bottom: 1px solid #edf2f7 !important;
     background: rgba(255, 255, 255, .98) !important;
   }
 
   .quick-palette-head input {
-    min-height: 46px !important;
-    padding: 0 14px !important;
+    min-height: 40px !important;
+    padding: 0 12px !important;
     border: 1px solid #d7dee9 !important;
-    border-radius: 17px !important;
+    border-radius: 15px !important;
     background: #ffffff !important;
     color: #0f172a !important;
-    font-size: 16px !important;
+    font-size: 14px !important;
+    font-weight: 560 !important;
   }
 
-  .quick-palette-close {
-    width: 42px !important;
-    height: 42px !important;
-    min-height: 42px !important;
+  .quick-palette-close,
+  .quick-palette-head > button {
+    width: 38px !important;
+    height: 40px !important;
+    min-height: 40px !important;
     padding: 0 !important;
-    border-radius: 999px !important;
+    border-radius: 13px !important;
     background: #f1f5f9 !important;
     color: #334155 !important;
-    font-size: 24px !important;
+    font-size: 20px !important;
     font-weight: 650 !important;
     line-height: 1 !important;
   }
 
   .quick-palette-list {
     display: grid !important;
-    gap: 9px !important;
-    padding: 12px 14px 14px !important;
+    gap: 7px !important;
+    padding: 10px 12px 12px !important;
     overflow: auto !important;
   }
 
   .quick-palette-item {
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-columns: minmax(0, 1fr) 42px !important;
     align-items: center !important;
-    gap: 12px !important;
-    min-height: 66px !important;
-    padding: 11px 13px !important;
+    gap: 8px !important;
+    min-height: 52px !important;
+    padding: 8px 10px 8px 12px !important;
     border: 1px solid #e4eaf2 !important;
-    border-radius: 18px !important;
+    border-radius: 15px !important;
     background: #ffffff !important;
     color: #0f172a !important;
     box-shadow: none !important;
@@ -1813,16 +1815,17 @@ aside,
 
   .quick-palette-item span {
     display: grid !important;
-    gap: 4px !important;
+    gap: 2px !important;
     min-width: 0 !important;
+    max-width: 100% !important;
   }
 
   .quick-palette-item b {
     overflow: hidden !important;
     color: #0f172a !important;
-    font-size: 17px !important;
-    font-weight: 780 !important;
-    line-height: 1.2 !important;
+    font-size: 14px !important;
+    font-weight: 760 !important;
+    line-height: 1.16 !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
   }
@@ -1830,9 +1833,9 @@ aside,
   .quick-palette-item small {
     overflow: hidden !important;
     color: #64748b !important;
-    font-size: 13px !important;
+    font-size: 11px !important;
     font-weight: 560 !important;
-    line-height: 1.25 !important;
+    line-height: 1.22 !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
   }
@@ -1841,13 +1844,14 @@ aside,
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    min-width: 46px !important;
-    min-height: 30px !important;
-    padding: 0 10px !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    min-height: 26px !important;
+    padding: 0 !important;
     border-radius: 999px !important;
     background: #f1f5f9 !important;
     color: #475569 !important;
-    font-size: 12px !important;
+    font-size: 11px !important;
     font-weight: 760 !important;
   }
 
@@ -1858,12 +1862,12 @@ aside,
   .quick-palette-foot {
     position: sticky;
     bottom: 0;
-    padding: 10px 14px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
     border-top: 1px solid #edf2f7 !important;
     background: rgba(255, 255, 255, .98) !important;
     color: #64748b !important;
-    font-size: 12px !important;
-    line-height: 1.4 !important;
+    font-size: 11px !important;
+    line-height: 1.35 !important;
   }
 
   aside .session-delete {
