@@ -207,17 +207,6 @@ func toolNamesFromArgs(args map[string]any) []string {
 	return names
 }
 
-func mapArg(args map[string]any, key string) map[string]any {
-	value, ok := args[key]
-	if !ok || value == nil {
-		return map[string]any{}
-	}
-	if m, ok := value.(map[string]any); ok {
-		return m
-	}
-	return map[string]any{"_raw_arguments": value}
-}
-
 func intArgWithDefault(args map[string]any, key string, fallback, minValue, maxValue int) int {
 	value, ok, err := optionalIntArg(args, key)
 	if err != nil || !ok {

@@ -80,10 +80,6 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 		return a.client.Complete(ctx, cfg, history)
 	}
 	visibleTools := builtinToolDiscoveryTools()
-	if emit == nil {
-		// 非流式兼容接口不影响前端首字体验，继续保留直接工具 schema，减少老调用方行为变化。
-		visibleTools = allTools
-	}
 	if emit != nil {
 		if err := emit("tool_setup_ready", map[string]any{"mode": "discovery", "tool_count": len(allTools), "exposed_tool_count": len(visibleTools), "builtin_tool_count": len(builtinScheduledTaskTools())}); err != nil {
 			return "", err
@@ -138,13 +134,21 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 			if err != nil {
 				return nil, err
 			}
-			if _, ok := catalog.Get(target); !ok {
+			targetTool, ok := catalog.Get(target)
+			if !ok {
 				return nil, fmt.Errorf("tool not found: %s", target)
 			}
 			if !describedTools[target] {
 				return nil, fmt.Errorf("tool schema not loaded: call %s with names=[%q] before executing it", builtinToolDescribeTools, target)
 			}
-			result, err := runRealTool(target, mapArg(args, "arguments"))
+			targetArgs, ok := args["arguments"].(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("arguments must be object")
+			}
+			if err := validateToolArguments(targetTool.InputSchema, targetArgs); err != nil {
+				return nil, err
+			}
+			result, err := runRealTool(target, targetArgs)
 			return map[string]any{"tool": target, "result": result}, err
 		default:
 			// 兼容历史上下文或未来直接暴露真实工具的情况；当前正常路径会通过 chatdock_tool_execute 进入这里。
