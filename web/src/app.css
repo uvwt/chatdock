@@ -1101,3 +1101,177 @@
 #app.app .session-delete {
   display: none !important;
 }
+
+/* 2026-07-04 侧边栏复审美化：电脑端更像产品侧栏，并恢复会话删除入口。 */
+@media (min-width: 721px) {
+  #app.app,
+  #app.app.settings-open {
+    --gpt-sidebar-width: 318px;
+    grid-template-columns: var(--gpt-sidebar-width) minmax(0, 1fr) !important;
+  }
+
+  #app.app aside {
+    padding: 20px 18px !important;
+    background:
+      radial-gradient(circle at 12% -4%, rgba(20, 160, 133, .10), transparent 32%),
+      linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%) !important;
+    border-right: 1px solid #e6ebf2 !important;
+    box-shadow: inset -1px 0 0 rgba(255,255,255,.8), 12px 0 46px rgba(15, 23, 42, .05) !important;
+  }
+
+  #app.app .sidebar-head {
+    min-height: 64px !important;
+    margin-bottom: 2px !important;
+    padding-bottom: 18px !important;
+  }
+
+  #app.app .brand-logo {
+    flex-basis: 50px !important;
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 17px !important;
+  }
+
+  #app.app .brand-text {
+    font-size: 23px !important;
+  }
+
+  #app.app .sub {
+    font-size: 13px !important;
+    color: #758195 !important;
+  }
+
+  #app.app .workspace-picker-trigger {
+    min-height: 62px !important;
+    border-radius: 19px !important;
+    background: linear-gradient(180deg, #f1fbf9, #f7fcfb) !important;
+    border-color: #d7e9e6 !important;
+  }
+
+  #app.app .session-search-row {
+    margin-bottom: 16px !important;
+  }
+
+  #app.app .session-search-box,
+  #app.app .new {
+    border-color: #dde5ef !important;
+    background: rgba(255,255,255,.92) !important;
+  }
+
+  #app.app .session-search-box:focus-within {
+    border-color: #94d7cc !important;
+    box-shadow: 0 0 0 4px rgba(20,160,133,.10) !important;
+  }
+
+  #app.app #sessions {
+    gap: 4px !important;
+  }
+
+  #app.app .session {
+    min-height: 58px !important;
+    padding: 13px 42px 13px 54px !important;
+    border-radius: 17px !important;
+    transition: background .14s ease, border-color .14s ease, transform .14s ease !important;
+  }
+
+  #app.app .session:hover {
+    background: #f4faf9 !important;
+    border-color: #e1efec !important;
+  }
+
+  #app.app .session.active {
+    background: linear-gradient(180deg, #eaf7f5, #f1fbf9) !important;
+    border-color: #cde9e4 !important;
+    box-shadow: inset 0 0 0 1px rgba(20,160,133,.05) !important;
+  }
+
+  #app.app .session-title {
+    font-size: 15px !important;
+    font-weight: 760 !important;
+    line-height: 1.3 !important;
+  }
+
+  #app.app .session::before {
+    left: 19px !important;
+    top: 20px !important;
+    width: 17px !important;
+    height: 17px !important;
+    border-color: #25a994 !important;
+    background: transparent !important;
+  }
+
+  #app.app .session::after {
+    left: 33px !important;
+    top: 34px !important;
+    border-color: #25a994 !important;
+  }
+}
+
+#app.app .session-main {
+  min-width: 0 !important;
+}
+
+#app.app .session-delete {
+  position: absolute !important;
+  right: 9px !important;
+  top: 50% !important;
+  transform: translateY(-50%) scale(.96) !important;
+  z-index: 2 !important;
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  padding: 0 !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  background: rgba(255,255,255,.92) !important;
+  color: #94a3b8 !important;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, .08) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity .14s ease, transform .14s ease, color .14s ease, background .14s ease !important;
+}
+
+#app.app .session:hover .session-delete,
+#app.app .session:focus-within .session-delete,
+#app.app .session.active .session-delete {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: translateY(-50%) scale(1) !important;
+}
+
+#app.app .session-delete:hover:not(:disabled) {
+  border-color: #fecaca !important;
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+}
+
+@media (max-width: 720px) {
+  #app.app .session {
+    padding-right: 48px !important;
+  }
+
+  #app.app .session-delete {
+    right: 10px !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    opacity: .72 !important;
+    pointer-events: auto !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    color: #94a3b8 !important;
+  }
+
+  #app.app .session-delete:active {
+    background: #fef2f2 !important;
+    color: #dc2626 !important;
+  }
+}
