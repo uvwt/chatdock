@@ -2683,3 +2683,28 @@ body.theme-light #app.app .session.active .session-title,
 body.theme-light #app.app .session.active .session-preview {
   color: #273344 !important;
 }
+
+/* 2026-07-04 iOS Safari 输入聚焦防自动放大：可输入控件必须 >= 16px。 */
+@media (max-width: 720px) {
+  html,
+  body,
+  #app.app {
+    -webkit-text-size-adjust: 100% !important;
+    text-size-adjust: 100% !important;
+  }
+
+  #app.app input,
+  #app.app textarea,
+  #app.app select,
+  #app.app .composer textarea,
+  #app.app #input,
+  #app.app .session-search,
+  #app.app .quick-palette-head input {
+    font-size: 16px !important;
+  }
+
+  #app.app .composer textarea,
+  #app.app #input {
+    line-height: 22px !important;
+  }
+}

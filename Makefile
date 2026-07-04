@@ -27,7 +27,7 @@ web-dev: web-deps
 
 js-check: web-deps
 	node --check $(WEB_DIR)/vite.config.js
-	node --check $(WEB_DIR)/src/lib/markdown.js
+	@for f in $(WEB_DIR)/src/lib/*.js; do node --check $$f; done
 
 test: web-build
 	go test ./...
