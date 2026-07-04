@@ -1781,3 +1781,119 @@
 #app.app #sessions .session:focus-within .session-delete {
   display: none !important;
 }
+
+/* 2026-07-04 手机端侧边栏复查：抽屉近全屏，打开时主界面不抢视觉。 */
+@media (max-width: 720px) {
+  #app.app:not(.sidebar-collapsed) aside {
+    width: min(360px, calc(100vw - 18px)) !important;
+    max-width: calc(100vw - 18px) !important;
+    padding: max(22px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom)) !important;
+    border-radius: 0 28px 28px 0 !important;
+    box-shadow: 22px 0 54px rgba(15, 23, 42, .20) !important;
+  }
+
+  #app.app:not(.sidebar-collapsed) main {
+    pointer-events: none !important;
+    filter: blur(1px) saturate(.92) !important;
+  }
+
+  #app.app:not(.sidebar-collapsed) .sidebar-mask.show {
+    background: rgba(15, 23, 42, .30) !important;
+    backdrop-filter: blur(2px) !important;
+  }
+
+  #app.app .sidebar-head {
+    margin-bottom: 20px !important;
+  }
+
+  #app.app .brand-logo {
+    flex-basis: 48px !important;
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 16px !important;
+  }
+
+  #app.app .brand-text {
+    font-size: 22px !important;
+  }
+
+  #app.app .sub {
+    margin-top: 6px !important;
+    font-size: 13px !important;
+  }
+
+  #app.app .prompt-box {
+    margin-bottom: 22px !important;
+  }
+
+  #app.app .workspace-picker-trigger {
+    min-height: 62px !important;
+    border-radius: 21px !important;
+    padding: 0 18px !important;
+  }
+
+  #app.app .workspace-picker-name {
+    font-size: 17px !important;
+  }
+
+  #app.app .workspace-picker-meta {
+    font-size: 16px !important;
+  }
+
+  #app.app .session-search-row {
+    margin-bottom: 26px !important;
+    grid-template-columns: minmax(0, 1fr) 58px !important;
+    gap: 12px !important;
+  }
+
+  #app.app .session-search-box,
+  #app.app .new {
+    min-height: 56px !important;
+    height: 56px !important;
+    border-radius: 18px !important;
+  }
+
+  #app.app .new {
+    width: 58px !important;
+    min-width: 58px !important;
+    max-width: 58px !important;
+  }
+
+  #app.app .sidebar-section-head {
+    margin-bottom: 14px !important;
+  }
+
+  #app.app #sessions {
+    gap: 2px !important;
+  }
+
+  #app.app .session {
+    min-height: 46px !important;
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+    padding-left: 52px !important;
+    border-radius: 14px !important;
+  }
+
+  #app.app .session-title {
+    font-size: 15px !important;
+  }
+
+  #app.app .sidebar-footer {
+    margin-top: 12px !important;
+    padding-top: 16px !important;
+  }
+
+  #app.app .sidebar-settings-entry {
+    min-height: 48px !important;
+    font-size: 16px !important;
+  }
+}
+
+/* 2026-07-04 手机侧栏可交互区域修正：打开抽屉时隐藏主界面，避免主界面按钮抢焦点。 */
+@media (max-width: 720px) {
+  #app.app:not(.sidebar-collapsed) main {
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
