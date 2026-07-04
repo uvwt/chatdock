@@ -80,6 +80,7 @@ export function LoginPage({ api, error, refreshAfterLogin, setAuthPage }) {
   const [credential, setCredential] = useState('');
   const [loginError, setLoginError] = useState('');
   const message = error ? (error.status === 401 ? '登录已过期，请重新登录。' : error.message) : '请输入 ChatDock 账号和密码。';
+  const canSubmit = username.trim() && credential;
   async function submit(event) {
     event.preventDefault();
     setLoginError('');
@@ -90,12 +91,39 @@ export function LoginPage({ api, error, refreshAfterLogin, setAuthPage }) {
       await refreshAfterLogin();
     } catch (e) { setLoginError('登录失败：' + e.message); }
   }
-  return <div id="authPage" className="auth-page"><div className="auth-shell"><form className="login-card" onSubmit={submit}>
-    <div className="login-brand">ChatDock</div><b>登录 ChatDock</b><div className="hint">{message}</div>
-    <label>账号</label><input autoComplete="username" placeholder="账号" value={username} onChange={e => setUsername(e.target.value)} autoFocus />
-    <label>密码</label><input type="password" autoComplete="current-password" placeholder="密码" value={credential} onChange={e => setCredential(e.target.value)} />
-    <div className="task-error">{loginError}</div><button type="submit" className="login-submit">登录</button>
-  </form></div></div>;
+  return <div id="authPage" className="auth-page">
+    <div className="auth-ambient auth-ambient-one" aria-hidden="true" />
+    <div className="auth-ambient auth-ambient-two" aria-hidden="true" />
+    <div className="auth-shell">
+      <section className="auth-intro" aria-label="ChatDock 简介">
+        <div className="auth-logo">✦</div>
+        <div className="auth-eyebrow">Local-first AI console</div>
+        <h1>ChatDock</h1>
+        <p>把会话、模型供应商、工具和定时任务收进一个轻量工作台。</p>
+        <div className="auth-feature-grid">
+          <span>多工作空间</span>
+          <span>模型路由</span>
+          <span>MCP 工具</span>
+          <span>定时任务</span>
+        </div>
+      </section>
+      <form className="login-card" onSubmit={submit}>
+        <div className="login-card-head">
+          <div>
+            <div className="login-brand">ChatDock</div>
+            <b>欢迎回来</b>
+          </div>
+          <span>私有访问</span>
+        </div>
+        <div className="hint">{message}</div>
+        <label>账号</label><input autoComplete="username" placeholder="输入账号" value={username} onChange={e => setUsername(e.target.value)} autoFocus />
+        <label>密码</label><input type="password" autoComplete="current-password" placeholder="输入密码" value={credential} onChange={e => setCredential(e.target.value)} />
+        <div className="task-error" role="alert">{loginError}</div>
+        <button type="submit" className="login-submit" disabled={!canSubmit}>登录并进入</button>
+        <div className="login-footnote">访问凭证只保存在当前浏览器本地。</div>
+      </form>
+    </div>
+  </div>;
 }
 
 export function DialogHost({ dialog, closeDialog }) {
