@@ -79,11 +79,16 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEd
   }
   const role = message.role || 'user';
   const text = message.content || '';
-  return <div className={'msg ' + role}>
-    {text ? <div>{text}</div> : null}
-    <AttachmentList attachments={message.attachments || []} onDownload={onDownloadAttachment} />
-    {role === 'user' ? <MessageActions text={text} onCopy={onCopy} onEdit={onEditUserMessage} user /> : null}
-  </div>;
+  if (role === 'user') {
+    return <div className="user-message-wrap">
+      <div className="msg user">
+        {text ? <div>{text}</div> : null}
+        <AttachmentList attachments={message.attachments || []} onDownload={onDownloadAttachment} />
+      </div>
+      <MessageActions text={text} onCopy={onCopy} onEdit={onEditUserMessage} user />
+    </div>;
+  }
+  return <div className={'msg ' + role}>{text ? <div>{text}</div> : null}<AttachmentList attachments={message.attachments || []} onDownload={onDownloadAttachment} /></div>;
 }
 
 
