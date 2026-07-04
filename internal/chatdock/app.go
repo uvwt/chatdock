@@ -68,6 +68,7 @@ func (a *App) ListenAndServe() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go a.runScheduler(ctx)
+	go a.warmToolEmbeddingIndex(ctx)
 	return a.server.Serve(listener)
 }
 
