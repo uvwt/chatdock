@@ -378,3 +378,34 @@ func TestAppendMCPToolUseHint(t *testing.T) {
 		t.Fatalf("expected MCP system hint after existing system prompt, got %#v", out)
 	}
 }
+
+func TestBuildChatMessagesAnyAppendsUploadedImageAsUserMessage(t *testing.T) {
+	messages := BuildChatMessagesAny(model.ModelConfig{}, []model.Message{{
+		Role:    "user",
+		Content: "这张图是什么",
+		ModelAttachments: []model.AttachmentRecord{{
+			Attachment: model.Attachment{ID: "att_1", Name: "pixel.png", MIMEType: "image/png"},
+			ModelURL:   "https://chatdock.200399.xyz/api/model-images/att_1?expires=123&sig=abc",
+		}},
+	}})
+	if len(messages) != 2 {
+		t.Fatalf("expected text message plus image message, got %#v", messages)
+	}
+	if messages[0]["role"] != "user" || messages[0]["content"] != "这张图是什么" {
+		t.Fatalf("expected original user text to stay plain, got %#v", messages[0])
+	}
+	if messages[1]["role"] != "user" {
+		t.Fatalf("expected appended image user message, got %#v", messages[1])
+	}
+	blocks, ok := messages[1]["content"].([]map[string]any)
+	if !ok || len(blocks) != 2 {
+		t.Fatalf("expected text and image blocks, got %#v", messages[1]["content"])
+	}
+	if blocks[0]["type"] != "text" || !strings.Contains(blocks[0]["text"].(string), "这张图是什么") {
+		t.Fatalf("expected image prompt text block, got %#v", blocks[0])
+	}
+	imageURL, _ := blocks[1]["image_url"].(map[string]any)
+	if blocks[1]["type"] != "image_url" || imageURL["url"] != "https://chatdock.200399.xyz/api/model-images/att_1?expires=123&sig=abc" {
+		t.Fatalf("expected public image_url block, got %#v", blocks[1])
+	}
+}

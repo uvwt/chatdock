@@ -57,14 +57,20 @@ func buildChatContextMessages(cfg model.ModelConfig, history []model.Message) []
 }
 
 func messageContentForModel(item chatContextMessage) any {
+	return item.Content
+}
+
+func imageMessageContentForModel(item chatContextMessage) any {
 	images := model.ImageContentBlocks(item.ModelAttachments)
 	if item.Role != "user" || len(images) == 0 {
-		return item.Content
+		return nil
 	}
 	blocks := make([]map[string]any, 0, len(images)+1)
-	if strings.TrimSpace(item.Content) != "" {
-		blocks = append(blocks, map[string]any{"type": "text", "text": item.Content})
+	text := strings.TrimSpace(item.Content)
+	if text == "" {
+		text = "Please analyze the uploaded image."
 	}
+	blocks = append(blocks, map[string]any{"type": "text", "text": "ChatDock loaded the uploaded image and sends it below as visual input.\n\n" + text})
 	blocks = append(blocks, images...)
 	return blocks
 }
