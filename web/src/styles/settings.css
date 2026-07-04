@@ -1612,3 +1612,23 @@ body.theme-light .mcp-inline-warning.danger {
   min-height: 118px;
   resize: vertical;
 }
+
+.attachment-chip.downloadable {
+  cursor: pointer;
+}
+
+.attachment-chip.downloadable:hover,
+.attachment-chip.downloadable:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.attachment-download-hint {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(96, 165, 250, .14);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 760;
+}

@@ -64,6 +64,24 @@ func (s *Store) attachmentRecordsByIDsLocked(ids []string) ([]model.AttachmentRe
 	return records, nil
 }
 
+func (s *Store) AttachmentRecordByID(id string) (model.AttachmentRecord, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return model.AttachmentRecord{}, fmt.Errorf("attachment id is empty")
+	}
+	row := s.db.QueryRow(`SELECT prompt, id, session_id, message_id, filename, mime_type, size, storage_path, sha256, text_content, status, created_at FROM attachments WHERE prompt = ? AND id = ?`, s.activePrompt, id)
+	record, err := scanAttachmentRecord(row)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return model.AttachmentRecord{}, fmt.Errorf("attachment not found: %s", id)
+		}
+		return model.AttachmentRecord{}, err
+	}
+	return record, nil
+}
+
 func scanAttachmentRecord(rows interface{ Scan(dest ...any) error }) (model.AttachmentRecord, error) {
 	var record model.AttachmentRecord
 	var createdRaw string

@@ -20,14 +20,19 @@ function attachmentStatusLabel(item) {
   return item.status || '已上传';
 }
 
-export function AttachmentList({ attachments, removable = false, onRemove }) {
+export function AttachmentList({ attachments, removable = false, onRemove, onDownload }) {
   if (!attachments?.length) return null;
   return <div className="attachment-list">
-    {attachments.map(item => <div key={item.id || item.name} className={'attachment-chip ' + (item.error ? 'error' : '')}>
-      <span className="attachment-icon">📎</span>
-      <span className="attachment-main"><b>{item.name || '附件'}</b><span>{fmtBytes(item.size)} · {attachmentStatusLabel(item)}</span></span>
-      {removable ? <button className="attachment-remove" type="button" onClick={() => onRemove?.(item.id)} title="移除附件">×</button> : null}
-    </div>)}
+    {attachments.map(item => {
+      const canDownload = !!onDownload && item.id && !item.uploading && !item.error && !String(item.id).startsWith('local_');
+      const download = () => canDownload ? onDownload(item) : null;
+      return <div key={item.id || item.name} className={'attachment-chip ' + (item.error ? 'error ' : '') + (canDownload ? 'downloadable' : '')} onClick={download} role={canDownload ? 'button' : undefined} tabIndex={canDownload ? 0 : undefined} onKeyDown={e => { if (canDownload && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); download(); } }} title={canDownload ? '点击下载附件' : undefined}>
+        <span className="attachment-icon">📎</span>
+        <span className="attachment-main"><b>{item.name || '附件'}</b><span>{fmtBytes(item.size)} · {attachmentStatusLabel(item)}</span></span>
+        {canDownload ? <span className="attachment-download-hint">下载</span> : null}
+        {removable ? <button className="attachment-remove" type="button" onClick={e => { e.stopPropagation(); onRemove?.(item.id); }} title="移除附件">×</button> : null}
+      </div>;
+    })}
   </div>;
 }
 
@@ -45,7 +50,7 @@ function ReasoningBlock({ value, streaming = false, hidden = false }) {
   </section>;
 }
 
-export function MessageView({ message, messageIndex = -1, onCopy, onBranch, hideThinking = true, onResolveConfirmation, onInspectToolEvent }) {
+export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onDownloadAttachment, hideThinking = true, onResolveConfirmation, onInspectToolEvent }) {
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
   if (message.role === 'assistant-stream') {
     const reasoning = hideThinking ? '' : message.reasoning;
@@ -72,7 +77,7 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, hide
       <MessageActions text={[reasoning, message.content].filter(Boolean).join('\n\n')} onCopy={onCopy} onBranch={onBranch ? () => onBranch(messageIndex) : null} />
     </div>;
   }
-  return <div className={'msg ' + (message.role || 'user')}>{message.content ? <div>{message.content}</div> : null}<AttachmentList attachments={message.attachments || []} /></div>;
+  return <div className={'msg ' + (message.role || 'user')}>{message.content ? <div>{message.content}</div> : null}<AttachmentList attachments={message.attachments || []} onDownload={onDownloadAttachment} /></div>;
 }
 
 

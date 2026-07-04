@@ -874,6 +874,25 @@ export default function App() {
     setPendingAttachments(prev => prev.filter(item => item.id !== id));
   }, []);
 
+  const downloadAttachment = useCallback(async (item) => {
+    if (!item?.id || String(item.id).startsWith('local_')) return;
+    try {
+      const response = await fetch('/api/files/' + encodeURIComponent(item.id), {headers: authHeaders()});
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = item.name || 'attachment';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      showToast('附件下载失败：' + e.message, 'error');
+    }
+  }, [authHeaders, showToast]);
+
   const handleFileSelect = useCallback(async (event) => {
     const files = Array.from(event.target.files || []);
     event.target.value = '';
@@ -1378,10 +1397,10 @@ export default function App() {
             <button className="danger" onClick={deleteCurrent} disabled={!current || busy}>删除</button>
           </div>
         </div>
-        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
+        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
         {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息">↓</button> : null}
         <div className="composer-shell">
-        {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} /> : null}
+        {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} onDownload={downloadAttachment} /> : null}
         <div className="composer">
           <input ref={fileInputRef} type="file" multiple className="file-input" onChange={handleFileSelect} />
           <button className="secondary attach-control" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} title="上传文件">+</button>

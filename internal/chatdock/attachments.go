@@ -93,3 +93,28 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSONResponse(w, http.StatusOK, model.FileUploadResponse{Attachment: record.Attachment})
 }
+
+func (a *App) handleDownloadFile(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(r.PathValue("id"))
+	record, err := a.store.AttachmentRecordByID(id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, err)
+		return
+	}
+	file, err := os.Open(record.StoragePath)
+	if err != nil {
+		writeError(w, http.StatusNotFound, err)
+		return
+	}
+	defer file.Close()
+	stat, err := file.Stat()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	// 只从当前工作空间的附件记录取真实路径；前端点击卡片时通过带鉴权的 fetch 请求此接口。
+	w.Header().Set("Content-Type", llm.FirstNonEmptyString(record.MIMEType, "application/octet-stream"))
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": record.Name}))
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	http.ServeContent(w, r, record.Name, stat.ModTime(), file)
+}

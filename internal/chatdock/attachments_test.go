@@ -192,3 +192,46 @@ func TestUploadImageAttachmentSendsMultimodalContent(t *testing.T) {
 		t.Fatalf("expected text and image blocks, got %#v", blocks)
 	}
 }
+
+func TestDownloadUploadedAttachment(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+
+	var uploadBody bytes.Buffer
+	mw := multipart.NewWriter(&uploadBody)
+	part, err := mw.CreateFormFile("file", "note.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.WriteString(part, "可下载的附件内容")
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/api/files", &uploadBody)
+	r.Header.Set("Content-Type", mw.FormDataContentType())
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("upload status %d: %s", w.Code, w.Body.String())
+	}
+	var uploaded model.FileUploadResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &uploaded); err != nil {
+		t.Fatal(err)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "/api/files/"+uploaded.Attachment.ID, nil)
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("download status %d: %s", w.Code, w.Body.String())
+	}
+	if got := w.Body.String(); got != "可下载的附件内容" {
+		t.Fatalf("unexpected downloaded body: %q", got)
+	}
+	if cd := w.Header().Get("Content-Disposition"); !strings.Contains(cd, "attachment") || !strings.Contains(cd, "note.txt") {
+		t.Fatalf("unexpected content disposition: %q", cd)
+	}
+}
