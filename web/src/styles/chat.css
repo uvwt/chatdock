@@ -947,3 +947,8 @@ body.theme-light .empty-capability-strip i {
   color: #047857;
   background: rgba(16,163,127,.10);
 }
+
+.tool-event { border:0; background:transparent; color:var(--gpt-muted); font-size:14px; padding:2px 0; margin:4px 0 7px; display:inline-flex; gap:7px; align-items:center; }
+.tool-event.has-details::after { content:"⌄"; }
+.tool-event.phase-running { color:var(--gpt-muted-2); }
+.tool-event.phase-error { color:#fca5a5; }

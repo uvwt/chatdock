@@ -55,8 +55,9 @@ func (a *App) handleListAgentTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message, emit func(string, any) error) (string, error) {
-	// ChatDock 内置工具不依赖 MCP 配置。即使用户没有接入任何 MCP，模型也能管理本工作空间的定时任务。
-	tools := builtinScheduledTaskTools()
+	// 真实工具全集只保存在服务端；首轮只暴露“搜索 / 查看详情 / 执行”三个轻量入口。
+	// 这样模型仍能按需发现和调用工具，但普通请求不再每轮携带几十个完整 schema。
+	allTools := builtinScheduledTaskTools()
 	mcpCfg, mcpErr := a.activeMCPConfig()
 	mcpReady := mcpErr == nil && len(mcpCfg.Servers) > 0
 	if mcpReady {
@@ -69,20 +70,27 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 				}
 			}
 		} else {
-			tools = append(tools, mcpTools...)
+			allTools = append(allTools, mcpTools...)
 		}
 	}
-	if len(tools) == 0 {
+	if len(allTools) == 0 {
 		if emit != nil {
 			return a.client.Stream(ctx, cfg, history, func(delta llm.StreamDelta) error { return emit("delta", delta) })
 		}
 		return a.client.Complete(ctx, cfg, history)
 	}
+	visibleTools := builtinToolDiscoveryTools()
+	if emit == nil {
+		// 非流式兼容接口不影响前端首字体验，继续保留直接工具 schema，减少老调用方行为变化。
+		visibleTools = allTools
+	}
 	if emit != nil {
-		if err := emit("tool_setup_ready", map[string]any{"tool_count": len(tools), "builtin_tool_count": len(builtinScheduledTaskTools())}); err != nil {
+		if err := emit("tool_setup_ready", map[string]any{"mode": "discovery", "tool_count": len(allTools), "exposed_tool_count": len(visibleTools), "builtin_tool_count": len(builtinScheduledTaskTools())}); err != nil {
 			return "", err
 		}
 	}
+	catalog := newToolCatalog(allTools)
+	describedTools := map[string]bool{}
 	recorder := &activeToolRun{LastArgs: map[string]any{}, StartedAt: map[string]time.Time{}}
 	recordingEmit := func(event string, value any) error {
 		if event == "tool_call_start" || event == "tool_call_result" {
@@ -95,12 +103,7 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 		}
 		return nil
 	}
-	toolEmit := recordingEmit
-	if emit == nil {
-		// 非流式 /api/chat 不需要把最终回答改成流式请求；工具仍会执行，只是不记录前端运行事件。
-		toolEmit = nil
-	}
-	answer, runErr := a.client.CompleteWithMCPToolsEvents(ctx, cfg, history, tools, func(name string, args map[string]any) (any, error) {
+	runRealTool := func(name string, args map[string]any) (any, error) {
 		if isBuiltinScheduledTaskTool(name) {
 			return a.callBuiltinScheduledTaskTool(ctx, name, args)
 		}
@@ -114,6 +117,42 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 			return a.mcpClient.CallToolAfterConfirmation(ctx, mcpCfg, name, args)
 		}
 		return a.mcpClient.CallTool(ctx, mcpCfg, name, args)
+	}
+	toolEmit := recordingEmit
+	if emit == nil {
+		// 非流式 /api/chat 不需要把最终回答改成流式请求；工具仍会执行，只是不记录前端运行事件。
+		toolEmit = nil
+	}
+	answer, runErr := a.client.CompleteWithMCPToolsEvents(ctx, cfg, history, visibleTools, func(name string, args map[string]any) (any, error) {
+		switch name {
+		case builtinToolSearchTools:
+			return catalog.Search(args), nil
+		case builtinToolDescribeTools:
+			result, names := catalog.Describe(args)
+			for _, toolName := range names {
+				describedTools[toolName] = true
+			}
+			return result, nil
+		case builtinToolExecuteDiscovered:
+			target, err := requiredStringArg(args, "name")
+			if err != nil {
+				return nil, err
+			}
+			if _, ok := catalog.Get(target); !ok {
+				return nil, fmt.Errorf("tool not found: %s", target)
+			}
+			if !describedTools[target] {
+				return nil, fmt.Errorf("tool schema not loaded: call %s with names=[%q] before executing it", builtinToolDescribeTools, target)
+			}
+			result, err := runRealTool(target, mapArg(args, "arguments"))
+			return map[string]any{"tool": target, "result": result}, err
+		default:
+			// 兼容历史上下文或未来直接暴露真实工具的情况；当前正常路径会通过 chatdock_tool_execute 进入这里。
+			if _, ok := catalog.Get(name); !ok {
+				return nil, fmt.Errorf("unknown tool: %s", name)
+			}
+			return runRealTool(name, args)
+		}
 	}, toolEmit)
 	if recorder.Created {
 		status := "success"

@@ -88,6 +88,24 @@ function safeJSONStringify(value) {
   catch { return String(value || ''); }
 }
 
+
+function targetToolName(data) {
+  return data?.arguments?.name || data?.result?.tool || data?.tool || '工具';
+}
+
+function toolEventText(phase, data = {}) {
+  const tool = data.tool || '';
+  if (tool === 'chatdock_tools_search') return phase === 'start' ? '正在查找可用工具' : (data.ok === false ? '查找可用工具失败' : '已查找可用工具');
+  if (tool === 'chatdock_tools_describe') return phase === 'start' ? '正在查看工具详情' : (data.ok === false ? '查看工具详情失败' : '已查看工具详情');
+  if (tool === 'chatdock_tool_execute') {
+    const target = targetToolName(data);
+    if (phase === 'start') return '正在调用工具：' + target;
+    return data.ok === false ? '调用工具失败：' + target : '已调用工具：' + target;
+  }
+  if (phase === 'start') return '正在调用：' + (tool || '工具');
+  return (data.ok ? '调用完成：' : '调用失败：') + (tool || '工具');
+}
+
 function hasDialogValue(value) {
   if (value == null || value === '') return false;
   if (Array.isArray(value)) return value.length > 0;
@@ -804,16 +822,16 @@ export default function App() {
       }
     } else if (event === 'tool_setup_ready') {
       setStreamStats(prev => ({...prev, events: prev.events + 1}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🧰 MCP 已接入：' + (data.tool_count || 0) + ' 个工具', details:{event, data}}]}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:data.mode === 'discovery' ? ('已准备可用工具索引：' + (data.tool_count || 0) + ' 个工具') : ('MCP 已接入：' + (data.tool_count || 0) + ' 个工具'), details:{event, data}}]}));
     } else if (event === 'tool_setup_error') {
       setStreamStats(prev => ({...prev, events: prev.events + 1, error: data.message || 'MCP 工具未接入'}));
       appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'⚠️ MCP 未接入：' + (data.message || '工具初始化失败'), details:{event, data}}]}));
     } else if (event === 'tool_call_start') {
       setStreamStats(prev => ({...prev, events: prev.events + 1, tools: prev.tools + 1}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🔧 开始调用：' + (data.tool || 'tool'), details:{event, tool:data.tool || '', arguments:data.arguments || {}, data}}]}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', phase:'running', text:toolEventText('start', data), details:{event, tool:data.tool || '', arguments:data.arguments || {}, data}}]}));
     } else if (event === 'tool_call_result') {
       setStreamStats(prev => ({...prev, events: prev.events + 1}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'🔧 ' + (data.ok ? '调用完成：' : '调用失败：') + (data.tool || 'tool'), details:{event, tool:data.tool || '', ok:!!data.ok, result:data.result, error:data.error || '', data}}]}));
+      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', phase:data.ok ? 'done' : 'error', text:toolEventText('result', data), details:{event, tool:data.tool || '', ok:!!data.ok, result:data.result, error:data.error || '', data}}]}));
     } else if (event === 'tool_confirmation_required') {
       setStreamStats(prev => ({...prev, events: prev.events + 1, state:'paused'}));
       appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'confirm', text:'⏳ 等待确认工具：' + (data.tool || 'MCP 工具'), meta:'确认后模型会继续执行；拒绝则把拒绝结果返回给模型。', confirmation:data, status:'pending', details:{event, tool:data.tool || '', arguments:data.arguments || {}, data}}]}));
