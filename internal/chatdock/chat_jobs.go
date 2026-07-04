@@ -103,6 +103,8 @@ func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cf
 	} else if _, err := a.store.AppendAssistantMessageWithParts(sessionID, answer, reasoning.String(), parts.parts, parts.events); err != nil {
 		status = "failed"
 		runErr = err
+	} else {
+		_ = a.maybeGenerateSessionTitle(ctx, sessionID, cfg)
 	}
 	_, _ = a.store.FinishChatJob(jobID, status, answer, reasoning.String(), runErr)
 }

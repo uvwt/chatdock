@@ -53,6 +53,7 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	session = a.maybeGenerateSessionTitle(r.Context(), input.SessionID, cfg)
 	writeJSONResponse(w, http.StatusOK, model.ChatResponse{Answer: answer, Session: session})
 }
 
