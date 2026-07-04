@@ -10,3 +10,6 @@ data/
 .DS_Store
 web/node_modules/
 web/dist/
+
+# ChatDock 本地数据库备份，不提交到 Git。
+backups/
