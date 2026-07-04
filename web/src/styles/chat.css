@@ -1222,3 +1222,105 @@ body.theme-light .empty-capability-strip i {
     line-height: 1.68 !important;
   }
 }
+
+/* Markdown code blocks: copy button and lightweight syntax highlighting. */
+.markdown .code-block {
+  margin: 13px 0 15px;
+  overflow: hidden;
+  border: 1px solid #1e293b;
+  border-radius: 13px;
+  background: #0f172a;
+}
+
+.markdown .code-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 10px 0 13px;
+  border-bottom: 1px solid rgba(148, 163, 184, .18);
+  background: rgba(15, 23, 42, .92);
+}
+
+.markdown .code-block-lang {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: lowercase;
+}
+
+.markdown .code-block-copy {
+  appearance: none;
+  border: 1px solid rgba(148, 163, 184, .28);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .06);
+  color: #cbd5e1;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 6px 9px;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.markdown .code-block-copy:hover {
+  border-color: rgba(203, 213, 225, .46);
+  background: rgba(255, 255, 255, .11);
+  color: #f8fafc;
+}
+
+.markdown .code-block-copy.copied {
+  border-color: rgba(52, 211, 153, .55);
+  background: rgba(16, 185, 129, .16);
+  color: #a7f3d0;
+}
+
+.markdown .code-block-pre,
+.msg.assistant.markdown .code-block-pre,
+.msg.assistant .markdown .code-block-pre,
+.msg.assistant .answer .code-block-pre {
+  margin: 0 !important;
+  padding: 13px 14px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  overflow: auto;
+}
+
+.markdown .code-block-pre code,
+.msg.assistant.markdown .code-block-pre code,
+.msg.assistant .markdown .code-block-pre code,
+.msg.assistant .answer .code-block-pre code {
+  display: block;
+  min-width: max-content;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #e2e8f0 !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 1.68 !important;
+  tab-size: 2;
+  white-space: pre;
+}
+
+.markdown .hl-comment { color: #64748b; font-style: italic; }
+.markdown .hl-string { color: #86efac; }
+.markdown .hl-number { color: #fbbf24; }
+.markdown .hl-keyword { color: #93c5fd; }
+.markdown .hl-punctuation { color: #94a3b8; }
+
+@media (max-width: 720px) {
+  .markdown .code-block {
+    border-radius: 12px;
+  }
+
+  .markdown .code-block-pre,
+  .msg.assistant.markdown .code-block-pre,
+  .msg.assistant .markdown .code-block-pre,
+  .msg.assistant .answer .code-block-pre {
+    padding: 12px !important;
+  }
+}
