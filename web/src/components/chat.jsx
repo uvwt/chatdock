@@ -57,7 +57,7 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEd
     return <div className="msg assistant" data-model-message="true">
       <ReasoningBlock value={message.reasoning} streaming hidden={hideThinking} />
       <Markdown className="answer markdown" value={message.answer} />
-      {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline' : '') + (event.details ? ' has-details' : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} role={event.details ? 'button' : undefined} tabIndex={event.details ? 0 : undefined} onKeyDown={e => { if (event.details && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onInspectToolEvent?.(event); } }}>
+      {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline ' : '') + (event.phase ? 'phase-' + event.phase + ' ' : '') + (event.details ? 'has-details' : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} role={event.details ? 'button' : undefined} tabIndex={event.details ? 0 : undefined} onKeyDown={e => { if (event.details && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onInspectToolEvent?.(event); } }}>
         <div className="tool-event-main">
           <div>{event.text}</div>
           {event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}

@@ -106,6 +106,60 @@ function toolEventText(phase, data = {}) {
   return (data.ok ? '调用完成：' : '调用失败：') + (tool || '工具');
 }
 
+function toolCallKey(data = {}) {
+  const args = data.arguments || {};
+  return [data.tool || '', safeJSONStringify(args)].join('::');
+}
+
+function toolEventMeta(data = {}) {
+  const query = data.arguments?.query || data.result?.query;
+  if (data.tool === 'chatdock_tools_search' && query) return '关键词：' + query;
+  const target = data.arguments?.name || data.result?.tool;
+  if ((data.tool === 'chatdock_tools_describe' || data.tool === 'chatdock_tool_execute') && target) return target;
+  return '';
+}
+
+function appendToolStartEvent(message, event, data) {
+  return {
+    ...message,
+    events: [
+      ...(message.events || []),
+      {
+        kind: 'tool',
+        phase: 'running',
+        callKey: toolCallKey(data),
+        text: toolEventText('start', data),
+        meta: toolEventMeta(data),
+        details: {event, tool: data.tool || '', arguments: data.arguments || {}, data},
+      },
+    ],
+  };
+}
+
+function mergeToolResultEvent(message, event, data) {
+  const key = toolCallKey(data);
+  const nextEvent = {
+    kind: 'tool',
+    phase: data.ok ? 'done' : 'error',
+    callKey: key,
+    text: toolEventText('result', data),
+    meta: toolEventMeta(data),
+    details: {event, tool: data.tool || '', ok: !!data.ok, result: data.result, error: data.error || '', data},
+  };
+  const events = [...(message.events || [])];
+  const hasArguments = Object.keys(data.arguments || {}).length > 0;
+  // ChatDock 同一工具调用会同时收到 run_event 和 tool_call_* 两套事件。
+  // UI 只保留 tool_call_*，并在 result 回来时原地更新 start 行，避免 started/finished 重复刷屏。
+  const index = events.findLastIndex(item => {
+    if (item.kind !== 'tool' || item.phase !== 'running') return false;
+    if (item.callKey === key) return true;
+    return !hasArguments && item.details?.tool === data.tool;
+  });
+  if (index >= 0) events[index] = {...events[index], ...nextEvent, callKey: events[index].callKey || key};
+  else events.push(nextEvent);
+  return {...message, events};
+}
+
 function hasDialogValue(value) {
   if (value == null || value === '') return false;
   if (Array.isArray(value)) return value.length > 0;
@@ -833,10 +887,10 @@ export default function App() {
       appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'⚠️ MCP 未接入：' + (data.message || '工具初始化失败'), details:{event, data}}]}));
     } else if (event === 'tool_call_start') {
       setStreamStats(prev => ({...prev, events: prev.events + 1, tools: prev.tools + 1}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', phase:'running', text:toolEventText('start', data), details:{event, tool:data.tool || '', arguments:data.arguments || {}, data}}]}));
+      appendToActiveAssistant(m => appendToolStartEvent(m, event, data));
     } else if (event === 'tool_call_result') {
       setStreamStats(prev => ({...prev, events: prev.events + 1}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', phase:data.ok ? 'done' : 'error', text:toolEventText('result', data), details:{event, tool:data.tool || '', ok:!!data.ok, result:data.result, error:data.error || '', data}}]}));
+      appendToActiveAssistant(m => mergeToolResultEvent(m, event, data));
     } else if (event === 'tool_confirmation_required') {
       setStreamStats(prev => ({...prev, events: prev.events + 1, state:'paused'}));
       appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'confirm', text:'⏳ 等待确认工具：' + (data.tool || 'MCP 工具'), meta:'确认后模型会继续执行；拒绝则把拒绝结果返回给模型。', confirmation:data, status:'pending', details:{event, tool:data.tool || '', arguments:data.arguments || {}, data}}]}));
@@ -847,9 +901,11 @@ export default function App() {
       setStreamStats(prev => ({...prev, events: prev.events + 1, state:'stopping'}));
       appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'⏹️ 已请求停止生成', details:{event, data}}]}));
     } else if (event === 'run_event') {
-      const meta = [runStatusLabel(data.status || ''), data.server, data.action, fmtDuration(data.duration_ms)].filter(Boolean).join(' · ');
       setStreamStats(prev => ({...prev, events: prev.events + 1}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'run', text:'🧭 ' + (data.summary || data.tool || 'MCP 工具事件'), meta, details:{event, tool:data.tool || '', arguments:data.arguments, result:data.result, error:data.error || '', duration_ms:data.duration_ms, data}}]}));
+      if (data.kind !== 'tool_call' && data.kind !== 'tool_result') {
+        const meta = [runStatusLabel(data.status || ''), data.server, data.action, fmtDuration(data.duration_ms)].filter(Boolean).join(' · ');
+        appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'run', text:'🧭 ' + (data.summary || data.tool || 'MCP 工具事件'), meta, details:{event, tool:data.tool || '', arguments:data.arguments, result:data.result, error:data.error || '', duration_ms:data.duration_ms, data}}]}));
+      }
     } else if (event === 'run_finish') {
       loadRuns().catch(() => {});
       loadAgentTasks().catch(() => {});
