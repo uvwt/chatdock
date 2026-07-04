@@ -12,6 +12,7 @@ services:
     environment:
       CHATDOCK_ADDR: :8720
       CHATDOCK_DATA: /data
+      CHATDOCK_PUBLIC_BASE_URL: https://chatdock.200399.xyz
     ports:
       - "127.0.0.1:8720:8720"
     volumes:

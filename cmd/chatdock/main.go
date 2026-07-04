@@ -16,6 +16,7 @@ func main() {
 		AuthToken:        os.Getenv("CHATDOCK_AUTH_TOKEN"),
 		AuthUsername:     os.Getenv("CHATDOCK_AUTH_USERNAME"),
 		AuthCredential:   os.Getenv("CHATDOCK_AUTH_CREDENTIAL"),
+		PublicBaseURL:    os.Getenv("CHATDOCK_PUBLIC_BASE_URL"),
 		EmbeddingBaseURL: os.Getenv("CHATDOCK_EMBEDDING_BASE_URL"),
 		EmbeddingAPIKey:  os.Getenv("CHATDOCK_EMBEDDING_API_KEY"),
 		EmbeddingModel:   getenv("CHATDOCK_EMBEDDING_MODEL", "BAAI/bge-m3"),

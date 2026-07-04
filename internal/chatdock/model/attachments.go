@@ -49,8 +49,8 @@ func ImageContentBlocks(attachments []AttachmentRecord) []map[string]any {
 		if !IsImageAttachment(item) {
 			continue
 		}
-		url, err := AttachmentDataURL(item)
-		if err != nil {
+		url := strings.TrimSpace(item.ModelURL)
+		if url == "" {
 			continue
 		}
 		blocks = append(blocks, map[string]any{
@@ -62,7 +62,6 @@ func ImageContentBlocks(attachments []AttachmentRecord) []map[string]any {
 	}
 	return blocks
 }
-
 func IsImageAttachment(item AttachmentRecord) bool {
 	mimeType := strings.ToLower(strings.TrimSpace(item.MIMEType))
 	if strings.HasPrefix(mimeType, "image/") {

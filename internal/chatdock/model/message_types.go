@@ -54,6 +54,7 @@ type AttachmentRecord struct {
 	StoragePath string
 	SHA256      string
 	TextContent string
+	ModelURL    string
 }
 
 type Session struct {

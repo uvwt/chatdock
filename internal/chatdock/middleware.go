@@ -8,7 +8,7 @@ import (
 )
 
 func isPublicBackendRoute(requestPath string) bool {
-	return requestPath == "/api/auth/status" || requestPath == "/api/auth/login"
+	return requestPath == "/api/auth/status" || requestPath == "/api/auth/login" || strings.HasPrefix(requestPath, "/api/model-images/")
 }
 
 type responseRecorder struct {

@@ -7,6 +7,7 @@ type ServerConfig struct {
 	AuthToken        string
 	AuthUsername     string
 	AuthCredential   string
+	PublicBaseURL    string
 	EmbeddingBaseURL string
 	EmbeddingAPIKey  string
 	EmbeddingModel   string

@@ -55,6 +55,7 @@ func (a *App) handleListAgentTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message, emit func(string, any) error) (string, error) {
+	history = a.prepareVisionAttachmentURLs(history)
 	// 真实工具全集只保存在服务端；首轮只暴露“搜索 / 查看详情 / 执行”三个轻量入口。
 	// 这样模型仍能按需发现和调用工具，但普通请求不再每轮携带几十个完整 schema。
 	allTools := builtinChatDockTools()

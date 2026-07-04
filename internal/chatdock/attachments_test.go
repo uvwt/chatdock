@@ -121,7 +121,7 @@ func TestUploadImageAttachmentSendsMultimodalContent(t *testing.T) {
 	}))
 	defer modelServer.Close()
 
-	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web", PublicBaseURL: "https://chatdock.200399.xyz"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestUploadImageAttachmentSendsMultimodalContent(t *testing.T) {
 		if block["type"] == "image_url" {
 			imageURL, _ := block["image_url"].(map[string]any)
 			url, _ := imageURL["url"].(string)
-			hasImage = strings.HasPrefix(url, "data:image/") && strings.Contains(url, ";base64,")
+			hasImage = strings.HasPrefix(url, "https://chatdock.200399.xyz/api/model-images/") && strings.Contains(url, "expires=") && strings.Contains(url, "sig=")
 		}
 	}
 	if !hasText || !hasImage {
