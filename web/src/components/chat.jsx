@@ -99,7 +99,7 @@ export function EmptyState({ createSession, openSettings, openWorkspacePicker, b
   return <div className="empty-state product-empty-state">
     <section className="product-hero">
       <div className="hero-copy">
-        <div className="empty-state-kicker"><span className="kicker-dot" /> ChatDock 工作台</div>
+        <div className="empty-state-kicker"><img className="empty-state-logo" src="/chatdock-icon.svg" alt="" aria-hidden="true" /> ChatDock 工作台</div>
         <h1>今天想完成什么？</h1>
         <p>从一个会话开始，把模型配置、工具调用、任务记录和数据状态收在同一个工作流里。</p>
         <div className="empty-state-actions hero-actions">

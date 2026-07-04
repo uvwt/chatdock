@@ -1458,7 +1458,7 @@ export default function App() {
     {settingsOpen ? <div id="settingsPage" className="settings-page">{settingsPanel}</div> : <div id="app" className={appClass}>
       <aside>
         <div className="sidebar-head">
-          <div className="brand"><span className="brand-logo">✦</span><div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">本地优先的 AI 工作台</div></div></div>
+          <div className="brand"><img className="brand-logo" src="/chatdock-icon.svg" alt="" aria-hidden="true" /><div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">本地优先的 AI 工作台</div></div></div>
           <button id="sidebarToggle" className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}>{sidebarCollapsed ? '›' : '‹'}</button>
         </div>
         <div className="prompt-box">
@@ -1478,7 +1478,7 @@ export default function App() {
       </aside>
       <main>
         <div className="topbar">
-          <div className="top-left"><button className="mobile-menu" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>☰</button><b id="title">{currentTitle}</b><span className={'status-pill ' + productStatusClass}>{productStatusText}</span></div>
+          <div className="top-left"><button className="mobile-menu" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>☰</button><img className="topbar-app-icon" src="/chatdock-icon.svg" alt="" aria-hidden="true" /><b id="title">{currentTitle}</b><span className={'status-pill ' + productStatusClass}>{productStatusText}</span></div>
           <div className="top-actions">
             <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)} title="快捷指令（⌘/Ctrl K）">快捷</button>
             <button className="secondary config-toggle" onClick={() => openSettings()} title="配置中心">配置</button>

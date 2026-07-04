@@ -362,3 +362,154 @@
     overflow: visible !important;
   }
 }
+
+/* 2026-07-04 响应式统一：桌面端和手机端共用 ChatDock 应用图标。 */
+#app.app .brand-logo,
+#app.app .topbar-app-icon,
+.empty-state-logo {
+  display: block !important;
+  object-fit: cover !important;
+  overflow: hidden !important;
+  user-select: none !important;
+  -webkit-user-drag: none !important;
+}
+
+#app.app .brand-logo {
+  flex: 0 0 42px !important;
+  width: 42px !important;
+  height: 42px !important;
+  padding: 0 !important;
+  border-radius: 14px !important;
+  background: transparent !important;
+  box-shadow: 0 14px 30px rgba(37, 99, 235, .22) !important;
+}
+
+#app.app .topbar-app-icon {
+  flex: 0 0 28px !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 9px !important;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, .18) !important;
+}
+
+.empty-state-logo {
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, .18) !important;
+}
+
+#app.app .kicker-dot {
+  display: none !important;
+}
+
+@media (min-width: 721px) {
+  #app.app .sidebar-head {
+    min-height: 58px !important;
+    padding: 8px 6px 14px !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  #app.app .brand {
+    flex: 1 1 auto !important;
+    width: auto !important;
+  }
+
+  #app.app .brand-copy {
+    min-width: 0 !important;
+  }
+
+  #app.app .brand-text {
+    font-size: 19px !important;
+    font-weight: 850 !important;
+    line-height: 1.08 !important;
+  }
+
+  #app.app .sub {
+    margin: 0 !important;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+    font-weight: 650 !important;
+  }
+
+  #app.app.sidebar-collapsed .sidebar-head {
+    min-height: 104px !important;
+    padding: 14px 0 12px !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  #app.app.sidebar-collapsed .brand {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+    overflow: visible !important;
+  }
+
+  #app.app.sidebar-collapsed .brand-copy {
+    display: none !important;
+  }
+
+  #app.app.sidebar-collapsed .brand-logo {
+    flex-basis: 42px !important;
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  #app.app.sidebar-collapsed .sidebar-toggle {
+    flex: 0 0 34px !important;
+    width: 42px !important;
+    height: 34px !important;
+    border-radius: 13px !important;
+    line-height: 32px !important;
+  }
+
+  #app.app.sidebar-collapsed .session-search-row {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 0 !important;
+    margin: 0 0 12px !important;
+  }
+
+  #app.app.sidebar-collapsed .session-search-box,
+  #app.app.sidebar-collapsed .session-search-meta {
+    display: none !important;
+  }
+
+  #app.app.sidebar-collapsed .new {
+    flex: 0 0 42px !important;
+    width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 !important;
+    border-radius: 14px !important;
+    text-align: center !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}
+
+@media (max-width: 720px) {
+  #app.app .topbar-app-icon {
+    display: none !important;
+  }
+
+  #app.app .brand-logo {
+    flex: 0 0 42px !important;
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 14px !important;
+  }
+
+  .empty-state-logo {
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 7px !important;
+  }
+}
