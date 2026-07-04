@@ -39,23 +39,27 @@ type AttachmentRecord struct {
 }
 
 type Session struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	Pinned    bool      `json:"pinned"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Messages  []Message `json:"messages"`
+	ID         string    `json:"id"`
+	Title      string    `json:"title"`
+	Pinned     bool      `json:"pinned"`
+	ProviderID string    `json:"provider_id,omitempty"`
+	Model      string    `json:"model,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+	Messages   []Message `json:"messages"`
 }
 
 type SessionSummary struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	Pinned    bool      `json:"pinned"`
-	Preview   string    `json:"preview,omitempty"`
-	LastRole  string    `json:"last_role,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Count     int       `json:"count"`
+	ID         string    `json:"id"`
+	Title      string    `json:"title"`
+	Pinned     bool      `json:"pinned"`
+	ProviderID string    `json:"provider_id,omitempty"`
+	Model      string    `json:"model,omitempty"`
+	Preview    string    `json:"preview,omitempty"`
+	LastRole   string    `json:"last_role,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+	Count      int       `json:"count"`
 }
 
 type RenameSessionRequest struct {
@@ -64,6 +68,12 @@ type RenameSessionRequest struct {
 
 type PinSessionRequest struct {
 	Pinned bool `json:"pinned"`
+}
+
+// UpdateSessionModelRequest 保存当前会话最后一次选择的模型。
+type UpdateSessionModelRequest struct {
+	ProviderID string `json:"provider_id,omitempty"`
+	Model      string `json:"model,omitempty"`
 }
 
 // EditMessageRequest 指定要就地修改的用户消息；保存后会截断该消息之后的上下文。

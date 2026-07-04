@@ -213,3 +213,50 @@ func TestSessionEditUserMessageTruncatesFollowingMessages(t *testing.T) {
 		t.Fatalf("unexpected edited message: %#v", edited.Messages[0])
 	}
 }
+
+func TestSessionModelAPI(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/api/sessions", bytes.NewReader([]byte(`{}`)))
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("create status %d: %s", w.Code, w.Body.String())
+	}
+	var session model.Session
+	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
+		t.Fatal(err)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/api/sessions/"+session.ID+"/model", bytes.NewReader([]byte(`{"provider_id":"provider-a","model":"model-x"}`)))
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("model status %d: %s", w.Code, w.Body.String())
+	}
+	var updated model.Session
+	if err := json.Unmarshal(w.Body.Bytes(), &updated); err != nil {
+		t.Fatal(err)
+	}
+	if updated.ProviderID != "provider-a" || updated.Model != "model-x" {
+		t.Fatalf("unexpected updated session: %#v", updated)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "/api/sessions/"+session.ID, nil)
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("get status %d: %s", w.Code, w.Body.String())
+	}
+	var loaded model.Session
+	if err := json.Unmarshal(w.Body.Bytes(), &loaded); err != nil {
+		t.Fatal(err)
+	}
+	if loaded.ProviderID != "provider-a" || loaded.Model != "model-x" {
+		t.Fatalf("session model should survive reload: %#v", loaded)
+	}
+}

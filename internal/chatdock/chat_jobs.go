@@ -28,6 +28,9 @@ func (a *App) startChatJob(input model.ChatRequest) (storepkg.ChatJob, *model.Se
 	if err != nil {
 		return storepkg.ChatJob{}, nil, err
 	}
+	if _, err := a.store.UpdateSessionModel(input.SessionID, cfg.ProviderID, cfg.Model); err != nil {
+		return storepkg.ChatJob{}, nil, err
+	}
 	job, err := a.store.CreateChatJob(input.SessionID)
 	if err != nil {
 		return storepkg.ChatJob{}, nil, err

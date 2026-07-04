@@ -5,7 +5,7 @@ import { SettingsPanel } from './components/settings.jsx';
 import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtDuration, fmtTime, normalizeSettingsModule, runStatusLabel, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
-import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessions, pinSession, renameSession, searchSessions } from './lib/sessionApi.js';
+import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessions, pinSession, renameSession, searchSessions, updateSessionModel } from './lib/sessionApi.js';
 import { createWorkspaceRecord, deleteScheduledTaskRecord, deleteSkillRecord, deleteWorkspaceRecord, fetchAgentTasks, fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchPrompts, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchRuns, fetchScheduledTasks, fetchSetupStatus, fetchSkills, fetchSystemStatus, fetchWorkspaces, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveSkillRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest } from './lib/settingsApi.js';
 import { uploadFileRequest } from './lib/upload.js';
 
@@ -45,6 +45,13 @@ function providerLabel(provider) {
 function compactModelName(name) {
   name = String(name || '').trim();
   return name.length > 22 ? name.slice(0, 21) + '…' : name;
+}
+
+function sessionModelChoice(session) {
+  return {
+    provider_id: String(session?.provider_id || '').trim(),
+    model: String(session?.model || '').trim(),
+  };
 }
 
 function ComposerModelPicker({ busy, providers, selectedProvider, selectedModel, open, setOpen, selectModel, openSettings }) {
@@ -429,6 +436,11 @@ export default function App() {
 
   const api = useMemo(() => createJsonApi({ authHeaders, onUnauthorized: setAuthPage }), [authHeaders]);
 
+  const applySessionModel = useCallback((session, { fallbackToDefault = true } = {}) => {
+    const next = sessionModelChoice(session);
+    if (fallbackToDefault || next.provider_id || next.model) setChatModel(next);
+  }, []);
+
   const loadPrompts = useCallback(async () => {
     const data = await fetchPrompts(api);
     setPrompts(data.prompts || []);
@@ -568,9 +580,10 @@ export default function App() {
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
     setPendingAttachments([]);
+    applySessionModel(s);
     await loadSessions();
     return true;
-  }, [api, loadSessions]);
+  }, [api, applySessionModel, loadSessions]);
 
   const refreshAfterLogin = useCallback(async () => {
     await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions()]);
@@ -613,6 +626,7 @@ export default function App() {
         setCurrent(null);
         setCurrentTitle('未选择会话');
         setMessages([]);
+        setChatModel({ provider_id: '', model: '' });
       }
     }
     window.addEventListener('popstate', onPopState);
@@ -754,6 +768,7 @@ export default function App() {
     setCurrentTitle('未选择会话');
     setMessages([{ role: 'empty', content: '已切换工作空间。创建或选择一个会话。' }]);
     setPendingAttachments([]);
+    setChatModel({ provider_id: '', model: '' });
     await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions()]);
     if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
     closeSidebarOnMobile();
@@ -765,10 +780,11 @@ export default function App() {
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
     setPendingAttachments([]);
+    applySessionModel(s, { fallbackToDefault: false });
     if (refreshList) await loadSessions();
     if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
     return s;
-  }, [api, loadSessions]);
+  }, [api, applySessionModel, loadSessions]);
 
   const createSession = useCallback(() => {
     if (busy) detachActiveStream();
@@ -779,6 +795,7 @@ export default function App() {
     setCurrentTitle('新会话');
     setMessages([]);
     setPendingAttachments([]);
+    setChatModel({ provider_id: '', model: '' });
     if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
     closeSidebarOnMobile();
     window.setTimeout(() => inputRef.current?.focus(), 0);
@@ -793,10 +810,11 @@ export default function App() {
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
     setPendingAttachments([]);
+    applySessionModel(s);
     await loadSessions();
     if (window.location.pathname !== sessionPath(id)) window.history.pushState({ chatdock: true }, '', sessionPath(id));
     closeSidebarOnMobile();
-  }, [api, busy, detachActiveStream, loadSessions, closeSidebarOnMobile]);
+  }, [api, applySessionModel, busy, detachActiveStream, loadSessions, closeSidebarOnMobile]);
 
   const newSession = useCallback(async () => { await createSession(); }, [createSession]);
 
@@ -842,6 +860,7 @@ export default function App() {
       setCurrentTitle('未选择会话');
       setMessages([]);
       setPendingAttachments([]);
+      setChatModel({ provider_id: '', model: '' });
       if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
     }
     await loadSessions();
@@ -881,13 +900,14 @@ export default function App() {
       setCurrent(s.id);
       setCurrentTitle(s.title || '会话副本');
       setMessages(s.messages || []);
+      applySessionModel(s);
       await loadSessions();
       if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
       showToast('会话已复制', 'success');
     } catch (e) {
       showToast('复制会话失败：' + e.message, 'error');
     }
-  }, [api, busy, current, loadSessions, showToast]);
+  }, [api, applySessionModel, busy, current, loadSessions, showToast]);
 
 
   const branchCurrent = useCallback(async (messageIndex = messages.length - 1) => {
@@ -898,6 +918,7 @@ export default function App() {
       setCurrentTitle(s.title || '分支对话');
       setMessages(s.messages || []);
       setPendingAttachments([]);
+      applySessionModel(s);
       await loadSessions();
       if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
       closeSidebarOnMobile();
@@ -905,7 +926,7 @@ export default function App() {
     } catch (e) {
       showToast('创建分支对话失败：' + e.message, 'error');
     }
-  }, [api, busy, closeSidebarOnMobile, current, loadSessions, messages.length, showToast]);
+  }, [api, applySessionModel, busy, closeSidebarOnMobile, current, loadSessions, messages.length, showToast]);
 
   const pinCurrent = useCallback(async () => {
     if (!current) return;
@@ -1091,10 +1112,19 @@ export default function App() {
   }, [activePrompt?.name, chatModel.model, chatModel.provider_id, config.model, providerChoices]);
 
   const selectChatModel = useCallback((provider, modelName) => {
-    setChatModel({ provider_id: provider.choice_id, model: modelName });
+    const next = { provider_id: provider.choice_id, model: modelName };
+    setChatModel(next);
     setModelPickerOpen(false);
     showToast('已切换模型：' + providerLabel(provider) + ' · ' + modelName, 'success');
-  }, [showToast]);
+    if (current) {
+      updateSessionModel(api, current, { providerID: next.provider_id, model: next.model })
+        .then(session => {
+          applySessionModel(session, { fallbackToDefault: false });
+          return loadSessions();
+        })
+        .catch(error => showToast('会话模型保存失败：' + error.message, 'error'));
+    }
+  }, [api, applySessionModel, current, loadSessions, showToast]);
 
   useEffect(() => {
     setInput(localStorage.getItem(draftKey) || '');

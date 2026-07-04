@@ -37,6 +37,10 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
+	if _, err := a.store.UpdateSessionModel(input.SessionID, cfg.ProviderID, cfg.Model); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
 
 	answer, err := a.completeWithOptionalTools(r.Context(), input.SessionID, cfg, history)
 	if err != nil {

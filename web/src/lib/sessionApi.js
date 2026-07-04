@@ -28,6 +28,10 @@ export function pinSession(api, id, pinned) {
   return api('/api/sessions/' + encodeURIComponent(id) + '/pin', {method:'POST', body: JSON.stringify({pinned})});
 }
 
+export function updateSessionModel(api, id, { providerID, model }) {
+  return api('/api/sessions/' + encodeURIComponent(id) + '/model', {method:'POST', body: JSON.stringify({provider_id: providerID || '', model: model || ''})});
+}
+
 export function cloneSession(api, id) {
   return api('/api/sessions/' + encodeURIComponent(id) + '/clone', {method:'POST', body:'{}'});
 }

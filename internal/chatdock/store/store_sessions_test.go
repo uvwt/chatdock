@@ -108,3 +108,32 @@ func TestStoreBranchSessionCutsAtMessageIndex(t *testing.T) {
 		t.Fatalf("branch should keep messages through index 1: %#v", branched.Messages)
 	}
 }
+
+func TestStoreUpdateSessionModelPersistsAndAppearsInSummary(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := store.CreateSession()
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, err := store.UpdateSessionModel(session.ID, " provider-a ", " model-x ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.ProviderID != "provider-a" || updated.Model != "model-x" {
+		t.Fatalf("unexpected model selection: %#v", updated)
+	}
+	loaded, ok := store.GetSession(session.ID)
+	if !ok {
+		t.Fatal("session missing")
+	}
+	if loaded.ProviderID != "provider-a" || loaded.Model != "model-x" {
+		t.Fatalf("model selection was not persisted in session: %#v", loaded)
+	}
+	summaries := store.ListSessions()
+	if len(summaries) != 1 || summaries[0].ProviderID != "provider-a" || summaries[0].Model != "model-x" {
+		t.Fatalf("model selection missing from summaries: %#v", summaries)
+	}
+}

@@ -20,14 +20,16 @@ func (s *Store) ListSessions() []model.SessionSummary {
 	for _, session := range s.sessions {
 		lastRole, preview := sessionPreview(session)
 		items = append(items, model.SessionSummary{
-			ID:        session.ID,
-			Title:     session.Title,
-			Pinned:    session.Pinned,
-			Preview:   preview,
-			LastRole:  lastRole,
-			CreatedAt: session.CreatedAt,
-			UpdatedAt: session.UpdatedAt,
-			Count:     len(session.Messages),
+			ID:         session.ID,
+			Title:      session.Title,
+			Pinned:     session.Pinned,
+			ProviderID: session.ProviderID,
+			Model:      session.Model,
+			Preview:    preview,
+			LastRole:   lastRole,
+			CreatedAt:  session.CreatedAt,
+			UpdatedAt:  session.UpdatedAt,
+			Count:      len(session.Messages),
 		})
 	}
 	sort.Slice(items, func(i, j int) bool {
@@ -65,6 +67,28 @@ func (s *Store) GetSession(id string) (*model.Session, bool) {
 		return nil, false
 	}
 	return cloneSession(session), true
+}
+
+func (s *Store) UpdateSessionModel(id string, providerID string, modelName string) (*model.Session, error) {
+	providerID = strings.TrimSpace(providerID)
+	modelName = strings.TrimSpace(modelName)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, ok := s.sessions[id]
+	if !ok {
+		return nil, model.ErrSessionNotFound
+	}
+	if session.ProviderID == providerID && session.Model == modelName {
+		return cloneSession(session), nil
+	}
+	session.ProviderID = providerID
+	session.Model = modelName
+	if err := s.saveSessionLocked(session); err != nil {
+		return nil, err
+	}
+	return cloneSession(session), nil
 }
 
 func branchTitle(title string) string {

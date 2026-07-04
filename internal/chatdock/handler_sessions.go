@@ -65,6 +65,11 @@ func (a *App) handleSessionRoute(w http.ResponseWriter, r *http.Request) {
 		a.handlePinSession(w, r)
 		return
 	}
+	if len(parts) == 2 && parts[1] == "model" && r.Method == http.MethodPost {
+		r.SetPathValue("id", id)
+		a.handleUpdateSessionModel(w, r)
+		return
+	}
 	if len(parts) == 2 && parts[1] == "clone" && r.Method == http.MethodPost {
 		r.SetPathValue("id", id)
 		a.handleCloneSession(w, r)
@@ -101,6 +106,24 @@ func (a *App) handlePinSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	session, err := a.store.PinSession(r.PathValue("id"), input.Pinned)
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, model.ErrSessionNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, session)
+}
+
+func (a *App) handleUpdateSessionModel(w http.ResponseWriter, r *http.Request) {
+	var input model.UpdateSessionModelRequest
+	if err := readJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	session, err := a.store.UpdateSessionModel(r.PathValue("id"), input.ProviderID, input.Model)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {
