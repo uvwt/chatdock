@@ -417,6 +417,35 @@ body.theme-light .session-actions-sheet { background: #ffffff; border-color: #e2
   gap: 14px;
 }
 
+.tool-event-primary {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid rgba(34, 197, 94, .24);
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(34, 197, 94, .16), rgba(59, 130, 246, .08));
+}
+
+.tool-event-primary span {
+  color: #86efac;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.tool-event-primary b {
+  color: #f8fafc;
+  font-size: 20px;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.tool-event-primary small {
+  color: #cbd5e1;
+  font-size: 12px;
+}
+
 .tool-event-summary {
   display: flex;
   align-items: flex-start;
@@ -442,6 +471,12 @@ body.theme-light .session-actions-sheet { background: #ffffff; border-color: #e2
   font-size: 16px;
   font-weight: 800;
   line-height: 1.35;
+}
+
+.tool-event-subheading {
+  margin-top: 5px;
+  color: #94a3b8;
+  font-size: 12px;
 }
 
 .tool-event-status {
@@ -531,6 +566,14 @@ body.theme-light .session-actions-sheet { background: #ffffff; border-color: #e2
   border-color: rgba(248, 113, 113, .28);
 }
 
+.tool-event-section.muted {
+  opacity: .72;
+}
+
+.tool-event-section.muted pre {
+  max-height: 140px;
+}
+
 .tool-event-section-title {
   padding: 10px 12px;
   border-bottom: 1px solid rgba(148, 163, 184, .13);
@@ -552,6 +595,7 @@ body.theme-light .session-actions-sheet { background: #ffffff; border-color: #e2
 }
 
 .theme-light .tool-event-summary,
+.theme-light .tool-event-primary,
 .theme-light .tool-event-metric,
 .theme-light .tool-event-rows {
   background: #f8fafc;
@@ -559,6 +603,7 @@ body.theme-light .session-actions-sheet { background: #ffffff; border-color: #e2
 }
 
 .theme-light .tool-event-heading,
+.theme-light .tool-event-primary b,
 .theme-light .tool-event-metric strong,
 .theme-light .tool-event-row b,
 .theme-light .tool-event-section pre {
@@ -566,9 +611,15 @@ body.theme-light .session-actions-sheet { background: #ffffff; border-color: #e2
 }
 
 .theme-light .tool-event-kicker,
+.theme-light .tool-event-primary small,
+.theme-light .tool-event-subheading,
 .theme-light .tool-event-metric span,
 .theme-light .tool-event-row {
   color: #64748b;
+}
+
+.theme-light .tool-event-primary span {
+  color: #15803d;
 }
 
 .theme-light .tool-event-status {

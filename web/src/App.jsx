@@ -205,11 +205,59 @@ function hasDialogValue(value) {
   return true;
 }
 
+function arrayValue(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function actualToolCall(details = {}, data = {}) {
+  const proxyTool = details.tool || data.tool || '';
+  const args = details.arguments ?? data.arguments ?? {};
+  const result = details.result ?? data.result;
+  if (proxyTool === 'chatdock_tool_execute') {
+    const resultObject = result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+    return {
+      proxyTool,
+      actualTool: args.name || resultObject.tool || '',
+      actualArguments: args.arguments ?? {},
+      actualResult: resultObject.result ?? result,
+      mode: 'execute',
+    };
+  }
+  if (proxyTool === 'chatdock_tools_describe') {
+    const names = arrayValue(args.names || result?.tools?.map?.(item => item?.name)).filter(Boolean);
+    return {
+      proxyTool,
+      actualTool: names.join('、'),
+      actualArguments: { names },
+      actualResult: result,
+      mode: 'describe',
+    };
+  }
+  if (proxyTool === 'chatdock_tools_search') {
+    const candidates = arrayValue(result?.tools).map(item => item?.name).filter(Boolean);
+    return {
+      proxyTool,
+      actualTool: candidates.slice(0, 5).join('、'),
+      actualArguments: args,
+      actualResult: candidates.length ? candidates : result,
+      mode: 'search',
+    };
+  }
+  return {
+    proxyTool: '',
+    actualTool: proxyTool,
+    actualArguments: args,
+    actualResult: result,
+    mode: 'direct',
+  };
+}
+
 function buildToolEventDetail(event) {
   const details = event?.details || {};
   const data = details.data && typeof details.data === 'object' ? details.data : {};
   const eventName = details.event || data.event || 'tool_event';
   const tool = details.tool || data.tool || '';
+  const actual = actualToolCall(details, data);
   const ok = typeof details.ok === 'boolean' ? details.ok : (typeof data.ok === 'boolean' ? data.ok : null);
   const failed = ok === false || /error|failed|cancelled/i.test(eventName) || details.error || data.error;
   const ready = /ready|resolved|finish|done/i.test(eventName) || ok === true;
@@ -221,23 +269,31 @@ function buildToolEventDetail(event) {
     { label: '耗时', value: duration ? fmtDuration(duration) : '' },
   ].filter(item => hasDialogValue(item.value));
   const rows = [
+    { label: '实际工具', value: actual.actualTool },
+    { label: '代理工具', value: actual.proxyTool && actual.proxyTool !== actual.actualTool ? actual.proxyTool : '' },
     { label: '事件类型', value: eventName },
-    { label: '工具名称', value: tool },
     { label: '服务', value: data.server || details.server },
     { label: '动作', value: data.action || details.action },
     { label: '状态', value: status },
   ].filter(item => hasDialogValue(item.value));
   const sections = [];
-  if (hasDialogValue(details.arguments ?? data.arguments)) sections.push({ title: '参数', value: details.arguments ?? data.arguments, emptyText: '无参数' });
-  if (hasDialogValue(details.result ?? data.result)) sections.push({ title: '响应', value: details.result ?? data.result, emptyText: '无响应' });
+  if (hasDialogValue(actual.actualArguments)) sections.push({ title: actual.mode === 'execute' ? '实际工具参数' : '参数', value: actual.actualArguments, emptyText: '无参数' });
+  if (hasDialogValue(actual.actualResult)) sections.push({ title: actual.mode === 'execute' ? '实际工具响应' : '响应', value: actual.actualResult, emptyText: '无响应' });
   if (hasDialogValue(details.error || data.error)) sections.push({ title: '错误', value: details.error || data.error, tone: 'danger' });
   if (hasDialogValue(data) && !sections.length) sections.push({ title: '事件数据', value: data });
-  sections.push({ title: '原始事件', value: details });
+  if (actual.proxyTool && actual.proxyTool !== actual.actualTool) sections.push({ title: '代理事件原始数据', value: details, collapsed: true });
+  else sections.push({ title: '原始事件', value: details, collapsed: true });
   return {
     event: eventName,
-    heading: event?.text || tool || '工具事件',
+    heading: actual.actualTool || event?.text || tool || '工具事件',
+    subheading: actual.proxyTool && actual.proxyTool !== actual.actualTool ? '通过 ' + actual.proxyTool + ' 代理执行' : '',
     status,
     statusTone: failed ? 'danger' : (ready ? 'success' : ''),
+    primary: actual.actualTool ? {
+      label: actual.mode === 'execute' ? '实际调用工具' : (actual.mode === 'search' ? '候选工具' : '工具'),
+      name: actual.actualTool,
+      hint: actual.proxyTool && actual.proxyTool !== actual.actualTool ? '代理：' + actual.proxyTool : '直接调用',
+    } : null,
     metrics,
     rows,
     sections,
