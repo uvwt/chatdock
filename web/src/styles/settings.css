@@ -2441,3 +2441,72 @@ body.theme-light .mcp-inline-warning.danger {
     color: #111827 !important;
   }
 }
+
+/* 2026-07-04 配置页模块导航浅绿修正：module-tab 本身是 button，必须压过全局主按钮规则。 */
+.settings-page .module-tabs {
+  border-color: #dfe9e3 !important;
+  background: #f7fbf8 !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .04) !important;
+}
+
+.settings-page .module-tabs .module-tab,
+.settings-page .module-tabs button.module-tab,
+.settings-page button.module-tab:not(.danger):not(.secondary) {
+  border: 1px solid #dfe9e3 !important;
+  background: #eef7f1 !important;
+  color: #1f2937 !important;
+  box-shadow: none !important;
+}
+
+.settings-page .module-tabs .module-tab::before,
+.settings-page .module-tabs button.module-tab::before {
+  background: #9fb7a7 !important;
+}
+
+.settings-page .module-tabs .module-tab:hover,
+.settings-page .module-tabs button.module-tab:hover,
+.settings-page button.module-tab:hover:not(:disabled) {
+  border-color: #cfe3d7 !important;
+  background: #e7f4eb !important;
+  color: #111827 !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.settings-page .module-tabs .module-tab.active,
+.settings-page .module-tabs button.module-tab.active,
+.settings-page button.module-tab.active:not(.danger):not(.secondary) {
+  border-color: #bdd8c5 !important;
+  background: #dff1e5 !important;
+  color: #0f172a !important;
+  box-shadow: inset 0 0 0 1px #c9e0d0 !important;
+}
+
+.settings-page .module-tabs .module-tab.active::before,
+.settings-page .module-tabs button.module-tab.active::before {
+  background: #4d7c61 !important;
+}
+
+@media (min-width: 1040px) {
+  .settings-page .module-tabs {
+    background: #f5faf6 !important;
+  }
+}
+
+@media (max-width: 1039px) {
+  .settings-page .module-tabs .module-tab,
+  .settings-page .module-tabs button.module-tab,
+  .settings-page button.module-tab:not(.danger):not(.secondary) {
+    border-color: #dfe9e3 !important;
+    background: #eef7f1 !important;
+    color: #1f2937 !important;
+  }
+
+  .settings-page .module-tabs .module-tab.active,
+  .settings-page .module-tabs button.module-tab.active,
+  .settings-page button.module-tab.active:not(.danger):not(.secondary) {
+    border-color: #bdd8c5 !important;
+    background: #dff1e5 !important;
+    color: #0f172a !important;
+  }
+}
