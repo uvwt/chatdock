@@ -1458,7 +1458,7 @@ export default function App() {
     {settingsOpen ? <div id="settingsPage" className="settings-page">{settingsPanel}</div> : <div id="app" className={appClass}>
       <aside>
         <div className="sidebar-head">
-          <div className="brand"><img className="brand-logo" src="/chatdock-icon.svg" alt="" aria-hidden="true" /><div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">本地优先的 AI 工作台</div></div></div>
+          <div className="brand"><span className="brand-logo">✦</span><div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">本地优先的 AI 工作台</div></div></div>
           <button id="sidebarToggle" className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}>{sidebarCollapsed ? '›' : '‹'}</button>
         </div>
         <div className="prompt-box">
@@ -1478,12 +1478,12 @@ export default function App() {
       </aside>
       <main>
         <div className="topbar">
-          <div className="top-left"><button className="mobile-menu" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>☰</button><img className="topbar-app-icon" src="/chatdock-icon.svg" alt="" aria-hidden="true" /><b id="title">{currentTitle}</b><span className={'status-pill ' + productStatusClass}>{productStatusText}</span></div>
+          <div className="top-left"><button className="mobile-menu" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>☰</button><b id="title">{currentTitle}</b><span className={'status-pill ' + productStatusClass}>{productStatusText}</span></div>
           <div className="top-actions">
-            <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)} title="快捷指令（⌘/Ctrl K）">快捷</button>
-            <button className="secondary config-toggle" onClick={() => openSettings()} title="配置中心">配置</button>
+            <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)} title="快捷指令（⌘/Ctrl K）"><span className="action-icon" aria-hidden="true">✦</span><span className="action-label">快捷</span></button>
+            <button className="secondary config-toggle" onClick={() => openSettings()} title="配置中心"><span className="action-icon" aria-hidden="true">⚙</span><span className="action-label">配置</span></button>
             <button className="secondary session-actions-toggle mobile-new-toggle" onClick={newSession} title="新会话">新会话</button>
-            <button className="theme-toggle" onClick={() => setThemeState(theme === 'day' ? 'night' : 'day')}>{theme === 'day' ? '白天' : '夜晚'}</button>
+            <button className="theme-toggle" onClick={() => setThemeState(theme === 'day' ? 'night' : 'day')}><span className="action-icon" aria-hidden="true">{theme === 'day' ? '☀' : '☾'}</span><span className="action-label">{theme === 'day' ? '白天' : '夜晚'}</span></button>
             <button className="secondary" onClick={renameCurrent} disabled={!current || busy}>重命名</button>
             <button className="secondary" onClick={copyCurrentMarkdown} disabled={!current}>复制全文</button>
             <button className="secondary" onClick={cloneCurrent} disabled={!current || busy}>复制会话</button>

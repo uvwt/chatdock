@@ -5,9 +5,9 @@ import { Markdown } from './base.jsx';
 
 function MessageActions({ text, onCopy, onBranch }) {
   return <div className="msg-actions">
-    <button type="button" className="secondary small msg-action-copy" onClick={() => onCopy(text)} aria-label="复制当前回复" title="复制当前回复">复制</button>
-    {onBranch ? <button type="button" className="secondary small msg-action-branch" onClick={onBranch} aria-label="在新聊天中创建分支对话" title="在新聊天中创建分支对话">分支</button> : null}
-    <button type="button" className="secondary small msg-action-more" aria-label="更多操作" title="更多操作">更多</button>
+    <button type="button" className="secondary small msg-action-copy" onClick={() => onCopy(text)} aria-label="复制当前回复" title="复制当前回复"><span className="msg-action-icon" aria-hidden="true">⧉</span><span className="msg-action-label">复制</span></button>
+    {onBranch ? <button type="button" className="secondary small msg-action-branch" onClick={onBranch} aria-label="在新聊天中创建分支对话" title="在新聊天中创建分支对话"><span className="msg-action-icon" aria-hidden="true">⑂</span><span className="msg-action-label">分支</span></button> : null}
+    <button type="button" className="secondary small msg-action-more" aria-label="更多操作" title="更多操作"><span className="msg-action-icon" aria-hidden="true">⋯</span><span className="msg-action-label">更多</span></button>
   </div>;
 }
 
@@ -99,7 +99,7 @@ export function EmptyState({ createSession, openSettings, openWorkspacePicker, b
   return <div className="empty-state product-empty-state">
     <section className="product-hero">
       <div className="hero-copy">
-        <div className="empty-state-kicker"><img className="empty-state-logo" src="/chatdock-icon.svg" alt="" aria-hidden="true" /> ChatDock 工作台</div>
+        <div className="empty-state-kicker"><span className="kicker-dot" /> ChatDock 工作台</div>
         <h1>今天想完成什么？</h1>
         <p>从一个会话开始，把模型配置、工具调用、任务记录和数据状态收在同一个工作流里。</p>
         <div className="empty-state-actions hero-actions">
