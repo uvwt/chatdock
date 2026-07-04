@@ -1027,9 +1027,10 @@ body.theme-light .empty-capability-strip i {
 .msg.assistant > .markdown,
 .msg.assistant > .answer,
 .msg.assistant .answer.markdown {
-  max-width: 760px !important;
+  max-width: 700px !important;
   color: var(--gpt-text) !important;
   font-size: 15.5px !important;
+  font-weight: 400 !important;
   line-height: 1.72 !important;
   letter-spacing: 0 !important;
   white-space: normal !important;
@@ -1101,7 +1102,7 @@ body.theme-light .empty-capability-strip i {
 .msg.assistant .markdown strong,
 .msg.assistant .answer strong {
   color: var(--gpt-text-strong) !important;
-  font-weight: 680 !important;
+  font-weight: 620 !important;
 }
 
 .msg.assistant.markdown h1,
@@ -1120,7 +1121,7 @@ body.theme-light .empty-capability-strip i {
   padding-top: 0 !important;
   border-top: 0 !important;
   color: var(--gpt-text-strong) !important;
-  font-weight: 700 !important;
+  font-weight: 640 !important;
   letter-spacing: -.012em !important;
 }
 
@@ -1145,6 +1146,7 @@ body.theme-light .empty-capability-strip i {
   border-radius: 6px !important;
   background: color-mix(in srgb, var(--gpt-surface) 82%, transparent) !important;
   color: var(--gpt-text-strong) !important;
+  font-weight: 400 !important;
   font-size: .9em !important;
 }
 
