@@ -363,10 +363,11 @@ function scheduledTaskRunsText(task, runs = []) {
   }
   runs.forEach((run, index) => {
     lines.push((index + 1) + '. ' + runStatusLabel(run.status) + ' · ' + fmtTime(run.started_at) + ' · ' + fmtDuration(run.duration_ms) + (run.manual ? ' · 手动' : ' · 自动'));
+    if (run.session_id) lines.push('会话：' + run.session_id);
     if (run.error) lines.push('错误：' + run.error);
     if (run.output) {
       lines.push('输出：');
-      lines.push(String(run.output).slice(0, 3000));
+      lines.push(String(run.output).slice(0, 1800));
     }
     lines.push('');
   });
@@ -1753,14 +1754,38 @@ export default function App() {
     showToast('任务已删除', 'success');
   }, [api, scheduledTasks, showDialog, showToast]);
 
+  const openScheduledTaskSession = useCallback(async (sessionID) => {
+    const id = String(sessionID || '').trim();
+    if (!id) return;
+    try {
+      await openSession(id);
+      closeSettings();
+    } catch (e) { showToast('打开运行会话失败：' + e.message, 'error'); }
+  }, [closeSettings, openSession, showToast]);
+
   const viewScheduledTaskRuns = useCallback(async (id) => {
     const existing = scheduledTasks.find(t => t.id === id);
     if (!existing) return;
     try {
-      const data = await fetchScheduledTaskRuns(api, id);
-      await showDialog({ title: '运行记录：' + (existing.title || '定时任务'), confirmText: '关闭', hideCancel: true, fields: [{ name: 'runs', label: '最近 30 次运行', type: 'textarea', rows: 18, value: scheduledTaskRunsText(existing, data.runs || []) }] });
+      const runs = data.runs || [];
+      const sessionRuns = runs.filter(run => run.session_id);
+      if (!runs.length) {
+        await showDialog({ title: '运行记录：' + (existing.title || '定时任务'), confirmText: '关闭', hideCancel: true, fields: [{ name: 'runs', label: '最近 30 次运行', type: 'textarea', rows: 8, value: scheduledTaskRunsText(existing, runs) }] });
+        return;
+      }
+      const values = await showDialog({
+        title: '运行记录：' + (existing.title || '定时任务'),
+        message: sessionRuns.length ? '选择一次运行并打开对应的普通聊天会话。' : '这些历史运行还没有关联会话；之后的新运行会自动生成可打开会话。',
+        confirmText: sessionRuns.length ? '打开选中会话' : '关闭',
+        hideCancel: !sessionRuns.length,
+        fields: [
+          ...(sessionRuns.length ? [{ name: 'session_id', label: '运行会话', type: 'select', value: sessionRuns[0].session_id, options: sessionRuns.map((run, index) => ({ value: run.session_id, label: (index + 1) + '. ' + runStatusLabel(run.status) + ' · ' + fmtTime(run.started_at) + ' · ' + (run.manual ? '手动' : '自动') })) }] : []),
+          { name: 'runs', label: '最近 30 次运行详情', type: 'textarea', rows: 14, value: scheduledTaskRunsText(existing, runs) },
+        ],
+      });
+      if (values?.session_id) await openScheduledTaskSession(values.session_id);
     } catch (e) { showToast('读取运行记录失败：' + e.message, 'error'); }
-  }, [api, scheduledTasks, showDialog, showToast]);
+  }, [api, openScheduledTaskSession, scheduledTasks, showDialog, showToast]);
 
   const runScheduledTaskNow = useCallback(async (id) => {
     const existing = scheduledTasks.find(t => t.id === id);
@@ -1773,15 +1798,11 @@ export default function App() {
       await loadSessions();
       await refreshProductState();
       if (result.session && result.session.id) {
-        setCurrent(result.session.id);
-        setCurrentTitle(result.session.title || '定时任务');
-        setMessages(result.session.messages || []);
-        if (window.location.pathname !== sessionPath(result.session.id)) window.history.pushState({ chatdock: true }, '', sessionPath(result.session.id));
-        closeSettings();
+        await openScheduledTaskSession(result.session.id);
       }
-      showToast(result.session ? '定时任务已运行，已打开连续会话' : '定时任务已运行，结果已写入运行记录', 'success');
+      showToast(result.session ? '定时任务已运行，已打开运行会话' : '定时任务已运行，结果已写入运行记录', 'success');
     } catch (e) { await loadScheduledTasks().catch(() => { }); showToast('运行失败：' + e.message, 'error'); }
-  }, [api, closeSettings, loadScheduledTasks, loadSessions, refreshProductState, scheduledTasks, showDialog, showToast]);
+  }, [api, loadScheduledTasks, loadSessions, openScheduledTaskSession, refreshProductState, scheduledTasks, showDialog, showToast]);
 
   const inspectToolEvent = useCallback(async (event) => {
     if (!event?.details) return;
@@ -1857,7 +1878,7 @@ export default function App() {
       editScheduledTask={editScheduledTask} editSkill={editSkill} loadAgentTasks={loadAgentTasks} loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig}
       loadMCPStatus={loadMCPStatus} loadRuns={loadRuns} loadScheduledTasks={loadScheduledTasks} loadSkills={loadSkills} loadSystemStatus={loadSystemStatus}
       mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers} promptPreview={promptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
-      runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} runSetupWizard={runSetupWizard} runs={runs} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
+      runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} openScheduledTaskSession={openScheduledTaskSession} runSetupWizard={runSetupWizard} runs={runs} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
       scheduledTasks={scheduledTasks} selectWorkspace={selectWorkspace} setConfig={setConfig} setMcpConfig={setMcpConfig} setTaskSearch={setTaskSearch}
       setupStatus={setupStatus} showPromptPreview={showPromptPreview} skillSearch={skillSearch} skills={skills} switchSettingsModule={switchSettingsModule}
       systemStatus={systemStatus} taskSearch={taskSearch} testMCP={testMCP} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} loadingModels={loadingModels} toggleScheduledTask={toggleScheduledTask}

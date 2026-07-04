@@ -46,12 +46,18 @@ func (s *Store) FinishScheduledTaskRun(promptName string, taskID string, runID s
 		finishedAt := time.Now()
 		answer = strings.TrimSpace(answer)
 		sessionID = strings.TrimSpace(sessionID)
-		if answer != "" && sessionID != "" {
+		if sessionID != "" {
 			session, ok := s.sessions[sessionID]
 			if !ok {
 				return model.ErrSessionNotFound
 			}
-			session.Messages = append(session.Messages, model.Message{Role: "assistant", Content: answer, CreatedAt: finishedAt})
+			assistantContent := answer
+			if runErr != nil {
+				assistantContent = "运行失败：" + strings.TrimSpace(runErr.Error())
+			} else if assistantContent == "" {
+				assistantContent = "模型没有返回内容。"
+			}
+			session.Messages = append(session.Messages, model.Message{ID: model.NewID(), Role: "assistant", Content: assistantContent, CreatedAt: finishedAt})
 			session.UpdatedAt = finishedAt
 			if err := s.saveSessionLocked(session); err != nil {
 				return err
@@ -76,11 +82,8 @@ func (s *Store) FinishScheduledTaskRun(promptName string, taskID string, runID s
 		task := tasks[index]
 		task.ContextMode = normalizeScheduledTaskContextMode(task.ContextMode)
 		task.Running = false
-		if task.ContextMode == model.ScheduledTaskContextSession {
-			task.SessionID = sessionID
-		} else {
-			task.SessionID = ""
-		}
+		// SessionID 总是记录最近一次运行会话；只有 session 模式会在下次运行时复用它。
+		task.SessionID = sessionID
 		task.LastRunAt = &startedAt
 		task.UpdatedAt = finishedAt
 		status := "success"
