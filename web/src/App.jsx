@@ -175,14 +175,6 @@ function appendToolStartEvent(message, event, data) {
 
 function mergeToolResultEvent(message, event, data) {
   const key = toolCallKey(data);
-  const nextEvent = {
-    kind: 'tool',
-    phase: data.ok ? 'done' : 'error',
-    callKey: key,
-    text: toolEventText('result', data),
-    meta: toolEventMeta(data),
-    details: { event, tool: data.tool || '', ok: !!data.ok, result: data.result, error: data.error || '', data },
-  };
   const events = [...(message.events || [])];
   const parts = [...(message.parts || [])];
   const hasArguments = Object.keys(data.arguments || {}).length > 0;
@@ -191,12 +183,39 @@ function mergeToolResultEvent(message, event, data) {
     if (item.callKey === key) return true;
     return !hasArguments && item.details?.tool === data.tool;
   };
+  const buildResultEvent = previousEvent => {
+    const previousDetails = previousEvent?.details || {};
+    const previousData = previousDetails.data && typeof previousDetails.data === 'object' ? previousDetails.data : {};
+    const mergedArguments = hasArguments ? data.arguments : (previousDetails.arguments || previousData.arguments || data.arguments || {});
+    const mergedData = { ...previousData, ...data };
+    if (hasDialogValue(mergedArguments)) mergedData.arguments = mergedArguments;
+    return {
+      kind: 'tool',
+      phase: data.ok ? 'done' : 'error',
+      callKey: previousEvent?.callKey || key,
+      text: toolEventText('result', data),
+      meta: toolEventMeta(mergedData),
+      details: {
+        ...previousDetails,
+        event,
+        tool: data.tool || previousDetails.tool || '',
+        ok: !!data.ok,
+        arguments: mergedArguments,
+        result: data.result,
+        error: data.error || '',
+        data: mergedData,
+      },
+    };
+  };
   const index = events.findLastIndex(sameRunningEvent);
-  if (index >= 0) events[index] = {...events[index], ...nextEvent, callKey: events[index].callKey || key};
+  const nextEvent = buildResultEvent(index >= 0 ? events[index] : null);
+  if (index >= 0) events[index] = {...events[index], ...nextEvent};
   else events.push(nextEvent);
   const partIndex = parts.findLastIndex(part => part.kind === 'tool' && sameRunningEvent(part.event || {}));
-  if (partIndex >= 0) parts[partIndex] = {...parts[partIndex], event: {...parts[partIndex].event, ...nextEvent, callKey: parts[partIndex].event?.callKey || key}};
-  else if (eventHasDisplayName(nextEvent)) parts.push({kind: 'tool', callKey: key, event: nextEvent});
+  if (partIndex >= 0) {
+    const mergedPartEvent = buildResultEvent(parts[partIndex].event || null);
+    parts[partIndex] = {...parts[partIndex], event: {...parts[partIndex].event, ...mergedPartEvent}};
+  } else if (eventHasDisplayName(nextEvent)) parts.push({kind: 'tool', callKey: nextEvent.callKey, event: nextEvent});
   return {...message, events, parts};
 }
 
