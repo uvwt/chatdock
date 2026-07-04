@@ -134,3 +134,36 @@ func TestSessionBranchAPI(t *testing.T) {
 		t.Fatalf("unexpected branched session: %#v", branched)
 	}
 }
+
+func TestSessionDeleteAPI(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/api/sessions", bytes.NewReader([]byte(`{}`)))
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("create status %d: %s", w.Code, w.Body.String())
+	}
+	var session model.Session
+	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
+		t.Fatal(err)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodDelete, "/api/sessions/"+session.ID, nil)
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("delete status %d: %s", w.Code, w.Body.String())
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "/api/sessions/"+session.ID, nil)
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("deleted session should be 404, got %d: %s", w.Code, w.Body.String())
+	}
+}

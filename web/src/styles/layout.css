@@ -549,3 +549,40 @@ body.theme-light .topbar {
 .top-actions .danger {
   border-radius: 999px !important;
 }
+
+/* 会话列表删除入口：点卡片打开，点右侧删除按钮才删除，避免误触。 */
+.session-main {
+  min-width: 0;
+  padding-right: 34px;
+}
+
+.session-delete {
+  position: absolute;
+  top: 9px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--gpt-muted-2);
+  opacity: 0;
+  transition: opacity .14s ease, background .14s ease, color .14s ease;
+}
+
+.session:hover .session-delete,
+.session:focus-within .session-delete {
+  opacity: 1;
+}
+
+.session-delete:hover:not(:disabled) {
+  background: rgba(239, 68, 68, .14);
+  color: #ef4444;
+}
+
+body.theme-light .session-delete:hover:not(:disabled) {
+  background: #fee2e2;
+  color: #b91c1c;
+}

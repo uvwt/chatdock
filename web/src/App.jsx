@@ -612,19 +612,33 @@ export default function App() {
     showToast('会话标题已保存', 'success');
   }, [api, current, currentTitle, loadSessions, showDialog, showToast]);
 
-  const deleteCurrent = useCallback(async () => {
-    if (!current) return;
-    const ok = await showDialog({title:'删除当前会话', message:'确定删除当前会话？此操作不可恢复。', confirmText:'删除', danger:true, type:'confirm'});
+  const deleteSessionByID = useCallback(async (id, title = '当前会话') => {
+    if (!id || busy) return;
+    const ok = await showDialog({
+      title:'删除会话',
+      message:'确定删除「' + (title || '未命名会话') + '」？此操作不可恢复。',
+      confirmText:'删除',
+      danger:true,
+      type:'confirm'
+    });
     if (!ok) return;
-    await deleteSession(api, current);
-    setCurrent(null);
-    setCurrentTitle('未选择会话');
-    setMessages([]);
-    setPendingAttachments([]);
-    if (window.location.pathname !== '/') window.history.pushState({chatdock:true}, '', '/');
+    await deleteSession(api, id);
+    // 如果删的是当前打开的会话，需要同步清空主界面和路由，避免 URL 指向已删除会话。
+    if (id === current) {
+      setCurrent(null);
+      setCurrentTitle('未选择会话');
+      setMessages([]);
+      setPendingAttachments([]);
+      if (window.location.pathname !== '/') window.history.pushState({chatdock:true}, '', '/');
+    }
     await loadSessions();
     showToast('会话已删除', 'success');
-  }, [api, current, loadSessions, showDialog, showToast]);
+  }, [api, busy, current, loadSessions, showDialog, showToast]);
+
+  const deleteCurrent = useCallback(async () => {
+    if (!current) return;
+    await deleteSessionByID(current, currentTitle || '当前会话');
+  }, [current, currentTitle, deleteSessionByID]);
 
   const exportCurrent = useCallback(async () => {
     if (!current) return;
@@ -1288,12 +1302,13 @@ export default function App() {
     {id:'copy-session', title:'复制当前会话全文', hint:'复制为 Markdown', disabled:!current, run:copyCurrentMarkdown},
     {id:'export-session', title:'导出当前会话', hint:'下载 Markdown 文件', disabled:!current, run:exportCurrent},
     {id:'context-preview', title:'查看上下文 / Token 预览', hint:'查看实际发送给模型的消息构成', disabled:!current, run:showContextPreview},
+    {id:'delete-session', title:'删除当前会话', hint:'删除后不可恢复', disabled:!current || busy, run:deleteCurrent},
     {id:'rename-session', title:'重命名当前会话', hint:'整理侧栏会话列表', disabled:!current || busy, run:renameCurrent},
     {id:'clone-session', title:'复制当前会话', hint:'保留上下文开一个副本', disabled:!current || busy, run:cloneCurrent},
     {id:'branch-session', title:'创建分支对话', hint:'在新聊天中从当前上下文继续', disabled:!current || busy || !messages.length, run:() => branchCurrent()},
     {id:'pin-session', title: currentPinned ? '取消置顶当前会话' : '置顶当前会话', hint:'让重要会话固定在列表顶部', disabled:!current, run:pinCurrent},
     {id:'theme', title:'切换明暗主题', hint:'当前：' + (theme === 'day' ? '白天' : '夜晚'), run:() => setThemeState(theme === 'day' ? 'night' : 'day')},
-  ], [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, exportCurrent, messages.length, openSettings, pinCurrent, productDiagnostics, prompts.length, renameCurrent, sendMsg, showContextPreview, theme]);
+  ], [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, messages.length, openSettings, pinCurrent, productDiagnostics, prompts.length, renameCurrent, sendMsg, showContextPreview, theme]);
 
   const settingsPanel = (
     <SettingsPanel
@@ -1344,7 +1359,7 @@ export default function App() {
           <button className="new" disabled={busy} onClick={newSession}><span className="new-symbol">+</span><span className="new-label">新会话</span></button>
         </div>
         {sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : '全文搜索 ' + filteredSessions.length + ' 条'}</div> : null}
-        <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => <div key={s.id} className={'session ' + (current === s.id ? 'active ' : '') + (s.pinned ? 'pinned' : '')} onClick={() => openSession(s.id)}><div className="session-title">{s.pinned ? <span className="pin-mark">置顶</span> : null}{s.title}</div>{s.match_snippet ? <div className="session-preview search-hit">{s.match_field ? s.match_field + '：' : ''}{s.match_snippet}</div> : (s.preview ? <div className="session-preview">{s.preview}</div> : null)}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div>) : <div className="empty compact">{sessionSearch.trim() ? '没有匹配会话' : '暂无会话，开始新会话'}</div>}</div>
+        <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => <div key={s.id} className={'session ' + (current === s.id ? 'active ' : '') + (s.pinned ? 'pinned' : '')} onClick={() => openSession(s.id)}><div className="session-main"><div className="session-title">{s.pinned ? <span className="pin-mark">置顶</span> : null}{s.title}</div>{s.match_snippet ? <div className="session-preview search-hit">{s.match_field ? s.match_field + '：' : ''}{s.match_snippet}</div> : (s.preview ? <div className="session-preview">{s.preview}</div> : null)}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div><button type="button" className="session-delete" disabled={busy} onClick={e => { e.stopPropagation(); deleteSessionByID(s.id, s.title); }} aria-label={'删除会话 ' + (s.title || '')} title="删除会话">×</button></div>) : <div className="empty compact">{sessionSearch.trim() ? '没有匹配会话' : '暂无会话，开始新会话'}</div>}</div>
       </aside>
       <main>
         <div className="topbar">

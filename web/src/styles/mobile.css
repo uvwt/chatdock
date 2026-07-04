@@ -1714,3 +1714,23 @@ aside,
     box-shadow: 0 16px 44px rgba(15, 23, 42, .16) !important;
   }
 }
+
+/* 手机侧栏会话删除按钮常驻可见，避免隐藏操作找不到。 */
+@media (max-width: 720px) {
+  aside .session-main {
+    padding-right: 34px !important;
+  }
+
+  aside .session-delete {
+    top: 50% !important;
+    right: 10px !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    transform: translateY(-50%);
+    background: #f8fafc !important;
+    color: #94a3b8 !important;
+    opacity: 1 !important;
+    font-size: 20px !important;
+  }
+}
