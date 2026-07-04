@@ -112,7 +112,7 @@ func (a *App) semanticToolScores(ctx context.Context, catalog toolCatalog, query
 	if err != nil || len(records) == 0 {
 		return nil
 	}
-	queryCtx, queryCancel := context.WithTimeout(ctx, 2*time.Second)
+	queryCtx, queryCancel := context.WithTimeout(ctx, 5*time.Second)
 	defer queryCancel()
 	queryVector, ok := a.cachedQueryEmbedding(queryCtx, cfg, query)
 	if !ok {

@@ -12,3 +12,10 @@ services:
     volumes:
       - ./data:/data
       - ./backups:/backups:ro
+    networks:
+      - default
+      - bge-m3_default
+
+networks:
+  bge-m3_default:
+    external: true
