@@ -167,3 +167,49 @@ func TestSessionDeleteAPI(t *testing.T) {
 		t.Fatalf("deleted session should be 404, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+func TestSessionEditUserMessageTruncatesFollowingMessages(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/api/sessions", bytes.NewReader([]byte(`{}`)))
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("create status %d: %s", w.Code, w.Body.String())
+	}
+	var session model.Session
+	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := app.store.AppendUserMessage(session.ID, "原始问题"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.store.AppendAssistantMessage(session.ID, "后续回答"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := app.store.AppendUserMessage(session.ID, "后续追问"); err != nil {
+		t.Fatal(err)
+	}
+
+	body := bytes.NewReader([]byte(`{"message_index":0,"content":"改后的问题"}`))
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/api/sessions/"+session.ID+"/messages", body)
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("edit status %d: %s", w.Code, w.Body.String())
+	}
+	var edited model.Session
+	if err := json.Unmarshal(w.Body.Bytes(), &edited); err != nil {
+		t.Fatal(err)
+	}
+	if len(edited.Messages) != 1 {
+		t.Fatalf("expected following messages truncated, got %d messages: %#v", len(edited.Messages), edited.Messages)
+	}
+	if edited.Messages[0].Role != "user" || edited.Messages[0].Content != "改后的问题" {
+		t.Fatalf("unexpected edited message: %#v", edited.Messages[0])
+	}
+}

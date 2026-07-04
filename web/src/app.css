@@ -2835,3 +2835,57 @@ body.theme-light #app.app #sessions .session.active::after {
     color: #aeb8c7 !important;
   }
 }
+
+
+/* 2026-07-04 用户消息就地编辑：编辑态复用气泡位置，保存会截断后续消息。 */
+#app.app .user-message-wrap.editing {
+  width: min(680px, 76%) !important;
+}
+
+#app.app .user-message-editor {
+  display: grid !important;
+  gap: 10px !important;
+  min-width: min(520px, 70vw) !important;
+}
+
+#app.app .user-message-editor textarea {
+  width: 100% !important;
+  min-height: 92px !important;
+  resize: vertical !important;
+  border: 0 !important;
+  outline: none !important;
+  background: transparent !important;
+  color: inherit !important;
+  font: inherit !important;
+  line-height: 1.55 !important;
+  white-space: pre-wrap !important;
+}
+
+#app.app .user-message-editor-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+}
+
+#app.app .user-message-editor-actions button {
+  min-height: 32px !important;
+  padding: 6px 12px !important;
+  border-radius: 10px !important;
+}
+
+#app.app .user-message-editor small {
+  color: #64748b !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+  text-align: right !important;
+}
+
+@media (max-width: 720px) {
+  #app.app .user-message-wrap.editing {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  #app.app .user-message-editor {
+    min-width: 0 !important;
+  }
+}

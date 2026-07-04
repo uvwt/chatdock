@@ -5,7 +5,7 @@ import { SettingsPanel } from './components/settings.jsx';
 import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtDuration, fmtTime, normalizeSettingsModule, runStatusLabel, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
-import { branchSession, cloneSession, createSessionRecord, deleteSession, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessions, pinSession, renameSession, searchSessions } from './lib/sessionApi.js';
+import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessions, pinSession, renameSession, searchSessions } from './lib/sessionApi.js';
 import { createWorkspaceRecord, deleteScheduledTaskRecord, deleteSkillRecord, deleteWorkspaceRecord, fetchAgentTasks, fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchPrompts, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchRuns, fetchScheduledTasks, fetchSetupStatus, fetchSkills, fetchSystemStatus, fetchWorkspaces, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveSkillRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest } from './lib/settingsApi.js';
 import { uploadFileRequest } from './lib/upload.js';
 
@@ -333,11 +333,7 @@ export default function App() {
   }), []);
 
 
-  const editUserMessage = useCallback((text) => {
-    setInput(String(text || ''));
-    requestAnimationFrame(() => inputRef.current?.focus());
-    showToast('已放入输入框，可修改后重新发送', 'success');
-  }, [showToast]);
+
 
   const copyText = useCallback(async (text) => {
     const value = String(text || '').trim();
@@ -399,6 +395,19 @@ export default function App() {
     const list = await fetchSessions(api);
     setSessions(list || []);
   }, [api]);
+
+  const editUserMessage = useCallback(async ({messageIndex, messageID, content}) => {
+    if (!current) return;
+    try {
+      const next = await editSessionMessage(api, current, {messageIndex, messageID, content});
+      setMessages(next.messages || []);
+      await loadSessions();
+      showToast('已替换该消息，并删除其后的所有消息', 'success');
+    } catch (error) {
+      showToast('编辑失败：' + error.message, 'error');
+      throw error;
+    }
+  }, [api, current, loadSessions, showToast]);
 
   useEffect(() => {
     const q = sessionSearch.trim();

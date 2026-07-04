@@ -36,6 +36,10 @@ export function branchSession(api, id, messageIndex) {
   return api('/api/sessions/' + encodeURIComponent(id) + '/branch', {method:'POST', body: JSON.stringify({message_index: messageIndex})});
 }
 
+export function editSessionMessage(api, id, {messageIndex, messageID, content}) {
+  return api('/api/sessions/' + encodeURIComponent(id) + '/messages', {method:'POST', body: JSON.stringify({message_index: messageIndex, message_id: messageID || '', content})});
+}
+
 export function deleteSession(api, id) {
   return api('/api/sessions/' + encodeURIComponent(id), {method:'DELETE'});
 }

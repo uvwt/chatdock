@@ -76,6 +76,11 @@ func (a *App) handleSessionRoute(w http.ResponseWriter, r *http.Request) {
 		a.handleBranchSession(w, r)
 		return
 	}
+	if len(parts) == 2 && parts[1] == "messages" && r.Method == http.MethodPost {
+		r.SetPathValue("id", id)
+		a.handleEditMessage(w, r)
+		return
+	}
 	if len(parts) == 2 && parts[1] == "export" && r.Method == http.MethodGet {
 		r.SetPathValue("id", id)
 		a.handleExportSession(w, r)
@@ -145,6 +150,24 @@ func (a *App) handleBranchSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	session, err := a.store.BranchSession(r.PathValue("id"), input.MessageIndex)
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, model.ErrSessionNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, session)
+}
+
+func (a *App) handleEditMessage(w http.ResponseWriter, r *http.Request) {
+	var input model.EditMessageRequest
+	if err := readJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	session, err := a.store.EditUserMessageAndTruncate(r.PathValue("id"), input.MessageID, input.MessageIndex, input.Content)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {

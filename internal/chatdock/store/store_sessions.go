@@ -140,6 +140,48 @@ func (s *Store) BranchSession(id string, messageIndex *int) (*model.Session, err
 	return cloneSession(branch), nil
 }
 
+func (s *Store) EditUserMessageAndTruncate(id string, messageID string, messageIndex *int, content string) (*model.Session, error) {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return nil, fmt.Errorf("message is empty")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	session, ok := s.sessions[id]
+	if !ok {
+		return nil, model.ErrSessionNotFound
+	}
+	index := -1
+	messageID = strings.TrimSpace(messageID)
+	if messageID != "" {
+		for i := range session.Messages {
+			if session.Messages[i].ID == messageID {
+				index = i
+				break
+			}
+		}
+	}
+	if index < 0 && messageIndex != nil {
+		index = *messageIndex
+	}
+	if index < 0 || index >= len(session.Messages) {
+		return nil, fmt.Errorf("message index out of range")
+	}
+	if strings.TrimSpace(session.Messages[index].Role) != "user" {
+		return nil, fmt.Errorf("only user messages can be edited")
+	}
+	session.Messages[index].Content = content
+	session.Messages = cloneMessages(session.Messages[:index+1])
+	session.UpdatedAt = time.Now()
+	if index == 0 {
+		session.Title = makeTitle(content)
+	}
+	if err := s.saveSessionLocked(session); err != nil {
+		return nil, err
+	}
+	return cloneSession(session), nil
+}
+
 func (s *Store) DeleteSession(id string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
