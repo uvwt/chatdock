@@ -1003,24 +1003,18 @@ body.theme-light .empty-capability-strip i {
   font-size: 11px;
 }
 
-/* Assistant message prose: compact, readable, and stable across Markdown formats. */
+/* Assistant message prose: clean ChatGPT-like text, no card frame. */
 .msg.assistant,
 .msg.assistant.markdown {
   box-sizing: border-box !important;
-  max-width: min(820px, calc(100% - 48px)) !important;
-  padding: 16px 18px !important;
-  border: 1px solid color-mix(in srgb, var(--gpt-border) 76%, transparent) !important;
-  border-radius: 20px !important;
-  background: color-mix(in srgb, var(--gpt-surface) 92%, var(--gpt-main)) !important;
+  max-width: var(--gpt-chat-width) !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
   color: var(--gpt-text) !important;
-  box-shadow: 0 12px 34px rgba(15, 23, 42, .045) !important;
+  box-shadow: none !important;
   white-space: normal !important;
-}
-
-body:not(.theme-light) .msg.assistant,
-body:not(.theme-light) .msg.assistant.markdown {
-  background: color-mix(in srgb, var(--gpt-surface) 86%, var(--gpt-main)) !important;
-  box-shadow: 0 16px 42px rgba(0, 0, 0, .16) !important;
 }
 
 .msg.assistant::before,
@@ -1033,10 +1027,10 @@ body:not(.theme-light) .msg.assistant.markdown {
 .msg.assistant > .markdown,
 .msg.assistant > .answer,
 .msg.assistant .answer.markdown {
-  max-width: none !important;
+  max-width: 760px !important;
   color: var(--gpt-text) !important;
   font-size: 15.5px !important;
-  line-height: 1.62 !important;
+  line-height: 1.66 !important;
   letter-spacing: 0 !important;
   white-space: normal !important;
 }
@@ -1056,7 +1050,7 @@ body:not(.theme-light) .msg.assistant.markdown {
 .msg.assistant.markdown p,
 .msg.assistant .markdown p,
 .msg.assistant .answer p {
-  margin: 0 0 9px !important;
+  margin: 0 0 10px !important;
 }
 
 .msg.assistant.markdown p:empty,
@@ -1071,22 +1065,22 @@ body:not(.theme-light) .msg.assistant.markdown {
 .msg.assistant .markdown ol,
 .msg.assistant .answer ul,
 .msg.assistant .answer ol {
-  margin: 6px 0 11px !important;
-  padding-left: 1.15rem !important;
+  margin: 7px 0 12px !important;
+  padding-left: 1.35rem !important;
 }
 
 .msg.assistant.markdown li,
 .msg.assistant .markdown li,
 .msg.assistant .answer li {
-  margin: 3px 0 !important;
-  padding-left: .2rem !important;
+  margin: 4px 0 !important;
+  padding-left: .15rem !important;
 }
 
 .msg.assistant.markdown li::marker,
 .msg.assistant .markdown li::marker,
 .msg.assistant .answer li::marker {
   color: var(--gpt-muted-2);
-  font-size: .84em;
+  font-size: .86em;
 }
 
 .msg.assistant.markdown li > p,
@@ -1122,7 +1116,7 @@ body:not(.theme-light) .msg.assistant.markdown {
 .msg.assistant .answer h2,
 .msg.assistant .answer h3,
 .msg.assistant .answer h4 {
-  margin: 15px 0 7px !important;
+  margin: 16px 0 8px !important;
   padding-top: 0 !important;
   border-top: 0 !important;
   color: var(--gpt-text-strong) !important;
@@ -1157,9 +1151,9 @@ body:not(.theme-light) .msg.assistant.markdown {
 .msg.assistant.markdown pre,
 .msg.assistant .markdown pre,
 .msg.assistant .answer pre {
-  margin: 10px 0 12px !important;
+  margin: 11px 0 13px !important;
   padding: 12px 14px !important;
-  border-radius: 14px !important;
+  border-radius: 12px !important;
   background: #0f172a !important;
   border-color: color-mix(in srgb, var(--gpt-border) 82%, transparent) !important;
 }
@@ -1176,20 +1170,20 @@ body:not(.theme-light) .msg.assistant.markdown {
 .msg.assistant.markdown blockquote,
 .msg.assistant .markdown blockquote,
 .msg.assistant .answer blockquote {
-  margin: 9px 0 11px !important;
-  padding: 8px 12px !important;
-  border-left: 3px solid color-mix(in srgb, var(--primary) 78%, var(--gpt-border)) !important;
-  border-radius: 0 10px 10px 0 !important;
-  background: color-mix(in srgb, var(--gpt-surface) 58%, transparent) !important;
+  margin: 10px 0 12px !important;
+  padding: 6px 0 6px 13px !important;
+  border-left: 3px solid color-mix(in srgb, var(--primary) 72%, var(--gpt-border)) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
   color: var(--gpt-muted) !important;
 }
 
 .msg.assistant.markdown .table-wrap,
 .msg.assistant .markdown .table-wrap,
 .msg.assistant .answer .table-wrap {
-  margin: 10px 0 13px !important;
+  margin: 11px 0 14px !important;
   border-radius: 12px !important;
-  background: var(--gpt-surface) !important;
+  background: transparent !important;
 }
 
 .msg.assistant.markdown th,
@@ -1204,22 +1198,25 @@ body:not(.theme-light) .msg.assistant.markdown {
 
 .msg.assistant .reasoning {
   margin-bottom: 12px !important;
-  background: color-mix(in srgb, var(--gpt-main) 58%, transparent) !important;
 }
 
 @media (max-width: 720px) {
   .msg.assistant,
   .msg.assistant.markdown {
     max-width: none !important;
-    padding: 14px !important;
-    border-radius: 18px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
   .msg.assistant.markdown,
   .msg.assistant > .markdown,
   .msg.assistant > .answer,
   .msg.assistant .answer.markdown {
+    max-width: none !important;
     font-size: 15px !important;
-    line-height: 1.58 !important;
+    line-height: 1.62 !important;
   }
 }
