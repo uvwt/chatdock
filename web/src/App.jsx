@@ -88,6 +88,52 @@ function safeJSONStringify(value) {
   catch { return String(value || ''); }
 }
 
+function hasDialogValue(value) {
+  if (value == null || value === '') return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') return Object.keys(value).length > 0;
+  return true;
+}
+
+function buildToolEventDetail(event) {
+  const details = event?.details || {};
+  const data = details.data && typeof details.data === 'object' ? details.data : {};
+  const eventName = details.event || data.event || 'tool_event';
+  const tool = details.tool || data.tool || '';
+  const ok = typeof details.ok === 'boolean' ? details.ok : (typeof data.ok === 'boolean' ? data.ok : null);
+  const failed = ok === false || /error|failed|cancelled/i.test(eventName) || details.error || data.error;
+  const ready = /ready|resolved|finish|done/i.test(eventName) || ok === true;
+  const status = failed ? '失败' : (ready ? '完成' : '事件');
+  const duration = details.duration_ms || data.duration_ms;
+  const metrics = [
+    {label:'工具总数', value:data.tool_count ?? details.tool_count},
+    {label:'内置工具', value:data.builtin_tool_count ?? details.builtin_tool_count},
+    {label:'耗时', value:duration ? fmtDuration(duration) : ''},
+  ].filter(item => hasDialogValue(item.value));
+  const rows = [
+    {label:'事件类型', value:eventName},
+    {label:'工具名称', value:tool},
+    {label:'服务', value:data.server || details.server},
+    {label:'动作', value:data.action || details.action},
+    {label:'状态', value:status},
+  ].filter(item => hasDialogValue(item.value));
+  const sections = [];
+  if (hasDialogValue(details.arguments ?? data.arguments)) sections.push({title:'参数', value:details.arguments ?? data.arguments, emptyText:'无参数'});
+  if (hasDialogValue(details.result ?? data.result)) sections.push({title:'响应', value:details.result ?? data.result, emptyText:'无响应'});
+  if (hasDialogValue(details.error || data.error)) sections.push({title:'错误', value:details.error || data.error, tone:'danger'});
+  if (hasDialogValue(data) && !sections.length) sections.push({title:'事件数据', value:data});
+  sections.push({title:'原始事件', value:details});
+  return {
+    event:eventName,
+    heading:event?.text || tool || '工具事件',
+    status,
+    statusTone:failed ? 'danger' : (ready ? 'success' : ''),
+    metrics,
+    rows,
+    sections,
+  };
+}
+
 function contextPreviewText(data) {
   const lines = [];
   lines.push('工作空间：' + (data.workspace || '-'));
@@ -1262,9 +1308,7 @@ export default function App() {
 
   const inspectToolEvent = useCallback(async (event) => {
     if (!event?.details) return;
-    const title = event.text || '工具事件详情';
-    const body = safeJSONStringify(event.details);
-    await showDialog({title:'工具事件详情', message:title, confirmText:'关闭', hideCancel:true, fields:[{name:'details', label:'参数、响应与原始事件', type:'textarea', rows:18, value:body}]});
+    await showDialog({title:'工具事件详情', confirmText:'关闭', hideCancel:true, variant:'tool-event-modal', toolEventDetail:buildToolEventDetail(event)});
   }, [showDialog]);
 
   const showContextPreview = useCallback(async () => {

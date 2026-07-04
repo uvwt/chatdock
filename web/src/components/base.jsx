@@ -150,10 +150,41 @@ export function DialogHost({ dialog, closeDialog }) {
     <div className={'app-modal-card ' + (dialog.variant || '')} role="dialog" aria-modal="true"><form className="app-modal-form" onSubmit={submit}>
       <div className="app-modal-title">{dialog.title || '确认'}</div>
       {dialog.message ? <div className="app-modal-message">{dialog.message}</div> : null}
+      {dialog.toolEventDetail ? <ToolEventDetail detail={dialog.toolEventDetail} /> : null}
       <div className="app-modal-fields">{visibleFields.map(field => <label key={field.name} className="app-modal-field"><span>{field.label || field.name}</span>{renderDialogField(field, values[field.name] ?? '', value => setValues(v => ({...v, [field.name]: value})))}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</label>)}</div>
       <div className="app-modal-actions">{dialog.hideCancel ? null : <button type="button" className="secondary app-modal-cancel" onClick={() => closeDialog(null)}>{dialog.cancelText || '取消'}</button>}<button type="submit" className={dialog.danger ? 'danger' : ''}>{dialog.confirmText || '确定'}</button></div>
     </form></div>
   </div>;
+}
+
+
+function ToolEventDetail({ detail }) {
+  if (!detail) return null;
+  const metrics = Array.isArray(detail.metrics) ? detail.metrics.filter(item => item?.value != null && item.value !== '') : [];
+  const rows = Array.isArray(detail.rows) ? detail.rows.filter(item => item?.value != null && item.value !== '') : [];
+  const sections = Array.isArray(detail.sections) ? detail.sections : [];
+  return <div className="tool-event-detail">
+    <div className="tool-event-summary">
+      <div>
+        <div className="tool-event-kicker">{detail.event || 'tool event'}</div>
+        <div className="tool-event-heading">{detail.heading || '工具事件'}</div>
+      </div>
+      {detail.status ? <span className={'tool-event-status ' + (detail.statusTone || '')}>{detail.status}</span> : null}
+    </div>
+    {metrics.length ? <div className="tool-event-metrics">{metrics.map(item => <div key={item.label} className="tool-event-metric"><strong>{item.value}</strong><span>{item.label}</span></div>)}</div> : null}
+    {rows.length ? <div className="tool-event-rows">{rows.map(item => <div key={item.label} className="tool-event-row"><span>{item.label}</span><b>{String(item.value)}</b></div>)}</div> : null}
+    <div className="tool-event-sections">{sections.map(section => <section key={section.title} className={'tool-event-section ' + (section.tone || '')}>
+      <div className="tool-event-section-title">{section.title}</div>
+      <pre>{formatDialogValue(section.value, section.emptyText)}</pre>
+    </section>)}</div>
+  </div>;
+}
+
+function formatDialogValue(value, emptyText = '无') {
+  if (value == null || value === '') return emptyText;
+  if (typeof value === 'string') return value;
+  try { return JSON.stringify(value, null, 2); }
+  catch { return String(value); }
 }
 
 function renderDialogField(field, value, setValue) {
