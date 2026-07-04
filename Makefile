@@ -1,7 +1,7 @@
 APP := chatdock
 WEB_DIR := web
 
-.PHONY: run build web-deps web-build js-check test vet fmt fmt-check check clean
+.PHONY: run build web-deps web-build web-dev js-check test vet fmt fmt-check check clean
 
 run: web-build
 	go run ./cmd/chatdock
@@ -21,6 +21,9 @@ web-deps:
 
 web-build: web-deps
 	npm --prefix $(WEB_DIR) run build
+
+web-dev: web-deps
+	npm --prefix $(WEB_DIR) run dev
 
 js-check: web-deps
 	node --check $(WEB_DIR)/vite.config.js
