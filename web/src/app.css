@@ -363,8 +363,87 @@
   }
 }
 
+/* 2026-07-04 操作按钮图标：消息操作区与手机端一致，放在消息下方且只露出图标。 */
+#app.app .msg-actions {
+  position: static !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 14px !important;
+  margin: 10px 0 0 !important;
+  padding: 0 !important;
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+}
 
-/* 2026-07-04 图标修正：图标属于操作按钮，不是应用 logo。 */
+#app.app .msg.assistant .msg-actions,
+#app.app .msg.assistant.markdown .msg-actions,
+#app.app .msg.user .msg-actions,
+#app.app .msg.system .msg-actions {
+  right: auto !important;
+  top: auto !important;
+}
+
+#app.app .msg-actions button {
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--gpt-muted) !important;
+  font-size: 0 !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#app.app .msg-actions button:hover:not(:disabled) {
+  background: var(--gpt-sidebar-hover) !important;
+  color: var(--gpt-text) !important;
+}
+
+#app.app .msg-actions button::before {
+  content: none !important;
+  display: none !important;
+}
+
+#app.app .msg-action-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 22px !important;
+  height: 22px !important;
+  color: currentColor !important;
+  font-size: 21px !important;
+  line-height: 1 !important;
+  transform: none !important;
+}
+
+#app.app .msg-action-copy .msg-action-icon {
+  font-size: 21px !important;
+}
+
+#app.app .msg-action-branch .msg-action-icon {
+  font-size: 21px !important;
+  transform: translateY(-1px) !important;
+}
+
+#app.app .msg-action-more .msg-action-icon {
+  font-size: 28px !important;
+  transform: translateY(-3px) !important;
+}
+
+#app.app .msg-action-label {
+  display: none !important;
+}
+
+/* 顶部按钮保留图标+文字，避免和消息操作按钮混淆。 */
 @media (min-width: 721px) {
   #app.app .top-actions .quick-palette-toggle,
   #app.app .top-actions .config-toggle,
@@ -391,38 +470,6 @@
   #app.app .top-actions .action-label {
     display: inline-block !important;
     font-size: 13px !important;
-    font-weight: 700 !important;
-    line-height: 1 !important;
-  }
-
-  #app.app .msg-actions button {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 5px !important;
-    min-height: 30px !important;
-    padding: 5px 9px !important;
-  }
-
-  #app.app .msg-action-icon {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 15px !important;
-    height: 15px !important;
-    font-size: 14px !important;
-    line-height: 1 !important;
-    color: currentColor !important;
-  }
-
-  #app.app .msg-action-more .msg-action-icon {
-    font-size: 18px !important;
-    transform: translateY(-2px) !important;
-  }
-
-  #app.app .msg-action-label {
-    display: inline-block !important;
-    font-size: 12px !important;
     font-weight: 700 !important;
     line-height: 1 !important;
   }
