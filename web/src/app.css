@@ -3277,3 +3277,45 @@ body.theme-light #app.app #sessions .session.active::after {
 #app.app.sidebar-collapsed .sidebar-tasks {
   display: none !important;
 }
+
+/* 2026-07-05 修复侧栏会话列表无法下滑：此前会话菜单层级修复把 #sessions 改成 overflow: visible，覆盖了滚动容器。 */
+#app.app #sessions {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: thin !important;
+}
+
+#app.app #sessions::-webkit-scrollbar {
+  display: block !important;
+  width: 6px !important;
+}
+
+#app.app #sessions::-webkit-scrollbar-thumb {
+  border-radius: 999px !important;
+  background: rgba(148, 163, 184, .38) !important;
+}
+
+#app.app #sessions .session.menu-open {
+  margin-bottom: 116px !important;
+}
+
+#app.app .sidebar-tasks {
+  flex: 0 0 auto !important;
+  max-height: min(30dvh, 190px) !important;
+  overflow: hidden !important;
+}
+
+#app.app .sidebar-task-list {
+  max-height: 150px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-right: 2px !important;
+}
