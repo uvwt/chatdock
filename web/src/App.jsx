@@ -227,19 +227,24 @@ function actualToolCall(details = {}, data = {}) {
     const names = arrayValue(args.names || result?.tools?.map?.(item => item?.name)).filter(Boolean);
     return {
       proxyTool,
-      actualTool: names.join('、'),
+      actualTool: names.length === 1 ? names[0] : (names.length ? names.length + ' 个工具说明' : ''),
       actualArguments: { names },
       actualResult: result,
+      names,
       mode: 'describe',
     };
   }
   if (proxyTool === 'chatdock_tools_search') {
-    const candidates = arrayValue(result?.tools).map(item => item?.name).filter(Boolean);
+    const candidates = arrayValue(result?.tools).map(item => item?.name || item?.full_name || item).filter(Boolean);
+    const count = Number(data.count ?? result?.count ?? candidates.length) || candidates.length;
     return {
       proxyTool,
-      actualTool: candidates.slice(0, 5).join('、'),
+      actualTool: count ? count + ' 个候选工具' : '工具搜索',
       actualArguments: args,
-      actualResult: candidates.length ? candidates : result,
+      actualResult: result,
+      candidates,
+      candidateCount: count,
+      query: args.query || result?.query || data.query || '',
       mode: 'search',
     };
   }
@@ -263,36 +268,48 @@ function buildToolEventDetail(event) {
   const ready = /ready|resolved|finish|done/i.test(eventName) || ok === true;
   const status = failed ? '失败' : (ready ? '完成' : '事件');
   const duration = details.duration_ms || data.duration_ms;
+  const heading = actual.mode === 'search'
+    ? (actual.candidateCount ? '找到 ' + actual.candidateCount + ' 个候选工具' : '工具搜索')
+    : (actual.mode === 'describe'
+      ? (actual.names?.length ? '查看 ' + actual.names.length + ' 个工具说明' : '工具说明')
+      : (actual.actualTool || event?.text || tool || '工具事件'));
+  const subheading = [
+    actual.query ? '关键词：' + actual.query : '',
+    actual.proxyTool && actual.proxyTool !== actual.actualTool ? '代理：' + actual.proxyTool : '',
+  ].filter(Boolean).join(' · ');
   const metrics = [
+    actual.mode === 'search' ? { label: '候选', value: actual.candidateCount || actual.candidates?.length || '' } : null,
     { label: '工具总数', value: data.tool_count ?? details.tool_count },
     { label: '内置工具', value: data.builtin_tool_count ?? details.builtin_tool_count },
     { label: '耗时', value: duration ? fmtDuration(duration) : '' },
-  ].filter(item => hasDialogValue(item.value));
+  ].filter(item => item && hasDialogValue(item.value));
   const rows = [
-    { label: '实际工具', value: actual.actualTool },
-    { label: '代理工具', value: actual.proxyTool && actual.proxyTool !== actual.actualTool ? actual.proxyTool : '' },
     { label: '事件类型', value: eventName },
+    { label: '状态', value: status },
+    actual.proxyTool ? { label: '代理工具', value: actual.proxyTool } : null,
+    actual.query ? { label: '搜索关键词', value: actual.query } : null,
     { label: '服务', value: data.server || details.server },
     { label: '动作', value: data.action || details.action },
-    { label: '状态', value: status },
-  ].filter(item => hasDialogValue(item.value));
+  ].filter(item => item && hasDialogValue(item.value));
   const sections = [];
-  if (hasDialogValue(actual.actualArguments)) sections.push({ title: actual.mode === 'execute' ? '实际工具参数' : '参数', value: actual.actualArguments, emptyText: '无参数' });
-  if (hasDialogValue(actual.actualResult)) sections.push({ title: actual.mode === 'execute' ? '实际工具响应' : '响应', value: actual.actualResult, emptyText: '无响应' });
+  if (actual.mode === 'search' && actual.candidates?.length) {
+    sections.push({ title: '候选工具', value: actual.candidates, display: 'tools', emptyText: '没有候选工具' });
+  }
   if (hasDialogValue(details.error || data.error)) sections.push({ title: '错误', value: details.error || data.error, tone: 'danger' });
+  if (hasDialogValue(actual.actualArguments)) sections.push({ title: actual.mode === 'execute' ? '参数' : '请求参数', value: actual.actualArguments, emptyText: '无参数', collapsed: actual.mode !== 'execute' });
+  if (hasDialogValue(actual.actualResult)) sections.push({ title: actual.mode === 'execute' ? '响应' : '完整响应', value: actual.actualResult, emptyText: '无响应', collapsed: actual.mode === 'search' });
   if (hasDialogValue(data) && !sections.length) sections.push({ title: '事件数据', value: data });
-  if (actual.proxyTool && actual.proxyTool !== actual.actualTool) sections.push({ title: '代理事件原始数据', value: details, collapsed: true });
-  else sections.push({ title: '原始事件', value: details, collapsed: true });
+  sections.push({ title: '原始事件', value: details, collapsed: true, muted: true });
   return {
     event: eventName,
-    heading: actual.actualTool || event?.text || tool || '工具事件',
-    subheading: actual.proxyTool && actual.proxyTool !== actual.actualTool ? '通过 ' + actual.proxyTool + ' 代理执行' : '',
+    heading,
+    subheading,
     status,
     statusTone: failed ? 'danger' : (ready ? 'success' : ''),
     primary: actual.actualTool ? {
-      label: actual.mode === 'execute' ? '实际调用工具' : (actual.mode === 'search' ? '候选工具' : '工具'),
+      label: actual.mode === 'execute' ? '实际调用' : (actual.mode === 'search' ? '搜索结果' : '说明对象'),
       name: actual.actualTool,
-      hint: actual.proxyTool && actual.proxyTool !== actual.actualTool ? '代理：' + actual.proxyTool : '直接调用',
+      hint: subheading || (actual.proxyTool ? '通过 ' + actual.proxyTool : ''),
     } : null,
     metrics,
     rows,

@@ -661,3 +661,173 @@ body.theme-light .session-actions-sheet { background: #ffffff; border-color: #e2
     font-size: 11px;
   }
 }
+
+/* Tool event detail: emphasize the one useful answer, keep raw data secondary. */
+.tool-event-modal .app-modal-title {
+  font-size: clamp(22px, 5vw, 30px);
+  letter-spacing: -0.04em;
+}
+
+.tool-event-modal .app-modal-form {
+  gap: 12px;
+}
+
+.tool-event-modal .tool-event-primary {
+  display: none;
+}
+
+.tool-event-modal .tool-event-summary {
+  align-items: flex-start;
+  padding: 18px;
+  border-color: rgba(34, 197, 94, .24);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 0 0, rgba(34, 197, 94, .16), transparent 38%),
+    rgba(15, 23, 42, .62);
+}
+
+.tool-event-summary-main {
+  min-width: 0;
+}
+
+.tool-event-modal .tool-event-kicker {
+  color: #86efac;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.tool-event-modal .tool-event-heading {
+  margin-top: 6px;
+  font-size: clamp(20px, 5.2vw, 28px);
+  line-height: 1.15;
+  word-break: break-word;
+}
+
+.tool-event-modal .tool-event-subheading {
+  margin-top: 10px;
+  line-height: 1.45;
+}
+
+.tool-event-modal .tool-event-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+}
+
+.tool-event-modal .tool-event-metric {
+  padding: 11px 12px;
+}
+
+.tool-event-modal .tool-event-metric strong {
+  font-size: 18px;
+}
+
+.tool-event-modal .tool-event-rows {
+  gap: 6px;
+  padding: 10px 12px;
+}
+
+.tool-event-modal .tool-event-row {
+  align-items: flex-start;
+}
+
+.tool-event-modal .tool-event-row span {
+  flex: 0 0 86px;
+}
+
+.tool-event-modal .tool-event-row b {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.tool-event-tool-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+}
+
+.tool-event-tool-list span {
+  max-width: 100%;
+  padding: 7px 10px;
+  border: 1px solid rgba(148, 163, 184, .18);
+  border-radius: 999px;
+  background: rgba(148, 163, 184, .10);
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.tool-event-modal details.tool-event-section {
+  display: block;
+}
+
+.tool-event-modal details.tool-event-section > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.tool-event-modal details.tool-event-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.tool-event-modal details.tool-event-section > summary::after {
+  content: '展开';
+  float: right;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tool-event-modal details.tool-event-section[open] > summary::after {
+  content: '收起';
+}
+
+.tool-event-modal .tool-event-section.muted {
+  opacity: .62;
+}
+
+.theme-light .tool-event-modal .tool-event-summary {
+  background:
+    radial-gradient(circle at 0 0, rgba(34, 197, 94, .16), transparent 38%),
+    #f8fafc;
+  border-color: #bbf7d0;
+}
+
+.theme-light .tool-event-tool-list span {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+
+@media (max-width: 720px) {
+  .tool-event-modal .app-modal-card,
+  .app-modal-card.tool-event-modal {
+    width: calc(100vw - 24px);
+    max-height: min(84dvh, 760px);
+    border-radius: 24px;
+  }
+
+  .tool-event-modal .tool-event-summary {
+    padding: 16px;
+  }
+
+  .tool-event-modal .tool-event-status {
+    padding: 6px 9px;
+  }
+
+  .tool-event-modal .tool-event-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .tool-event-modal .tool-event-row {
+    display: grid;
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .tool-event-modal .tool-event-row span {
+    flex-basis: auto;
+  }
+}

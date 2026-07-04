@@ -262,27 +262,37 @@ function ToolEventDetail({ detail }) {
   const metrics = Array.isArray(detail.metrics) ? detail.metrics.filter(item => item?.value != null && item.value !== '') : [];
   const rows = Array.isArray(detail.rows) ? detail.rows.filter(item => item?.value != null && item.value !== '') : [];
   const sections = Array.isArray(detail.sections) ? detail.sections : [];
+  const kicker = detail.primary?.label || detail.event || 'tool event';
   return <div className="tool-event-detail">
-    {detail.primary ? <div className="tool-event-primary">
-      <span>{detail.primary.label || '实际工具'}</span>
-      <b>{detail.primary.name}</b>
-      {detail.primary.hint ? <small>{detail.primary.hint}</small> : null}
-    </div> : null}
     <div className="tool-event-summary">
-      <div>
-        <div className="tool-event-kicker">{detail.event || 'tool event'}</div>
-        <div className="tool-event-heading">{detail.heading || '工具事件'}</div>
+      <div className="tool-event-summary-main">
+        <div className="tool-event-kicker">{kicker}</div>
+        <div className="tool-event-heading">{detail.heading || detail.primary?.name || '工具事件'}</div>
         {detail.subheading ? <div className="tool-event-subheading">{detail.subheading}</div> : null}
       </div>
       {detail.status ? <span className={'tool-event-status ' + (detail.statusTone || '')}>{detail.status}</span> : null}
     </div>
     {metrics.length ? <div className="tool-event-metrics">{metrics.map(item => <div key={item.label} className="tool-event-metric"><strong>{item.value}</strong><span>{item.label}</span></div>)}</div> : null}
     {rows.length ? <div className="tool-event-rows">{rows.map(item => <div key={item.label} className="tool-event-row"><span>{item.label}</span><b>{String(item.value)}</b></div>)}</div> : null}
-    <div className="tool-event-sections">{sections.map(section => <section key={section.title} className={'tool-event-section ' + (section.tone || '') + (section.collapsed ? ' muted' : '')}>
-      <div className="tool-event-section-title">{section.title}</div>
-      <pre>{formatDialogValue(section.value, section.emptyText)}</pre>
-    </section>)}</div>
+    <div className="tool-event-sections">{sections.map(section => <ToolEventSection key={section.title} section={section} />)}</div>
   </div>;
+}
+
+function ToolEventSection({ section }) {
+  const className = 'tool-event-section ' + (section.tone || '') + (section.muted ? ' muted' : '');
+  const body = section.display === 'tools'
+    ? <div className="tool-event-tool-list">{(Array.isArray(section.value) ? section.value : []).map(name => <span key={String(name)}>{String(name)}</span>)}</div>
+    : <pre>{formatDialogValue(section.value, section.emptyText)}</pre>;
+  if (section.collapsed) {
+    return <details className={className}>
+      <summary className="tool-event-section-title">{section.title}</summary>
+      {body}
+    </details>;
+  }
+  return <section className={className}>
+    <div className="tool-event-section-title">{section.title}</div>
+    {body}
+  </section>;
 }
 
 function formatDialogValue(value, emptyText = '无') {
