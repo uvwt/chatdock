@@ -430,6 +430,8 @@ export default function App() {
   const [skills, setSkills] = useState([]);
   const [skillSearch, setSkillSearch] = useState('');
   const [scheduledTasks, setScheduledTasks] = useState([]);
+  const [selectedScheduledTaskID, setSelectedScheduledTaskID] = useState('');
+  const [selectedScheduledTaskRuns, setSelectedScheduledTaskRuns] = useState([]);
   const [taskSearch, setTaskSearch] = useState('');
   const [runs, setRuns] = useState([]);
   const [agentTasks, setAgentTasks] = useState([]);
@@ -1763,6 +1765,24 @@ export default function App() {
     } catch (e) { showToast('打开运行会话失败：' + e.message, 'error'); }
   }, [closeSettings, openSession, showToast]);
 
+  const openScheduledTaskRunList = useCallback(async (taskID) => {
+    const id = String(taskID || '').trim();
+    if (!id) return;
+    try {
+      const data = await fetchScheduledTaskRuns(api, id);
+      setSelectedScheduledTaskID(id);
+      setSelectedScheduledTaskRuns(data.runs || []);
+      setSessionSearch('');
+      setSessionSearchResults([]);
+      closeSidebarOnMobile();
+    } catch (e) { showToast('读取任务会话失败：' + e.message, 'error'); }
+  }, [api, closeSidebarOnMobile, showToast]);
+
+  const clearScheduledTaskRunList = useCallback(() => {
+    setSelectedScheduledTaskID('');
+    setSelectedScheduledTaskRuns([]);
+  }, []);
+
   const viewScheduledTaskRuns = useCallback(async (id) => {
     const existing = scheduledTasks.find(t => t.id === id);
     if (!existing) return;
@@ -1796,13 +1816,17 @@ export default function App() {
       const result = await runScheduledTask(api, id);
       await loadScheduledTasks();
       await loadSessions();
+      if (selectedScheduledTaskID === id) {
+        const runsData = await fetchScheduledTaskRuns(api, id).catch(() => null);
+        if (runsData) setSelectedScheduledTaskRuns(runsData.runs || []);
+      }
       await refreshProductState();
       if (result.session && result.session.id) {
         await openScheduledTaskSession(result.session.id);
       }
       showToast(result.session ? '定时任务已运行，已打开运行会话' : '定时任务已运行，结果已写入运行记录', 'success');
     } catch (e) { await loadScheduledTasks().catch(() => { }); showToast('运行失败：' + e.message, 'error'); }
-  }, [api, loadScheduledTasks, loadSessions, openScheduledTaskSession, refreshProductState, scheduledTasks, showDialog, showToast]);
+  }, [api, loadScheduledTasks, loadSessions, openScheduledTaskSession, refreshProductState, scheduledTasks, selectedScheduledTaskID, showDialog, showToast]);
 
   const inspectToolEvent = useCallback(async (event) => {
     if (!event?.details) return;
@@ -1830,11 +1854,42 @@ export default function App() {
     setAuthPage({ message: '请输入 ChatDock 账号和密码。' });
   }, []);
 
+  const activeScheduledTasks = useMemo(() => scheduledTasks.filter(task => task.enabled || task.running), [scheduledTasks]);
+  const selectedScheduledTask = useMemo(() => scheduledTasks.find(task => task.id === selectedScheduledTaskID) || null, [scheduledTasks, selectedScheduledTaskID]);
+
+  useEffect(() => {
+    if (selectedScheduledTaskID && !scheduledTasks.some(task => task.id === selectedScheduledTaskID)) {
+      setSelectedScheduledTaskID('');
+      setSelectedScheduledTaskRuns([]);
+    }
+  }, [scheduledTasks, selectedScheduledTaskID]);
+
+  const selectedScheduledTaskSessions = useMemo(() => {
+    if (!selectedScheduledTaskID) return [];
+    const byID = new Map(sessions.map(item => [item.id, item]));
+    const seen = new Set();
+    return (selectedScheduledTaskRuns || []).filter(run => run.session_id && !seen.has(run.session_id)).map(run => {
+      seen.add(run.session_id);
+      const session = byID.get(run.session_id);
+      if (session) return {...session, scheduled_run: run};
+      return {
+        id: run.session_id,
+        title: (run.task_title || selectedScheduledTask?.title || '定时任务') + ' · ' + fmtTime(run.started_at),
+        preview: run.output || run.error || '',
+        last_role: run.status === 'failed' ? 'error' : 'assistant',
+        count: run.status === 'failed' || run.output ? 2 : 1,
+        updated_at: run.finished_at || run.started_at,
+        scheduled_run: run,
+      };
+    });
+  }, [selectedScheduledTask?.title, selectedScheduledTaskID, selectedScheduledTaskRuns, sessions]);
+
   const filteredSessions = useMemo(() => {
     const q = sessionSearch.trim();
     if (q) return sessionSearchResults;
+    if (selectedScheduledTaskID) return selectedScheduledTaskSessions;
     return sessions;
-  }, [sessionSearch, sessionSearchResults, sessions]);
+  }, [selectedScheduledTaskID, selectedScheduledTaskSessions, sessionSearch, sessionSearchResults, sessions]);
 
   const currentSummary = useMemo(() => sessions.find(s => s.id === current) || null, [current, sessions]);
   const currentPinned = !!currentSummary?.pinned;
@@ -1904,8 +1959,15 @@ export default function App() {
           <label className="session-search-box"><input className="session-search" placeholder="搜索聊天记录" value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} /></label>
           <button className="new" onClick={newSession} aria-label="新会话" title="新会话"><span className="new-icon" aria-hidden="true">＋</span></button>
         </div>
-        <div className="sidebar-section-head"><div className="sidebar-section-title">最近会话</div></div>
-        {sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : '全文搜索 ' + filteredSessions.length + ' 条'}</div> : null}
+        {activeScheduledTasks.length ? <div className="sidebar-tasks">
+          <div className="sidebar-section-head compact"><div className="sidebar-section-title">定时任务</div></div>
+          <div className="sidebar-task-list">{activeScheduledTasks.map(task => <button key={task.id} type="button" className={'sidebar-task-item ' + (selectedScheduledTaskID === task.id ? 'active ' : '') + (task.running ? 'running ' : '')} onClick={() => openScheduledTaskRunList(task.id)}>
+            <span className="sidebar-task-name">{task.title || '未命名任务'}</span>
+            <span className="sidebar-task-meta">{task.running ? '运行中' : '已启用'} · {scheduledTaskContextLabel(task.context_mode || 'stateless')}</span>
+          </button>)}</div>
+        </div> : null}
+        <div className="sidebar-section-head"><div className="sidebar-section-title">{selectedScheduledTask ? '任务会话' : '最近会话'}</div>{selectedScheduledTask ? <button type="button" className="secondary small sidebar-clear-task" onClick={clearScheduledTaskRunList}>全部</button> : null}</div>
+        {selectedScheduledTask ? <div className="session-search-meta">{selectedScheduledTask.title || '定时任务'} · {selectedScheduledTaskSessions.length} 次会话</div> : (sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : '全文搜索 ' + filteredSessions.length + ' 条'}</div> : null)}
         <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => {
           const isActive = current === s.id;
           const menuOpen = sessionMenuID === s.id;
@@ -1918,7 +1980,7 @@ export default function App() {
               <button type="button" onClick={() => renameSessionByID(s.id, s.title)}>重命名标题</button>
             </div> : null}
           </div>;
-        }) : <div className="empty compact">{sessionSearch.trim() ? '没有匹配会话' : '暂无会话，开始新会话'}</div>}</div>
+        }) : <div className="empty compact">{selectedScheduledTask ? '这个任务还没有可打开的运行会话' : (sessionSearch.trim() ? '没有匹配会话' : '暂无会话，开始新会话')}</div>}</div>
       </aside>
       <main>
         <div className="topbar">
