@@ -65,7 +65,7 @@ func (a *App) executeScheduledTask(ctx context.Context, promptName string, id st
 		return model.ScheduledTaskRunResponse{}, err
 	}
 	answer, runErr := a.completeWithOptionalTools(ctx, run.SessionID, run.Config, run.History)
-	result, finishErr := a.store.FinishScheduledTaskRun(run.PromptName, run.Task.ID, run.SessionID, answer, startedAt, manual, runErr)
+	result, finishErr := a.store.FinishScheduledTaskRun(run.PromptName, run.Task.ID, run.RunID, run.SessionID, answer, startedAt, manual, runErr)
 	if finishErr != nil {
 		return model.ScheduledTaskRunResponse{}, finishErr
 	}

@@ -25,6 +25,7 @@ func (s *Store) loadScheduledTasksLocked() ([]model.ScheduledTask, error) {
 		return nil, fmt.Errorf("scheduled tasks config must be valid json: %w", err)
 	}
 	for i := range tasks {
+		tasks[i].ContextMode = normalizeScheduledTaskContextMode(tasks[i].ContextMode)
 		if tasks[i].Running && time.Since(tasks[i].UpdatedAt) > 2*time.Hour {
 			tasks[i].Running = false
 			tasks[i].LastError = "上次运行异常中断，已自动恢复为可运行状态"
@@ -70,7 +71,8 @@ func normalizeScheduledTaskInput(input model.ScheduledTaskRequest, previous *mod
 	if scheduleType == "" {
 		scheduleType = scheduleTypeOnce
 	}
-	task := model.ScheduledTask{Title: title, Prompt: prompt, Enabled: input.Enabled, ScheduleType: scheduleType}
+	contextMode := normalizeScheduledTaskContextMode(input.ContextMode)
+	task := model.ScheduledTask{Title: title, Prompt: prompt, Enabled: input.Enabled, ScheduleType: scheduleType, ContextMode: contextMode}
 	switch scheduleType {
 	case scheduleTypeOnce:
 		runAt, err := parseTaskTime(input.RunAt)
@@ -105,7 +107,7 @@ func normalizeScheduledTaskInput(input model.ScheduledTaskRequest, previous *mod
 }
 
 func sameScheduledTaskPlan(next model.ScheduledTask, previous model.ScheduledTask) bool {
-	if next.ScheduleType != previous.ScheduleType || next.Prompt != previous.Prompt || next.Title != previous.Title {
+	if next.ScheduleType != previous.ScheduleType || next.Prompt != previous.Prompt || next.Title != previous.Title || next.ContextMode != previous.ContextMode {
 		return false
 	}
 	if next.IntervalMinutes != previous.IntervalMinutes || next.TimeOfDay != previous.TimeOfDay {
@@ -118,6 +120,17 @@ func sameScheduledTaskPlan(next model.ScheduledTask, previous model.ScheduledTas
 		return false
 	}
 	return true
+}
+
+func normalizeScheduledTaskContextMode(value string) string {
+	switch strings.TrimSpace(value) {
+	case model.ScheduledTaskContextLastResult:
+		return model.ScheduledTaskContextLastResult
+	case model.ScheduledTaskContextSession:
+		return model.ScheduledTaskContextSession
+	default:
+		return model.ScheduledTaskContextStateless
+	}
 }
 
 func advanceScheduledTask(task model.ScheduledTask, now time.Time) model.ScheduledTask {

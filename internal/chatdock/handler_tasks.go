@@ -4,6 +4,7 @@ import (
 	"chatdock/internal/chatdock/model"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -43,6 +44,16 @@ func (a *App) handleScheduledTaskRoute(w http.ResponseWriter, r *http.Request) {
 		result, err := a.executeScheduledTask(r.Context(), a.store.ActivePrompt(), id, true)
 		if err != nil {
 			writeError(w, http.StatusBadGateway, err)
+			return
+		}
+		writeJSONResponse(w, http.StatusOK, result)
+		return
+	}
+	if len(parts) == 2 && parts[1] == "runs" && r.Method == http.MethodGet {
+		limit, _ := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get("limit")))
+		result, err := a.store.ListScheduledTaskRuns(id, limit)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
 			return
 		}
 		writeJSONResponse(w, http.StatusOK, result)

@@ -27,82 +27,12 @@ func (s *Store) DueScheduledTasks(now time.Time) ([]model.ScheduledTask, error) 
 }
 
 func (s *Store) PrepareScheduledTaskRun(id string, manual bool, now time.Time) (model.ScheduledTaskRun, error) {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return model.ScheduledTaskRun{}, fmt.Errorf("scheduled task id is empty")
-	}
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	tasks, err := s.loadScheduledTasksLocked()
-	if err != nil {
-		return model.ScheduledTaskRun{}, err
-	}
-	index := -1
-	for i, task := range tasks {
-		if task.ID == id {
-			index = i
-			break
-		}
-	}
-	if index < 0 {
-		return model.ScheduledTaskRun{}, fmt.Errorf("scheduled task not found: %s", id)
-	}
-	task := tasks[index]
-	if task.Running {
-		return model.ScheduledTaskRun{}, fmt.Errorf("scheduled task is already running: %s", task.Title)
-	}
-	if !manual {
-		if !task.Enabled {
-			return model.ScheduledTaskRun{}, fmt.Errorf("scheduled task is disabled: %s", task.Title)
-		}
-		if task.NextRunAt.IsZero() || task.NextRunAt.After(now) {
-			return model.ScheduledTaskRun{}, fmt.Errorf("scheduled task is not due: %s", task.Title)
-		}
-	}
-	if strings.TrimSpace(task.SessionID) == "" {
-		session := &model.Session{
-			ID:        model.NewID(),
-			Title:     "定时任务：" + task.Title,
-			CreatedAt: now,
-			UpdatedAt: now,
-			Messages:  []model.Message{},
-		}
-		s.sessions[session.ID] = session
-		if err := s.saveSessionLocked(session); err != nil {
-			return model.ScheduledTaskRun{}, err
-		}
-		task.SessionID = session.ID
-	}
-	session, ok := s.sessions[task.SessionID]
-	if !ok {
-		return model.ScheduledTaskRun{}, model.ErrSessionNotFound
-	}
-	message := strings.TrimSpace(task.Prompt)
-	session.Messages = append(session.Messages, model.Message{Role: "user", Content: message, CreatedAt: now})
-	session.UpdatedAt = now
-	if err := s.saveSessionLocked(session); err != nil {
-		return model.ScheduledTaskRun{}, err
-	}
-
-	task.Running = true
-	task.UpdatedAt = now
-	tasks[index] = task
-	if err := s.saveScheduledTasksLocked(tasks); err != nil {
-		return model.ScheduledTaskRun{}, err
-	}
-
-	cfg := s.modelCfg
-	skills, err := s.enabledSkillsLocked()
-	if err != nil {
-		return model.ScheduledTaskRun{}, err
-	}
-	cfg.Skills = skills
-	return model.ScheduledTaskRun{Task: task, PromptName: s.activePrompt, SessionID: task.SessionID, Config: cfg, History: cloneMessages(session.Messages)}, nil
+	return s.prepareScheduledTaskRunLocked(id, manual, now)
 }
 
-func (s *Store) FinishScheduledTaskRun(promptName string, taskID string, sessionID string, answer string, startedAt time.Time, manual bool, runErr error) (model.ScheduledTaskRunResponse, error) {
+func (s *Store) FinishScheduledTaskRun(promptName string, taskID string, runID string, sessionID string, answer string, startedAt time.Time, manual bool, runErr error) (model.ScheduledTaskRunResponse, error) {
 	promptName = strings.TrimSpace(promptName)
 	if promptName == "" {
 		return model.ScheduledTaskRunResponse{}, fmt.Errorf("prompt name is empty")
@@ -113,14 +43,16 @@ func (s *Store) FinishScheduledTaskRun(promptName string, taskID string, session
 
 	var result model.ScheduledTaskRunResponse
 	err := s.withPromptLocked(promptName, func() error {
-		if strings.TrimSpace(answer) != "" {
+		finishedAt := time.Now()
+		answer = strings.TrimSpace(answer)
+		sessionID = strings.TrimSpace(sessionID)
+		if answer != "" && sessionID != "" {
 			session, ok := s.sessions[sessionID]
 			if !ok {
 				return model.ErrSessionNotFound
 			}
-			now := time.Now()
-			session.Messages = append(session.Messages, model.Message{Role: "assistant", Content: strings.TrimSpace(answer), CreatedAt: now})
-			session.UpdatedAt = now
+			session.Messages = append(session.Messages, model.Message{Role: "assistant", Content: answer, CreatedAt: finishedAt})
+			session.UpdatedAt = finishedAt
 			if err := s.saveSessionLocked(session); err != nil {
 				return err
 			}
@@ -142,13 +74,22 @@ func (s *Store) FinishScheduledTaskRun(promptName string, taskID string, session
 			return fmt.Errorf("scheduled task not found: %s", taskID)
 		}
 		task := tasks[index]
+		task.ContextMode = normalizeScheduledTaskContextMode(task.ContextMode)
 		task.Running = false
-		task.SessionID = sessionID
+		if task.ContextMode == model.ScheduledTaskContextSession {
+			task.SessionID = sessionID
+		} else {
+			task.SessionID = ""
+		}
 		task.LastRunAt = &startedAt
-		task.UpdatedAt = time.Now()
+		task.UpdatedAt = finishedAt
+		status := "success"
+		errorText := ""
 		if runErr != nil {
+			status = "failed"
+			errorText = runErr.Error()
 			task.LastStatus = "failed"
-			task.LastError = runErr.Error()
+			task.LastError = errorText
 		} else {
 			task.LastStatus = "success"
 			task.LastError = ""
@@ -156,11 +97,28 @@ func (s *Store) FinishScheduledTaskRun(promptName string, taskID string, session
 		if !manual {
 			task = advanceScheduledTask(task, startedAt)
 		}
+		record, err := s.appendScheduledTaskRunRecordLocked(model.ScheduledTaskRunRecord{
+			ID:         runID,
+			TaskID:     task.ID,
+			TaskTitle:  task.Title,
+			Prompt:     task.Prompt,
+			Output:     answer,
+			Status:     status,
+			Error:      errorText,
+			Manual:     manual,
+			SessionID:  sessionID,
+			StartedAt:  startedAt,
+			FinishedAt: &finishedAt,
+		})
+		if err != nil {
+			return err
+		}
 		tasks[index] = task
 		if err := s.saveScheduledTasksLocked(tasks); err != nil {
 			return err
 		}
 		result.Task = task
+		result.Run = &record
 		return nil
 	})
 	if err != nil {

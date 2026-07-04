@@ -96,6 +96,7 @@ func (s *Store) prepareScheduledTaskRunLocked(id string, manual bool, now time.T
 		return model.ScheduledTaskRun{}, fmt.Errorf("scheduled task not found: %s", id)
 	}
 	task := tasks[index]
+	task.ContextMode = normalizeScheduledTaskContextMode(task.ContextMode)
 	if task.Running {
 		return model.ScheduledTaskRun{}, fmt.Errorf("scheduled task is already running: %s", task.Title)
 	}
@@ -107,24 +108,46 @@ func (s *Store) prepareScheduledTaskRunLocked(id string, manual bool, now time.T
 			return model.ScheduledTaskRun{}, fmt.Errorf("scheduled task is not due: %s", task.Title)
 		}
 	}
-	if strings.TrimSpace(task.SessionID) == "" {
-		session := &model.Session{ID: model.NewID(), Title: "定时任务：" + task.Title, CreatedAt: now, UpdatedAt: now, Messages: []model.Message{}}
-		s.sessions[session.ID] = session
+
+	runID := model.NewID()
+	message := strings.TrimSpace(task.Prompt)
+	history := []model.Message{{ID: model.NewID(), Role: "user", Content: message, CreatedAt: now}}
+	sessionID := ""
+
+	switch task.ContextMode {
+	case model.ScheduledTaskContextSession:
+		if strings.TrimSpace(task.SessionID) == "" {
+			session := &model.Session{ID: model.NewID(), Title: "定时任务：" + task.Title, CreatedAt: now, UpdatedAt: now, Messages: []model.Message{}}
+			s.sessions[session.ID] = session
+			if err := s.saveSessionLocked(session); err != nil {
+				return model.ScheduledTaskRun{}, err
+			}
+			task.SessionID = session.ID
+		}
+		session, ok := s.sessions[task.SessionID]
+		if !ok {
+			return model.ScheduledTaskRun{}, model.ErrSessionNotFound
+		}
+		session.Messages = append(session.Messages, model.Message{ID: model.NewID(), Role: "user", Content: message, CreatedAt: now})
+		session.UpdatedAt = now
 		if err := s.saveSessionLocked(session); err != nil {
 			return model.ScheduledTaskRun{}, err
 		}
-		task.SessionID = session.ID
+		sessionID = task.SessionID
+		history = cloneMessages(session.Messages)
+	case model.ScheduledTaskContextLastResult:
+		if previous, ok, err := s.latestSuccessfulScheduledTaskRunLocked(task.ID); err != nil {
+			return model.ScheduledTaskRun{}, err
+		} else if ok {
+			history = []model.Message{
+				{ID: model.NewID(), Role: "system", Content: "以下是这个定时任务上次成功运行的结果，仅用于延续状态，不代表本次已经完成：\n" + limitRunes(previous.Output, 8000), CreatedAt: now},
+				{ID: model.NewID(), Role: "user", Content: message, CreatedAt: now},
+			}
+		}
+	default:
+		// stateless: 只发送本次任务提示词，不带历史会话，避免定时任务长期积累 token。
 	}
-	session, ok := s.sessions[task.SessionID]
-	if !ok {
-		return model.ScheduledTaskRun{}, model.ErrSessionNotFound
-	}
-	message := strings.TrimSpace(task.Prompt)
-	session.Messages = append(session.Messages, model.Message{Role: "user", Content: message, CreatedAt: now})
-	session.UpdatedAt = now
-	if err := s.saveSessionLocked(session); err != nil {
-		return model.ScheduledTaskRun{}, err
-	}
+
 	task.Running = true
 	task.UpdatedAt = now
 	tasks[index] = task
@@ -137,5 +160,5 @@ func (s *Store) prepareScheduledTaskRunLocked(id string, manual bool, now time.T
 		return model.ScheduledTaskRun{}, err
 	}
 	cfg.Skills = skills
-	return model.ScheduledTaskRun{Task: task, PromptName: s.activePrompt, SessionID: task.SessionID, Config: cfg, History: cloneMessages(session.Messages)}, nil
+	return model.ScheduledTaskRun{Task: task, PromptName: s.activePrompt, SessionID: sessionID, RunID: runID, Config: cfg, History: history}, nil
 }

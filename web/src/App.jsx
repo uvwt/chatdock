@@ -6,7 +6,7 @@ import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtDuration, 
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
 import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessions, pinSession, renameSession, searchSessions, updateSessionModel } from './lib/sessionApi.js';
-import { createWorkspaceRecord, deleteScheduledTaskRecord, deleteSkillRecord, deleteWorkspaceRecord, fetchAgentTasks, fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchPrompts, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchRuns, fetchScheduledTasks, fetchSetupStatus, fetchSkills, fetchSystemStatus, fetchWorkspaces, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveSkillRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest } from './lib/settingsApi.js';
+import { createWorkspaceRecord, deleteScheduledTaskRecord, deleteSkillRecord, deleteWorkspaceRecord, fetchAgentTasks, fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchPrompts, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchRuns, fetchScheduledTaskRuns, fetchScheduledTasks, fetchSetupStatus, fetchSkills, fetchSystemStatus, fetchWorkspaces, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveSkillRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest } from './lib/settingsApi.js';
 import { uploadFileRequest } from './lib/upload.js';
 
 function streamStatusText(stats, elapsed) {
@@ -346,6 +346,31 @@ function buildToolEventDetail(event) {
     rows,
     sections,
   };
+}
+
+function scheduledTaskContextLabel(mode) {
+  return ({stateless: '每次独立执行', last_result: '带上次运行结果', session: '连续会话'})[mode] || mode || '每次独立执行';
+}
+
+function scheduledTaskRunsText(task, runs = []) {
+  const lines = [];
+  lines.push('任务：' + (task?.title || '-'));
+  lines.push('上下文模式：' + scheduledTaskContextLabel(task?.context_mode || 'stateless'));
+  lines.push('');
+  if (!runs.length) {
+    lines.push('暂无运行记录。');
+    return lines.join('\n');
+  }
+  runs.forEach((run, index) => {
+    lines.push((index + 1) + '. ' + runStatusLabel(run.status) + ' · ' + fmtTime(run.started_at) + ' · ' + fmtDuration(run.duration_ms) + (run.manual ? ' · 手动' : ' · 自动'));
+    if (run.error) lines.push('错误：' + run.error);
+    if (run.output) {
+      lines.push('输出：');
+      lines.push(String(run.output).slice(0, 3000));
+    }
+    lines.push('');
+  });
+  return lines.join('\n');
 }
 
 function contextPreviewText(data) {
@@ -1691,6 +1716,7 @@ export default function App() {
         { name: 'run_at', label: '一次性运行时间', type: 'datetime-local', value: existing && existing.run_at ? existing.run_at.slice(0, 16) : defaultRunAtValue(), showWhen: { schedule_type: 'once' } },
         { name: 'time_of_day', label: '每天运行时间', type: 'time', value: existing ? (existing.time_of_day || '09:00') : '09:00', showWhen: { schedule_type: 'daily' } },
         { name: 'interval_minutes', label: '间隔分钟数', type: 'number', min: 1, step: 1, value: existing && existing.interval_minutes ? String(existing.interval_minutes) : '60', showWhen: { schedule_type: 'interval' }, hint: '当前本地调度器最低按分钟执行；过短间隔会更频繁占用模型额度。' },
+        { name: 'context_mode', label: '上下文模式', type: 'select', value: existing ? (existing.context_mode || 'stateless') : 'stateless', options: [{ value: 'stateless', label: '每次独立执行，最省 token' }, { value: 'last_result', label: '带上次运行结果' }, { value: 'session', label: '连续会话，保留完整上下文' }], hint: '默认独立执行：只使用本次任务提示词；需要长期上下文时再选择连续会话。' },
       ]
     });
     if (!values) return;
@@ -1699,7 +1725,8 @@ export default function App() {
     const typeValue = (values.schedule_type || '').trim().toLowerCase();
     if (!titleValue || !promptValue) { showToast('任务标题和提示词不能为空', 'error'); return; }
     if (!['once', 'daily', 'interval'].includes(typeValue)) { showToast('调度类型只能是 once、daily 或 interval', 'error'); return; }
-    const payload = { title: titleValue, prompt: promptValue, enabled: existing ? !!existing.enabled : true, schedule_type: typeValue };
+    const contextMode = ['stateless', 'last_result', 'session'].includes(values.context_mode) ? values.context_mode : 'stateless';
+    const payload = { title: titleValue, prompt: promptValue, enabled: existing ? !!existing.enabled : true, schedule_type: typeValue, context_mode: contextMode };
     if (typeValue === 'once') payload.run_at = values.run_at || '';
     if (typeValue === 'daily') payload.time_of_day = values.time_of_day || '';
     if (typeValue === 'interval') payload.interval_minutes = Math.floor(Number(values.interval_minutes || 0));
@@ -1711,7 +1738,7 @@ export default function App() {
   const toggleScheduledTask = useCallback(async (id, enabled) => {
     const existing = scheduledTasks.find(t => t.id === id);
     if (!existing) return;
-    const payload = { title: existing.title, prompt: existing.prompt, enabled: !!enabled, schedule_type: existing.schedule_type, run_at: existing.run_at || '', time_of_day: existing.time_of_day || '', interval_minutes: existing.interval_minutes || 0 };
+    const payload = { title: existing.title, prompt: existing.prompt, enabled: !!enabled, schedule_type: existing.schedule_type, run_at: existing.run_at || '', time_of_day: existing.time_of_day || '', interval_minutes: existing.interval_minutes || 0, context_mode: existing.context_mode || 'stateless' };
     const data = await saveScheduledTaskRecord(api, existing, payload);
     setScheduledTasks(data.tasks || []);
   }, [api, scheduledTasks]);
@@ -1724,6 +1751,15 @@ export default function App() {
     const data = await deleteScheduledTaskRecord(api, id);
     setScheduledTasks(data.tasks || []);
     showToast('任务已删除', 'success');
+  }, [api, scheduledTasks, showDialog, showToast]);
+
+  const viewScheduledTaskRuns = useCallback(async (id) => {
+    const existing = scheduledTasks.find(t => t.id === id);
+    if (!existing) return;
+    try {
+      const data = await fetchScheduledTaskRuns(api, id);
+      await showDialog({ title: '运行记录：' + (existing.title || '定时任务'), confirmText: '关闭', hideCancel: true, fields: [{ name: 'runs', label: '最近 30 次运行', type: 'textarea', rows: 18, value: scheduledTaskRunsText(existing, data.runs || []) }] });
+    } catch (e) { showToast('读取运行记录失败：' + e.message, 'error'); }
   }, [api, scheduledTasks, showDialog, showToast]);
 
   const runScheduledTaskNow = useCallback(async (id) => {
@@ -1743,7 +1779,7 @@ export default function App() {
         if (window.location.pathname !== sessionPath(result.session.id)) window.history.pushState({ chatdock: true }, '', sessionPath(result.session.id));
         closeSettings();
       }
-      showToast('定时任务已运行', 'success');
+      showToast(result.session ? '定时任务已运行，已打开连续会话' : '定时任务已运行，结果已写入运行记录', 'success');
     } catch (e) { await loadScheduledTasks().catch(() => { }); showToast('运行失败：' + e.message, 'error'); }
   }, [api, closeSettings, loadScheduledTasks, loadSessions, refreshProductState, scheduledTasks, showDialog, showToast]);
 
@@ -1821,7 +1857,7 @@ export default function App() {
       editScheduledTask={editScheduledTask} editSkill={editSkill} loadAgentTasks={loadAgentTasks} loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig}
       loadMCPStatus={loadMCPStatus} loadRuns={loadRuns} loadScheduledTasks={loadScheduledTasks} loadSkills={loadSkills} loadSystemStatus={loadSystemStatus}
       mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers} promptPreview={promptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
-      runScheduledTaskNow={runScheduledTaskNow} runSetupWizard={runSetupWizard} runs={runs} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
+      runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} runSetupWizard={runSetupWizard} runs={runs} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
       scheduledTasks={scheduledTasks} selectWorkspace={selectWorkspace} setConfig={setConfig} setMcpConfig={setMcpConfig} setTaskSearch={setTaskSearch}
       setupStatus={setupStatus} showPromptPreview={showPromptPreview} skillSearch={skillSearch} skills={skills} switchSettingsModule={switchSettingsModule}
       systemStatus={systemStatus} taskSearch={taskSearch} testMCP={testMCP} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} loadingModels={loadingModels} toggleScheduledTask={toggleScheduledTask}

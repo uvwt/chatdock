@@ -27,6 +27,7 @@ func builtinScheduledTaskTools() []mcp.MCPTool {
 		"run_at":           map[string]any{"type": "string", "description": "once 使用，RFC3339 或本地时间 yyyy-MM-ddTHH:mm / yyyy-MM-dd HH:mm"},
 		"time_of_day":      map[string]any{"type": "string", "description": "daily 使用，HH:MM"},
 		"interval_minutes": map[string]any{"type": "integer", "description": "interval 使用，间隔分钟，1 到 525600"},
+		"context_mode":     map[string]any{"type": "string", "enum": []string{"stateless", "last_result", "session"}, "description": "上下文模式：stateless=每次独立执行，last_result=带上次结果，session=连续会话"},
 	}
 	return []mcp.MCPTool{
 		{
@@ -188,11 +189,14 @@ func scheduledTaskRequestFromArgs(args map[string]any, previous *model.Scheduled
 	} else if ok {
 		input.IntervalMinutes = value
 	}
+	if value, ok := optionalStringArg(args, "context_mode"); ok {
+		input.ContextMode = strings.ToLower(value)
+	}
 	return input, nil
 }
 
 func requestFromScheduledTask(task model.ScheduledTask) model.ScheduledTaskRequest {
-	input := model.ScheduledTaskRequest{Title: task.Title, Prompt: task.Prompt, Enabled: task.Enabled, ScheduleType: task.ScheduleType, TimeOfDay: task.TimeOfDay, IntervalMinutes: task.IntervalMinutes}
+	input := model.ScheduledTaskRequest{Title: task.Title, Prompt: task.Prompt, Enabled: task.Enabled, ScheduleType: task.ScheduleType, TimeOfDay: task.TimeOfDay, IntervalMinutes: task.IntervalMinutes, ContextMode: task.ContextMode}
 	if task.RunAt != nil {
 		input.RunAt = task.RunAt.Format(time.RFC3339)
 	}
