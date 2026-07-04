@@ -1399,7 +1399,7 @@ export default function App() {
   const productStatusClass = setupStatus == null ? 'warn' : (productReady ? 'ok' : 'warn');
   const streamElapsed = streamStats.started_at ? Math.max(0, Math.round((Date.now() - streamStats.started_at) / 1000)) : 0;
   const streamStatsText = busy ? streamStatusText(streamStats, streamElapsed) : '';
-  const inputStats = busy ? streamStatsText : (pendingAttachments.length ? pendingAttachments.length + ' 个附件 · ' + (input.trim() ? input.trim().length + ' 字' : '可直接发送') : (input.trim() ? input.trim().length + ' 字 · 草稿自动保存' : (modelReady ? 'Enter 发送 · Shift+Enter 换行 · 点击 + 上传文件' : '请先在配置中心完成模型 Base URL 和 Model')));
+  const inputStats = busy ? streamStatsText : (pendingAttachments.length ? pendingAttachments.length + ' 个附件' + (input.trim() ? ' · ' + input.trim().length + ' 字' : '') : (input.trim() ? input.trim().length + ' 字' : (!modelReady ? '请先在配置中心完成模型 Base URL 和 Model' : '')));
   const productDiagnostics = diagnosticsText({setupStatus, systemStatus, dataStatus, mcpStatus, providers});
   const hasVisibleChatMessages = messages.some(m => m.role !== 'empty');
 
@@ -1507,7 +1507,7 @@ export default function App() {
           <textarea ref={inputRef} id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendMsg(); } }} placeholder="输入消息" />
           <button id="send" disabled={busy || uploadingFiles || (!input.trim() && !pendingAttachmentIDs.length) || !modelReady} onClick={() => sendMsg()} title={!modelReady ? '请先配置模型' : '发送'}>发送</button>
         </div>
-        <div className="composer-meta">{inputStats}</div>
+        {inputStats ? <div className="composer-meta">{inputStats}</div> : null}
         </div>
       </main>
 

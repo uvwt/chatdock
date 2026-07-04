@@ -5,9 +5,9 @@ import { Markdown } from './base.jsx';
 
 function MessageActions({ text, onCopy, onBranch }) {
   return <div className="msg-actions">
-    <button type="button" className="secondary small msg-action-copy" onClick={() => onCopy(text)} aria-label="复制当前回复" title="复制当前回复"><span className="msg-action-icon" aria-hidden="true">⧉</span><span className="msg-action-label">复制</span></button>
-    {onBranch ? <button type="button" className="secondary small msg-action-branch" onClick={onBranch} aria-label="在新聊天中创建分支对话" title="在新聊天中创建分支对话"><span className="msg-action-icon" aria-hidden="true">⑂</span><span className="msg-action-label">分支</span></button> : null}
-    <button type="button" className="secondary small msg-action-more" aria-label="更多操作" title="更多操作"><span className="msg-action-icon" aria-hidden="true">⋯</span><span className="msg-action-label">更多</span></button>
+    <button type="button" className="secondary small msg-action-copy" onClick={() => onCopy(text)} aria-label="复制当前回复" title="复制当前回复"><svg className="msg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8.5h8.5v8.5H9z" /><path d="M6.5 15.5h-1a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" /></svg></button>
+    {onBranch ? <button type="button" className="secondary small msg-action-branch" onClick={onBranch} aria-label="在新聊天中创建分支对话" title="在新聊天中创建分支对话"><svg className="msg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v7a4 4 0 0 0 4 4h5" /><path d="M13 11l4 4-4 4" /></svg></button> : null}
+    <button type="button" className="secondary small msg-action-more" aria-label="更多操作" title="更多操作"><svg className="msg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01" /></svg></button>
   </div>;
 }
 
