@@ -1698,3 +1698,86 @@
     max-width: 58px !important;
   }
 }
+
+/* 2026-07-04 侧边栏截图复查修正：隐藏折叠箭头和默认删除按钮，图标改成线性搜索样式。 */
+@media (min-width: 721px) {
+  #app.app .sidebar-toggle {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  #app.app aside:hover .sidebar-toggle {
+    opacity: .35 !important;
+    pointer-events: auto !important;
+  }
+}
+
+#app.app .workspace-picker-icon,
+#app.app .session-search-icon {
+  position: relative !important;
+  width: 28px !important;
+  height: 28px !important;
+  flex: 0 0 28px !important;
+  font-size: 0 !important;
+  color: transparent !important;
+}
+
+#app.app .workspace-picker-icon::before,
+#app.app .session-search-icon::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 4px !important;
+  top: 4px !important;
+  width: 15px !important;
+  height: 15px !important;
+  border: 3px solid #20b88a !important;
+  border-radius: 999px !important;
+  box-sizing: border-box !important;
+}
+
+#app.app .workspace-picker-icon::after,
+#app.app .session-search-icon::after {
+  content: "" !important;
+  position: absolute !important;
+  left: 18px !important;
+  top: 18px !important;
+  width: 9px !important;
+  height: 3px !important;
+  border-radius: 999px !important;
+  background: #20b88a !important;
+  transform: rotate(45deg) !important;
+  transform-origin: left center !important;
+}
+
+#app.app .session-delete,
+#app.app .session.active .session-delete,
+#app.app .session:focus-within .session-delete {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+@media (min-width: 721px) {
+  #app.app .session:hover .session-delete {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
+
+@media (max-width: 720px) {
+  #app.app .session-delete {
+    display: none !important;
+  }
+}
+
+/* 2026-07-04 侧边栏截图复查二次修正：参考图不展示折叠箭头和行内删除按钮。 */
+#app.app aside .sidebar-toggle,
+#app.app aside:hover .sidebar-toggle {
+  display: none !important;
+}
+
+#app.app #sessions .session-delete,
+#app.app #sessions .session:hover .session-delete,
+#app.app #sessions .session.active .session-delete,
+#app.app #sessions .session:focus-within .session-delete {
+  display: none !important;
+}
