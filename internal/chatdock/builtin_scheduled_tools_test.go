@@ -12,20 +12,10 @@ import (
 )
 
 func TestBuiltinScheduledTaskToolCRUD(t *testing.T) {
-	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"任务已运行"}}]}`))
-	}))
-	defer modelServer.Close()
-
 	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: modelServer.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
-		t.Fatal(err)
-	}
-
 	created, err := app.callBuiltinScheduledTaskTool(context.Background(), builtinToolCreateScheduledTask, map[string]any{
 		"title":            "日报",
 		"prompt":           "总结今天",
@@ -58,20 +48,12 @@ func TestBuiltinScheduledTaskToolCRUD(t *testing.T) {
 		t.Fatalf("unexpected updated tasks: %#v", updatedTasks)
 	}
 
-	enabled, err := app.callBuiltinScheduledTaskTool(context.Background(), builtinToolEnableScheduledTask, map[string]any{"id": id, "enabled": true})
+	enabled, err := app.callBuiltinScheduledTaskTool(context.Background(), builtinToolUpdateScheduledTask, map[string]any{"id": id, "enabled": true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if tasks := enabled.(model.ScheduledTaskResponse).Tasks; len(tasks) != 1 || !tasks[0].Enabled {
-		t.Fatalf("set enabled should turn task on: %#v", tasks)
-	}
-
-	runResult, err := app.callBuiltinScheduledTaskTool(context.Background(), builtinToolRunScheduledTask, map[string]any{"id": id})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if runResult.(model.ScheduledTaskRunResponse).Task.LastStatus != "success" {
-		t.Fatalf("manual run should succeed: %#v", runResult)
+		t.Fatalf("update enabled should turn task on: %#v", tasks)
 	}
 
 	deleted, err := app.callBuiltinScheduledTaskTool(context.Background(), builtinToolDeleteScheduledTask, map[string]any{"id": id})
@@ -80,6 +62,26 @@ func TestBuiltinScheduledTaskToolCRUD(t *testing.T) {
 	}
 	if tasks := deleted.(model.ScheduledTaskResponse).Tasks; len(tasks) != 0 {
 		t.Fatalf("delete should remove task: %#v", tasks)
+	}
+}
+
+func TestBuiltinScheduledTaskToolsExposeOnlyCRUD(t *testing.T) {
+	tools := builtinScheduledTaskTools()
+	names := map[string]bool{}
+	updateHasEnabled := false
+	for _, tool := range tools {
+		names[tool.FullName] = true
+		if tool.FullName != builtinToolUpdateScheduledTask {
+			continue
+		}
+		props, _ := tool.InputSchema["properties"].(map[string]any)
+		_, updateHasEnabled = props["enabled"]
+	}
+	if names["chatdock_scheduled_task_run"] || names["chatdock_scheduled_task_set_enabled"] {
+		t.Fatalf("run/set_enabled should not be model-callable tools: %#v", names)
+	}
+	if !updateHasEnabled {
+		t.Fatal("update tool should include enabled for enable/disable")
 	}
 }
 

@@ -15,8 +15,6 @@ const (
 	builtinToolCreateScheduledTask  = "chatdock_scheduled_task_create"
 	builtinToolUpdateScheduledTask  = "chatdock_scheduled_task_update"
 	builtinToolDeleteScheduledTask  = "chatdock_scheduled_task_delete"
-	builtinToolRunScheduledTask     = "chatdock_scheduled_task_run"
-	builtinToolEnableScheduledTask  = "chatdock_scheduled_task_set_enabled"
 	builtinToolServerScheduledTasks = "chatdock"
 )
 
@@ -52,7 +50,7 @@ func builtinScheduledTaskTools() []mcp.MCPTool {
 			Name:        "scheduled_task_update",
 			FullName:    builtinToolUpdateScheduledTask,
 			Title:       "修改定时任务",
-			Description: "按 id 修改当前工作空间的定时任务。只传需要修改的字段；未传字段会保留原值。",
+			Description: "按 id 修改当前工作空间的定时任务，enabled 字段用于启用或停用；未传字段会保留原值。",
 			InputSchema: map[string]any{"type": "object", "properties": mergeSchemaProps(map[string]any{"id": map[string]any{"type": "string", "description": "要修改的任务 id"}}, requestProps), "required": []string{"id"}},
 		},
 		{
@@ -62,22 +60,6 @@ func builtinScheduledTaskTools() []mcp.MCPTool {
 			Title:       "删除定时任务",
 			Description: "按 id 删除当前工作空间的定时任务。删除前应确保用户明确要求删除。",
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "要删除的任务 id"}}, "required": []string{"id"}},
-		},
-		{
-			Server:      builtinToolServerScheduledTasks,
-			Name:        "scheduled_task_run",
-			FullName:    builtinToolRunScheduledTask,
-			Title:       "立即运行定时任务",
-			Description: "按 id 手动运行当前工作空间的定时任务，会复用该任务绑定的会话上下文。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "要运行的任务 id"}}, "required": []string{"id"}},
-		},
-		{
-			Server:      builtinToolServerScheduledTasks,
-			Name:        "scheduled_task_set_enabled",
-			FullName:    builtinToolEnableScheduledTask,
-			Title:       "启停定时任务",
-			Description: "按 id 启用或停用当前工作空间的定时任务。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string"}, "enabled": map[string]any{"type": "boolean"}}, "required": []string{"id", "enabled"}},
 		},
 	}
 }
@@ -95,7 +77,7 @@ func mergeSchemaProps(base map[string]any, extra map[string]any) map[string]any 
 
 func isBuiltinScheduledTaskTool(name string) bool {
 	switch name {
-	case builtinToolListScheduledTasks, builtinToolCreateScheduledTask, builtinToolUpdateScheduledTask, builtinToolDeleteScheduledTask, builtinToolRunScheduledTask, builtinToolEnableScheduledTask:
+	case builtinToolListScheduledTasks, builtinToolCreateScheduledTask, builtinToolUpdateScheduledTask, builtinToolDeleteScheduledTask:
 		return true
 	default:
 		return false
@@ -133,28 +115,6 @@ func (a *App) callBuiltinScheduledTaskTool(ctx context.Context, name string, arg
 			return nil, err
 		}
 		return a.store.DeleteScheduledTask(id)
-	case builtinToolRunScheduledTask:
-		id, err := requiredStringArg(args, "id")
-		if err != nil {
-			return nil, err
-		}
-		return a.executeScheduledTask(ctx, a.store.ActivePrompt(), id, true)
-	case builtinToolEnableScheduledTask:
-		id, err := requiredStringArg(args, "id")
-		if err != nil {
-			return nil, err
-		}
-		enabled, err := requiredBoolArg(args, "enabled")
-		if err != nil {
-			return nil, err
-		}
-		previous, err := a.findScheduledTask(id)
-		if err != nil {
-			return nil, err
-		}
-		input := requestFromScheduledTask(previous)
-		input.Enabled = enabled
-		return a.store.UpdateScheduledTask(id, input)
 	default:
 		return nil, fmt.Errorf("unknown builtin tool: %s", name)
 	}
@@ -243,14 +203,6 @@ func requiredStringArg(args map[string]any, key string) (string, error) {
 	value := strings.TrimSpace(stringArg(args, key))
 	if value == "" {
 		return "", fmt.Errorf("%s is required", key)
-	}
-	return value, nil
-}
-
-func requiredBoolArg(args map[string]any, key string) (bool, error) {
-	value, ok := optionalBoolArg(args, key)
-	if !ok {
-		return false, fmt.Errorf("%s is required", key)
 	}
 	return value, nil
 }
