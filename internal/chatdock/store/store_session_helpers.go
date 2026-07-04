@@ -30,8 +30,52 @@ func cloneSession(session *model.Session) *model.Session {
 
 func cloneMessages(messages []model.Message) []model.Message {
 	out := make([]model.Message, len(messages))
-	copy(out, messages)
+	for i := range messages {
+		out[i] = messages[i]
+		out[i].Attachments = append([]model.Attachment(nil), messages[i].Attachments...)
+		out[i].ModelAttachments = append([]model.AttachmentRecord(nil), messages[i].ModelAttachments...)
+		out[i].Parts = cloneMessageParts(messages[i].Parts)
+		out[i].Events = cloneMessageEvents(messages[i].Events)
+	}
 	return out
+}
+
+func cloneMessageParts(parts []model.MessagePart) []model.MessagePart {
+	if len(parts) == 0 {
+		return nil
+	}
+	out := make([]model.MessagePart, len(parts))
+	for i := range parts {
+		out[i] = parts[i]
+		if parts[i].Event != nil {
+			event := cloneMessageEvent(*parts[i].Event)
+			out[i].Event = &event
+		}
+	}
+	return out
+}
+
+func cloneMessageEvents(events []model.MessageEvent) []model.MessageEvent {
+	if len(events) == 0 {
+		return nil
+	}
+	out := make([]model.MessageEvent, len(events))
+	for i := range events {
+		out[i] = cloneMessageEvent(events[i])
+	}
+	return out
+}
+
+func cloneMessageEvent(event model.MessageEvent) model.MessageEvent {
+	if len(event.Details) == 0 {
+		return event
+	}
+	details := make(map[string]any, len(event.Details))
+	for key, value := range event.Details {
+		details[key] = value
+	}
+	event.Details = details
+	return event
 }
 
 func makeTitle(content string) string {

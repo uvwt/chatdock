@@ -7,9 +7,27 @@ type Message struct {
 	Role             string             `json:"role"`
 	Content          string             `json:"content"`
 	Reasoning        string             `json:"reasoning,omitempty"`
+	Parts            []MessagePart      `json:"parts,omitempty"`
+	Events           []MessageEvent     `json:"events,omitempty"`
 	Attachments      []Attachment       `json:"attachments,omitempty"`
 	ModelAttachments []AttachmentRecord `json:"-"`
 	CreatedAt        time.Time          `json:"created_at"`
+}
+
+type MessagePart struct {
+	Kind    string        `json:"kind"`
+	Text    string        `json:"text,omitempty"`
+	CallKey string        `json:"callKey,omitempty"`
+	Event   *MessageEvent `json:"event,omitempty"`
+}
+
+type MessageEvent struct {
+	Kind    string         `json:"kind"`
+	Phase   string         `json:"phase,omitempty"`
+	CallKey string         `json:"callKey,omitempty"`
+	Text    string         `json:"text,omitempty"`
+	Meta    string         `json:"meta,omitempty"`
+	Details map[string]any `json:"details,omitempty"`
 }
 
 type Attachment struct {

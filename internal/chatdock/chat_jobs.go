@@ -71,7 +71,9 @@ func (a *App) cancelChatJob(jobID string) (storepkg.ChatJob, error) {
 func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cfg model.ModelConfig, history []model.Message) {
 	defer a.unregisterChatJobCancel(jobID)
 	var reasoning strings.Builder
+	var parts messagePartsRecorder
 	emit := func(event string, value any) error {
+		parts.record(event, value)
 		if event == "delta" {
 			if delta, ok := value.(llm.StreamDelta); ok && delta.ReasoningContent != "" {
 				reasoning.WriteString(delta.ReasoningContent)
@@ -90,7 +92,7 @@ func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cf
 		}
 	} else if runErr != nil {
 		status = "failed"
-	} else if _, err := a.store.AppendAssistantMessageWithReasoning(sessionID, answer, reasoning.String()); err != nil {
+	} else if _, err := a.store.AppendAssistantMessageWithParts(sessionID, answer, reasoning.String(), parts.parts, parts.events); err != nil {
 		status = "failed"
 		runErr = err
 	}
