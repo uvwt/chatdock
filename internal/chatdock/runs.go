@@ -57,7 +57,7 @@ func (a *App) handleListAgentTasks(w http.ResponseWriter, r *http.Request) {
 func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message, emit func(string, any) error) (string, error) {
 	// 真实工具全集只保存在服务端；首轮只暴露“搜索 / 查看详情 / 执行”三个轻量入口。
 	// 这样模型仍能按需发现和调用工具，但普通请求不再每轮携带几十个完整 schema。
-	allTools := builtinScheduledTaskTools()
+	allTools := builtinChatDockTools()
 	mcpCfg, mcpErr := a.activeMCPConfig()
 	mcpReady := mcpErr == nil && len(mcpCfg.Servers) > 0
 	if mcpReady {
@@ -81,7 +81,7 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 	}
 	visibleTools := builtinToolDiscoveryTools()
 	if emit != nil {
-		if err := emit("tool_setup_ready", map[string]any{"mode": "discovery", "tool_count": len(allTools), "exposed_tool_count": len(visibleTools), "builtin_tool_count": len(builtinScheduledTaskTools())}); err != nil {
+		if err := emit("tool_setup_ready", map[string]any{"mode": "discovery", "tool_count": len(allTools), "exposed_tool_count": len(visibleTools), "builtin_tool_count": len(builtinChatDockTools())}); err != nil {
 			return "", err
 		}
 	}
@@ -102,6 +102,9 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 	runRealTool := func(name string, args map[string]any) (any, error) {
 		if isBuiltinScheduledTaskTool(name) {
 			return a.callBuiltinScheduledTaskTool(ctx, name, args)
+		}
+		if isBuiltinImageTool(name) {
+			return a.callBuiltinImageTool(ctx, name, args)
 		}
 		if !mcpReady {
 			return nil, fmt.Errorf("MCP tool is not available: %s", name)

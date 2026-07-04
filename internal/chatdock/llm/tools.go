@@ -60,6 +60,8 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 		}
 
 		messages = append(messages, map[string]any{"role": "assistant", "content": resp.Content, "tool" + "_calls": encodeModelToolCalls(resp.ToolCalls)})
+		toolMessages := make([]map[string]any, 0, len(resp.ToolCalls))
+		modelMessages := make([]map[string]any, 0)
 		for index, tc := range resp.ToolCalls {
 			args := decodeToolArguments(tc.Function.Arguments)
 			_ = emit("tool_call_start", map[string]any{"tool": tc.Function.Name, "arguments": args})
@@ -72,9 +74,13 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 			if id == "" {
 				id = fmt.Sprintf("call_%d", index)
 			}
-			_ = emit("tool_call_result", payload)
-			messages = append(messages, map[string]any{"role": "tool", "tool" + "_call_id": id, "name": tc.Function.Name, "content": mcp.CompactJSON(payload)})
+			eventPayload := sanitizeToolPayload(payload)
+			_ = emit("tool_call_result", eventPayload)
+			toolMessages = append(toolMessages, map[string]any{"role": "tool", "tool" + "_call_id": id, "name": tc.Function.Name, "content": mcp.CompactJSON(eventPayload)})
+			modelMessages = append(modelMessages, toolModelMessagesFromPayload(payload)...)
 		}
+		messages = append(messages, toolMessages...)
+		messages = append(messages, modelMessages...)
 		// 工具结果后仍然继续带 tools 流式请求。这样复杂任务可以多轮调用工具，
 		// 普通文本也不再被“非流式工具决策 + 二次流式回答”挡住首字。
 	}
@@ -94,6 +100,8 @@ func (c *ChatClient) completeWithMCPToolsBlocking(ctx context.Context, cfg model
 			return answer, nil
 		}
 		messages = append(messages, map[string]any{"role": "assistant", "content": resp.Content, "tool" + "_calls": encodeModelToolCalls(resp.ToolCalls)})
+		toolMessages := make([]map[string]any, 0, len(resp.ToolCalls))
+		modelMessages := make([]map[string]any, 0)
 		for index, tc := range resp.ToolCalls {
 			args := decodeToolArguments(tc.Function.Arguments)
 			result, err := call(tc.Function.Name, args)
@@ -105,8 +113,12 @@ func (c *ChatClient) completeWithMCPToolsBlocking(ctx context.Context, cfg model
 			if id == "" {
 				id = fmt.Sprintf("call_%d", index)
 			}
-			messages = append(messages, map[string]any{"role": "tool", "tool" + "_call_id": id, "name": tc.Function.Name, "content": mcp.CompactJSON(payload)})
+			eventPayload := sanitizeToolPayload(payload)
+			toolMessages = append(toolMessages, map[string]any{"role": "tool", "tool" + "_call_id": id, "name": tc.Function.Name, "content": mcp.CompactJSON(eventPayload)})
+			modelMessages = append(modelMessages, toolModelMessagesFromPayload(payload)...)
 		}
+		messages = append(messages, toolMessages...)
+		messages = append(messages, modelMessages...)
 	}
 }
 
@@ -119,6 +131,94 @@ func decodeToolArguments(raw string) map[string]any {
 		return map[string]any{"_raw_arguments": raw, "_parse_error": err.Error()}
 	}
 	return args
+}
+
+const (
+	toolModelContentKey   = "_chatdock_model_content"
+	toolModelRoleKey      = "_chatdock_model_role"
+	toolModelContentOKKey = "_chatdock_model_content_ok"
+)
+
+func sanitizeToolPayload(payload map[string]any) map[string]any {
+	clean, ok := stripToolModelFields(payload).(map[string]any)
+	if !ok {
+		return payload
+	}
+	return clean
+}
+
+func stripToolModelFields(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for key, item := range v {
+			if isToolModelField(key) {
+				continue
+			}
+			out[key] = stripToolModelFields(item)
+		}
+		return out
+	case []any:
+		out := make([]any, 0, len(v))
+		for _, item := range v {
+			out = append(out, stripToolModelFields(item))
+		}
+		return out
+	case []map[string]any:
+		out := make([]any, 0, len(v))
+		for _, item := range v {
+			out = append(out, stripToolModelFields(item))
+		}
+		return out
+	default:
+		return value
+	}
+}
+
+func isToolModelField(key string) bool {
+	switch key {
+	case toolModelContentKey, toolModelRoleKey, toolModelContentOKKey:
+		return true
+	default:
+		return false
+	}
+}
+
+func toolModelMessagesFromPayload(payload map[string]any) []map[string]any {
+	result, _ := payload["result"].(map[string]any)
+	if len(result) == 0 {
+		return nil
+	}
+	blocks := normalizeToolModelContent(result[toolModelContentKey])
+	if len(blocks) == 0 {
+		return nil
+	}
+	role := strings.ToLower(strings.TrimSpace(fmt.Sprint(result[toolModelRoleKey])))
+	if role != "user" {
+		role = "user"
+	}
+	return []map[string]any{{"role": role, "content": blocks}}
+}
+
+func normalizeToolModelContent(value any) []map[string]any {
+	switch v := value.(type) {
+	case []map[string]any:
+		return append([]map[string]any(nil), v...)
+	case []any:
+		out := make([]map[string]any, 0, len(v))
+		for _, item := range v {
+			block, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			out = append(out, block)
+		}
+		return out
+	case map[string]any:
+		return []map[string]any{v}
+	default:
+		return nil
+	}
 }
 
 func appendMCPToolUseHint(messages []map[string]any, tools []mcp.MCPTool) []map[string]any {

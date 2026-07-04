@@ -234,6 +234,91 @@ func TestCompleteWithMCPToolsEventsAllowsMultipleToolRoundsBeforeStreaming(t *te
 	}
 }
 
+func TestCompleteWithMCPToolsEventsInjectsToolImageAsVisionMessage(t *testing.T) {
+	requestCount := 0
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher := w.(http.Flusher)
+		send := func(data string) {
+			_, _ = w.Write([]byte("data: " + data + "\n\n"))
+			flusher.Flush()
+		}
+		switch requestCount {
+		case 1:
+			send(`{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_img","type":"function","function":{"name":"image_loader","arguments":"{\"url\":\"https://example.com/cat.png\"}"}}]}}]}`)
+		case 2:
+			messages := body["messages"].([]any)
+			if len(messages) < 2 {
+				t.Fatalf("expected tool and vision messages, got %#v", messages)
+			}
+			toolMessage := messages[len(messages)-2].(map[string]any)
+			if toolMessage["role"] != "tool" || toolMessage["name"] != "image_loader" {
+				t.Fatalf("expected sanitized tool message before vision message, got %#v", toolMessage)
+			}
+			toolContent, _ := toolMessage["content"].(string)
+			if strings.Contains(toolContent, "_chatdock_model_content") || !strings.Contains(toolContent, "image_url") {
+				t.Fatalf("tool content should be sanitized metadata, got %s", toolContent)
+			}
+			visionMessage := messages[len(messages)-1].(map[string]any)
+			if visionMessage["role"] != "user" {
+				t.Fatalf("vision content should be sent as user message, got %#v", visionMessage)
+			}
+			blocks := visionMessage["content"].([]any)
+			if len(blocks) != 2 {
+				t.Fatalf("expected text + image blocks, got %#v", blocks)
+			}
+			imageBlock := blocks[1].(map[string]any)
+			imageURL := imageBlock["image_url"].(map[string]any)
+			if imageBlock["type"] != "image_url" || imageURL["url"] != "https://example.com/cat.png" {
+				t.Fatalf("expected image_url content block, got %#v", imageBlock)
+			}
+			send(`{"choices":[{"delta":{"content":"看到了"}}]}`)
+		default:
+			t.Fatalf("unexpected request %d", requestCount)
+		}
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+		flusher.Flush()
+	}))
+	defer modelServer.Close()
+
+	client := NewChatClient()
+	cfg := model.ModelConfig{BaseURL: modelServer.URL, Model: "fake", HideThinking: true}
+	tools := []mcp.MCPTool{{Name: "image", FullName: "image_loader", Description: "load image", InputSchema: map[string]any{"type": "object"}}}
+	var resultEvents []map[string]any
+	answer, err := client.CompleteWithMCPToolsEvents(context.Background(), cfg, []model.Message{{Role: "user", Content: "看图"}}, tools, func(name string, args map[string]any) (any, error) {
+		return map[string]any{
+			"url":            "https://example.com/cat.png",
+			"model_delivery": "image_url",
+			toolModelContentKey: []map[string]any{
+				{"type": "text", "text": "请分析这张图"},
+				{"type": "image_url", "image_url": map[string]any{"url": "https://example.com/cat.png"}},
+			},
+		}, nil
+	}, func(kind string, payload any) error {
+		if kind == "tool_call_result" {
+			resultEvents = append(resultEvents, payload.(map[string]any))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if answer != "看到了" {
+		t.Fatalf("unexpected answer: %q", answer)
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected model to receive tool image on second request, got %d", requestCount)
+	}
+	if len(resultEvents) != 1 || strings.Contains(fmt.Sprint(resultEvents[0]), "_chatdock_model_content") {
+		t.Fatalf("tool result event should be sanitized, got %#v", resultEvents)
+	}
+}
+
 func TestCompleteWithMCPToolsEventsHasNoFixedRoundCap(t *testing.T) {
 	requestCount := 0
 	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
