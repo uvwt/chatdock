@@ -2773,3 +2773,65 @@ body.theme-light #app.app #sessions .session.active::after {
     margin-bottom: 24px !important;
   }
 }
+
+/* 2026-07-04 删除入口最终修复：会话行常驻浅色叉，避免被历史补丁再次隐藏。 */
+#app.app #sessions .session-delete,
+#app.app #sessions .session:hover .session-delete,
+#app.app #sessions .session.active .session-delete,
+#app.app #sessions .session:focus-within .session-delete {
+  position: absolute !important;
+  right: 9px !important;
+  top: 50% !important;
+  z-index: 4 !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  transform: translateY(-50%) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  opacity: .46 !important;
+  pointer-events: auto !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #b6c0cf !important;
+  font-size: 19px !important;
+  font-weight: 300 !important;
+  line-height: 1 !important;
+}
+
+#app.app #sessions .session:hover .session-delete,
+#app.app #sessions .session.active .session-delete,
+#app.app #sessions .session:focus-within .session-delete {
+  opacity: .68 !important;
+  color: #94a3b8 !important;
+}
+
+#app.app #sessions .session-delete:hover:not(:disabled) {
+  opacity: 1 !important;
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+}
+
+#app.app #sessions .session {
+  padding-right: 42px !important;
+}
+
+@media (max-width: 720px) {
+  #app.app #sessions .session-delete,
+  #app.app #sessions .session:hover .session-delete,
+  #app.app #sessions .session.active .session-delete,
+  #app.app #sessions .session:focus-within .session-delete {
+    right: 10px !important;
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+    opacity: .52 !important;
+    color: #aeb8c7 !important;
+  }
+}
