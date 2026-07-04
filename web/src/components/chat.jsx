@@ -214,12 +214,10 @@ function UserMessageView({ message, messageIndex, onCopy, onEditUserMessage, onD
 export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEditUserMessage, onDownloadAttachment, hideThinking = true, onResolveConfirmation, onInspectToolEvent }) {
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
   if (message.role === 'assistant-stream') {
-    const reasoning = hideThinking ? '' : message.reasoning;
     const hasInlineParts = Array.isArray(message.parts) && message.parts.length > 0;
     return <div className="msg assistant" data-model-message="true">
       <ReasoningBlock value={message.reasoning} streaming={!message.answer} hidden={hideThinking || hasInlineParts} />
       <AssistantContent message={message} streaming hideThinking={hideThinking} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
-      <MessageActions text={[reasoning, message.answer].filter(Boolean).join('\n\n')} onCopy={onCopy} onBranch={onBranch ? () => onBranch(messageIndex) : null} />
     </div>;
   }
   if (message.role === 'assistant') {
