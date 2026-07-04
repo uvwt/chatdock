@@ -1899,3 +1899,17 @@ aside,
     color: #b91c1c !important;
   }
 }
+
+/* 2026-07 手机端删除入口收口：触屏端改成当前/聚焦会话才显示 X。 */
+@media (max-width: 720px) {
+  aside .session-delete {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  aside .session.active .session-delete,
+  aside .session:focus-within .session-delete {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
