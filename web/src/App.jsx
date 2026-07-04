@@ -119,6 +119,7 @@ export default function App() {
   const [quickPaletteOpen, setQuickPaletteOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [chatModel, setChatModel] = useState({provider_id:'', model:''});
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
 
   const [setupStatus, setSetupStatus] = useState(null);
   const [workspaces, setWorkspaces] = useState([]);
@@ -423,6 +424,41 @@ export default function App() {
     if (activeModule === 'security') loadSystemStatus().catch(e => showToast('系统状态加载失败：' + e.message, 'error'));
   }, [settingsOpen, activeModule, loadMCPStatus, loadRuns, loadAgentTasks, loadDataStatus, loadSystemStatus, showToast]);
 
+  const latestModelMessageElement = useCallback(() => {
+    const box = messagesRef.current;
+    if (!box) return null;
+    const nodes = box.querySelectorAll('[data-model-message="true"]');
+    return nodes[nodes.length - 1] || null;
+  }, []);
+
+  const updateJumpToLatestVisibility = useCallback(() => {
+    const box = messagesRef.current;
+    if (!box) return;
+    const latest = latestModelMessageElement();
+    const bottomGap = box.scrollHeight - box.scrollTop - box.clientHeight;
+    if (!latest) {
+      setShowJumpToLatest(messages.length > 0 && bottomGap > 160);
+      return;
+    }
+    const latestTop = latest.offsetTop - box.scrollTop;
+    const latestBottom = latestTop + latest.offsetHeight;
+    // 只在用户确实停在“最新模型消息”上方时出现；如果用户已经在最新回复内部阅读，不打扰。
+    const shouldShow = bottomGap > 160 && latestTop > box.clientHeight - 96 && latestBottom > box.clientHeight;
+    setShowJumpToLatest(prev => prev === shouldShow ? prev : shouldShow);
+  }, [latestModelMessageElement, messages.length]);
+
+  const scrollToLatestModelMessage = useCallback(() => {
+    const box = messagesRef.current;
+    if (!box) return;
+    const latest = latestModelMessageElement();
+    if (latest) {
+      box.scrollTo({top: Math.max(0, latest.offsetTop - 14), behavior: 'smooth'});
+    } else {
+      box.scrollTo({top: box.scrollHeight, behavior: 'smooth'});
+    }
+    window.setTimeout(updateJumpToLatestVisibility, 360);
+  }, [latestModelMessageElement, updateJumpToLatestVisibility]);
+
   useEffect(() => {
     const box = messagesRef.current;
     if (!box) return;
@@ -430,14 +466,16 @@ export default function App() {
       box.scrollTop = box.scrollHeight;
       forceScrollRef.current = false;
     }
-  }, [messages]);
+    window.requestAnimationFrame(updateJumpToLatestVisibility);
+  }, [messages, updateJumpToLatestVisibility]);
 
   const handleMessagesScroll = useCallback(() => {
     const box = messagesRef.current;
     if (!box) return;
     // 用户手动上滑时停止跟随流式输出；只有接近底部时继续自动贴底。
     stickToBottomRef.current = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
-  }, []);
+    updateJumpToLatestVisibility();
+  }, [updateJumpToLatestVisibility]);
 
   const setSidebarCollapsed = useCallback((value) => {
     setSidebarCollapsedState(value);
@@ -1318,6 +1356,7 @@ export default function App() {
           </div>
         </div>
         <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
+        {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息">↓</button> : null}
         <div className="composer-shell">
         {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} /> : null}
         <div className="composer">

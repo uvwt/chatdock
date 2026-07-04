@@ -49,7 +49,7 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, hide
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
   if (message.role === 'assistant-stream') {
     const reasoning = hideThinking ? '' : message.reasoning;
-    return <div className="msg assistant">
+    return <div className="msg assistant" data-model-message="true">
       <ReasoningBlock value={message.reasoning} streaming hidden={hideThinking} />
       <Markdown className="answer markdown" value={message.answer} />
       {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline' : '') + (event.details ? ' has-details' : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} role={event.details ? 'button' : undefined} tabIndex={event.details ? 0 : undefined} onKeyDown={e => { if (event.details && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onInspectToolEvent?.(event); } }}>
@@ -66,7 +66,7 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, hide
   }
   if (message.role === 'assistant') {
     const reasoning = hideThinking ? '' : message.reasoning;
-    return <div className="msg assistant markdown">
+    return <div className="msg assistant markdown" data-model-message="true">
       <ReasoningBlock value={message.reasoning} hidden={hideThinking} />
       <Markdown value={message.content} />
       <MessageActions text={[reasoning, message.content].filter(Boolean).join('\n\n')} onCopy={onCopy} onBranch={onBranch ? () => onBranch(messageIndex) : null} />
@@ -81,6 +81,16 @@ export function EmptyState({ createSession, openSettings, openWorkspacePicker, b
     {title:'规划一个任务', text:'把目标拆成可执行步骤，并保留上下文。', prompt:'帮我把这个任务拆成可执行计划：'},
     {title:'整理一段资料', text:'提取结论、风险点和下一步动作。', prompt:'请帮我整理这段资料，并输出重点：'},
     {title:'排查一个问题', text:'按现象、证据、假设和验证步骤推进。', prompt:'我遇到一个问题，请按排障流程分析：'},
+  ];
+  const flowSteps = [
+    {title:'开始', text:'先开一个干净会话，保留后续上下文。', key:'↵'},
+    {title:'调用', text:'模型、MCP、Skill 和附件统一进同一入口。', key:'⌘K'},
+    {title:'追踪', text:'任务、工具事件和运行记录都能复查。', key:'✓'},
+  ];
+  const capabilityItems = [
+    {title:'配置中心', text:'模型、Prompt、工具状态统一维护'},
+    {title:'数据状态', text:'数据库、备份和会话健康可见'},
+    {title:'自动化', text:'定时任务与运行记录可追踪'},
   ];
   return <div className="empty-state product-empty-state">
     <section className="product-hero">
@@ -99,22 +109,21 @@ export function EmptyState({ createSession, openSettings, openWorkspacePicker, b
       </div>
       <div className="hero-panel" aria-label="ChatDock 工作台能力概览">
         <div className="hero-panel-top"><span>当前流程</span><b>Ready</b></div>
-        <div className="hero-metric-row"><div><b>1. 开始</b><span>新建会话，保留上下文</span></div><strong>↵</strong></div>
-        <div className="hero-metric-row"><div><b>2. 调用</b><span>模型、MCP、Skill 统一入口</span></div><strong>⌘K</strong></div>
-        <div className="hero-metric-row"><div><b>3. 追踪</b><span>任务、数据和运行记录可复查</span></div><strong>✓</strong></div>
+        {flowSteps.map((step, index) => <div key={step.title} className="hero-metric-row">
+          <div><small>{String(index + 1).padStart(2, '0')}</small><b>{step.title}</b><span>{step.text}</span></div><strong>{step.key}</strong>
+        </div>)}
       </div>
     </section>
     <section className="starter-grid">
       {starterCards.map(card => <button key={card.title} type="button" className="starter-card" disabled={busy} onClick={() => { setInput(card.prompt); createSession(); }}>
         <span className="starter-icon">✦</span>
+        <span className="starter-card-arrow" aria-hidden="true">↗</span>
         <b>{card.title}</b>
         <span>{card.text}</span>
       </button>)}
     </section>
     <section className="empty-capability-strip">
-      <div><b>配置中心</b><span>模型、Prompt、工具状态统一维护</span></div>
-      <div><b>数据状态</b><span>数据库、备份和会话健康可见</span></div>
-      <div><b>自动化</b><span>定时任务与运行记录可追踪</span></div>
+      {capabilityItems.map((item, index) => <div key={item.title}><i aria-hidden="true">{String(index + 1).padStart(2, '0')}</i><b>{item.title}</b><span>{item.text}</span></div>)}
     </section>
   </div>;
 }

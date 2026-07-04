@@ -802,3 +802,148 @@ body.theme-light .model-provider-item,
 body.theme-light .model-chip {
   background: #f8fafc;
 }
+
+/* 回到最新模型消息：只在用户停在上方时悬浮出现，点击定位到最新 assistant 消息开头。 */
+.jump-latest {
+  position: absolute;
+  left: 50%;
+  bottom: 104px;
+  z-index: 9;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0;
+  transform: translateX(-50%);
+  border: 1px solid var(--gpt-border-strong);
+  border-radius: 999px;
+  background: var(--gpt-surface);
+  color: var(--gpt-text);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, .26);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+body.theme-light .jump-latest {
+  background: #ffffff;
+  box-shadow: 0 14px 42px rgba(15, 23, 42, .14);
+}
+
+
+/* 2026-07 浏览器截图优化：空状态更像产品工作台，卡片层级更清楚。 */
+.product-empty-state {
+  padding-top: clamp(18px, 3.2vh, 44px) !important;
+}
+
+.hero-copy,
+.hero-panel,
+.starter-card,
+.empty-capability-strip {
+  backdrop-filter: blur(20px) saturate(140%);
+}
+
+.hero-copy {
+  min-height: 286px;
+}
+
+.hero-copy::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: 29px;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255,255,255,.10), transparent 42%);
+  opacity: .75;
+}
+
+.hero-copy > *,
+.hero-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-panel::before {
+  content: '';
+  position: absolute;
+  width: 190px;
+  height: 190px;
+  right: -92px;
+  bottom: -110px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59,130,246,.24), transparent 65%);
+  pointer-events: none;
+}
+
+.hero-metric-row small {
+  color: var(--gpt-muted-2);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.starter-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.starter-card::after {
+  content: '';
+  position: absolute;
+  inset: auto -40px -56px auto;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  background: rgba(16,163,127,.10);
+  z-index: -1;
+}
+
+.starter-card-arrow {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  color: var(--gpt-muted-2);
+  font-size: 14px;
+  transform: translate(-2px, 2px);
+  opacity: 0;
+  transition: transform .18s ease, opacity .18s ease, color .18s ease;
+}
+
+.starter-card:hover:not(:disabled) .starter-card-arrow {
+  opacity: 1;
+  color: var(--gpt-text);
+  transform: translate(0, 0);
+}
+
+.empty-capability-strip div {
+  position: relative;
+  padding-left: 52px !important;
+}
+
+.empty-capability-strip i {
+  position: absolute;
+  left: 16px;
+  top: 15px;
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(16,163,127,.13);
+  color: #6ee7b7;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: -.02em;
+}
+
+body.theme-light .empty-capability-strip i {
+  color: #047857;
+  background: rgba(16,163,127,.10);
+}
