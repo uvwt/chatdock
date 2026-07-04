@@ -325,8 +325,10 @@ function buildToolEventDetail(event) {
     sections.push({ title: '候选工具', value: actual.candidates, display: 'tools', emptyText: '没有候选工具' });
   }
   if (hasDialogValue(details.error || data.error)) sections.push({ title: '错误', value: details.error || data.error, tone: 'danger' });
-  if (hasDialogValue(actual.actualArguments)) sections.push({ title: actual.mode === 'execute' ? '参数' : '请求参数', value: actual.actualArguments, emptyText: '无参数' });
-  if (hasDialogValue(actual.actualResult)) sections.push({ title: actual.mode === 'execute' ? '响应' : '完整响应', value: actual.actualResult, emptyText: '无响应' });
+  const hasArgumentsSection = hasDialogValue(actual.actualArguments);
+  const hasResultSection = hasDialogValue(actual.actualResult);
+  if (hasArgumentsSection) sections.push({ title: actual.mode === 'execute' ? '参数' : '请求参数', value: actual.actualArguments, emptyText: '无参数' });
+  if (hasResultSection) sections.push({ title: actual.mode === 'execute' ? '响应' : '完整响应', value: actual.actualResult, emptyText: '无响应', collapsed: hasArgumentsSection });
   if (hasDialogValue(data) && !sections.length) sections.push({ title: '事件数据', value: data });
   sections.push({ title: '原始事件', value: details, collapsed: true, muted: true });
   return {
