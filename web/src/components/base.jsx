@@ -39,7 +39,7 @@ export function QuickPalette({ open, actions, onClose }) {
           if (e.key === 'Escape') onClose();
           if (e.key === 'Enter') runAction(filtered.find(a => !a.disabled));
         }} placeholder="搜索快捷指令，例如：模型、导出、工作空间" />
-        <button className="secondary small" onClick={onClose}>关闭</button>
+        <button className="secondary small quick-palette-close" onClick={onClose} aria-label="关闭快捷指令">×</button>
       </div>
       <div className="quick-palette-list">
         {filtered.length ? filtered.map(action => <button key={action.id} type="button" className="quick-palette-item" disabled={!!action.disabled} onClick={() => runAction(action)}>
