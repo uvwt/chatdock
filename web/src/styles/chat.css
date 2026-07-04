@@ -1028,14 +1028,16 @@ body.theme-light .empty-capability-strip i {
 .msg.assistant > .answer,
 .msg.assistant .answer.markdown {
   max-width: 700px !important;
-  color: color-mix(in srgb, var(--gpt-text) 96%, var(--gpt-muted)) !important;
-  font-size: 15.5px !important;
-  font-weight: 390 !important;
+  color: color-mix(in srgb, var(--gpt-text) 98%, var(--gpt-muted)) !important;
+  font-size: 15.75px !important;
+  font-weight: 400 !important;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  line-height: 1.72 !important;
+  line-height: 1.66 !important;
   letter-spacing: 0 !important;
   white-space: normal !important;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
 }
 
 .msg.assistant.markdown > :first-child,
@@ -1053,7 +1055,7 @@ body.theme-light .empty-capability-strip i {
 .msg.assistant.markdown p,
 .msg.assistant .markdown p,
 .msg.assistant .answer p {
-  margin: 0 0 12px !important;
+  margin: 0 0 10px !important;
 }
 
 .msg.assistant.markdown p:empty,
@@ -1068,15 +1070,15 @@ body.theme-light .empty-capability-strip i {
 .msg.assistant .markdown ol,
 .msg.assistant .answer ul,
 .msg.assistant .answer ol {
-  margin: 9px 0 15px !important;
-  padding-left: 1.35rem !important;
+  margin: 8px 0 13px !important;
+  padding-left: 1.22rem !important;
 }
 
 .msg.assistant.markdown li,
 .msg.assistant .markdown li,
 .msg.assistant .answer li {
-  margin: 5px 0 !important;
-  padding-left: .15rem !important;
+  margin: 4px 0 !important;
+  padding-left: .12rem !important;
 }
 
 .msg.assistant.markdown li::marker,
@@ -1103,7 +1105,7 @@ body.theme-light .empty-capability-strip i {
 .msg.assistant.markdown strong,
 .msg.assistant .markdown strong,
 .msg.assistant .answer strong {
-  color: var(--gpt-text-strong) !important;
+  color: var(--text-strong) !important;
   font-weight: 590 !important;
 }
 
@@ -1119,12 +1121,12 @@ body.theme-light .empty-capability-strip i {
 .msg.assistant .answer h2,
 .msg.assistant .answer h3,
 .msg.assistant .answer h4 {
-  margin: 18px 0 9px !important;
+  margin: 20px 0 8px !important;
   padding-top: 0 !important;
   border-top: 0 !important;
-  color: var(--gpt-text-strong) !important;
-  font-weight: 620 !important;
-  letter-spacing: -.012em !important;
+  color: var(--text-strong) !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
 }
 
 .msg.assistant.markdown h1,
@@ -1147,7 +1149,7 @@ body.theme-light .empty-capability-strip i {
   border: 1px solid color-mix(in srgb, var(--gpt-border) 72%, transparent) !important;
   border-radius: 6px !important;
   background: color-mix(in srgb, var(--gpt-surface) 82%, transparent) !important;
-  color: var(--gpt-text-strong) !important;
+  color: var(--text-strong) !important;
   font-weight: 390 !important;
   font-size: .9em !important;
 }
@@ -1155,11 +1157,11 @@ body.theme-light .empty-capability-strip i {
 .msg.assistant.markdown pre,
 .msg.assistant .markdown pre,
 .msg.assistant .answer pre {
-  margin: 13px 0 15px !important;
-  padding: 12px 14px !important;
-  border-radius: 12px !important;
-  background: #0f172a !important;
-  border-color: color-mix(in srgb, var(--gpt-border) 82%, transparent) !important;
+  margin: 12px 0 14px !important;
+  padding: 13px 14px !important;
+  border-radius: 8px !important;
+  background: color-mix(in srgb, var(--gpt-surface) 92%, var(--gpt-text) 8%) !important;
+  border-color: color-mix(in srgb, var(--gpt-border) 86%, transparent) !important;
 }
 
 .msg.assistant.markdown pre code,
@@ -1167,15 +1169,15 @@ body.theme-light .empty-capability-strip i {
 .msg.assistant .answer pre code {
   border: 0 !important;
   background: transparent !important;
-  color: #e5e7eb !important;
+  color: #0f172a !important;
   padding: 0 !important;
 }
 
 .msg.assistant.markdown blockquote,
 .msg.assistant .markdown blockquote,
 .msg.assistant .answer blockquote {
-  margin: 12px 0 14px !important;
-  padding: 6px 0 6px 13px !important;
+  margin: 10px 0 12px !important;
+  padding: 4px 0 4px 12px !important;
   border-left: 3px solid color-mix(in srgb, var(--primary) 72%, var(--gpt-border)) !important;
   border-radius: 0 !important;
   background: transparent !important;
@@ -1221,17 +1223,17 @@ body.theme-light .empty-capability-strip i {
   .msg.assistant .answer.markdown {
     max-width: none !important;
     font-size: 15px !important;
-    line-height: 1.68 !important;
+    line-height: 1.64 !important;
   }
 }
 
 /* Markdown code blocks: copy button and lightweight syntax highlighting. */
 .markdown .code-block {
-  margin: 13px 0 15px;
+  margin: 12px 0 14px;
   overflow: hidden;
-  border: 1px solid #1e293b;
-  border-radius: 13px;
-  background: #0f172a;
+  border: 1px solid color-mix(in srgb, var(--gpt-border) 86%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--gpt-surface) 92%, var(--gpt-text) 8%);
 }
 
 .markdown .code-block-head {
@@ -1239,14 +1241,14 @@ body.theme-light .empty-capability-strip i {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 36px;
+  min-height: 34px;
   padding: 0 10px 0 13px;
-  border-bottom: 1px solid rgba(148, 163, 184, .18);
-  background: rgba(15, 23, 42, .92);
+  border-bottom: 1px solid color-mix(in srgb, var(--gpt-border) 78%, transparent);
+  background: color-mix(in srgb, var(--gpt-surface) 84%, var(--gpt-text) 12%);
 }
 
 .markdown .code-block-lang {
-  color: #94a3b8;
+  color: var(--gpt-muted);
   font-size: 12px;
   font-weight: 560;
   letter-spacing: .02em;
@@ -1255,10 +1257,10 @@ body.theme-light .empty-capability-strip i {
 
 .markdown .code-block-copy {
   appearance: none;
-  border: 1px solid rgba(148, 163, 184, .28);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, .06);
-  color: #cbd5e1;
+  border: 1px solid color-mix(in srgb, var(--gpt-border) 82%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--gpt-surface) 88%, var(--gpt-text) 8%);
+  color: var(--gpt-muted);
   cursor: pointer;
   font-size: 12px;
   font-weight: 470;
@@ -1268,15 +1270,15 @@ body.theme-light .empty-capability-strip i {
 }
 
 .markdown .code-block-copy:hover {
-  border-color: rgba(203, 213, 225, .46);
-  background: rgba(255, 255, 255, .11);
-  color: #f8fafc;
+  border-color: color-mix(in srgb, var(--primary) 48%, var(--gpt-border));
+  background: color-mix(in srgb, var(--gpt-surface) 80%, var(--primary) 10%);
+  color: var(--text-strong);
 }
 
 .markdown .code-block-copy.copied {
-  border-color: rgba(52, 211, 153, .55);
-  background: rgba(16, 185, 129, .16);
-  color: #a7f3d0;
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--gpt-border));
+  background: color-mix(in srgb, var(--gpt-surface) 76%, var(--primary) 14%);
+  color: var(--text-strong);
 }
 
 .markdown .code-block-pre,
@@ -1300,7 +1302,7 @@ body.theme-light .empty-capability-strip i {
   padding: 0 !important;
   border: 0 !important;
   background: transparent !important;
-  color: #e2e8f0 !important;
+  color: #0f172a !important;
   font-size: 13px !important;
   font-weight: 390 !important;
   -webkit-font-smoothing: antialiased;
@@ -1309,15 +1311,15 @@ body.theme-light .empty-capability-strip i {
   white-space: pre;
 }
 
-.markdown .hl-comment { color: #64748b; font-style: italic; }
-.markdown .hl-string { color: #86efac; }
-.markdown .hl-number { color: #fbbf24; }
-.markdown .hl-keyword { color: #93c5fd; }
-.markdown .hl-punctuation { color: #94a3b8; }
+.markdown .hl-comment { color: var(--gpt-muted); font-style: italic; }
+.markdown .hl-string { color: #047857; }
+.markdown .hl-number { color: #b45309; }
+.markdown .hl-keyword { color: #1d4ed8; }
+.markdown .hl-punctuation { color: #64748b; }
 
 @media (max-width: 720px) {
   .markdown .code-block {
-    border-radius: 12px;
+    border-radius: 8px;
   }
 
   .markdown .code-block-pre,
@@ -1475,4 +1477,3 @@ body.theme-light .empty-capability-strip i {
     display: none;
   }
 }
-
