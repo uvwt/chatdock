@@ -1579,8 +1579,8 @@ export default function App() {
             <button type="button" className="session-menu-trigger" disabled={busy} onClick={e => { e.stopPropagation(); setSessionMenuID(menuOpen ? '' : s.id); }} aria-label={(s.title || '会话') + ' 操作'} aria-expanded={menuOpen ? 'true' : 'false'} title="会话操作">⋯</button>
             {menuOpen ? <div className="session-row-menu" onClick={e => e.stopPropagation()}>
               <button type="button" onClick={() => pinSessionByID(s.id, !!s.pinned)}>{s.pinned ? '取消置顶' : '置顶'}</button>
-              <button type="button" onClick={() => renameSessionByID(s.id, s.title)}>重命名标题</button>
               <button type="button" className="danger" onClick={() => { setSessionMenuID(''); deleteSessionByID(s.id, s.title); }} disabled={busy}>删除</button>
+              <button type="button" onClick={() => renameSessionByID(s.id, s.title)}>重命名标题</button>
             </div> : null}
           </div>;
         }) : <div className="empty compact">{sessionSearch.trim() ? '没有匹配会话' : '暂无会话，开始新会话'}</div>}</div>

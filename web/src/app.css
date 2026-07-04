@@ -3010,3 +3010,25 @@ body.theme-light #app.app #sessions .session.active::after {
     width: 146px !important;
   }
 }
+
+
+/* 2026-07-04 会话三点菜单复查修正：默认不只是透明，而是真正不显示、不占交互层。 */
+#app.app #sessions .session-menu-trigger {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+#app.app #sessions .session:hover .session-menu-trigger,
+#app.app #sessions .session.active .session-menu-trigger,
+#app.app #sessions .session:focus-within .session-menu-trigger,
+#app.app #sessions .session.menu-open .session-menu-trigger {
+  display: inline-flex !important;
+  opacity: .68 !important;
+  pointer-events: auto !important;
+}
+
+#app.app #sessions .session.menu-open .session-menu-trigger,
+#app.app #sessions .session-menu-trigger:hover:not(:disabled) {
+  opacity: 1 !important;
+}
