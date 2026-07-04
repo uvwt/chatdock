@@ -179,7 +179,6 @@ export default function App() {
   const toastTimerRef = useRef(null);
   const [dialog, setDialog] = useState(null);
   const [workspacePickerOpen, setWorkspacePickerOpen] = useState(false);
-  const [sessionActionsOpen, setSessionActionsOpen] = useState(false);
   const [quickPaletteOpen, setQuickPaletteOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [chatModel, setChatModel] = useState({provider_id:'', model:''});
@@ -607,13 +606,12 @@ export default function App() {
       if (event.key !== 'Escape') return;
       if (dialog) closeDialog(null);
       else if (quickPaletteOpen) setQuickPaletteOpen(false);
-      else if (sessionActionsOpen) setSessionActionsOpen(false);
       else if (workspacePickerOpen) setWorkspacePickerOpen(false);
       else if (settingsOpen) closeSettings();
     }
     window.addEventListener('keydown', closeTopLayer);
     return () => window.removeEventListener('keydown', closeTopLayer);
-  }, [closeDialog, closeSettings, dialog, quickPaletteOpen, sessionActionsOpen, settingsOpen, workspacePickerOpen]);
+  }, [closeDialog, closeSettings, dialog, quickPaletteOpen, settingsOpen, workspacePickerOpen]);
 
   useEffect(() => {
     function onGlobalShortcut(event) {
@@ -1442,41 +1440,25 @@ export default function App() {
 
   return <>
     <div id="sidebarMask" className={'sidebar-mask ' + (!settingsOpen && !sidebarCollapsed ? 'show' : '')} onClick={() => setSidebarCollapsed(true)} />
-    <div className={'session-actions-backdrop ' + (sessionActionsOpen ? 'show' : '')} onClick={() => setSessionActionsOpen(false)}>
-      <div className="session-actions-sheet" onClick={e => e.stopPropagation()}>
-        <div className="session-actions-head"><b>会话操作</b><button className="secondary small" onClick={() => setSessionActionsOpen(false)}>关闭</button></div>
-        <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); pinCurrent(); }}>{currentPinned ? '取消置顶' : '置顶会话'}</button>
-        <button className="secondary" disabled={!current || busy} onClick={() => { setSessionActionsOpen(false); renameCurrent(); }}>重命名</button>
-        <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); copyCurrentMarkdown(); }}>复制全文</button>
-        <button className="secondary" disabled={!current || busy} onClick={() => { setSessionActionsOpen(false); cloneCurrent(); }}>复制会话</button>
-        <button className="secondary" disabled={!current || busy || !messages.length} onClick={() => { setSessionActionsOpen(false); branchCurrent(); }}>创建分支对话</button>
-        <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); exportCurrent(); }}>导出 Markdown</button>
-        <button className="secondary" disabled={!current} onClick={() => { setSessionActionsOpen(false); showContextPreview(); }}>上下文 / Token</button>
-        <button className="danger" disabled={!current || busy} onClick={() => { setSessionActionsOpen(false); deleteCurrent(); }}>删除会话</button>
-      </div>
-    </div>
     {settingsOpen ? <div id="settingsPage" className="settings-page">{settingsPanel}</div> : <div id="app" className={appClass}>
       <aside>
         <div className="sidebar-head">
-          <div className="brand"><span className="brand-logo">✦</span><div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">本地优先的 AI 工作台</div></div></div>
+          <div className="brand"><div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">本地优先的 AI 工作台</div></div></div>
           <button id="sidebarToggle" className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}>{sidebarCollapsed ? '›' : '‹'}</button>
         </div>
         <div className="prompt-box">
           <button className="workspace-picker-trigger" type="button" disabled={busy || !prompts.length} onClick={() => setWorkspacePickerOpen(true)}>
-            <span className="workspace-picker-icon">⌕</span>
             <span className="workspace-picker-name">{activePrompt ? (activePrompt.name === 'default' ? '默认工作区' : activePrompt.name) : '未选择'}</span>
             <span className="workspace-picker-meta">{activePrompt ? activePrompt.count : sessions.length}</span>
-            <span className="workspace-picker-arrow">⌄</span>
           </button>
         </div>
         <div className="session-search-row">
-          <label className="session-search-box"><span className="session-search-icon">⌕</span><input className="session-search" placeholder="搜索聊天记录" value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} /></label>
-          <button className="new" onClick={newSession}><span className="new-symbol">+</span><span className="new-label">新会话</span></button>
+          <label className="session-search-box"><input className="session-search" placeholder="搜索聊天记录" value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} /></label>
+          <button className="new" onClick={newSession} aria-label="新会话" title="新会话"><span className="new-icon" aria-hidden="true">＋</span></button>
         </div>
-        <div className="sidebar-section-head"><div className="sidebar-section-title"><span className="sidebar-section-dot" />最近会话</div><button type="button" className="sidebar-manage" onClick={() => setSessionActionsOpen(true)}>管理</button></div>
+        <div className="sidebar-section-head"><div className="sidebar-section-title">最近会话</div></div>
         {sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : '全文搜索 ' + filteredSessions.length + ' 条'}</div> : null}
         <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => <div key={s.id} className={'session ' + (current === s.id ? 'active ' : '') + (s.pinned ? 'pinned' : '')} onClick={() => openSession(s.id)}><div className="session-main"><div className="session-title">{s.pinned ? <span className="pin-mark">置顶</span> : null}{s.title}</div>{s.match_snippet ? <div className="session-preview search-hit">{s.match_field ? s.match_field + '：' : ''}{s.match_snippet}</div> : (s.preview ? <div className="session-preview">{s.preview}</div> : null)}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div><button type="button" className="session-delete" disabled={busy} onClick={e => { e.stopPropagation(); deleteSessionByID(s.id, s.title); }} aria-label={'删除会话 ' + (s.title || '')} title="删除会话">×</button></div>) : <div className="empty compact">{sessionSearch.trim() ? '没有匹配会话' : '暂无会话，开始新会话'}</div>}</div>
-        <div className="sidebar-footer"><button type="button" className="sidebar-settings-entry" onClick={() => openSettings()}><span className="sidebar-settings-icon">⚙</span><span>设置</span></button></div>
       </aside>
       <main>
         <div className="topbar">
@@ -1484,7 +1466,7 @@ export default function App() {
           <div className="top-actions">
             <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)} title="快捷指令（⌘/Ctrl K）"><span className="action-icon" aria-hidden="true">✦</span><span className="action-label">快捷</span></button>
             <button className="secondary config-toggle" onClick={() => openSettings()} title="配置中心"><span className="action-icon" aria-hidden="true">⚙</span><span className="action-label">配置</span></button>
-            <button className="secondary session-actions-toggle mobile-new-toggle" onClick={newSession} title="新会话">新会话</button>
+            <button className="secondary session-actions-toggle mobile-new-toggle" onClick={newSession} aria-label="新会话" title="新会话"><span className="new-icon" aria-hidden="true">＋</span></button>
             <button className="theme-toggle" onClick={() => setThemeState(theme === 'day' ? 'night' : 'day')}><span className="action-icon" aria-hidden="true">{theme === 'day' ? '☀' : '☾'}</span><span className="action-label">{theme === 'day' ? '白天' : '夜晚'}</span></button>
             <button className="secondary" onClick={renameCurrent} disabled={!current || busy}>重命名</button>
             <button className="secondary" onClick={copyCurrentMarkdown} disabled={!current}>复制全文</button>

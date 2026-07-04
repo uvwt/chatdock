@@ -2341,3 +2341,132 @@
     display: none !important;
   }
 }
+
+/* 2026-07-04 会话列表简化：去掉侧边栏装饰图标、底部设置入口和管理入口。 */
+#app.app aside .brand::before,
+#app.app aside .brand-text::before,
+#app.app #sessions .session::before,
+#app.app #sessions .session::after,
+#app.app .workspace-picker-icon,
+#app.app .workspace-picker-arrow,
+#app.app .session-search-icon,
+#app.app .new-symbol,
+#app.app .new-label,
+#app.app .sidebar-section-dot,
+#app.app .sidebar-manage,
+#app.app .sidebar-footer {
+  content: none !important;
+  display: none !important;
+}
+
+#app.app aside .brand {
+  gap: 0 !important;
+}
+
+#app.app aside .brand-copy {
+  padding-left: 0 !important;
+}
+
+#app.app aside .sub {
+  margin-left: 0 !important;
+}
+
+#app.app .workspace-picker-trigger {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  grid-template-areas: "name meta" !important;
+}
+
+#app.app .session-search-row {
+  grid-template-columns: minmax(0, 1fr) 42px !important;
+}
+
+#app.app .new {
+  width: 42px !important;
+  min-width: 42px !important;
+  max-width: none !important;
+  padding: 0 !important;
+  text-align: center !important;
+  justify-content: center !important;
+}
+
+#app.app .new-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #273344 !important;
+  font-size: 24px !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+  transform: translateY(-1px) !important;
+}
+
+#app.app .sidebar-section-head {
+  justify-content: flex-start !important;
+}
+
+#app.app #sessions .session {
+  padding-left: 12px !important;
+}
+
+#app.app #sessions .session-main {
+  padding-right: 0 !important;
+}
+
+@media (min-width: 721px) {
+  #app.app #sessions .session {
+    padding-left: 14px !important;
+  }
+}
+
+@media (max-width: 720px) {
+  #app.app .session-search-row {
+    grid-template-columns: minmax(0, 1fr) 42px !important;
+  }
+
+  #app.app .new {
+    min-width: 42px !important;
+  }
+}
+
+/* 2026-07-04 侧边栏圆角收敛：减少胶囊感，整体改成更利落的小圆角。 */
+#app.app .workspace-picker-trigger {
+  border-radius: 10px !important;
+}
+
+#app.app .session-search-box,
+#app.app .new {
+  border-radius: 9px !important;
+}
+
+#app.app #sessions .session {
+  border-radius: 8px !important;
+}
+
+#app.app .brand-logo {
+  border-radius: 8px !important;
+}
+
+#app.app .sidebar-manage,
+#app.app .sidebar-settings-entry,
+#app.app .session-delete {
+  border-radius: 8px !important;
+}
+
+@media (max-width: 720px) {
+  #app.app:not(.sidebar-collapsed) aside {
+    border-radius: 0 12px 12px 0 !important;
+  }
+
+  #app.app .workspace-picker-trigger {
+    border-radius: 10px !important;
+  }
+
+  #app.app .session-search-box,
+  #app.app .new {
+    border-radius: 9px !important;
+  }
+
+  #app.app #sessions .session {
+    border-radius: 8px !important;
+  }
+}
