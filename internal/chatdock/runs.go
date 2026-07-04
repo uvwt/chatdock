@@ -3,6 +3,7 @@ package chatdock
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -54,29 +55,31 @@ func (a *App) handleListAgentTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message, emit func(string, any) error) (string, error) {
-	mcpCfg, err := a.activeMCPConfig()
-	if err != nil || len(mcpCfg.Servers) == 0 {
-		if emit != nil {
-			return a.client.Stream(ctx, cfg, history, func(delta llm.StreamDelta) error { return emit("delta", delta) })
+	// ChatDock 内置工具不依赖 MCP 配置。即使用户没有接入任何 MCP，模型也能管理本工作空间的定时任务。
+	tools := builtinScheduledTaskTools()
+	mcpCfg, mcpErr := a.activeMCPConfig()
+	mcpReady := mcpErr == nil && len(mcpCfg.Servers) > 0
+	if mcpReady {
+		mcpTools, err := a.mcpClient.ListTools(ctx, mcpCfg)
+		if err != nil {
+			mcpReady = false
+			if emit != nil {
+				if emitErr := emit("tool_setup_error", map[string]any{"message": err.Error()}); emitErr != nil {
+					return "", emitErr
+				}
+			}
+		} else {
+			tools = append(tools, mcpTools...)
 		}
-		return a.client.Complete(ctx, cfg, history)
 	}
-	tools, err := a.mcpClient.ListTools(ctx, mcpCfg)
-	if err != nil || len(tools) == 0 {
+	if len(tools) == 0 {
 		if emit != nil {
-			message := "MCP 工具未接入"
-			if err != nil {
-				message = err.Error()
-			}
-			if emitErr := emit("tool_setup_error", map[string]any{"message": message}); emitErr != nil {
-				return "", emitErr
-			}
 			return a.client.Stream(ctx, cfg, history, func(delta llm.StreamDelta) error { return emit("delta", delta) })
 		}
 		return a.client.Complete(ctx, cfg, history)
 	}
 	if emit != nil {
-		if err := emit("tool_setup_ready", map[string]any{"tool_count": len(tools)}); err != nil {
+		if err := emit("tool_setup_ready", map[string]any{"tool_count": len(tools), "builtin_tool_count": len(builtinScheduledTaskTools())}); err != nil {
 			return "", err
 		}
 	}
@@ -92,7 +95,18 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 		}
 		return nil
 	}
+	toolEmit := recordingEmit
+	if emit == nil {
+		// 非流式 /api/chat 不需要把最终回答改成流式请求；工具仍会执行，只是不记录前端运行事件。
+		toolEmit = nil
+	}
 	answer, runErr := a.client.CompleteWithMCPToolsEvents(ctx, cfg, history, tools, func(name string, args map[string]any) (any, error) {
+		if isBuiltinScheduledTaskTool(name) {
+			return a.callBuiltinScheduledTaskTool(ctx, name, args)
+		}
+		if !mcpReady {
+			return nil, fmt.Errorf("MCP tool is not available: %s", name)
+		}
 		if mcpToolNeedsConfirmation(mcpCfg, name) {
 			if err := a.requestMCPConfirmation(ctx, sessionID, name, args, recordingEmit); err != nil {
 				return nil, err
@@ -100,7 +114,7 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 			return a.mcpClient.CallToolAfterConfirmation(ctx, mcpCfg, name, args)
 		}
 		return a.mcpClient.CallTool(ctx, mcpCfg, name, args)
-	}, recordingEmit)
+	}, toolEmit)
 	if recorder.Created {
 		status := "success"
 		if runErr != nil {
