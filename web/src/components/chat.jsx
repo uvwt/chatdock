@@ -37,8 +37,11 @@ export function AttachmentList({ attachments, removable = false, onRemove, onDow
 }
 
 function ReasoningBlock({ value, streaming = false, hidden = false }) {
-  // 流式输出时思考内容要实时可见；完成后变成普通 assistant 消息，再默认折叠。
+  // 流式输出时实时展开；流式结束后自动收起，保留手动再次展开查看。
   const [open, setOpen] = useState(!!streaming);
+  useEffect(() => {
+    setOpen(!!streaming);
+  }, [streaming]);
   if (hidden || !value) return null;
   const title = '思考过程';
   return <section className={'reasoning ' + (open ? 'show' : 'collapsed')}>
@@ -148,6 +151,7 @@ function AssistantContent({ message, streaming = false, hideThinking = false, on
     blocks.push(<ToolEvents key={'tools-' + key} events={pendingEvents} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />);
     pendingEvents = [];
   };
+  const lastPartIndex = parts.map((part, index) => ({ part, index })).reverse().find(item => item.part.text || item.part.event)?.index ?? -1;
   parts.forEach((part, index) => {
     if (part.kind === 'tool' && part.event) {
       pendingEvents.push(part.event);
@@ -157,7 +161,8 @@ function AssistantContent({ message, streaming = false, hideThinking = false, on
     if (part.kind === 'text' && part.text) {
       blocks.push(<Markdown key={'text-' + index} className={streaming ? 'answer markdown' : undefined} value={part.text} />);
     } else if (part.kind === 'reasoning' && part.text) {
-      blocks.push(<ReasoningBlock key={'reasoning-' + index} value={part.text} streaming={streaming} hidden={hideThinking} />);
+      const reasoningActive = streaming && index === lastPartIndex;
+      blocks.push(<ReasoningBlock key={'reasoning-' + index} value={part.text} streaming={reasoningActive} hidden={hideThinking} />);
     }
   });
   flushEvents('end');
@@ -212,7 +217,7 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEd
     const reasoning = hideThinking ? '' : message.reasoning;
     const hasInlineParts = Array.isArray(message.parts) && message.parts.length > 0;
     return <div className="msg assistant" data-model-message="true">
-      <ReasoningBlock value={message.reasoning} streaming hidden={hideThinking || hasInlineParts} />
+      <ReasoningBlock value={message.reasoning} streaming={!message.answer} hidden={hideThinking || hasInlineParts} />
       <AssistantContent message={message} streaming hideThinking={hideThinking} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
       <MessageActions text={[reasoning, message.answer].filter(Boolean).join('\n\n')} onCopy={onCopy} onBranch={onBranch ? () => onBranch(messageIndex) : null} />
     </div>;
