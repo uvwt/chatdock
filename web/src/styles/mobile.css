@@ -1700,7 +1700,6 @@ aside,
   }
 }
 
-
 /* 手机端下滑按钮：避开输入框，保持一眼可点。 */
 @media (max-width: 720px) {
   .jump-latest {
@@ -1716,23 +1715,3 @@ aside,
   }
 }
 
-
-/* 2026-07 浏览器截图优化：同步桌面新增结构在手机上的间距。 */
-@media (max-width: 720px) {
-  .product-empty-state {
-    padding-top: 18px !important;
-  }
-
-  .hero-copy {
-    min-height: auto !important;
-  }
-
-  .empty-capability-strip div {
-    padding-left: 52px !important;
-  }
-
-  .starter-card-arrow {
-    opacity: 1 !important;
-    transform: none !important;
-  }
-}
