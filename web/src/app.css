@@ -2470,3 +2470,77 @@
     border-radius: 8px !important;
   }
 }
+
+/* 2026-07-04 搜索框与 + 对齐；删除“继续”后模型按钮收窄。 */
+#app.app .session-search-row {
+  align-items: center !important;
+  grid-template-columns: minmax(0, 1fr) 42px !important;
+  gap: 8px !important;
+}
+
+#app.app .session-search-box,
+#app.app .new {
+  height: 42px !important;
+  min-height: 42px !important;
+  max-height: 42px !important;
+  border-radius: 9px !important;
+  box-sizing: border-box !important;
+  align-self: center !important;
+}
+
+#app.app .session-search-box {
+  padding: 0 14px !important;
+}
+
+#app.app .session-search {
+  height: 40px !important;
+  line-height: 40px !important;
+}
+
+#app.app .new {
+  width: 42px !important;
+  min-width: 42px !important;
+  max-width: 42px !important;
+  padding: 0 !important;
+}
+
+#app.app .new-icon {
+  font-size: 22px !important;
+  transform: translateY(-1px) !important;
+}
+
+@media (min-width: 721px) {
+  #app.app .model-picker {
+    flex: 0 0 128px !important;
+    width: 128px !important;
+    min-width: 128px !important;
+    max-width: 128px !important;
+  }
+
+  #app.app .model-picker-trigger {
+    padding: 5px 9px !important;
+    border-radius: 10px !important;
+  }
+
+  #app.app .model-picker-trigger span {
+    font-size: 10px !important;
+  }
+
+  #app.app .model-picker-trigger b {
+    font-size: 12px !important;
+  }
+}
+
+@media (max-width: 720px) {
+  #app.app .session-search-row {
+    grid-template-columns: minmax(0, 1fr) 42px !important;
+    gap: 8px !important;
+  }
+
+  #app.app .session-search-box,
+  #app.app .new {
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
+  }
+}
