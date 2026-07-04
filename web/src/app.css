@@ -2889,3 +2889,124 @@ body.theme-light #app.app #sessions .session.active::after {
     min-width: 0 !important;
   }
 }
+
+/* 2026-07-04 会话行三点菜单：默认隐藏，选中/悬浮才出现，承载置顶/重命名/删除。 */
+#app.app #sessions .session {
+  overflow: visible !important;
+  padding-right: 42px !important;
+}
+
+#app.app #sessions .session-delete {
+  display: none !important;
+}
+
+#app.app #sessions .session-menu-trigger,
+#app.app #sessions .session:hover .session-menu-trigger,
+#app.app #sessions .session.active .session-menu-trigger,
+#app.app #sessions .session:focus-within .session-menu-trigger,
+#app.app #sessions .session.menu-open .session-menu-trigger {
+  position: absolute !important;
+  right: 9px !important;
+  top: 50% !important;
+  z-index: 5 !important;
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  padding: 0 !important;
+  transform: translateY(-50%) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #9aa6b6 !important;
+  font-size: 22px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  letter-spacing: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+#app.app #sessions .session:hover .session-menu-trigger,
+#app.app #sessions .session.active .session-menu-trigger,
+#app.app #sessions .session:focus-within .session-menu-trigger,
+#app.app #sessions .session.menu-open .session-menu-trigger {
+  opacity: .68 !important;
+  pointer-events: auto !important;
+}
+
+#app.app #sessions .session-menu-trigger:hover:not(:disabled),
+#app.app #sessions .session.menu-open .session-menu-trigger {
+  opacity: 1 !important;
+  background: #eef2f7 !important;
+  color: #64748b !important;
+}
+
+#app.app #sessions .session-row-menu {
+  position: absolute !important;
+  right: 7px !important;
+  top: calc(100% - 3px) !important;
+  z-index: 40 !important;
+  width: 138px !important;
+  padding: 6px !important;
+  display: grid !important;
+  gap: 4px !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,.98) !important;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, .16) !important;
+}
+
+#app.app #sessions .session-row-menu button {
+  width: 100% !important;
+  min-height: 34px !important;
+  padding: 0 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  color: #334155 !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  text-align: left !important;
+}
+
+#app.app #sessions .session-row-menu button:hover:not(:disabled) {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+#app.app #sessions .session-row-menu button.danger {
+  color: #dc2626 !important;
+}
+
+#app.app #sessions .session-row-menu button.danger:hover:not(:disabled) {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+}
+
+@media (max-width: 720px) {
+  #app.app #sessions .session-menu-trigger,
+  #app.app #sessions .session:hover .session-menu-trigger,
+  #app.app #sessions .session.active .session-menu-trigger,
+  #app.app #sessions .session:focus-within .session-menu-trigger,
+  #app.app #sessions .session.menu-open .session-menu-trigger {
+    right: 10px !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+  }
+
+  #app.app #sessions .session-row-menu {
+    right: 8px !important;
+    width: 146px !important;
+  }
+}

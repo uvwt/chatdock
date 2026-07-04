@@ -248,6 +248,7 @@ export default function App() {
   const [sessionSearch, setSessionSearch] = useState('');
   const [sessionSearchResults, setSessionSearchResults] = useState([]);
   const [sessionSearchBusy, setSessionSearchBusy] = useState(false);
+  const [sessionMenuID, setSessionMenuID] = useState('');
   const [current, setCurrent] = useState(null);
   const [currentTitle, setCurrentTitle] = useState('未选择会话');
   const [messages, setMessages] = useState([]);
@@ -287,6 +288,17 @@ export default function App() {
 
   useEffect(() => { pausedRef.current = streamPaused; }, [streamPaused]);
   useEffect(() => { currentRef.current = current; }, [current]);
+  useEffect(() => {
+    if (!sessionMenuID) return;
+    const close = () => setSessionMenuID('');
+    const onKey = (event) => { if (event.key === 'Escape') close(); };
+    window.addEventListener('click', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [sessionMenuID]);
 
   const detachActiveStream = useCallback(() => {
     // 切换会话只断开当前页面的 SSE 监听，不取消后端 ChatJob；
@@ -731,6 +743,7 @@ export default function App() {
     if (busy) detachActiveStream();
     // “新会话”只是进入一个本地草稿，不应该提前写入后端。
     // 真正的 session id 只有在发送首条消息、或上传附件需要绑定会话时才创建。
+    setSessionMenuID('');
     setCurrent(null);
     setCurrentTitle('新会话');
     setMessages([]);
@@ -743,6 +756,7 @@ export default function App() {
 
   const openSession = useCallback(async (id) => {
     if (busy) detachActiveStream();
+    setSessionMenuID('');
     setCurrent(id);
     const s = await fetchSession(api, id);
     setCurrentTitle(s.title || '新会话');
@@ -765,6 +779,20 @@ export default function App() {
     await loadSessions();
     showToast('会话标题已保存', 'success');
   }, [api, current, currentTitle, loadSessions, showDialog, showToast]);
+
+  const renameSessionByID = useCallback(async (id, title = '') => {
+    if (!id || busy) return;
+    setSessionMenuID('');
+    const values = await showDialog({title:'重命名会话', confirmText:'保存标题', fields:[{name:'title', label:'新的会话标题', value:title || '', required:true}]});
+    if (!values || !values.title.trim()) return;
+    const s = await renameSession(api, id, values.title.trim());
+    if (id === current) {
+      setCurrentTitle(s.title || '新会话');
+      setMessages(s.messages || []);
+    }
+    await loadSessions();
+    showToast('会话标题已保存', 'success');
+  }, [api, busy, current, loadSessions, showDialog, showToast]);
 
   const deleteSessionByID = useCallback(async (id, title = '当前会话') => {
     if (!id || busy) return;
@@ -858,6 +886,19 @@ export default function App() {
     await loadSessions();
     showToast(nextPinned ? '会话已置顶' : '已取消置顶', 'success');
   }, [api, current, currentTitle, loadSessions, sessions, showToast]);
+
+  const pinSessionByID = useCallback(async (id, pinned = false) => {
+    if (!id || busy) return;
+    setSessionMenuID('');
+    const nextPinned = !pinned;
+    const s = await pinSession(api, id, nextPinned);
+    if (id === current) {
+      setCurrentTitle(s.title || currentTitle || '新会话');
+      setMessages(s.messages || []);
+    }
+    await loadSessions();
+    showToast(nextPinned ? '会话已置顶' : '已取消置顶', 'success');
+  }, [api, busy, current, currentTitle, loadSessions, showToast]);
 
   const appendToActiveAssistant = useCallback((patcher) => {
     setMessages(prev => prev.map((m, index) => index === prev.length - 1 && m.role === 'assistant-stream' ? patcher(m) : m));
@@ -1530,7 +1571,19 @@ export default function App() {
         </div>
         <div className="sidebar-section-head"><div className="sidebar-section-title">最近会话</div></div>
         {sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : '全文搜索 ' + filteredSessions.length + ' 条'}</div> : null}
-        <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => <div key={s.id} className={'session ' + (current === s.id ? 'active ' : '') + (s.pinned ? 'pinned' : '')} onClick={() => openSession(s.id)}><div className="session-main"><div className="session-title">{s.pinned ? <span className="pin-mark">置顶</span> : null}{s.title}</div>{s.match_snippet ? <div className="session-preview search-hit">{s.match_field ? s.match_field + '：' : ''}{s.match_snippet}</div> : (s.preview ? <div className="session-preview">{s.preview}</div> : null)}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div><button type="button" className="session-delete" disabled={busy} onClick={e => { e.stopPropagation(); deleteSessionByID(s.id, s.title); }} aria-label={'删除会话 ' + (s.title || '')} title="删除会话">×</button></div>) : <div className="empty compact">{sessionSearch.trim() ? '没有匹配会话' : '暂无会话，开始新会话'}</div>}</div>
+        <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => {
+          const isActive = current === s.id;
+          const menuOpen = sessionMenuID === s.id;
+          return <div key={s.id} className={'session ' + (isActive ? 'active ' : '') + (s.pinned ? 'pinned ' : '') + (menuOpen ? 'menu-open' : '')} onClick={() => openSession(s.id)}>
+            <div className="session-main"><div className="session-title">{s.pinned ? <span className="pin-mark">置顶</span> : null}{s.title}</div>{s.match_snippet ? <div className="session-preview search-hit">{s.match_field ? s.match_field + '：' : ''}{s.match_snippet}</div> : (s.preview ? <div className="session-preview">{s.preview}</div> : null)}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div>
+            <button type="button" className="session-menu-trigger" disabled={busy} onClick={e => { e.stopPropagation(); setSessionMenuID(menuOpen ? '' : s.id); }} aria-label={(s.title || '会话') + ' 操作'} aria-expanded={menuOpen ? 'true' : 'false'} title="会话操作">⋯</button>
+            {menuOpen ? <div className="session-row-menu" onClick={e => e.stopPropagation()}>
+              <button type="button" onClick={() => pinSessionByID(s.id, !!s.pinned)}>{s.pinned ? '取消置顶' : '置顶'}</button>
+              <button type="button" onClick={() => renameSessionByID(s.id, s.title)}>重命名标题</button>
+              <button type="button" className="danger" onClick={() => { setSessionMenuID(''); deleteSessionByID(s.id, s.title); }} disabled={busy}>删除</button>
+            </div> : null}
+          </div>;
+        }) : <div className="empty compact">{sessionSearch.trim() ? '没有匹配会话' : '暂无会话，开始新会话'}</div>}</div>
       </aside>
       <main>
         <div className="topbar">
