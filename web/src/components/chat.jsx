@@ -3,11 +3,12 @@ import React, { useState } from 'react';
 import { fmtBytes } from '../lib/appUtils.js';
 import { Markdown } from './base.jsx';
 
-function MessageActions({ text, onCopy, onBranch }) {
-  return <div className="msg-actions">
-    <button type="button" className="secondary small msg-action-copy" onClick={() => onCopy(text)} aria-label="复制当前回复" title="复制当前回复"><svg className="msg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8.5h8.5v8.5H9z" /><path d="M6.5 15.5h-1a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" /></svg></button>
+function MessageActions({ text, onCopy, onBranch, onEdit, user = false }) {
+  return <div className={'msg-actions ' + (user ? 'user-message-actions' : '')}>
+    <button type="button" className="secondary small msg-action-copy" onClick={() => onCopy(text)} aria-label={user ? '复制当前消息' : '复制当前回复'} title={user ? '复制当前消息' : '复制当前回复'}><svg className="msg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8.5h8.5v8.5H9z" /><path d="M6.5 15.5h-1a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" /></svg></button>
+    {onEdit ? <button type="button" className="secondary small msg-action-edit" onClick={() => onEdit(text)} aria-label="编辑当前消息" title="编辑当前消息"><svg className="msg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20z" /><path d="M13.5 6l4.5 4.5" /></svg></button> : null}
     {onBranch ? <button type="button" className="secondary small msg-action-branch" onClick={onBranch} aria-label="在新聊天中创建分支对话" title="在新聊天中创建分支对话"><svg className="msg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v7a4 4 0 0 0 4 4h5" /><path d="M13 11l4 4-4 4" /></svg></button> : null}
-    <button type="button" className="secondary small msg-action-more" aria-label="更多操作" title="更多操作"><svg className="msg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01" /></svg></button>
+    {!user ? <button type="button" className="secondary small msg-action-more" aria-label="更多操作" title="更多操作"><svg className="msg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01" /></svg></button> : null}
   </div>;
 }
 
@@ -49,7 +50,7 @@ function ReasoningBlock({ value, streaming = false, hidden = false }) {
   </section>;
 }
 
-export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onDownloadAttachment, hideThinking = true, onResolveConfirmation, onInspectToolEvent }) {
+export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEditUserMessage, onDownloadAttachment, hideThinking = true, onResolveConfirmation, onInspectToolEvent }) {
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
   if (message.role === 'assistant-stream') {
     const reasoning = hideThinking ? '' : message.reasoning;
@@ -76,7 +77,13 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onDo
       <MessageActions text={[reasoning, message.content].filter(Boolean).join('\n\n')} onCopy={onCopy} onBranch={onBranch ? () => onBranch(messageIndex) : null} />
     </div>;
   }
-  return <div className={'msg ' + (message.role || 'user')}>{message.content ? <div>{message.content}</div> : null}<AttachmentList attachments={message.attachments || []} onDownload={onDownloadAttachment} /></div>;
+  const role = message.role || 'user';
+  const text = message.content || '';
+  return <div className={'msg ' + role}>
+    {text ? <div>{text}</div> : null}
+    <AttachmentList attachments={message.attachments || []} onDownload={onDownloadAttachment} />
+    {role === 'user' ? <MessageActions text={text} onCopy={onCopy} onEdit={onEditUserMessage} user /> : null}
+  </div>;
 }
 
 

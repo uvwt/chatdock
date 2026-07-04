@@ -2711,3 +2711,49 @@ body.theme-light #app.app #sessions .session.active::before,
 body.theme-light #app.app #sessions .session.active::after {
   border-color: #1fb98b !important;
 }
+
+/* 2026-07-04 用户消息悬浮操作：复制、编辑按钮放在气泡下方，只有悬浮/聚焦该消息时显示。 */
+#app.app .msg.user {
+  overflow: visible !important;
+}
+
+#app.app .msg.user .user-message-actions {
+  position: absolute !important;
+  top: calc(100% + 6px) !important;
+  right: 6px !important;
+  z-index: 4 !important;
+  display: flex !important;
+  flex-flow: row nowrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+  margin: 0 !important;
+  width: max-content !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-2px) !important;
+  transition: opacity .14s ease, transform .14s ease !important;
+}
+
+#app.app .msg.user:hover .user-message-actions,
+#app.app .msg.user:focus-within .user-message-actions {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: translateY(0) !important;
+}
+
+#app.app .msg.user .user-message-actions button {
+  flex: 0 0 34px !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  border-radius: 10px !important;
+  background: #f1f5f9 !important;
+  color: #4b5563 !important;
+}
+
+#app.app .msg.user .user-message-actions button:hover:not(:disabled) {
+  background: #e5e7eb !important;
+  color: #111827 !important;
+}
