@@ -21,6 +21,7 @@ func DefaultModelConfig() ModelConfig {
 		Temperature:        0.7,
 		EnableThinking:     false,
 		HideThinking:       false,
+		EmbeddingModel:     "BAAI/bge-m3",
 	}
 }
 
@@ -28,6 +29,9 @@ func NormalizeModelConfig(cfg ModelConfig) ModelConfig {
 	cfg.BaseURL = strings.TrimSpace(cfg.BaseURL)
 	cfg.ProviderID = strings.TrimSpace(cfg.ProviderID)
 	cfg.Model = strings.TrimSpace(cfg.Model)
+	cfg.EmbeddingBaseURL = strings.TrimSpace(cfg.EmbeddingBaseURL)
+	cfg.EmbeddingAPIKey = strings.TrimSpace(cfg.EmbeddingAPIKey)
+	cfg.EmbeddingModel = strings.TrimSpace(cfg.EmbeddingModel)
 	cfg.Models = normalizeModelNames(cfg.Models, cfg.Model)
 	cfg.ContextMode = normalizeContextMode(cfg.ContextMode)
 
@@ -39,6 +43,9 @@ func NormalizeModelConfig(cfg ModelConfig) ModelConfig {
 	}
 	if cfg.Model == "" {
 		cfg.Model = "gpt-4o-mini"
+	}
+	if cfg.EmbeddingModel == "" {
+		cfg.EmbeddingModel = "BAAI/bge-m3"
 	}
 	if len(cfg.Models) == 0 {
 		cfg.Models = []string{cfg.Model}
@@ -68,6 +75,9 @@ func ToPublicModelConfig(cfg ModelConfig) PublicModelConfig {
 		Temperature:        cfg.Temperature,
 		EnableThinking:     cfg.EnableThinking,
 		HideThinking:       cfg.HideThinking,
+		EmbeddingBaseURL:   cfg.EmbeddingBaseURL,
+		HasEmbeddingAPIKey: strings.TrimSpace(cfg.EmbeddingAPIKey) != "",
+		EmbeddingModel:     cfg.EmbeddingModel,
 	}
 }
 

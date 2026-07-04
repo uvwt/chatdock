@@ -109,12 +109,15 @@ function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptP
   let endpointLabel = '未配置';
   try { endpointLabel = config.base_url ? new URL(config.base_url).host : '未配置'; } catch { endpointLabel = config.base_url || '未配置'; }
   const thinkingLabel = config.hide_thinking ? '隐藏思考' : (config.enable_thinking ? '显示思考' : '未启用');
+  let embeddingEndpointLabel = '未配置';
+  try { embeddingEndpointLabel = config.embedding_base_url ? new URL(config.embedding_base_url).host : '未配置'; } catch { embeddingEndpointLabel = config.embedding_base_url || '未配置'; }
   return <>
     <div className="settings-block-head model-page-head"><label>当前工作空间模型</label><span className="hint">先看概览，再改连接、模型和上下文。</span></div>
     <div className="model-summary-grid">
       <div className="model-summary-card"><span>接口</span><b>{endpointLabel}</b><small>{config.has_api_key ? 'API Key 已保存' : 'API Key 未保存'}</small></div>
       <div className="model-summary-card"><span>模型</span><b>{config.model || '未选择模型'}</b><small>{contextMode === 'auto' ? '上下文自动管理' : '上下文：' + contextMode}</small></div>
       <div className="model-summary-card"><span>思考</span><b>{thinkingLabel}</b><small>{config.hide_thinking ? '完全不展示思考内容' : '输出完成后默认折叠'}</small></div>
+      <div className="model-summary-card"><span>工具搜索</span><b>{embeddingEndpointLabel}</b><small>{config.embedding_base_url ? 'M3 混合搜索' : '关键词搜索'} · {config.has_embedding_api_key ? 'Key 已保存' : 'Key 未保存'}</small></div>
     </div>
 
     <section className="settings-section model-section">
@@ -125,6 +128,16 @@ function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptP
         <label>默认模型<input value={config.model} onChange={e => chooseModel(e.target.value)} placeholder="gpt-4o-mini" /></label><label className="model-field-wide">可选模型（每行一个）<textarea className="model-list-editor" rows={4} value={modelListText(config)} onChange={e => updateModels(e.target.value)} placeholder={"gpt-4o-mini\ngpt-4.1-mini"} /></label>
       </div>
       {availableModels.length ? <div className="model-options">{availableModels.map(name => <button key={name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => chooseModel(name)}>{name}</button>)}</div> : <div className="hint">填写 Base URL 和 API Key 后，可从接口获取可用模型名称。</div>}
+    </section>
+
+    <section className="settings-section model-section">
+      <div className="settings-section-head"><div><b>工具搜索向量化</b><p>配置 OpenAI 兼容的 M3 /embeddings 服务，用于工具语义召回；留空则使用关键词搜索。</p></div></div>
+      <div className="settings-form-grid">
+        <label>Embedding Base URL<input value={config.embedding_base_url || ''} onChange={e => update('embedding_base_url', e.target.value)} placeholder="http://127.0.0.1:8000/v1" /></label>
+        <label>Embedding API Key<input type="password" value={config.embedding_api_key || ''} onChange={e => update('embedding_api_key', e.target.value)} placeholder={config.has_embedding_api_key ? '已保存，留空不修改' : '可留空'} /></label>
+        <label>Embedding 模型<input value={config.embedding_model || 'BAAI/bge-m3'} onChange={e => update('embedding_model', e.target.value)} placeholder="BAAI/bge-m3" /></label>
+      </div>
+      <div className="hint">工具索引会持久化到本地 SQLite；工具描述或 schema 没变时不会重复向量化。</div>
     </section>
 
     <section className="settings-section model-section">

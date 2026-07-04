@@ -100,6 +100,9 @@ func (s *Store) SaveWorkspaceConfig(workspaceID string, next model.ModelConfig) 
 	if strings.TrimSpace(next.APIKey) == "" || strings.TrimSpace(next.APIKey) == "********" {
 		next.APIKey = current.APIKey
 	}
+	if strings.TrimSpace(next.EmbeddingAPIKey) == "" || strings.TrimSpace(next.EmbeddingAPIKey) == "********" {
+		next.EmbeddingAPIKey = current.EmbeddingAPIKey
+	}
 	if strings.TrimSpace(next.SystemPrompt) == "" {
 		next.SystemPrompt = current.SystemPrompt
 	}

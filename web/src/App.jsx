@@ -308,7 +308,7 @@ export default function App() {
   const [mcpStatus, setMcpStatus] = useState([]);
   const [promptPreview, setPromptPreview] = useState('');
   const [mcpConfig, setMcpConfig] = useState('');
-  const [config, setConfig] = useState({ base_url: '', api_key: '', model: '', models: [], system_prompt: '', context_mode: 'auto', max_context_messages: 12, temperature: 0.7, enable_thinking: false, hide_thinking: false, has_api_key: false });
+  const [config, setConfig] = useState({ base_url: '', api_key: '', model: '', models: [], system_prompt: '', context_mode: 'auto', max_context_messages: 12, temperature: 0.7, enable_thinking: false, hide_thinking: false, has_api_key: false, embedding_base_url: '', embedding_api_key: '', embedding_model: 'BAAI/bge-m3', has_embedding_api_key: false });
 
   const abortRef = useRef(null);
   const activeJobIDRef = useRef('');
@@ -488,6 +488,10 @@ export default function App() {
       enable_thinking: !!c.enable_thinking,
       hide_thinking: !!c.hide_thinking,
       has_api_key: !!c.has_api_key,
+      embedding_base_url: c.embedding_base_url || '',
+      embedding_api_key: '',
+      embedding_model: c.embedding_model || 'BAAI/bge-m3',
+      has_embedding_api_key: !!c.has_embedding_api_key,
     });
   }, [api]);
 
@@ -1437,8 +1441,11 @@ export default function App() {
       temperature: Number(config.temperature || 0.7),
       enable_thinking: !!config.enable_thinking,
       hide_thinking: !!config.hide_thinking,
+      embedding_base_url: config.embedding_base_url,
+      embedding_api_key: config.embedding_api_key,
+      embedding_model: config.embedding_model || 'BAAI/bge-m3',
     });
-    setConfig(c => ({ ...c, api_key: '' }));
+    setConfig(c => ({ ...c, api_key: '', embedding_api_key: '' }));
     await loadConfig();
     await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadSystemStatus()]);
     showToast('已保存到工作空间：' + workspaceID, 'success');

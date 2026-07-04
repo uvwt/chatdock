@@ -19,6 +19,9 @@ func (s *Store) SaveModelConfig(next model.ModelConfig) (model.ModelConfig, erro
 	if strings.TrimSpace(next.APIKey) == "" || strings.TrimSpace(next.APIKey) == "********" {
 		next.APIKey = s.modelCfg.APIKey
 	}
+	if strings.TrimSpace(next.EmbeddingAPIKey) == "" || strings.TrimSpace(next.EmbeddingAPIKey) == "********" {
+		next.EmbeddingAPIKey = s.modelCfg.EmbeddingAPIKey
+	}
 
 	s.modelCfg = model.NormalizeModelConfig(next)
 	return s.modelCfg, s.setPromptJSONLocked(s.activePrompt, "config", s.modelCfg)

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"chatdock/internal/chatdock/mcp"
+	"chatdock/internal/chatdock/model"
 	storepkg "chatdock/internal/chatdock/store"
 )
 
@@ -101,16 +102,17 @@ func keywordToolScores(catalog toolCatalog, query string) map[string]int {
 }
 
 func (a *App) semanticToolScores(ctx context.Context, catalog toolCatalog, query string) map[string]float64 {
-	if strings.TrimSpace(query) == "" || strings.TrimSpace(a.cfg.EmbeddingBaseURL) == "" {
+	cfg := a.embeddingConfig()
+	if strings.TrimSpace(query) == "" || strings.TrimSpace(cfg.EmbeddingBaseURL) == "" {
 		return nil
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	records, err := a.ensureToolEmbeddingIndex(ctx, catalog)
+	records, err := a.ensureToolEmbeddingIndex(ctx, catalog, cfg.EmbeddingModel)
 	if err != nil || len(records) == 0 {
 		return nil
 	}
-	queryVectors, err := a.client.Embed(ctx, a.cfg.EmbeddingBaseURL, a.cfg.EmbeddingAPIKey, a.cfg.EmbeddingModel, []string{query})
+	queryVectors, err := a.client.Embed(ctx, cfg.EmbeddingBaseURL, cfg.EmbeddingAPIKey, cfg.EmbeddingModel, []string{query})
 	if err != nil || len(queryVectors) == 0 {
 		return nil
 	}
@@ -123,8 +125,8 @@ func (a *App) semanticToolScores(ctx context.Context, catalog toolCatalog, query
 	return scores
 }
 
-func (a *App) ensureToolEmbeddingIndex(ctx context.Context, catalog toolCatalog) (map[string]storepkg.ToolEmbeddingRecord, error) {
-	model := strings.TrimSpace(a.cfg.EmbeddingModel)
+func (a *App) ensureToolEmbeddingIndex(ctx context.Context, catalog toolCatalog, model string) (map[string]storepkg.ToolEmbeddingRecord, error) {
+	model = strings.TrimSpace(model)
 	if model == "" {
 		model = "BAAI/bge-m3"
 	}
@@ -136,6 +138,7 @@ func (a *App) ensureToolEmbeddingIndex(ctx context.Context, catalog toolCatalog)
 }
 
 func (a *App) saveMissingToolEmbeddings(ctx context.Context, model string, existing map[string]storepkg.ToolEmbeddingRecord, catalog toolCatalog) (map[string]storepkg.ToolEmbeddingRecord, error) {
+	cfg := a.embeddingConfig()
 	inputs := make([]string, 0)
 	tools := make([]mcp.MCPTool, 0)
 	for _, tool := range catalog.tools {
@@ -150,7 +153,7 @@ func (a *App) saveMissingToolEmbeddings(ctx context.Context, model string, exist
 		if end > len(inputs) {
 			end = len(inputs)
 		}
-		vectors, err := a.client.Embed(ctx, a.cfg.EmbeddingBaseURL, a.cfg.EmbeddingAPIKey, model, inputs[start:end])
+		vectors, err := a.client.Embed(ctx, cfg.EmbeddingBaseURL, cfg.EmbeddingAPIKey, model, inputs[start:end])
 		if err != nil {
 			return existing, err
 		}
@@ -193,8 +196,18 @@ func cosineSimilarity(a []float64, b []float64) float64 {
 }
 
 func (a *App) toolSearchMode() string {
-	if strings.TrimSpace(a.cfg.EmbeddingBaseURL) == "" {
+	if strings.TrimSpace(a.embeddingConfig().EmbeddingBaseURL) == "" {
 		return "keyword"
 	}
 	return "hybrid_m3"
+}
+
+func (a *App) embeddingConfig() model.ModelConfig {
+	cfg := a.store.GetModelConfig()
+	if strings.TrimSpace(cfg.EmbeddingBaseURL) == "" && strings.TrimSpace(a.cfg.EmbeddingBaseURL) != "" {
+		cfg.EmbeddingBaseURL = a.cfg.EmbeddingBaseURL
+		cfg.EmbeddingAPIKey = a.cfg.EmbeddingAPIKey
+		cfg.EmbeddingModel = a.cfg.EmbeddingModel
+	}
+	return model.NormalizeModelConfig(cfg)
 }

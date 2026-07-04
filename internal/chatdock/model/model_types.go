@@ -13,6 +13,9 @@ type ModelConfig struct {
 	Temperature        float64  `json:"temperature"`
 	EnableThinking     bool     `json:"enable_thinking"`
 	HideThinking       bool     `json:"hide_thinking"`
+	EmbeddingBaseURL   string   `json:"embedding_base_url,omitempty"`
+	EmbeddingAPIKey    string   `json:"embedding_api_key,omitempty"`
+	EmbeddingModel     string   `json:"embedding_model,omitempty"`
 }
 
 type PublicModelConfig struct {
@@ -27,4 +30,7 @@ type PublicModelConfig struct {
 	Temperature        float64  `json:"temperature"`
 	EnableThinking     bool     `json:"enable_thinking"`
 	HideThinking       bool     `json:"hide_thinking"`
+	EmbeddingBaseURL   string   `json:"embedding_base_url,omitempty"`
+	HasEmbeddingAPIKey bool     `json:"has_embedding_api_key"`
+	EmbeddingModel     string   `json:"embedding_model,omitempty"`
 }
