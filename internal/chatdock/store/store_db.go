@@ -34,6 +34,8 @@ func (s *Store) initSQLite() error {
 		`CREATE TABLE IF NOT EXISTS chat_job_events (job_id TEXT NOT NULL, seq INTEGER NOT NULL, event TEXT NOT NULL, data_json TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(job_id, seq), FOREIGN KEY(job_id) REFERENCES chat_jobs(id) ON DELETE CASCADE)`,
 		`CREATE TABLE IF NOT EXISTS attachments (prompt TEXT NOT NULL, id TEXT PRIMARY KEY, session_id TEXT NOT NULL, message_id TEXT NOT NULL, filename TEXT NOT NULL, mime_type TEXT NOT NULL, size INTEGER NOT NULL, storage_path TEXT NOT NULL, sha256 TEXT NOT NULL, text_content TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, FOREIGN KEY(prompt) REFERENCES prompts(name) ON DELETE CASCADE)`,
 		`CREATE INDEX IF NOT EXISTS idx_attachments_prompt_session ON attachments(prompt, session_id, created_at DESC)`,
+		`CREATE TABLE IF NOT EXISTS tool_embeddings (prompt TEXT NOT NULL, full_name TEXT NOT NULL, source_hash TEXT NOT NULL, embedding_model TEXT NOT NULL, embedding_json TEXT NOT NULL, indexed_at TEXT NOT NULL, PRIMARY KEY(prompt, full_name, embedding_model), FOREIGN KEY(prompt) REFERENCES prompts(name) ON DELETE CASCADE)`,
+		`CREATE INDEX IF NOT EXISTS idx_tool_embeddings_prompt_model ON tool_embeddings(prompt, embedding_model)`,
 	}
 	for _, stmt := range stmts {
 		if _, err := s.db.Exec(stmt); err != nil {

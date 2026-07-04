@@ -126,7 +126,7 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 	answer, runErr := a.client.CompleteWithMCPToolsEvents(ctx, cfg, history, visibleTools, func(name string, args map[string]any) (any, error) {
 		switch name {
 		case builtinToolSearchTools:
-			return catalog.Search(args), nil
+			return a.searchToolCatalog(ctx, catalog, args), nil
 		case builtinToolDescribeTools:
 			result, names := catalog.Describe(args)
 			for _, toolName := range names {

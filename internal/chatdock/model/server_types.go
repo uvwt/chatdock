@@ -1,12 +1,15 @@
 package model
 
 type ServerConfig struct {
-	Addr           string
-	DataDir        string
-	WebDir         string
-	AuthToken      string
-	AuthUsername   string
-	AuthCredential string
+	Addr             string
+	DataDir          string
+	WebDir           string
+	AuthToken        string
+	AuthUsername     string
+	AuthCredential   string
+	EmbeddingBaseURL string
+	EmbeddingAPIKey  string
+	EmbeddingModel   string
 }
 
 type AuthStatusResponse struct {

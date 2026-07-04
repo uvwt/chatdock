@@ -10,12 +10,15 @@ import (
 
 func main() {
 	cfg := model.ServerConfig{
-		Addr:           getenv("CHATDOCK_ADDR", ":8720"),
-		DataDir:        getenv("CHATDOCK_DATA", defaultDataDir()),
-		WebDir:         os.Getenv("CHATDOCK_WEB"),
-		AuthToken:      os.Getenv("CHATDOCK_AUTH_TOKEN"),
-		AuthUsername:   os.Getenv("CHATDOCK_AUTH_USERNAME"),
-		AuthCredential: os.Getenv("CHATDOCK_AUTH_CREDENTIAL"),
+		Addr:             getenv("CHATDOCK_ADDR", ":8720"),
+		DataDir:          getenv("CHATDOCK_DATA", defaultDataDir()),
+		WebDir:           os.Getenv("CHATDOCK_WEB"),
+		AuthToken:        os.Getenv("CHATDOCK_AUTH_TOKEN"),
+		AuthUsername:     os.Getenv("CHATDOCK_AUTH_USERNAME"),
+		AuthCredential:   os.Getenv("CHATDOCK_AUTH_CREDENTIAL"),
+		EmbeddingBaseURL: os.Getenv("CHATDOCK_EMBEDDING_BASE_URL"),
+		EmbeddingAPIKey:  os.Getenv("CHATDOCK_EMBEDDING_API_KEY"),
+		EmbeddingModel:   getenv("CHATDOCK_EMBEDDING_MODEL", "BAAI/bge-m3"),
 	}
 
 	app, err := chatdock.NewApp(cfg)

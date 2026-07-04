@@ -58,9 +58,12 @@ http://127.0.0.1:8720
 CHATDOCK_ADDR=:8720
 CHATDOCK_DATA=~/.config/chatdock   # 可选；默认使用系统用户配置目录下的 chatdock
 CHATDOCK_WEB=/path/to/web/dist     # 可选；为空时使用二进制内嵌的 web/dist
-CHATDOCK_AUTH_TOKEN=your-token     # 可选；设置后 API/MCP 需要 Bearer Token，静态前端仍可访问
-CHATDOCK_AUTH_USERNAME=admin        # 可选；启用账号密码登录页时使用
-CHATDOCK_AUTH_CREDENTIAL=your-pass  # 可选；启用账号密码登录页时使用
+CHATDOCK_AUTH_TOKEN=your-token              # 可选；设置后 API/MCP 需要 Bearer Token，静态前端仍可访问
+CHATDOCK_AUTH_USERNAME=admin                 # 可选；启用账号密码登录页时使用
+CHATDOCK_AUTH_CREDENTIAL=your-pass           # 可选；启用账号密码登录页时使用
+CHATDOCK_EMBEDDING_BASE_URL=http://m3/v1     # 可选；OpenAI 兼容 /embeddings，用于工具向量混合搜索
+CHATDOCK_EMBEDDING_API_KEY=your-embedding-key # 可选；M3 embedding 服务密钥
+CHATDOCK_EMBEDDING_MODEL=BAAI/bge-m3         # 可选；默认 BAAI/bge-m3
 ```
 
 ## 前后端一体化构建
