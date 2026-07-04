@@ -2656,3 +2656,30 @@ body.theme-light #app.app .msg.user .attachment-main b {
 body.theme-light #app.app .msg.user .attachment-main span {
   color: #64748b !important;
 }
+
+/* 2026-07-04 侧边栏浅色态最终覆盖：去掉会话列表残留的浅绿色选中态。 */
+body.theme-light #app.app .session:hover,
+body.theme-light #app.app .session.active {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #111827 !important;
+  box-shadow: none !important;
+}
+
+body.theme-light #app.app .session.active {
+  background: #f1f5f9 !important;
+  border-color: #d7e0ea !important;
+}
+
+body.theme-light #app.app .session::after,
+body.theme-light #app.app .session.active::before {
+  border-color: #cbd5e1 !important;
+  background: transparent !important;
+}
+
+body.theme-light #app.app .session-title,
+body.theme-light #app.app .session-preview,
+body.theme-light #app.app .session.active .session-title,
+body.theme-light #app.app .session.active .session-preview {
+  color: #273344 !important;
+}
