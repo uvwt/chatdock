@@ -89,6 +89,23 @@ func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cf
 	var checkpointMessageID string
 	var lastCheckpoint time.Time
 	lastCheckpointChars := 0
+	var pendingDelta llm.StreamDelta
+	var pendingDeltaChars int
+	lastDeltaFlush := time.Now()
+	flushDeltaEvent := func(force bool) error {
+		if pendingDelta.Content == "" && pendingDelta.ReasoningContent == "" {
+			return nil
+		}
+		if !force && pendingDeltaChars < 512 && time.Since(lastDeltaFlush) < 250*time.Millisecond {
+			return nil
+		}
+		delta := pendingDelta
+		pendingDelta = llm.StreamDelta{}
+		pendingDeltaChars = 0
+		lastDeltaFlush = time.Now()
+		_, err := a.store.AddChatJobEvent(jobID, "delta", delta)
+		return err
+	}
 	saveCheckpoint := func(force bool) error {
 		currentAnswer := answer.String()
 		currentReasoning := reasoning.String()
@@ -113,20 +130,31 @@ func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cf
 			if delta, ok := value.(llm.StreamDelta); ok {
 				if delta.Content != "" {
 					answer.WriteString(delta.Content)
+					pendingDelta.Content += delta.Content
+					pendingDeltaChars += len(delta.Content)
 				}
 				if delta.ReasoningContent != "" {
 					reasoning.WriteString(delta.ReasoningContent)
+					pendingDelta.ReasoningContent += delta.ReasoningContent
+					pendingDeltaChars += len(delta.ReasoningContent)
 				}
 				if err := saveCheckpoint(false); err != nil {
 					return err
 				}
+				return flushDeltaEvent(false)
 			}
+		}
+		if err := flushDeltaEvent(true); err != nil {
+			return err
 		}
 		_, err := a.store.AddChatJobEvent(jobID, event, value)
 		return err
 	}
 
 	finalAnswer, runErr := a.completeWithRecordedTools(ctx, sessionID, cfg, history, emit)
+	if err := flushDeltaEvent(true); err != nil && runErr == nil {
+		runErr = err
+	}
 	if strings.TrimSpace(finalAnswer) != "" && strings.TrimSpace(finalAnswer) != strings.TrimSpace(answer.String()) {
 		answer.Reset()
 		answer.WriteString(finalAnswer)

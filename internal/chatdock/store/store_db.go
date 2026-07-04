@@ -15,8 +15,8 @@ import (
 
 func (s *Store) initSQLite() error {
 	stmts := []string{
-		`PRAGMA journal_mode = WAL`,
-		`PRAGMA synchronous = NORMAL`,
+		`PRAGMA journal_mode = DELETE`,
+		`PRAGMA synchronous = FULL`,
 		`CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS prompts (name TEXT PRIMARY KEY, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS prompt_kv (prompt TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(prompt, key), FOREIGN KEY(prompt) REFERENCES prompts(name) ON DELETE CASCADE)`,
