@@ -153,6 +153,10 @@ function splitMCPToolList(value) {
   return String(value || '').split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
 }
 
+function cleanMCPServerName(value) {
+  return String(value || '').trim();
+}
+
 function normalizeMCPURLDraft(value) {
   return String(value || '').trim().replace(/\s+/g, '');
 }
@@ -235,6 +239,7 @@ function defaultMCPServerDraft() {
 
 function ToolsModule({ mcpStatus, mcpConfig, setMcpConfig, saveMCPConfig, loadMCPConfig, loadMCPStatus, testMCP }) {
   const [newServer, setNewServer] = useState(defaultMCPServerDraft);
+  const [renameDrafts, setRenameDrafts] = useState({});
   const [formError, setFormError] = useState('');
   const parsed = useMemo(() => parseMCPConfigDraft(mcpConfig), [mcpConfig]);
   const serverNames = Object.keys(parsed.config.servers || {}).sort();
@@ -261,8 +266,24 @@ function ToolsModule({ mcpStatus, mcpConfig, setMcpConfig, saveMCPConfig, loadMC
     replaceConfig(next => { delete next.servers[name]; });
   }
 
+  function renameServer(oldName) {
+    const nextName = cleanMCPServerName(renameDrafts[oldName] ?? oldName);
+    if (!nextName) { setFormError('Server 名称不能为空。'); return; }
+    if (nextName === oldName) { setRenameDrafts(drafts => { const next = {...drafts}; delete next[oldName]; return next; }); setFormError(''); return; }
+    if ((parsed.config.servers || {})[nextName]) { setFormError('Server 名称已存在，请换一个名称。'); return; }
+    replaceConfig(next => {
+      const servers = next.servers || {};
+      const renamed = {};
+      // MCP 配置的 key 就是模型看到的 server 名称；改名时只迁移 key，保留 URL、Token、权限和确认规则。
+      Object.entries(servers).forEach(([name, server]) => { renamed[name === oldName ? nextName : name] = server; });
+      next.servers = renamed;
+    });
+    setRenameDrafts(drafts => { const next = {...drafts}; delete next[oldName]; return next; });
+    setFormError('已改名为 ' + nextName + '，记得保存 MCP 配置。');
+  }
+
   function addServer() {
-    const name = String(newServer.name || '').trim();
+    const name = cleanMCPServerName(newServer.name);
     if (!name) { setFormError('请先填写 Server 名称。'); return; }
     if ((parsed.config.servers || {})[name]) { setFormError('Server 名称已存在，请换一个名称。'); return; }
     if (!String(newServer.url || '').trim() && !String(newServer.path || '').trim()) { setFormError('请填写 MCP HTTP 地址；Docker 部署访问本机服务通常用 http://host.docker.internal:18766/mcp。'); return; }
@@ -282,6 +303,7 @@ function ToolsModule({ mcpStatus, mcpConfig, setMcpConfig, saveMCPConfig, loadMC
     const draft = isNew ? newServer : mcpServerToDraft(server);
     const status = !isNew ? statusByName[name] : null;
     const update = patch => isNew ? setNewServer(s => ({...s, ...patch})) : patchServer(name, patch);
+    const serverNameDraft = !isNew ? (renameDrafts[name] ?? name) : '';
     const urlHasLocalhost = /^http:\/\/(127\.0\.0\.1|localhost)(?=[:/]|$)/i.test(normalizeMCPURLDraft(draft.url));
     const urlHasSpace = /\s/.test(String(draft.url || ''));
     const tokenEnvLooksLikeHeader = String(draft.token_env || '').trim().toLowerCase() === 'authorization';
@@ -291,7 +313,7 @@ function ToolsModule({ mcpStatus, mcpConfig, setMcpConfig, saveMCPConfig, loadMC
         <div><b>{isNew ? '新增 MCP Server' : name}</b><div className="hint">{isNew ? '填地址即可，不需要手写 JSON。' : serverStatusSummary(status)}</div></div>
         {!isNew ? <div className="mcp-form-head-actions"><button className="secondary small" onClick={() => patchServer(name, {disabled: !draft.disabled})}>{draft.disabled ? '启用' : '禁用'}</button><button className="danger small" onClick={() => removeServer(name)}>删除</button></div> : null}
       </div>
-      {isNew ? <label>Server 名称<input value={draft.name} onChange={e => setNewServer(s => ({...s, name: e.target.value}))} placeholder="例如 agentdock" /></label> : null}
+      {isNew ? <label>Server 名称<input value={draft.name} onChange={e => setNewServer(s => ({...s, name: e.target.value}))} placeholder="例如 agentdock" /></label> : <label>Server 名称<div className="mcp-rename-row"><input value={serverNameDraft} onChange={e => setRenameDrafts(drafts => ({...drafts, [name]: e.target.value}))} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); renameServer(name); } }} placeholder="例如 agentdock" /><button type="button" className="secondary small" onClick={() => renameServer(name)} disabled={cleanMCPServerName(serverNameDraft) === name}>改名</button></div></label>}
       <div className="mcp-form-grid">
         <label>连接类型<select value={draft.type} onChange={e => update({type: e.target.value})}><option value="streamable-http">HTTP / Streamable HTTP</option></select></label>
         <label>状态<select value={draft.disabled ? 'disabled' : 'enabled'} onChange={e => update({disabled: e.target.value === 'disabled'})}><option value="enabled">启用</option><option value="disabled">禁用</option></select></label>
