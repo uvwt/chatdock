@@ -1028,9 +1028,11 @@ body.theme-light .empty-capability-strip i {
 .msg.assistant > .answer,
 .msg.assistant .answer.markdown {
   max-width: 700px !important;
-  color: var(--gpt-text) !important;
+  color: color-mix(in srgb, var(--gpt-text) 90%, var(--gpt-muted)) !important;
   font-size: 15.5px !important;
-  font-weight: 400 !important;
+  font-weight: 360 !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   line-height: 1.72 !important;
   letter-spacing: 0 !important;
   white-space: normal !important;
@@ -1102,7 +1104,7 @@ body.theme-light .empty-capability-strip i {
 .msg.assistant .markdown strong,
 .msg.assistant .answer strong {
   color: var(--gpt-text-strong) !important;
-  font-weight: 620 !important;
+  font-weight: 560 !important;
 }
 
 .msg.assistant.markdown h1,
@@ -1121,7 +1123,7 @@ body.theme-light .empty-capability-strip i {
   padding-top: 0 !important;
   border-top: 0 !important;
   color: var(--gpt-text-strong) !important;
-  font-weight: 640 !important;
+  font-weight: 600 !important;
   letter-spacing: -.012em !important;
 }
 
@@ -1146,7 +1148,7 @@ body.theme-light .empty-capability-strip i {
   border-radius: 6px !important;
   background: color-mix(in srgb, var(--gpt-surface) 82%, transparent) !important;
   color: var(--gpt-text-strong) !important;
-  font-weight: 400 !important;
+  font-weight: 360 !important;
   font-size: .9em !important;
 }
 
@@ -1246,7 +1248,7 @@ body.theme-light .empty-capability-strip i {
 .markdown .code-block-lang {
   color: #94a3b8;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 520;
   letter-spacing: .02em;
   text-transform: lowercase;
 }
@@ -1259,7 +1261,7 @@ body.theme-light .empty-capability-strip i {
   color: #cbd5e1;
   cursor: pointer;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 430;
   line-height: 1;
   padding: 6px 9px;
   transition: background .15s ease, border-color .15s ease, color .15s ease;
@@ -1300,7 +1302,8 @@ body.theme-light .empty-capability-strip i {
   background: transparent !important;
   color: #e2e8f0 !important;
   font-size: 13px !important;
-  font-weight: 400 !important;
+  font-weight: 360 !important;
+  -webkit-font-smoothing: antialiased;
   line-height: 1.68 !important;
   tab-size: 2;
   white-space: pre;
