@@ -2657,33 +2657,6 @@ body.theme-light #app.app .msg.user .attachment-main span {
   color: #64748b !important;
 }
 
-/* 2026-07-04 侧边栏浅色态最终覆盖：去掉会话列表残留的浅绿色选中态。 */
-body.theme-light #app.app .session:hover,
-body.theme-light #app.app .session.active {
-  background: #f8fafc !important;
-  border-color: #e2e8f0 !important;
-  color: #111827 !important;
-  box-shadow: none !important;
-}
-
-body.theme-light #app.app .session.active {
-  background: #f1f5f9 !important;
-  border-color: #d7e0ea !important;
-}
-
-body.theme-light #app.app .session::after,
-body.theme-light #app.app .session.active::before {
-  border-color: #cbd5e1 !important;
-  background: transparent !important;
-}
-
-body.theme-light #app.app .session-title,
-body.theme-light #app.app .session-preview,
-body.theme-light #app.app .session.active .session-title,
-body.theme-light #app.app .session.active .session-preview {
-  color: #273344 !important;
-}
-
 /* 2026-07-04 iOS Safari 输入聚焦防自动放大：可输入控件必须 >= 16px。 */
 @media (max-width: 720px) {
   html,
@@ -2707,4 +2680,34 @@ body.theme-light #app.app .session.active .session-preview {
   #app.app #input {
     line-height: 22px !important;
   }
+}
+
+/* 2026-07-04 会话列表选中态保留浅绿，但右侧预留安全间距，避免被主内容边界裁切。 */
+body.theme-light #app.app #sessions {
+  padding-right: 10px !important;
+}
+
+body.theme-light #app.app #sessions .session {
+  width: calc(100% - 10px) !important;
+  max-width: calc(100% - 10px) !important;
+  margin-right: 10px !important;
+  border-radius: 8px !important;
+  box-sizing: border-box !important;
+}
+
+body.theme-light #app.app #sessions .session:hover {
+  background: #eef8f3 !important;
+  border-color: #dcefe6 !important;
+}
+
+body.theme-light #app.app #sessions .session.active {
+  background: #e8f6ef !important;
+  border-color: #cce9da !important;
+  color: #273344 !important;
+  box-shadow: none !important;
+}
+
+body.theme-light #app.app #sessions .session.active::before,
+body.theme-light #app.app #sessions .session.active::after {
+  border-color: #1fb98b !important;
 }
