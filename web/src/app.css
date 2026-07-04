@@ -3032,3 +3032,46 @@ body.theme-light #app.app #sessions .session.active::after {
 #app.app #sessions .session-menu-trigger:hover:not(:disabled) {
   opacity: 1 !important;
 }
+
+/* 2026-07-04 会话菜单层级修复：菜单打开时当前行提到最高层，防止后续会话标题穿透。 */
+#app.app #sessions {
+  position: relative !important;
+  overflow: visible !important;
+  isolation: isolate !important;
+}
+
+#app.app #sessions .session {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+#app.app #sessions .session:hover,
+#app.app #sessions .session.active {
+  z-index: 3 !important;
+}
+
+#app.app #sessions .session.menu-open {
+  z-index: 1000 !important;
+  overflow: visible !important;
+  isolation: isolate !important;
+}
+
+#app.app #sessions .session.menu-open .session-row-menu {
+  z-index: 1001 !important;
+  background: #ffffff !important;
+  opacity: 1 !important;
+  overflow: hidden !important;
+  isolation: isolate !important;
+  pointer-events: auto !important;
+}
+
+#app.app #sessions .session-row-menu button {
+  position: relative !important;
+  z-index: 2 !important;
+  line-height: 1.2 !important;
+  text-shadow: none !important;
+}
+
+#app.app #sessions .session-row-menu button + button {
+  margin-top: 2px !important;
+}
