@@ -113,6 +113,7 @@ type ChatRequest struct {
 	ProviderID    string   `json:"provider_id,omitempty"`
 	Model         string   `json:"model,omitempty"`
 	AttachmentIDs []string `json:"attachment_ids,omitempty"`
+	Regenerate    bool     `json:"regenerate,omitempty"`
 }
 
 type ChatResponse struct {

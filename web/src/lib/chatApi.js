@@ -21,11 +21,11 @@ export async function streamChatJobEvents({jobID, authHeaders, signal, onEvent})
   await readSSE(res, onEvent);
 }
 
-export async function streamChat({authHeaders, signal, sessionID, message, attachmentIDs, providerID, model, onEvent}) {
+export async function streamChat({authHeaders, signal, sessionID, message, attachmentIDs, providerID, model, regenerate = false, onEvent}) {
   const res = await fetch('/api/chat/stream', {
     method:'POST',
     headers: authHeaders({'Content-Type':'application/json'}),
-    body: JSON.stringify({session_id: sessionID, message, attachment_ids: attachmentIDs, provider_id: providerID || '', model: model || ''}),
+    body: JSON.stringify({session_id: sessionID, message, attachment_ids: attachmentIDs, provider_id: providerID || '', model: model || '', regenerate: !!regenerate}),
     signal,
   });
   if (!res.ok) {

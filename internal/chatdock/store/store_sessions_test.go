@@ -137,3 +137,35 @@ func TestStoreUpdateSessionModelPersistsAndAppearsInSummary(t *testing.T) {
 		t.Fatalf("model selection missing from summaries: %#v", summaries)
 	}
 }
+
+func TestStorePrepareSessionRegenerationUsesLastUserWithoutAppending(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := store.CreateSession()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := store.AppendUserMessage(session.ID, "编辑后的问题"); err != nil {
+		t.Fatal(err)
+	}
+
+	prepared, _, history, err := store.PrepareSessionRegeneration(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(prepared.Messages) != 1 || len(history) != 1 {
+		t.Fatalf("regeneration should not append a user message: prepared=%d history=%d", len(prepared.Messages), len(history))
+	}
+	if history[0].Role != "user" || history[0].Content != "编辑后的问题" {
+		t.Fatalf("unexpected regeneration history: %#v", history)
+	}
+	loaded, ok := store.GetSession(session.ID)
+	if !ok {
+		t.Fatal("session missing")
+	}
+	if len(loaded.Messages) != 1 {
+		t.Fatalf("store message count changed during regeneration prep: %#v", loaded.Messages)
+	}
+}

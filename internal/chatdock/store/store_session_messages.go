@@ -74,6 +74,50 @@ func (s *Store) AppendUserMessageWithAttachments(sessionID string, content strin
 	return cloneSession(session), cfg, history, nil
 }
 
+func (s *Store) PrepareSessionRegeneration(sessionID string) (*model.Session, model.ModelConfig, []model.Message, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, ok := s.sessions[sessionID]
+	if !ok {
+		return nil, model.ModelConfig{}, nil, model.ErrSessionNotFound
+	}
+	if len(session.Messages) == 0 {
+		return nil, model.ModelConfig{}, nil, fmt.Errorf("session has no messages")
+	}
+
+	lastIndex := len(session.Messages) - 1
+	last := session.Messages[lastIndex]
+	if strings.TrimSpace(last.Role) != "user" {
+		return nil, model.ModelConfig{}, nil, fmt.Errorf("last message is not a user message")
+	}
+	if strings.TrimSpace(last.Content) == "" && len(last.Attachments) == 0 {
+		return nil, model.ModelConfig{}, nil, fmt.Errorf("message is empty")
+	}
+
+	attachmentIDs := make([]string, 0, len(last.Attachments))
+	for _, item := range last.Attachments {
+		attachmentIDs = append(attachmentIDs, item.ID)
+	}
+	attachments, err := s.attachmentRecordsByIDsLocked(attachmentIDs)
+	if err != nil {
+		return nil, model.ModelConfig{}, nil, err
+	}
+
+	cfg := s.modelCfg
+	skills, err := s.enabledSkillsLocked()
+	if err != nil {
+		return nil, model.ModelConfig{}, nil, err
+	}
+	cfg.Skills = skills
+
+	history := cloneMessages(session.Messages)
+	history[lastIndex].Content = model.BuildUserContentForModel(last.Content, attachments)
+	history[lastIndex].ModelAttachments = attachments
+	history[lastIndex].Attachments = nil
+	return cloneSession(session), cfg, history, nil
+}
+
 func (s *Store) AppendAssistantMessage(sessionID string, content string) (*model.Session, error) {
 	return s.AppendAssistantMessageWithReasoning(sessionID, content, "")
 }

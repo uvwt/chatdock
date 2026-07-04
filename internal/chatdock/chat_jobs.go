@@ -16,11 +16,19 @@ import (
 )
 
 func (a *App) startChatJob(input model.ChatRequest) (storepkg.ChatJob, *model.Session, error) {
-	input.Message = strings.TrimSpace(input.Message)
-	if input.Message == "" && len(input.AttachmentIDs) == 0 {
-		return storepkg.ChatJob{}, nil, fmt.Errorf("message is empty")
+	var session *model.Session
+	var cfg model.ModelConfig
+	var history []model.Message
+	var err error
+	if input.Regenerate {
+		session, cfg, history, err = a.store.PrepareSessionRegeneration(input.SessionID)
+	} else {
+		input.Message = strings.TrimSpace(input.Message)
+		if input.Message == "" && len(input.AttachmentIDs) == 0 {
+			return storepkg.ChatJob{}, nil, fmt.Errorf("message is empty")
+		}
+		session, cfg, history, err = a.store.AppendUserMessageWithAttachments(input.SessionID, input.Message, input.AttachmentIDs)
 	}
-	session, cfg, history, err := a.store.AppendUserMessageWithAttachments(input.SessionID, input.Message, input.AttachmentIDs)
 	if err != nil {
 		return storepkg.ChatJob{}, nil, err
 	}

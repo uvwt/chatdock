@@ -451,18 +451,6 @@ export default function App() {
     setSessions(list || []);
   }, [api]);
 
-  const editUserMessage = useCallback(async ({ messageIndex, messageID, content }) => {
-    if (!current) return;
-    try {
-      const next = await editSessionMessage(api, current, { messageIndex, messageID, content });
-      setMessages(next.messages || []);
-      await loadSessions();
-      showToast('已替换该消息，并删除其后的所有消息', 'success');
-    } catch (error) {
-      showToast('编辑失败：' + error.message, 'error');
-      throw error;
-    }
-  }, [api, current, loadSessions, showToast]);
 
   useEffect(() => {
     const q = sessionSearch.trim();
@@ -1279,6 +1267,94 @@ export default function App() {
       }
     }
   }, [authHeaders, busy, selectedModelBaseURL, selectedChatModel, selectedModelProvider, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, createPersistedSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, finishActiveAssistant, loadRuns, loadAgentTasks, openSettings, showToast]);
+
+
+  const regenerateEditedReply = useCallback(async (sessionID, baseMessages, title) => {
+    setBusy(true);
+    setStreamPaused(false);
+    setStreamStats({ state: 'connecting', started_at: Date.now(), chars: 0, events: 0, tools: 0, error: '' });
+    pausedRef.current = false;
+    pendingDeltaRef.current = '';
+    pendingReasoningRef.current = '';
+    const abort = new AbortController();
+    abortRef.current = abort;
+    activeJobSessionRef.current = sessionID;
+    forceScrollRef.current = true;
+    stickToBottomRef.current = true;
+    setMessages([...(baseMessages || []), { role: 'assistant-stream', answer: '', reasoning: '', events: [] }]);
+    try {
+      setStreamStats(prev => ({ ...prev, state: 'streaming' }));
+      let finalSession = null;
+      await streamChat({
+        authHeaders,
+        signal: abort.signal,
+        sessionID,
+        message: '',
+        attachmentIDs: [],
+        providerID: selectedModelProvider?.choice_id || '',
+        model: selectedChatModel,
+        regenerate: true,
+        onEvent: (event, data) => {
+          if (currentRef.current === sessionID) handleChatStreamEvent(event, data, s => { finalSession = s; });
+        }
+      });
+      if (finalSession) {
+        pendingDeltaRef.current = '';
+        pendingReasoningRef.current = '';
+        if (currentRef.current === sessionID) {
+          finishActiveAssistant(finalSession);
+          setCurrentTitle(finalSession.title || title || '新会话');
+        }
+        await loadSessions();
+        await Promise.allSettled([loadRuns(), loadAgentTasks()]);
+      }
+    } catch (e) {
+      if (abort.signal.aborted) {
+        appendReasoning(pendingReasoningRef.current);
+        appendAnswer(pendingDeltaRef.current);
+        appendAnswer('\n\n【已中断】');
+        await loadSessions().catch(() => { });
+      } else {
+        const message = readableChatError(e);
+        setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
+        appendToActiveAssistant(m => ({ ...m, answer: '错误：' + message }));
+      }
+    } finally {
+      if (abortRef.current === abort || activeJobSessionRef.current === sessionID) {
+        setBusy(false);
+        if (abortRef.current === abort) abortRef.current = null;
+        activeJobIDRef.current = '';
+        activeJobSessionRef.current = '';
+        setActiveJobID('');
+        setStreamPaused(false);
+      }
+    }
+  }, [authHeaders, selectedModelProvider, selectedChatModel, handleChatStreamEvent, finishActiveAssistant, loadSessions, loadRuns, loadAgentTasks, appendReasoning, appendAnswer, appendToActiveAssistant]);
+
+  const editUserMessage = useCallback(async ({ messageIndex, messageID, content }) => {
+    if (busy) {
+      showToast('正在生成，先停止当前输出再编辑。', 'error');
+      throw new Error('busy');
+    }
+    if (!current) return;
+    if (!String(selectedModelBaseURL || '').trim() || !String(selectedChatModel || '').trim()) {
+      showToast('请先配置模型供应商和模型，再保存编辑。', 'error');
+      openSettings('model');
+      throw new Error('model is not configured');
+    }
+    try {
+      const next = await editSessionMessage(api, current, { messageIndex, messageID, content });
+      const nextMessages = next.messages || [];
+      setMessages(nextMessages);
+      await loadSessions();
+      showToast('已替换该消息，正在重新生成回复', 'success');
+      void regenerateEditedReply(current, nextMessages, next.title || currentTitle || '新会话');
+    } catch (error) {
+      const message = error.message === 'busy' ? '正在生成' : error.message;
+      showToast('编辑失败：' + message, 'error');
+      throw error;
+    }
+  }, [api, busy, current, currentTitle, loadSessions, openSettings, regenerateEditedReply, selectedChatModel, selectedModelBaseURL, showToast]);
 
   const toggleStreamPause = useCallback(() => {
     if (!busy) return;
