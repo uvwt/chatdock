@@ -21,6 +21,7 @@ func (a *App) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	a.clearQueryEmbeddingCache()
 	writeJSONResponse(w, http.StatusOK, model.ToPublicModelConfig(cfg))
 }
 

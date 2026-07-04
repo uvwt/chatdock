@@ -22,6 +22,11 @@ func (s *Store) SaveModelConfig(next model.ModelConfig) (model.ModelConfig, erro
 	if strings.TrimSpace(next.EmbeddingAPIKey) == "" || strings.TrimSpace(next.EmbeddingAPIKey) == "********" {
 		next.EmbeddingAPIKey = s.modelCfg.EmbeddingAPIKey
 	}
+	if strings.TrimSpace(next.EmbeddingBaseURL) != s.modelCfg.EmbeddingBaseURL || strings.TrimSpace(next.EmbeddingModel) != s.modelCfg.EmbeddingModel {
+		if err := s.deleteToolEmbeddingsForPromptLocked(s.activePrompt); err != nil {
+			return model.ModelConfig{}, err
+		}
+	}
 
 	s.modelCfg = model.NormalizeModelConfig(next)
 	return s.modelCfg, s.setPromptJSONLocked(s.activePrompt, "config", s.modelCfg)

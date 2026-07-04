@@ -106,23 +106,55 @@ func (a *App) semanticToolScores(ctx context.Context, catalog toolCatalog, query
 	if strings.TrimSpace(query) == "" || strings.TrimSpace(cfg.EmbeddingBaseURL) == "" {
 		return nil
 	}
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	records, err := a.ensureToolEmbeddingIndex(ctx, catalog, cfg.EmbeddingModel)
+	indexCtx, indexCancel := context.WithTimeout(ctx, 30*time.Second)
+	records, err := a.ensureToolEmbeddingIndex(indexCtx, catalog, cfg.EmbeddingModel)
+	indexCancel()
 	if err != nil || len(records) == 0 {
 		return nil
 	}
-	queryVectors, err := a.client.Embed(ctx, cfg.EmbeddingBaseURL, cfg.EmbeddingAPIKey, cfg.EmbeddingModel, []string{query})
-	if err != nil || len(queryVectors) == 0 {
+	queryCtx, queryCancel := context.WithTimeout(ctx, 2*time.Second)
+	defer queryCancel()
+	queryVector, ok := a.cachedQueryEmbedding(queryCtx, cfg, query)
+	if !ok {
 		return nil
 	}
 	scores := map[string]float64{}
 	for name, record := range records {
-		if score := cosineSimilarity(queryVectors[0], record.Embedding); score > 0.18 {
+		if score := cosineSimilarity(queryVector, record.Embedding); score > 0.18 {
 			scores[name] = score
 		}
 	}
 	return scores
+}
+
+func (a *App) cachedQueryEmbedding(ctx context.Context, cfg model.ModelConfig, query string) ([]float64, bool) {
+	key := strings.TrimSpace(cfg.EmbeddingModel) + "\x00" + strings.TrimSpace(query)
+	a.embeddingMu.Lock()
+	if vector, ok := a.embeddingMemo[key]; ok && len(vector) > 0 {
+		a.embeddingMu.Unlock()
+		return append([]float64(nil), vector...), true
+	}
+	a.embeddingMu.Unlock()
+	vectors, err := a.client.Embed(ctx, cfg.EmbeddingBaseURL, cfg.EmbeddingAPIKey, cfg.EmbeddingModel, []string{query})
+	if err != nil || len(vectors) == 0 || len(vectors[0]) == 0 {
+		return nil, false
+	}
+	a.embeddingMu.Lock()
+	if len(a.embeddingMemo) > 256 {
+		for k := range a.embeddingMemo {
+			delete(a.embeddingMemo, k)
+			break
+		}
+	}
+	a.embeddingMemo[key] = append([]float64(nil), vectors[0]...)
+	a.embeddingMu.Unlock()
+	return vectors[0], true
+}
+
+func (a *App) clearQueryEmbeddingCache() {
+	a.embeddingMu.Lock()
+	a.embeddingMemo = make(map[string][]float64)
+	a.embeddingMu.Unlock()
 }
 
 func (a *App) ensureToolEmbeddingIndex(ctx context.Context, catalog toolCatalog, model string) (map[string]storepkg.ToolEmbeddingRecord, error) {

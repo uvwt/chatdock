@@ -45,3 +45,8 @@ func (s *Store) SaveToolEmbedding(item ToolEmbeddingRecord) error {
 	_, err = s.db.Exec(`INSERT INTO tool_embeddings(prompt, full_name, source_hash, embedding_model, embedding_json, indexed_at) VALUES(?, ?, ?, ?, ?, ?) ON CONFLICT(prompt, full_name, embedding_model) DO UPDATE SET source_hash = excluded.source_hash, embedding_json = excluded.embedding_json, indexed_at = excluded.indexed_at`, s.activePrompt, item.FullName, item.SourceHash, item.EmbeddingModel, string(raw), formatDBTime(time.Now()))
 	return err
 }
+
+func (s *Store) deleteToolEmbeddingsForPromptLocked(prompt string) error {
+	_, err := s.db.Exec(`DELETE FROM tool_embeddings WHERE prompt = ?`, prompt)
+	return err
+}

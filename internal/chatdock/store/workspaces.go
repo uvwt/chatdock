@@ -103,6 +103,11 @@ func (s *Store) SaveWorkspaceConfig(workspaceID string, next model.ModelConfig) 
 	if strings.TrimSpace(next.EmbeddingAPIKey) == "" || strings.TrimSpace(next.EmbeddingAPIKey) == "********" {
 		next.EmbeddingAPIKey = current.EmbeddingAPIKey
 	}
+	if strings.TrimSpace(next.EmbeddingBaseURL) != current.EmbeddingBaseURL || strings.TrimSpace(next.EmbeddingModel) != current.EmbeddingModel {
+		if err := s.deleteToolEmbeddingsForPromptLocked(workspaceID); err != nil {
+			return model.PublicModelConfig{}, err
+		}
+	}
 	if strings.TrimSpace(next.SystemPrompt) == "" {
 		next.SystemPrompt = current.SystemPrompt
 	}

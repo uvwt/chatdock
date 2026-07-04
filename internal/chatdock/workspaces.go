@@ -95,6 +95,7 @@ func (a *App) handleWorkspaceRoute(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, err)
 			return
 		}
+		a.clearQueryEmbeddingCache()
 		writeJSONResponse(w, http.StatusOK, cfg)
 		return
 	}

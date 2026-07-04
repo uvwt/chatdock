@@ -28,6 +28,8 @@ type App struct {
 	confirmations map[string]*MCPConfirmation
 	runningMu     sync.Mutex
 	running       map[string]bool
+	embeddingMu   sync.Mutex
+	embeddingMemo map[string][]float64
 }
 
 func NewApp(cfg model.ServerConfig) (*App, error) {
@@ -44,6 +46,7 @@ func NewApp(cfg model.ServerConfig) (*App, error) {
 		jobCancel:     make(map[string]context.CancelFunc),
 		confirmations: make(map[string]*MCPConfirmation),
 		running:       make(map[string]bool),
+		embeddingMemo: make(map[string][]float64),
 	}
 	app.server = &http.Server{
 		Addr:              cfg.Addr,
