@@ -202,6 +202,9 @@ export default function App() {
 
   const abortRef = useRef(null);
   const activeJobIDRef = useRef('');
+  const activeJobSessionRef = useRef('');
+  const detachedControllersRef = useRef(new WeakSet());
+  const currentRef = useRef(null);
   const pausedRef = useRef(false);
   const pendingDeltaRef = useRef('');
   const pendingReasoningRef = useRef('');
@@ -212,6 +215,31 @@ export default function App() {
   const fileInputRef = useRef(null);
 
   useEffect(() => { pausedRef.current = streamPaused; }, [streamPaused]);
+  useEffect(() => { currentRef.current = current; }, [current]);
+
+  const detachActiveStream = useCallback(() => {
+    // 切换会话只断开当前页面的 SSE 监听，不取消后端 ChatJob；
+    // 这样原会话继续后台生成，用户可以马上去另一个会话发送消息。
+    const abort = abortRef.current;
+    if (abort) {
+      detachedControllersRef.current.add(abort);
+      abort.abort();
+    }
+    abortRef.current = null;
+    activeJobIDRef.current = '';
+    activeJobSessionRef.current = '';
+    setActiveJobID('');
+    setBusy(false);
+    setStreamPaused(false);
+    setStreamStats({state:'idle', started_at:0, chars:0, events:0, tools:0, error:''});
+  }, []);
+
+  useEffect(() => {
+    if (busy && current && activeJobSessionRef.current && activeJobSessionRef.current !== current) {
+      detachActiveStream();
+    }
+  }, [busy, current, detachActiveStream]);
+
   useEffect(() => {
     document.body.classList.toggle('theme-light', theme === 'day');
     document.body.classList.toggle('theme-night', theme !== 'day');
@@ -614,10 +642,7 @@ export default function App() {
   }, [api, loadSessions]);
 
   const createSession = useCallback(() => {
-    if (busy) {
-      showToast('当前回复还在进行中，请先暂停或中断后再新建会话。', 'error');
-      return null;
-    }
+    if (busy) detachActiveStream();
     // “新会话”只是进入一个本地草稿，不应该提前写入后端。
     // 真正的 session id 只有在发送首条消息、或上传附件需要绑定会话时才创建。
     setCurrent(null);
@@ -628,13 +653,10 @@ export default function App() {
     closeSidebarOnMobile();
     window.setTimeout(() => inputRef.current?.focus(), 0);
     return {id:'', title:'新会话', messages:[], draft:true};
-  }, [busy, closeSidebarOnMobile, showToast]);
+  }, [busy, closeSidebarOnMobile, detachActiveStream]);
 
   const openSession = useCallback(async (id) => {
-    if (busy) {
-      showToast('当前回复还在进行中，请先暂停或中断后再切换会话。', 'error');
-      return;
-    }
+    if (busy) detachActiveStream();
     setCurrent(id);
     const s = await fetchSession(api, id);
     setCurrentTitle(s.title || '新会话');
@@ -643,7 +665,7 @@ export default function App() {
     await loadSessions();
     if (window.location.pathname !== sessionPath(id)) window.history.pushState({chatdock:true}, '', sessionPath(id));
     closeSidebarOnMobile();
-  }, [api, busy, loadSessions, closeSidebarOnMobile, showToast]);
+  }, [api, busy, detachActiveStream, loadSessions, closeSidebarOnMobile]);
 
   const newSession = useCallback(async () => { await createSession(); }, [createSession]);
 
@@ -830,6 +852,7 @@ export default function App() {
         if (!job) return;
         setBusy(true);
         activeJobIDRef.current = job.id || '';
+        activeJobSessionRef.current = current;
         setActiveJobID(job.id || '');
         setStreamPaused(false);
         pausedRef.current = false;
@@ -859,6 +882,7 @@ export default function App() {
           setBusy(false);
           abortRef.current = null;
           activeJobIDRef.current = '';
+          activeJobSessionRef.current = '';
           setActiveJobID('');
           setStreamPaused(false);
         }
@@ -1008,6 +1032,7 @@ export default function App() {
     pendingReasoningRef.current = '';
     const abort = new AbortController();
     abortRef.current = abort;
+    activeJobSessionRef.current = sessionID;
     forceScrollRef.current = true;
     stickToBottomRef.current = true;
     setMessages(prev => [...prev, {role:'user', content:text, attachments:attachmentsForMessage}, {role:'assistant-stream', answer:'', reasoning:'', events:[]}]);
@@ -1015,20 +1040,26 @@ export default function App() {
       setPendingAttachments([]);
       setStreamStats(prev => ({...prev, state:'streaming'}));
       let finalSession = null;
-      await streamChat({authHeaders, signal: abort.signal, sessionID, message:text, attachmentIDs, providerID: selectedModelProvider?.choice_id || '', model: selectedChatModel, onEvent: (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; })});
+      await streamChat({authHeaders, signal: abort.signal, sessionID, message:text, attachmentIDs, providerID: selectedModelProvider?.choice_id || '', model: selectedChatModel, onEvent: (event, data) => {
+        if (currentRef.current === sessionID) handleChatStreamEvent(event, data, s => { finalSession = s; });
+      }});
       if (finalSession) {
         pendingDeltaRef.current = '';
         pendingReasoningRef.current = '';
-        setMessages(finalSession.messages || []);
-        setCurrentTitle(finalSession.title || currentTitle || '新会话');
+        if (currentRef.current === sessionID) {
+          setMessages(finalSession.messages || []);
+          setCurrentTitle(finalSession.title || currentTitle || '新会话');
+        }
         await loadSessions();
         await Promise.allSettled([loadRuns(), loadAgentTasks()]);
       }
     } catch (e) {
       if (abort.signal.aborted) {
-        appendReasoning(pendingReasoningRef.current);
-        appendAnswer(pendingDeltaRef.current);
-        appendAnswer('\n\n【已中断】');
+        if (!detachedControllersRef.current.has(abort)) {
+          appendReasoning(pendingReasoningRef.current);
+          appendAnswer(pendingDeltaRef.current);
+          appendAnswer('\n\n【已中断】');
+        }
         await loadSessions().catch(() => {});
       } else {
         const message = readableChatError(e, attachmentsForMessage.some(attachmentLooksLikeImage));
@@ -1036,11 +1067,14 @@ export default function App() {
         appendToActiveAssistant(m => ({...m, answer:'错误：' + message}));
       }
     } finally {
-      setBusy(false);
-      abortRef.current = null;
-      activeJobIDRef.current = '';
-      setActiveJobID('');
-      setStreamPaused(false);
+      if (abortRef.current === abort || activeJobSessionRef.current === sessionID) {
+        setBusy(false);
+        if (abortRef.current === abort) abortRef.current = null;
+        activeJobIDRef.current = '';
+        activeJobSessionRef.current = '';
+        setActiveJobID('');
+        setStreamPaused(false);
+      }
     }
   }, [authHeaders, busy, selectedModelBaseURL, selectedChatModel, selectedModelProvider, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, createPersistedSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, loadRuns, loadAgentTasks, openSettings, showToast]);
 
@@ -1353,7 +1387,7 @@ export default function App() {
 
   const quickActions = useMemo(() => [
     {id:'focus-input', title:'聚焦输入框', hint:'按 / 也可以快速输入', run:() => inputRef.current?.focus()},
-    {id:'new-session', title:'新建会话', hint:'在当前工作空间开始新对话', disabled:busy, run:createSession},
+    {id:'new-session', title:'新建会话', hint:'在当前工作空间开始新对话', run:createSession},
     {id:'continue', title:'发送“继续”', hint:'让当前会话继续上一轮内容', disabled:busy, run:() => sendMsg('继续')},
     {id:'workspace-picker', title:'切换工作空间', hint:'加载不同模型、技能和会话', disabled:busy || !prompts.length, run:() => setWorkspacePickerOpen(true)},
     {id:'settings', title:'打开配置中心', hint:'工作空间、模型、工具和数据统一管理', run:() => openSettings()},
@@ -1419,7 +1453,7 @@ export default function App() {
         </div>
         <div className="session-search-row">
           <label className="session-search-box"><span className="session-search-icon">⌕</span><input className="session-search" placeholder="搜索聊天记录" value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} /></label>
-          <button className="new" disabled={busy} onClick={newSession}><span className="new-symbol">+</span><span className="new-label">新会话</span></button>
+          <button className="new" onClick={newSession}><span className="new-symbol">+</span><span className="new-label">新会话</span></button>
         </div>
         {sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : '全文搜索 ' + filteredSessions.length + ' 条'}</div> : null}
         <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => <div key={s.id} className={'session ' + (current === s.id ? 'active ' : '') + (s.pinned ? 'pinned' : '')} onClick={() => openSession(s.id)}><div className="session-main"><div className="session-title">{s.pinned ? <span className="pin-mark">置顶</span> : null}{s.title}</div>{s.match_snippet ? <div className="session-preview search-hit">{s.match_field ? s.match_field + '：' : ''}{s.match_snippet}</div> : (s.preview ? <div className="session-preview">{s.preview}</div> : null)}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div><button type="button" className="session-delete" disabled={busy} onClick={e => { e.stopPropagation(); deleteSessionByID(s.id, s.title); }} aria-label={'删除会话 ' + (s.title || '')} title="删除会话">×</button></div>) : <div className="empty compact">{sessionSearch.trim() ? '没有匹配会话' : '暂无会话，开始新会话'}</div>}</div>
@@ -1430,7 +1464,7 @@ export default function App() {
           <div className="top-actions">
             <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)} title="快捷指令（⌘/Ctrl K）">快捷</button>
             <button className="secondary config-toggle" onClick={() => openSettings()} title="配置中心">配置</button>
-            <button className="secondary session-actions-toggle mobile-new-toggle" onClick={newSession} disabled={busy} title="新会话">新会话</button>
+            <button className="secondary session-actions-toggle mobile-new-toggle" onClick={newSession} title="新会话">新会话</button>
             <button className="theme-toggle" onClick={() => setThemeState(theme === 'day' ? 'night' : 'day')}>{theme === 'day' ? '白天' : '夜晚'}</button>
             <button className="secondary" onClick={renameCurrent} disabled={!current || busy}>重命名</button>
             <button className="secondary" onClick={copyCurrentMarkdown} disabled={!current}>复制全文</button>
