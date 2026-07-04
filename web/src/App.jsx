@@ -1462,10 +1462,10 @@ export default function App() {
           <button id="sidebarToggle" className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}>{sidebarCollapsed ? '›' : '‹'}</button>
         </div>
         <div className="prompt-box">
-          <button className="workspace-picker-trigger" type="button" disabled={busy} onClick={newSession}>
+          <button className="workspace-picker-trigger" type="button" disabled={busy || !prompts.length} onClick={() => setWorkspacePickerOpen(true)}>
             <span className="workspace-picker-icon">⌕</span>
-            <span className="workspace-picker-name">新会话</span>
-            <span className="workspace-picker-meta">{sessions.length}</span>
+            <span className="workspace-picker-name">{activePrompt ? (activePrompt.name === 'default' ? '默认工作区' : activePrompt.name) : '未选择'}</span>
+            <span className="workspace-picker-meta">{activePrompt ? activePrompt.count : sessions.length}</span>
             <span className="workspace-picker-arrow">⌄</span>
           </button>
         </div>
