@@ -462,6 +462,14 @@ export default function App() {
   useEffect(() => {
     const box = messagesRef.current;
     if (!box) return;
+    if (!messages.length) {
+      // 空状态本身可能高于手机视口；此时不要沿用聊天流的“贴底”策略。
+      box.scrollTop = 0;
+      forceScrollRef.current = false;
+      stickToBottomRef.current = true;
+      setShowJumpToLatest(false);
+      return;
+    }
     if (forceScrollRef.current || stickToBottomRef.current) {
       box.scrollTop = box.scrollHeight;
       forceScrollRef.current = false;
@@ -1336,7 +1344,7 @@ export default function App() {
           <button className="new" disabled={busy} onClick={newSession}><span className="new-symbol">+</span><span className="new-label">新会话</span></button>
         </div>
         {sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : '全文搜索 ' + filteredSessions.length + ' 条'}</div> : null}
-        <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => <div key={s.id} className={'session ' + (current === s.id ? 'active ' : '') + (s.pinned ? 'pinned' : '')} onClick={() => openSession(s.id)}><div className="session-title">{s.pinned ? <span className="pin-mark">置顶</span> : null}{s.title}</div>{s.match_snippet ? <div className="session-preview search-hit">{s.match_field ? s.match_field + '：' : ''}{s.match_snippet}</div> : (s.preview ? <div className="session-preview">{s.preview}</div> : null)}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div>) : <div className="empty compact">没有匹配会话</div>}</div>
+        <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => <div key={s.id} className={'session ' + (current === s.id ? 'active ' : '') + (s.pinned ? 'pinned' : '')} onClick={() => openSession(s.id)}><div className="session-title">{s.pinned ? <span className="pin-mark">置顶</span> : null}{s.title}</div>{s.match_snippet ? <div className="session-preview search-hit">{s.match_field ? s.match_field + '：' : ''}{s.match_snippet}</div> : (s.preview ? <div className="session-preview">{s.preview}</div> : null)}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div>) : <div className="empty compact">{sessionSearch.trim() ? '没有匹配会话' : '暂无会话，开始新会话'}</div>}</div>
       </aside>
       <main>
         <div className="topbar">
