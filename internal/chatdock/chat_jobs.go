@@ -83,20 +83,54 @@ func (a *App) cancelChatJob(jobID string) (storepkg.ChatJob, error) {
 
 func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cfg model.ModelConfig, history []model.Message) {
 	defer a.unregisterChatJobCancel(jobID)
+	var answer strings.Builder
 	var reasoning strings.Builder
 	var parts messagePartsRecorder
+	var checkpointMessageID string
+	var lastCheckpoint time.Time
+	lastCheckpointChars := 0
+	saveCheckpoint := func(force bool) error {
+		currentAnswer := answer.String()
+		currentReasoning := reasoning.String()
+		if !force && len(currentAnswer)-lastCheckpointChars < 512 && time.Since(lastCheckpoint) < time.Second {
+			return nil
+		}
+		if strings.TrimSpace(currentAnswer) == "" && strings.TrimSpace(currentReasoning) == "" && len(parts.parts) == 0 && len(parts.events) == 0 {
+			return nil
+		}
+		_, messageID, err := a.store.UpsertAssistantMessageCheckpoint(sessionID, checkpointMessageID, currentAnswer, currentReasoning, parts.parts, parts.events)
+		if err != nil {
+			return err
+		}
+		checkpointMessageID = messageID
+		lastCheckpoint = time.Now()
+		lastCheckpointChars = len(currentAnswer)
+		return nil
+	}
 	emit := func(event string, value any) error {
 		parts.record(event, value)
 		if event == "delta" {
-			if delta, ok := value.(llm.StreamDelta); ok && delta.ReasoningContent != "" {
-				reasoning.WriteString(delta.ReasoningContent)
+			if delta, ok := value.(llm.StreamDelta); ok {
+				if delta.Content != "" {
+					answer.WriteString(delta.Content)
+				}
+				if delta.ReasoningContent != "" {
+					reasoning.WriteString(delta.ReasoningContent)
+				}
+				if err := saveCheckpoint(false); err != nil {
+					return err
+				}
 			}
 		}
 		_, err := a.store.AddChatJobEvent(jobID, event, value)
 		return err
 	}
 
-	answer, runErr := a.completeWithRecordedTools(ctx, sessionID, cfg, history, emit)
+	finalAnswer, runErr := a.completeWithRecordedTools(ctx, sessionID, cfg, history, emit)
+	if strings.TrimSpace(finalAnswer) != "" && strings.TrimSpace(finalAnswer) != strings.TrimSpace(answer.String()) {
+		answer.Reset()
+		answer.WriteString(finalAnswer)
+	}
 	status := "success"
 	if isClientCanceled(ctx, runErr) {
 		status = "interrupted"
@@ -105,13 +139,14 @@ func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cf
 		}
 	} else if runErr != nil {
 		status = "failed"
-	} else if _, err := a.store.AppendAssistantMessageWithParts(sessionID, answer, reasoning.String(), parts.parts, parts.events); err != nil {
+	}
+	if err := saveCheckpoint(true); err != nil {
 		status = "failed"
 		runErr = err
-	} else {
+	} else if runErr == nil {
 		_ = a.maybeGenerateSessionTitle(ctx, sessionID, cfg)
 	}
-	finishedJob, finishErr := a.store.FinishChatJob(jobID, status, answer, reasoning.String(), runErr)
+	finishedJob, finishErr := a.store.FinishChatJob(jobID, status, answer.String(), reasoning.String(), runErr)
 	fields := logFields{"request_id": requestIDFromContext(ctx), "job_id": jobID, "session_id": sessionID, "status": status, "provider_id": cfg.ProviderID, "model": cfg.Model}
 	if finishErr != nil {
 		logError("chat_job_finish_failed", finishErr, fields)

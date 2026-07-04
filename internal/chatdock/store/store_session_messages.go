@@ -144,3 +144,47 @@ func (s *Store) AppendAssistantMessageWithParts(sessionID string, content string
 	}
 	return cloneSession(session), nil
 }
+
+func (s *Store) UpsertAssistantMessageCheckpoint(sessionID string, messageID string, content string, reasoning string, parts []model.MessagePart, events []model.MessageEvent) (*model.Session, string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, ok := s.sessions[sessionID]
+	if !ok {
+		return nil, "", model.ErrSessionNotFound
+	}
+
+	now := time.Now()
+	messageID = strings.TrimSpace(messageID)
+	if messageID == "" {
+		messageID = model.NewID()
+	}
+	index := -1
+	for i := range session.Messages {
+		if session.Messages[i].ID == messageID {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		session.Messages = append(session.Messages, model.Message{ID: messageID, Role: "assistant", CreatedAt: now})
+		index = len(session.Messages) - 1
+	}
+	message := session.Messages[index]
+	message.ID = messageID
+	message.Role = "assistant"
+	message.Content = content
+	message.Reasoning = strings.TrimSpace(reasoning)
+	message.Parts = cloneMessageParts(parts)
+	message.Events = cloneMessageEvents(events)
+	if message.CreatedAt.IsZero() {
+		message.CreatedAt = now
+	}
+	session.Messages[index] = message
+	session.UpdatedAt = now
+
+	if err := s.saveSessionLocked(session); err != nil {
+		return nil, "", err
+	}
+	return cloneSession(session), messageID, nil
+}
