@@ -557,3 +557,76 @@
     padding: 10px 8px !important;
   }
 }
+
+/* 2026-07-04 折叠侧栏最终保护：72px 侧栏只保留图标，禁止按钮越界压到主区域。 */
+@media (min-width: 721px) {
+  #app.app.sidebar-collapsed aside {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    overflow-x: hidden !important;
+  }
+
+  #app.app.sidebar-collapsed .sidebar-head {
+    padding: 8px 0 10px !important;
+    justify-content: center !important;
+  }
+
+  #app.app.sidebar-collapsed .brand,
+  #app.app.sidebar-collapsed .brand-copy,
+  #app.app.sidebar-collapsed .prompt-box,
+  #app.app.sidebar-collapsed .session-search-box,
+  #app.app.sidebar-collapsed .session-search-meta,
+  #app.app.sidebar-collapsed #sessions {
+    display: none !important;
+  }
+
+  #app.app.sidebar-collapsed .sidebar-toggle {
+    flex: 0 0 42px !important;
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 13px !important;
+  }
+
+  #app.app.sidebar-collapsed .session-search-row {
+    width: 100% !important;
+    margin: 10px 0 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    grid-template-columns: none !important;
+    gap: 0 !important;
+  }
+
+  #app.app.sidebar-collapsed .new {
+    flex: 0 0 42px !important;
+    width: 42px !important;
+    max-width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 13px !important;
+    overflow: hidden !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  #app.app.sidebar-collapsed .new-symbol {
+    font-size: 22px !important;
+    line-height: 1 !important;
+    transform: none !important;
+  }
+
+  #app.app.sidebar-collapsed .new-label {
+    display: none !important;
+  }
+}
