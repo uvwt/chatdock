@@ -24,7 +24,7 @@
 .module-tabs { display:flex; gap:8px; flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden; margin:12px 0 14px; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
 .module-tabs::-webkit-scrollbar { display:none; }
 .module-tab { flex:0 0 auto; min-height:40px; background:#111827; border:1px solid #1f2937; padding:8px 10px; border-radius:999px; font-size:12px; }
-.module-tab.active { background:#2563eb; border-color:#3b82f6; }
+.module-tab.active { background:#0f766e; border-color:#14b8a6; }
 .module-view { display:none; }
 .module-view.active { display:block; }
 .setup-banner { display:none; align-items:flex-start; justify-content:space-between; gap:10px; margin:0 0 12px; padding:12px; border-radius:14px; border:1px solid #854d0e; background:#1c1917; }
@@ -32,7 +32,7 @@
 .setup-banner.ok { border-color:#14532d; background:#052e16; }
 .product-list { display:grid; gap:9px; margin:8px 0 14px; }
 .product-card { border:1px solid #1f2937; border-radius:14px; padding:11px; background:#111827; }
-.product-card.active { border-color:#3b82f6; background:#0f1f3f; }
+.product-card.active { border-color:#14b8a6; background:#0f1f3f; }
 .product-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:8px; }
 .product-meta { color:#94a3b8; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
 .product-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; }
@@ -49,9 +49,9 @@
 .empty.compact { padding:12px; border:1px dashed #334155; border-radius:12px; color:#94a3b8; background:#0b1220; }
 .task-actions { flex-wrap:wrap; justify-content:flex-end; }
 .theme-light .module-tab { background:#f8fafc; border-color:#cbd5e1; color:#0f172a; }
-.theme-light .module-tab.active { background:#2563eb; color:#fff; border-color:#2563eb; }
+.theme-light .module-tab.active { background:#0f766e; color:#fff; border-color:#0f766e; }
 .theme-light .product-card, .theme-light .stat-card, .theme-light .skill-card, .theme-light .task-card { background:#fff; border-color:#cbd5e1; }
-.theme-light .product-card.active { background:#eff6ff; border-color:#2563eb; }
+.theme-light .product-card.active { background:#ecfdf5; border-color:#0f766e; }
 .theme-light .product-meta, .theme-light .stat-label { color:#64748b; }
 .theme-light .stat-value { color:#0f172a; }
 .theme-light .code-preview { background:#f8fafc; color:#0f172a; border-color:#cbd5e1; }
@@ -63,7 +63,7 @@
 .inline-head { align-items:center; gap:10px; }
 .model-options { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 12px; }
 .model-option { padding:7px 10px; border-radius:999px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:12px; cursor:pointer; }
-.model-option.active { border-color:var(--accent); box-shadow:0 0 0 1px rgba(96, 165, 250, .35) inset; }
+.model-option.active { border-color:var(--accent); box-shadow:0 0 0 1px rgba(20, 184, 166, .28) inset; }
 body.theme-light .model-option { background:#f8fafc; }
 @media (max-width: 640px) { .model-option { width:100%; text-align:left; border-radius:12px; } }
 
@@ -118,7 +118,7 @@ body.theme-light .model-option { background:#f8fafc; }
   color: #fff;
   background: var(--primary);
   border-color: var(--primary);
-  box-shadow: 0 8px 20px rgba(37, 99, 235, .22);
+  box-shadow: 0 8px 20px rgba(15, 118, 110, .20);
 }
 .empty.compact {
   margin: 10px 0;
@@ -1049,7 +1049,7 @@ body.theme-light .mcp-inline-warning.danger {
     padding: 24px clamp(24px, 3vw, 56px);
     background:
       radial-gradient(circle at 12% 0, rgba(16,163,127,.12), transparent 34%),
-      radial-gradient(circle at 88% 12%, rgba(59,130,246,.10), transparent 30%),
+      radial-gradient(circle at 88% 12%, rgba(15,118,110,.10), transparent 30%),
       var(--gpt-bg);
   }
 
@@ -1143,8 +1143,8 @@ body.theme-light .mcp-inline-warning.danger {
     padding: 30px clamp(34px, 4vw, 70px);
     background:
       radial-gradient(circle at 14% -8%, rgba(45, 212, 191, .16), transparent 34%),
-      radial-gradient(circle at 92% 0, rgba(59, 130, 246, .12), transparent 32%),
-      linear-gradient(135deg, #f8fbff 0%, #f7fafc 48%, #fbfdff 100%);
+      radial-gradient(circle at 92% 0, rgba(15, 118, 110, .10), transparent 32%),
+      linear-gradient(135deg, #fbfaf7 0%, #f7fafc 48%, #fbfdff 100%);
     color: #0f172a;
   }
 
@@ -1198,10 +1198,10 @@ body.theme-light .mcp-inline-warning.danger {
   }
 
   .settings-page .settings-header-actions button:last-child {
-    border-color: #2563eb;
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    border-color: #0f766e;
+    background: linear-gradient(135deg, #0f766e, #115e59);
     color: #ffffff;
-    box-shadow: 0 14px 30px rgba(37, 99, 235, .22);
+    box-shadow: 0 14px 30px rgba(15, 118, 110, .20);
   }
 
   .settings-page .module-tabs {
@@ -1250,9 +1250,9 @@ body.theme-light .mcp-inline-warning.danger {
   .settings-page .module-tab:nth-child(9)::before { content: "♢"; }
 
   .settings-page .module-tab.active {
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    background: linear-gradient(135deg, #0f766e, #115e59);
     color: #ffffff;
-    box-shadow: 0 14px 24px rgba(37, 99, 235, .24);
+    box-shadow: 0 14px 24px rgba(15, 118, 110, .20);
   }
 
   .settings-page .module-tab.active::before {
@@ -1320,8 +1320,8 @@ body.theme-light .mcp-inline-warning.danger {
 
   .settings-page .settings-block-head button:not(.danger),
   .settings-page .settings-actions button:not(.secondary):not(.danger) {
-    border-color: #2563eb;
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    border-color: #0f766e;
+    background: linear-gradient(135deg, #0f766e, #115e59);
     color: #ffffff;
   }
 
@@ -1363,8 +1363,8 @@ body.theme-light .mcp-inline-warning.danger {
     align-items: center;
     justify-content: center;
     border-radius: 14px;
-    background: #eff6ff;
-    color: #2563eb;
+    background: #ecfdf5;
+    color: #0f766e;
     font-size: 28px;
     font-weight: 900;
   }
@@ -1386,9 +1386,9 @@ body.theme-light .mcp-inline-warning.danger {
 
   .settings-page .product-card.active,
   .settings-page #workspaceCards .product-card.active {
-    border-color: #2563eb;
-    background: linear-gradient(135deg, #f8fbff, #ffffff);
-    box-shadow: inset 0 0 0 1px rgba(37, 99, 235, .20);
+    border-color: #0f766e;
+    background: linear-gradient(135deg, #fbfaf7, #ffffff);
+    box-shadow: inset 0 0 0 1px rgba(15, 118, 110, .18);
   }
 
   .settings-page .product-card-head {
@@ -1425,7 +1425,7 @@ body.theme-light .mcp-inline-warning.danger {
   }
 
   .settings-page .product-card.active .badge {
-    background: #2563eb;
+    background: #0f766e;
     color: #ffffff;
   }
 
@@ -1521,7 +1521,7 @@ body.theme-light .mcp-inline-warning.danger {
     border-color: #dbe4f0;
     border-radius: 16px;
     background:
-      radial-gradient(circle at 86% 10%, rgba(37, 99, 235, .10), transparent 32%),
+      radial-gradient(circle at 86% 10%, rgba(15, 118, 110, .10), transparent 32%),
       linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,250,252,.86));
     box-shadow: 0 12px 30px rgba(15, 23, 42, .05);
   }
@@ -1550,7 +1550,7 @@ body.theme-light .mcp-inline-warning.danger {
   .settings-page .task-card:hover,
   .settings-page .mcp-status-grid .product-card:hover {
     transform: translateY(-2px);
-    border-color: #bfdbfe;
+    border-color: #99f6e4;
     box-shadow: 0 18px 42px rgba(15, 23, 42, .08);
   }
 
@@ -1629,8 +1629,8 @@ body.theme-light .mcp-inline-warning.danger {
   overflow-y: auto;
   background:
     radial-gradient(circle at 8% -8%, rgba(16, 163, 127, .16), transparent 34%),
-    radial-gradient(circle at 92% 0, rgba(37, 99, 235, .10), transparent 30%),
-    #f5f7fb !important;
+    radial-gradient(circle at 92% 0, rgba(15, 118, 110, .10), transparent 30%),
+    #f7f6f2 !important;
   color: #0f172a !important;
 }
 
@@ -1738,11 +1738,11 @@ body.theme-light .mcp-inline-warning.danger {
 
 .settings-page .product-card.active,
 .settings-page #workspaceCards .product-card.active {
-  border-color: #93c5fd !important;
+  border-color: #5eead4 !important;
   background:
-    radial-gradient(circle at 92% 8%, rgba(37, 99, 235, .09), transparent 32%),
+    radial-gradient(circle at 92% 8%, rgba(15, 118, 110, .08), transparent 32%),
     #ffffff !important;
-  box-shadow: 0 14px 34px rgba(37, 99, 235, .10) !important;
+  box-shadow: 0 14px 34px rgba(15, 118, 110, .10) !important;
 }
 
 .settings-page .product-card-head,
@@ -1802,8 +1802,8 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page textarea:focus,
 .settings-page select:focus,
 .settings-page .session-search:focus {
-  border-color: #60a5fa !important;
-  box-shadow: 0 0 0 4px rgba(96, 165, 250, .16) !important;
+  border-color: #14b8a6 !important;
+  box-shadow: 0 0 0 4px rgba(20, 184, 166, .15) !important;
   outline: none;
 }
 
@@ -1814,8 +1814,8 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page button:not(.danger):not(.secondary),
 .settings-page .settings-actions button:not(.secondary):not(.danger),
 .settings-page .mcp-primary-actions button:first-child {
-  border-color: #2563eb !important;
-  background: #2563eb !important;
+  border-color: #0f766e !important;
+  background: #0f766e !important;
   color: #ffffff !important;
 }
 
@@ -2024,13 +2024,13 @@ body.theme-light .mcp-inline-warning.danger {
   }
 
   .settings-page .module-tab.active {
-    background: #eff6ff !important;
-    color: #1d4ed8 !important;
-    box-shadow: inset 0 0 0 1px #bfdbfe !important;
+    background: #ecfdf5 !important;
+    color: #115e59 !important;
+    box-shadow: inset 0 0 0 1px #99f6e4 !important;
   }
 
   .settings-page .module-tab.active::before {
-    background: #2563eb !important;
+    background: #0f766e !important;
   }
 
   .settings-page .module-view.active {
@@ -2161,9 +2161,9 @@ body.theme-light .mcp-inline-warning.danger {
   }
 
   .settings-page .module-tab.active {
-    border-color: #2563eb !important;
-    background: #eff6ff !important;
-    color: #1d4ed8 !important;
+    border-color: #0f766e !important;
+    background: #ecfdf5 !important;
+    color: #115e59 !important;
   }
 
   .settings-page .module-tab::before {
