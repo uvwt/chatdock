@@ -50,6 +50,69 @@ function ReasoningBlock({ value, streaming = false, hidden = false }) {
   </section>;
 }
 
+
+function toolEventMetaText(event) {
+  const meta = String(event?.meta || '').replace(/^关键词：/, '').trim();
+  if (meta) return meta;
+  const details = event?.details || {};
+  const query = details.arguments?.query || details.data?.arguments?.query || details.data?.result?.query;
+  return query ? String(query).trim() : '';
+}
+
+function uniqueToolEventMetas(events) {
+  const seen = new Set();
+  const metas = [];
+  for (const event of events) {
+    const meta = toolEventMetaText(event);
+    if (!meta || seen.has(meta)) continue;
+    seen.add(meta);
+    metas.push(meta);
+  }
+  return metas;
+}
+
+function ToolEvents({ events = [], onResolveConfirmation, onInspectToolEvent }) {
+  const [open, setOpen] = useState(false);
+  if (!events.length) return null;
+
+  const confirmations = events.filter(event => event.kind === 'confirm' && event.status !== 'resolved');
+  const normalEvents = events.filter(event => !(event.kind === 'confirm' && event.status !== 'resolved'));
+  const running = normalEvents.some(event => event.phase === 'running');
+  const failed = normalEvents.some(event => event.phase === 'error');
+  const metas = uniqueToolEventMetas(normalEvents);
+  const title = failed ? '工具调用有异常' : (running ? '正在调用工具' : '已完成工具调用');
+  const metaText = metas.length ? metas.slice(0, 6).join('、') + (metas.length > 6 ? ' 等' : '') : '';
+
+  return <>
+    {normalEvents.length ? <section className={'tool-events-compact ' + (open ? 'open' : '')}>
+      <button type="button" className="tool-events-toggle" onClick={() => setOpen(value => !value)} aria-expanded={open}>
+        <span className="tool-events-dot" />
+        <span className="tool-events-title">{title} · {normalEvents.length} 次</span>
+        {metaText ? <span className="tool-events-meta">{metaText}</span> : null}
+        <span className="tool-events-chevron">{open ? '⌃' : '⌄'}</span>
+      </button>
+      {open ? <div className="tool-events-list">
+        {normalEvents.map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline ' : '') + (event.phase ? 'phase-' + event.phase + ' ' : '') + (event.details ? 'has-details' : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} role={event.details ? 'button' : undefined} tabIndex={event.details ? 0 : undefined} onKeyDown={e => { if (event.details && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onInspectToolEvent?.(event); } }}>
+          <div className="tool-event-main">
+            <div>{event.text}</div>
+            {event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}
+          </div>
+        </div>)}
+      </div> : null}
+    </section> : null}
+    {confirmations.map((event, i) => <div key={'confirm-' + i} className={'tool-event ' + (event.details ? 'has-details' : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} role={event.details ? 'button' : undefined} tabIndex={event.details ? 0 : undefined} onKeyDown={e => { if (event.details && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onInspectToolEvent?.(event); } }}>
+      <div className="tool-event-main">
+        <div>{event.text}</div>
+        {event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}
+      </div>
+      <div className="tool-event-actions" onClick={e => e.stopPropagation()}>
+        <button className="secondary small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, true)}>允许一次</button>
+        <button className="danger small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, false)}>拒绝</button>
+      </div>
+    </div>)}
+  </>;
+}
+
 function UserMessageView({ message, messageIndex, onCopy, onEditUserMessage, onDownloadAttachment }) {
   const text = message.content || '';
   const [editing, setEditing] = useState(false);
@@ -99,15 +162,7 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEd
     return <div className="msg assistant" data-model-message="true">
       <ReasoningBlock value={message.reasoning} streaming hidden={hideThinking} />
       <Markdown className="answer markdown" value={message.answer} />
-      {(message.events || []).map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline ' : '') + (event.phase ? 'phase-' + event.phase + ' ' : '') + (event.details ? 'has-details' : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} role={event.details ? 'button' : undefined} tabIndex={event.details ? 0 : undefined} onKeyDown={e => { if (event.details && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onInspectToolEvent?.(event); } }}>
-        <div className="tool-event-main">
-          <div>{event.text}</div>
-          {event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}
-        </div>
-        <div className="tool-event-actions" onClick={e => e.stopPropagation()}>
-          {event.confirmation && event.status !== 'resolved' ? <><button className="secondary small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, true)}>允许一次</button><button className="danger small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, false)}>拒绝</button></> : null}
-        </div>
-      </div>)}
+      <ToolEvents events={message.events || []} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
       <MessageActions text={[reasoning, message.answer].filter(Boolean).join('\n\n')} onCopy={onCopy} onBranch={onBranch ? () => onBranch(messageIndex) : null} />
     </div>;
   }

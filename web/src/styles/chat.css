@@ -1028,9 +1028,9 @@ body.theme-light .empty-capability-strip i {
 .msg.assistant > .answer,
 .msg.assistant .answer.markdown {
   max-width: 700px !important;
-  color: color-mix(in srgb, var(--gpt-text) 90%, var(--gpt-muted)) !important;
+  color: color-mix(in srgb, var(--gpt-text) 96%, var(--gpt-muted)) !important;
   font-size: 15.5px !important;
-  font-weight: 360 !important;
+  font-weight: 390 !important;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   line-height: 1.72 !important;
@@ -1104,7 +1104,7 @@ body.theme-light .empty-capability-strip i {
 .msg.assistant .markdown strong,
 .msg.assistant .answer strong {
   color: var(--gpt-text-strong) !important;
-  font-weight: 560 !important;
+  font-weight: 590 !important;
 }
 
 .msg.assistant.markdown h1,
@@ -1123,7 +1123,7 @@ body.theme-light .empty-capability-strip i {
   padding-top: 0 !important;
   border-top: 0 !important;
   color: var(--gpt-text-strong) !important;
-  font-weight: 600 !important;
+  font-weight: 620 !important;
   letter-spacing: -.012em !important;
 }
 
@@ -1148,7 +1148,7 @@ body.theme-light .empty-capability-strip i {
   border-radius: 6px !important;
   background: color-mix(in srgb, var(--gpt-surface) 82%, transparent) !important;
   color: var(--gpt-text-strong) !important;
-  font-weight: 360 !important;
+  font-weight: 390 !important;
   font-size: .9em !important;
 }
 
@@ -1248,7 +1248,7 @@ body.theme-light .empty-capability-strip i {
 .markdown .code-block-lang {
   color: #94a3b8;
   font-size: 12px;
-  font-weight: 520;
+  font-weight: 560;
   letter-spacing: .02em;
   text-transform: lowercase;
 }
@@ -1261,7 +1261,7 @@ body.theme-light .empty-capability-strip i {
   color: #cbd5e1;
   cursor: pointer;
   font-size: 12px;
-  font-weight: 430;
+  font-weight: 470;
   line-height: 1;
   padding: 6px 9px;
   transition: background .15s ease, border-color .15s ease, color .15s ease;
@@ -1302,7 +1302,7 @@ body.theme-light .empty-capability-strip i {
   background: transparent !important;
   color: #e2e8f0 !important;
   font-size: 13px !important;
-  font-weight: 360 !important;
+  font-weight: 390 !important;
   -webkit-font-smoothing: antialiased;
   line-height: 1.68 !important;
   tab-size: 2;
@@ -1327,3 +1327,105 @@ body.theme-light .empty-capability-strip i {
     padding: 12px !important;
   }
 }
+
+/* 2026-07-04 工具调用展示：默认折叠成一条摘要，避免多次工具搜索横向铺满正文。 */
+.tool-events-compact {
+  width: min(560px, 100%);
+  margin: 10px 0 12px;
+  color: var(--gpt-muted);
+  font-size: 13px;
+}
+
+.tool-events-toggle {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--gpt-border) 78%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--gpt-surface) 72%, transparent);
+  color: var(--gpt-muted);
+  box-shadow: none;
+}
+
+.tool-events-toggle:hover {
+  background: color-mix(in srgb, var(--gpt-surface-2) 82%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--gpt-border));
+}
+
+.tool-events-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--primary);
+  opacity: .72;
+}
+
+.tool-events-title {
+  white-space: nowrap;
+  color: var(--gpt-text);
+  font-weight: 650;
+}
+
+.tool-events-meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gpt-muted-2);
+}
+
+.tool-events-chevron {
+  color: var(--gpt-muted-2);
+  font-size: 14px;
+}
+
+.tool-events-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 7px;
+  padding-left: 13px;
+  border-left: 2px solid color-mix(in srgb, var(--gpt-border) 76%, transparent);
+}
+
+.tool-events-list .tool-event,
+.msg.assistant > .tool-event {
+  display: grid;
+  width: min(520px, 100%);
+  margin: 0;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--gpt-muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.tool-events-list .tool-event.has-details::after,
+.msg.assistant > .tool-event.has-details::after {
+  content: "⌄";
+  align-self: center;
+  justify-self: end;
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.tool-events-list .tool-event-main,
+.msg.assistant > .tool-event .tool-event-main {
+  min-width: 0;
+}
+
+.tool-events-list .tool-event-meta,
+.msg.assistant > .tool-event .tool-event-meta {
+  margin-top: 2px;
+  color: var(--gpt-muted-2);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
