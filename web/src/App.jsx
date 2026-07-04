@@ -10,7 +10,7 @@ import { createWorkspaceRecord, deleteScheduledTaskRecord, deleteSkillRecord, de
 import { uploadFileRequest } from './lib/upload.js';
 
 function streamStatusText(stats, elapsed) {
-  const labels = {connecting:'连接模型中', streaming:'流式输出中', paused:'已暂停，后台继续接收', stopping:'正在中断', done:'已完成', error:'输出失败'};
+  const labels = { connecting: '连接模型中', streaming: '流式输出中', paused: '已暂停，后台继续接收', stopping: '正在中断', done: '已完成', error: '输出失败' };
   const parts = [labels[stats.state] || '待命'];
   if (elapsed) parts.push(elapsed + 's');
   if (stats.chars) parts.push(stats.chars + ' 字');
@@ -78,7 +78,7 @@ function readableChatError(error, hasImageAttachment = false) {
       const data = JSON.parse(raw.slice(jsonStart));
       const message = data?.error?.message || data?.message || '';
       if (message) return String(message);
-    } catch {}
+    } catch { }
   }
   return raw.replace(/^model api failed:\s*/i, '');
 }
@@ -164,7 +164,7 @@ function mergeToolResultEvent(message, event, data) {
     callKey: key,
     text: toolEventText('result', data),
     meta: toolEventMeta(data),
-    details: {event, tool: data.tool || '', ok: !!data.ok, result: data.result, error: data.error || '', data},
+    details: { event, tool: data.tool || '', ok: !!data.ok, result: data.result, error: data.error || '', data },
   };
   const events = [...(message.events || [])];
   const parts = [...(message.parts || [])];
@@ -209,28 +209,28 @@ function buildToolEventDetail(event) {
   const status = failed ? '失败' : (ready ? '完成' : '事件');
   const duration = details.duration_ms || data.duration_ms;
   const metrics = [
-    {label:'工具总数', value:data.tool_count ?? details.tool_count},
-    {label:'内置工具', value:data.builtin_tool_count ?? details.builtin_tool_count},
-    {label:'耗时', value:duration ? fmtDuration(duration) : ''},
+    { label: '工具总数', value: data.tool_count ?? details.tool_count },
+    { label: '内置工具', value: data.builtin_tool_count ?? details.builtin_tool_count },
+    { label: '耗时', value: duration ? fmtDuration(duration) : '' },
   ].filter(item => hasDialogValue(item.value));
   const rows = [
-    {label:'事件类型', value:eventName},
-    {label:'工具名称', value:tool},
-    {label:'服务', value:data.server || details.server},
-    {label:'动作', value:data.action || details.action},
-    {label:'状态', value:status},
+    { label: '事件类型', value: eventName },
+    { label: '工具名称', value: tool },
+    { label: '服务', value: data.server || details.server },
+    { label: '动作', value: data.action || details.action },
+    { label: '状态', value: status },
   ].filter(item => hasDialogValue(item.value));
   const sections = [];
-  if (hasDialogValue(details.arguments ?? data.arguments)) sections.push({title:'参数', value:details.arguments ?? data.arguments, emptyText:'无参数'});
-  if (hasDialogValue(details.result ?? data.result)) sections.push({title:'响应', value:details.result ?? data.result, emptyText:'无响应'});
-  if (hasDialogValue(details.error || data.error)) sections.push({title:'错误', value:details.error || data.error, tone:'danger'});
-  if (hasDialogValue(data) && !sections.length) sections.push({title:'事件数据', value:data});
-  sections.push({title:'原始事件', value:details});
+  if (hasDialogValue(details.arguments ?? data.arguments)) sections.push({ title: '参数', value: details.arguments ?? data.arguments, emptyText: '无参数' });
+  if (hasDialogValue(details.result ?? data.result)) sections.push({ title: '响应', value: details.result ?? data.result, emptyText: '无响应' });
+  if (hasDialogValue(details.error || data.error)) sections.push({ title: '错误', value: details.error || data.error, tone: 'danger' });
+  if (hasDialogValue(data) && !sections.length) sections.push({ title: '事件数据', value: data });
+  sections.push({ title: '原始事件', value: details });
   return {
-    event:eventName,
-    heading:event?.text || tool || '工具事件',
+    event: eventName,
+    heading: event?.text || tool || '工具事件',
     status,
-    statusTone:failed ? 'danger' : (ready ? 'success' : ''),
+    statusTone: failed ? 'danger' : (ready ? 'success' : ''),
     metrics,
     rows,
     sections,
@@ -266,7 +266,7 @@ export default function App() {
   const [workspacePickerOpen, setWorkspacePickerOpen] = useState(false);
   const [quickPaletteOpen, setQuickPaletteOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
-  const [chatModel, setChatModel] = useState({provider_id:'', model:''});
+  const [chatModel, setChatModel] = useState({ provider_id: '', model: '' });
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
 
   const [setupStatus, setSetupStatus] = useState(null);
@@ -288,7 +288,7 @@ export default function App() {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [busy, setBusy] = useState(false);
   const [streamPaused, setStreamPaused] = useState(false);
-  const [streamStats, setStreamStats] = useState({state:'idle', started_at:0, chars:0, events:0, tools:0, error:''});
+  const [streamStats, setStreamStats] = useState({ state: 'idle', started_at: 0, chars: 0, events: 0, tools: 0, error: '' });
   const [activeJobID, setActiveJobID] = useState('');
   const [skills, setSkills] = useState([]);
   const [skillSearch, setSkillSearch] = useState('');
@@ -301,7 +301,7 @@ export default function App() {
   const [mcpStatus, setMcpStatus] = useState([]);
   const [promptPreview, setPromptPreview] = useState('');
   const [mcpConfig, setMcpConfig] = useState('');
-  const [config, setConfig] = useState({base_url:'', api_key:'', model:'', models:[], system_prompt:'', context_mode:'auto', max_context_messages:12, temperature:0.7, enable_thinking:false, hide_thinking:false, has_api_key:false});
+  const [config, setConfig] = useState({ base_url: '', api_key: '', model: '', models: [], system_prompt: '', context_mode: 'auto', max_context_messages: 12, temperature: 0.7, enable_thinking: false, hide_thinking: false, has_api_key: false });
 
   const abortRef = useRef(null);
   const activeJobIDRef = useRef('');
@@ -345,7 +345,7 @@ export default function App() {
     setActiveJobID('');
     setBusy(false);
     setStreamPaused(false);
-    setStreamStats({state:'idle', started_at:0, chars:0, events:0, tools:0, error:''});
+    setStreamStats({ state: 'idle', started_at: 0, chars: 0, events: 0, tools: 0, error: '' });
   }, []);
 
   useEffect(() => {
@@ -365,14 +365,14 @@ export default function App() {
     return () => document.body.classList.remove('auth-page-visible');
   }, [authPage]);
 
-  const showToast = useCallback((message, variant='info') => {
-    setToast({message, variant});
+  const showToast = useCallback((message, variant = 'info') => {
+    setToast({ message, variant });
     clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(null), 3200);
   }, []);
 
   const showDialog = useCallback((config) => new Promise(resolve => {
-    setDialog({...config, resolve});
+    setDialog({ ...config, resolve });
   }), []);
 
 
@@ -422,12 +422,12 @@ export default function App() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }, []);
 
-  const authHeaders = useCallback((extra={}) => {
+  const authHeaders = useCallback((extra = {}) => {
     const token = localStorage.getItem('chatdock.authToken') || '';
-    return token ? {'Authorization':'Bearer ' + token, ...extra} : extra;
+    return token ? { 'Authorization': 'Bearer ' + token, ...extra } : extra;
   }, []);
 
-  const api = useMemo(() => createJsonApi({authHeaders, onUnauthorized: setAuthPage}), [authHeaders]);
+  const api = useMemo(() => createJsonApi({ authHeaders, onUnauthorized: setAuthPage }), [authHeaders]);
 
   const loadPrompts = useCallback(async () => {
     const data = await fetchPrompts(api);
@@ -439,10 +439,10 @@ export default function App() {
     setSessions(list || []);
   }, [api]);
 
-  const editUserMessage = useCallback(async ({messageIndex, messageID, content}) => {
+  const editUserMessage = useCallback(async ({ messageIndex, messageID, content }) => {
     if (!current) return;
     try {
-      const next = await editSessionMessage(api, current, {messageIndex, messageID, content});
+      const next = await editSessionMessage(api, current, { messageIndex, messageID, content });
       setMessages(next.messages || []);
       await loadSessions();
       showToast('已替换该消息，并删除其后的所有消息', 'success');
@@ -585,7 +585,7 @@ export default function App() {
         const status = await api('/api/auth/status');
         if (!mounted) return;
         if (status.enabled && status.login_enabled && !localStorage.getItem('chatdock.authToken')) {
-          setAuthPage({message: '请输入 ChatDock 账号和密码。'});
+          setAuthPage({ message: '请输入 ChatDock 账号和密码。' });
           return;
         }
         setAuthPage(null);
@@ -656,9 +656,9 @@ export default function App() {
     if (!box) return;
     const latest = latestModelMessageElement();
     if (latest) {
-      box.scrollTo({top: Math.max(0, latest.offsetTop - 14), behavior: 'smooth'});
+      box.scrollTo({ top: Math.max(0, latest.offsetTop - 14), behavior: 'smooth' });
     } else {
-      box.scrollTo({top: box.scrollHeight, behavior: 'smooth'});
+      box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
     }
     window.setTimeout(updateJumpToLatestVisibility, 360);
   }, [latestModelMessageElement, updateJumpToLatestVisibility]);
@@ -703,13 +703,13 @@ export default function App() {
     setActiveModule(normalized);
     setSettingsOpen(true);
     localStorage.setItem('chatdock.settingsModule', normalized);
-    if (syncRoute && window.location.pathname !== '/settings/' + normalized) window.history.pushState({chatdock:true}, '', '/settings/' + normalized);
+    if (syncRoute && window.location.pathname !== '/settings/' + normalized) window.history.pushState({ chatdock: true }, '', '/settings/' + normalized);
   }, [activeModule]);
 
   const closeSettings = useCallback((syncRoute = true) => {
     setSettingsOpen(false);
     const target = current ? sessionPath(current) : '/';
-    if (syncRoute && window.location.pathname !== target) window.history.pushState({chatdock:true}, '', target);
+    if (syncRoute && window.location.pathname !== target) window.history.pushState({ chatdock: true }, '', target);
   }, [current]);
 
   const switchSettingsModule = useCallback((moduleName) => openSettings(moduleName), [openSettings]);
@@ -752,21 +752,21 @@ export default function App() {
     await selectWorkspaceRequest(api, name);
     setCurrent(null);
     setCurrentTitle('未选择会话');
-    setMessages([{role:'empty', content:'已切换工作空间。创建或选择一个会话。'}]);
+    setMessages([{ role: 'empty', content: '已切换工作空间。创建或选择一个会话。' }]);
     setPendingAttachments([]);
     await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions()]);
-    if (window.location.pathname !== '/') window.history.pushState({chatdock:true}, '', '/');
+    if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
     closeSidebarOnMobile();
   }, [api, busy, refreshProductState, loadPrompts, loadConfig, loadMCPConfig, loadSkills, loadScheduledTasks, loadSessions, closeSidebarOnMobile, showToast]);
 
-  const createPersistedSession = useCallback(async ({refreshList = true} = {}) => {
+  const createPersistedSession = useCallback(async ({ refreshList = true } = {}) => {
     const s = await createSessionRecord(api);
     setCurrent(s.id);
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
     setPendingAttachments([]);
     if (refreshList) await loadSessions();
-    if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({chatdock:true}, '', sessionPath(s.id));
+    if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
     return s;
   }, [api, loadSessions]);
 
@@ -779,10 +779,10 @@ export default function App() {
     setCurrentTitle('新会话');
     setMessages([]);
     setPendingAttachments([]);
-    if (window.location.pathname !== '/') window.history.pushState({chatdock:true}, '', '/');
+    if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
     closeSidebarOnMobile();
     window.setTimeout(() => inputRef.current?.focus(), 0);
-    return {id:'', title:'新会话', messages:[], draft:true};
+    return { id: '', title: '新会话', messages: [], draft: true };
   }, [busy, closeSidebarOnMobile, detachActiveStream]);
 
   const openSession = useCallback(async (id) => {
@@ -794,7 +794,7 @@ export default function App() {
     setMessages(s.messages || []);
     setPendingAttachments([]);
     await loadSessions();
-    if (window.location.pathname !== sessionPath(id)) window.history.pushState({chatdock:true}, '', sessionPath(id));
+    if (window.location.pathname !== sessionPath(id)) window.history.pushState({ chatdock: true }, '', sessionPath(id));
     closeSidebarOnMobile();
   }, [api, busy, detachActiveStream, loadSessions, closeSidebarOnMobile]);
 
@@ -802,7 +802,7 @@ export default function App() {
 
   const renameCurrent = useCallback(async () => {
     if (!current) return;
-    const values = await showDialog({title:'重命名会话', confirmText:'保存标题', fields:[{name:'title', label:'新的会话标题', value:currentTitle || '', required:true}]});
+    const values = await showDialog({ title: '重命名会话', confirmText: '保存标题', fields: [{ name: 'title', label: '新的会话标题', value: currentTitle || '', required: true }] });
     if (!values || !values.title.trim()) return;
     const s = await renameSession(api, current, values.title.trim());
     setCurrentTitle(s.title || '新会话');
@@ -814,7 +814,7 @@ export default function App() {
   const renameSessionByID = useCallback(async (id, title = '') => {
     if (!id || busy) return;
     setSessionMenuID('');
-    const values = await showDialog({title:'重命名会话', confirmText:'保存标题', fields:[{name:'title', label:'新的会话标题', value:title || '', required:true}]});
+    const values = await showDialog({ title: '重命名会话', confirmText: '保存标题', fields: [{ name: 'title', label: '新的会话标题', value: title || '', required: true }] });
     if (!values || !values.title.trim()) return;
     const s = await renameSession(api, id, values.title.trim());
     if (id === current) {
@@ -828,11 +828,11 @@ export default function App() {
   const deleteSessionByID = useCallback(async (id, title = '当前会话') => {
     if (!id || busy) return;
     const ok = await showDialog({
-      title:'删除会话',
-      message:'确定删除「' + (title || '未命名会话') + '」？此操作不可恢复。',
-      confirmText:'删除',
-      danger:true,
-      type:'confirm'
+      title: '删除会话',
+      message: '确定删除「' + (title || '未命名会话') + '」？此操作不可恢复。',
+      confirmText: '删除',
+      danger: true,
+      type: 'confirm'
     });
     if (!ok) return;
     await deleteSession(api, id);
@@ -842,7 +842,7 @@ export default function App() {
       setCurrentTitle('未选择会话');
       setMessages([]);
       setPendingAttachments([]);
-      if (window.location.pathname !== '/') window.history.pushState({chatdock:true}, '', '/');
+      if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
     }
     await loadSessions();
     showToast('会话已删除', 'success');
@@ -882,7 +882,7 @@ export default function App() {
       setCurrentTitle(s.title || '会话副本');
       setMessages(s.messages || []);
       await loadSessions();
-      if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({chatdock:true}, '', sessionPath(s.id));
+      if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
       showToast('会话已复制', 'success');
     } catch (e) {
       showToast('复制会话失败：' + e.message, 'error');
@@ -899,7 +899,7 @@ export default function App() {
       setMessages(s.messages || []);
       setPendingAttachments([]);
       await loadSessions();
-      if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({chatdock:true}, '', sessionPath(s.id));
+      if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
       closeSidebarOnMobile();
       showToast('已在新聊天中创建分支对话', 'success');
     } catch (e) {
@@ -962,7 +962,7 @@ export default function App() {
     } else if (event === 'delta') {
       const reasoning = data.reasoning_content || '';
       const content = data.content || '';
-      setStreamStats(prev => ({...prev, state: pausedRef.current ? 'paused' : 'streaming', chars: prev.chars + content.length + reasoning.length}));
+      setStreamStats(prev => ({ ...prev, state: pausedRef.current ? 'paused' : 'streaming', chars: prev.chars + content.length + reasoning.length }));
       if (pausedRef.current) {
         pendingReasoningRef.current += reasoning;
         pendingDeltaRef.current += content;
@@ -971,40 +971,40 @@ export default function App() {
         appendAnswer(content);
       }
     } else if (event === 'tool_setup_ready') {
-      setStreamStats(prev => ({...prev, events: prev.events + 1}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:data.mode === 'discovery' ? ('已准备可用工具索引：' + (data.tool_count || 0) + ' 个工具') : ('MCP 已接入：' + (data.tool_count || 0) + ' 个工具'), details:{event, data}}]}));
+      setStreamStats(prev => ({ ...prev, events: prev.events + 1 }));
+      appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'tool', text: data.mode === 'discovery' ? ('已准备可用工具索引：' + (data.tool_count || 0) + ' 个工具') : ('MCP 已接入：' + (data.tool_count || 0) + ' 个工具'), details: { event, data } }] }));
     } else if (event === 'tool_setup_error') {
-      setStreamStats(prev => ({...prev, events: prev.events + 1, error: data.message || 'MCP 工具未接入'}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'⚠️ MCP 未接入：' + (data.message || '工具初始化失败'), details:{event, data}}]}));
+      setStreamStats(prev => ({ ...prev, events: prev.events + 1, error: data.message || 'MCP 工具未接入' }));
+      appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'tool', text: '⚠️ MCP 未接入：' + (data.message || '工具初始化失败'), details: { event, data } }] }));
     } else if (event === 'tool_call_start') {
-      setStreamStats(prev => ({...prev, events: prev.events + 1, tools: prev.tools + 1}));
+      setStreamStats(prev => ({ ...prev, events: prev.events + 1, tools: prev.tools + 1 }));
       appendToActiveAssistant(m => appendToolStartEvent(m, event, data));
     } else if (event === 'tool_call_result') {
-      setStreamStats(prev => ({...prev, events: prev.events + 1}));
+      setStreamStats(prev => ({ ...prev, events: prev.events + 1 }));
       appendToActiveAssistant(m => mergeToolResultEvent(m, event, data));
     } else if (event === 'tool_confirmation_required') {
-      setStreamStats(prev => ({...prev, events: prev.events + 1, state:'paused'}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'confirm', text:'⏳ 等待确认工具：' + (data.tool || 'MCP 工具'), meta:'确认后模型会继续执行；拒绝则把拒绝结果返回给模型。', confirmation:data, status:'pending', details:{event, tool:data.tool || '', arguments:data.arguments || {}, data}}]}));
+      setStreamStats(prev => ({ ...prev, events: prev.events + 1, state: 'paused' }));
+      appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'confirm', text: '⏳ 等待确认工具：' + (data.tool || 'MCP 工具'), meta: '确认后模型会继续执行；拒绝则把拒绝结果返回给模型。', confirmation: data, status: 'pending', details: { event, tool: data.tool || '', arguments: data.arguments || {}, data } }] }));
     } else if (event === 'tool_confirmation_resolved') {
-      setStreamStats(prev => ({...prev, events: prev.events + 1, state:'streaming'}));
-      appendToActiveAssistant(m => ({...m, events:(m.events || []).map(item => item.confirmation?.id === data.id ? {...item, status:'resolved', text:(data.approved ? '✅ 已允许工具：' : '⛔ 已拒绝工具：') + (data.tool || item.confirmation?.tool || 'MCP 工具')} : item)}));
+      setStreamStats(prev => ({ ...prev, events: prev.events + 1, state: 'streaming' }));
+      appendToActiveAssistant(m => ({ ...m, events: (m.events || []).map(item => item.confirmation?.id === data.id ? { ...item, status: 'resolved', text: (data.approved ? '✅ 已允许工具：' : '⛔ 已拒绝工具：') + (data.tool || item.confirmation?.tool || 'MCP 工具') } : item) }));
     } else if (event === 'job_cancelled') {
-      setStreamStats(prev => ({...prev, events: prev.events + 1, state:'stopping'}));
-      appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'tool', text:'⏹️ 已请求停止生成', details:{event, data}}]}));
+      setStreamStats(prev => ({ ...prev, events: prev.events + 1, state: 'stopping' }));
+      appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'tool', text: '⏹️ 已请求停止生成', details: { event, data } }] }));
     } else if (event === 'run_event') {
-      setStreamStats(prev => ({...prev, events: prev.events + 1}));
+      setStreamStats(prev => ({ ...prev, events: prev.events + 1 }));
       if (data.kind !== 'tool_call' && data.kind !== 'tool_result') {
         const meta = [runStatusLabel(data.status || ''), data.server, data.action, fmtDuration(data.duration_ms)].filter(Boolean).join(' · ');
-        appendToActiveAssistant(m => ({...m, events:[...(m.events || []), {kind:'run', text:'🧭 ' + (data.summary || data.tool || 'MCP 工具事件'), meta, details:{event, tool:data.tool || '', arguments:data.arguments, result:data.result, error:data.error || '', duration_ms:data.duration_ms, data}}]}));
+        appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'run', text: '🧭 ' + (data.summary || data.tool || 'MCP 工具事件'), meta, details: { event, tool: data.tool || '', arguments: data.arguments, result: data.result, error: data.error || '', duration_ms: data.duration_ms, data } }] }));
       }
     } else if (event === 'run_finish') {
-      loadRuns().catch(() => {});
-      loadAgentTasks().catch(() => {});
+      loadRuns().catch(() => { });
+      loadAgentTasks().catch(() => { });
     } else if (event === 'done') {
       setFinalSession(data.session);
       activeJobIDRef.current = '';
       setActiveJobID('');
-      setStreamStats(prev => ({...prev, state:'done'}));
+      setStreamStats(prev => ({ ...prev, state: 'done' }));
     } else if (event === 'error') {
       throw new Error(data.message || 'stream error');
     }
@@ -1029,10 +1029,10 @@ export default function App() {
         pendingDeltaRef.current = '';
         pendingReasoningRef.current = '';
         abortRef.current = abort;
-        setStreamStats({state:'streaming', started_at:Date.now(), chars:0, events:0, tools:0, error:''});
-        setMessages(prev => prev.some(m => m.role === 'assistant-stream') ? prev : [...prev, {role:'assistant-stream', answer:'', reasoning:'', events:[{kind:'tool', text:'↩️ 已恢复后台生成', details:{event:'resume_running_job', job}}]}]);
+        setStreamStats({ state: 'streaming', started_at: Date.now(), chars: 0, events: 0, tools: 0, error: '' });
+        setMessages(prev => prev.some(m => m.role === 'assistant-stream') ? prev : [...prev, { role: 'assistant-stream', answer: '', reasoning: '', events: [{ kind: 'tool', text: '↩️ 已恢复后台生成', details: { event: 'resume_running_job', job } }] }]);
         let finalSession = null;
-        await streamChatJobEvents({jobID: job.id, authHeaders, signal: abort.signal, onEvent: (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; })});
+        await streamChatJobEvents({ jobID: job.id, authHeaders, signal: abort.signal, onEvent: (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; }) });
         if (finalSession && !stopped) {
           pendingDeltaRef.current = '';
           pendingReasoningRef.current = '';
@@ -1044,8 +1044,8 @@ export default function App() {
       } catch (e) {
         if (!abort.signal.aborted && !stopped) {
           const message = readableChatError(e);
-          setStreamStats(prev => ({...prev, state:'error', error:message}));
-          appendToActiveAssistant(m => ({...m, answer:'错误：' + message}));
+          setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
+          appendToActiveAssistant(m => ({ ...m, answer: '错误：' + message }));
         }
       } finally {
         if (!stopped) {
@@ -1069,7 +1069,7 @@ export default function App() {
   const providerChoices = useMemo(() => providers.map(provider => {
     const id = providerChoiceID(provider);
     const models = uniqueModelNames([...(provider.models || []), provider.default_model].filter(Boolean));
-    return {...provider, choice_id: id, models};
+    return { ...provider, choice_id: id, models };
   }).filter(provider => provider.choice_id && (provider.enabled || provider.models.length)), [providers]);
   const selectedModelProvider = useMemo(() => {
     const activeID = activePrompt?.name || '';
@@ -1087,11 +1087,11 @@ export default function App() {
     if (stillValid) return;
     const activeID = activePrompt?.name || '';
     const provider = providerChoices.find(item => item.choice_id === activeID) || providerChoices[0];
-    setChatModel({provider_id: provider.choice_id, model: provider.default_model || provider.models[0] || config.model || ''});
+    setChatModel({ provider_id: provider.choice_id, model: provider.default_model || provider.models[0] || config.model || '' });
   }, [activePrompt?.name, chatModel.model, chatModel.provider_id, config.model, providerChoices]);
 
   const selectChatModel = useCallback((provider, modelName) => {
-    setChatModel({provider_id: provider.choice_id, model: modelName});
+    setChatModel({ provider_id: provider.choice_id, model: modelName });
     setModelPickerOpen(false);
     showToast('已切换模型：' + providerLabel(provider) + ' · ' + modelName, 'success');
   }, [showToast]);
@@ -1117,7 +1117,7 @@ export default function App() {
   const downloadAttachment = useCallback(async (item) => {
     if (!item?.id || String(item.id).startsWith('local_')) return;
     try {
-      const response = await fetch('/api/files/' + encodeURIComponent(item.id), {headers: authHeaders()});
+      const response = await fetch('/api/files/' + encodeURIComponent(item.id), { headers: authHeaders() });
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -1151,15 +1151,15 @@ export default function App() {
     try {
       for (const file of files) {
         const localID = 'local_' + Date.now() + '_' + Math.random().toString(16).slice(2);
-        setPendingAttachments(prev => [...prev, {id: localID, name: file.name || 'upload', size: file.size || 0, mime_type: file.type || 'application/octet-stream', status: 'uploading', uploading: true, progress: 0}]);
+        setPendingAttachments(prev => [...prev, { id: localID, name: file.name || 'upload', size: file.size || 0, mime_type: file.type || 'application/octet-stream', status: 'uploading', uploading: true, progress: 0 }]);
         try {
           const data = await uploadFileRequest(file, sessionID, authHeaders, progress => {
-            setPendingAttachments(prev => prev.map(item => item.id === localID ? {...item, progress} : item));
+            setPendingAttachments(prev => prev.map(item => item.id === localID ? { ...item, progress } : item));
           });
-          setPendingAttachments(prev => prev.map(item => item.id === localID ? {...data.attachment, progress: 100} : item));
+          setPendingAttachments(prev => prev.map(item => item.id === localID ? { ...data.attachment, progress: 100 } : item));
         } catch (e) {
           if (e.status === 401) setAuthPage(e);
-          setPendingAttachments(prev => prev.map(item => item.id === localID ? {...item, uploading: false, error: e.message || '上传失败', status: 'failed'} : item));
+          setPendingAttachments(prev => prev.map(item => item.id === localID ? { ...item, uploading: false, error: e.message || '上传失败', status: 'failed' } : item));
           showToast('上传失败：' + (e.message || '未知错误'), 'error');
         }
       }
@@ -1188,7 +1188,7 @@ export default function App() {
     }
     let sessionID = current;
     if (!sessionID) {
-      const s = await createPersistedSession({refreshList:false});
+      const s = await createPersistedSession({ refreshList: false });
       if (!s) return;
       sessionID = s.id;
     }
@@ -1196,7 +1196,7 @@ export default function App() {
     setInput('');
     setBusy(true);
     setStreamPaused(false);
-    setStreamStats({state:'connecting', started_at:Date.now(), chars:0, events:0, tools:0, error:''});
+    setStreamStats({ state: 'connecting', started_at: Date.now(), chars: 0, events: 0, tools: 0, error: '' });
     pausedRef.current = false;
     pendingDeltaRef.current = '';
     pendingReasoningRef.current = '';
@@ -1205,14 +1205,16 @@ export default function App() {
     activeJobSessionRef.current = sessionID;
     forceScrollRef.current = true;
     stickToBottomRef.current = true;
-    setMessages(prev => [...prev, {role:'user', content:text, attachments:attachmentsForMessage}, {role:'assistant-stream', answer:'', reasoning:'', events:[]}]);
+    setMessages(prev => [...prev, { role: 'user', content: text, attachments: attachmentsForMessage }, { role: 'assistant-stream', answer: '', reasoning: '', events: [] }]);
     try {
       setPendingAttachments([]);
-      setStreamStats(prev => ({...prev, state:'streaming'}));
+      setStreamStats(prev => ({ ...prev, state: 'streaming' }));
       let finalSession = null;
-      await streamChat({authHeaders, signal: abort.signal, sessionID, message:text, attachmentIDs, providerID: selectedModelProvider?.choice_id || '', model: selectedChatModel, onEvent: (event, data) => {
-        if (currentRef.current === sessionID) handleChatStreamEvent(event, data, s => { finalSession = s; });
-      }});
+      await streamChat({
+        authHeaders, signal: abort.signal, sessionID, message: text, attachmentIDs, providerID: selectedModelProvider?.choice_id || '', model: selectedChatModel, onEvent: (event, data) => {
+          if (currentRef.current === sessionID) handleChatStreamEvent(event, data, s => { finalSession = s; });
+        }
+      });
       if (finalSession) {
         pendingDeltaRef.current = '';
         pendingReasoningRef.current = '';
@@ -1230,11 +1232,11 @@ export default function App() {
           appendAnswer(pendingDeltaRef.current);
           appendAnswer('\n\n【已中断】');
         }
-        await loadSessions().catch(() => {});
+        await loadSessions().catch(() => { });
       } else {
         const message = readableChatError(e, attachmentsForMessage.some(attachmentLooksLikeImage));
-        setStreamStats(prev => ({...prev, state:'error', error:message}));
-        appendToActiveAssistant(m => ({...m, answer:'错误：' + message}));
+        setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
+        appendToActiveAssistant(m => ({ ...m, answer: '错误：' + message }));
       }
     } finally {
       if (abortRef.current === abort || activeJobSessionRef.current === sessionID) {
@@ -1253,7 +1255,7 @@ export default function App() {
     setStreamPaused(prev => {
       const next = !prev;
       pausedRef.current = next;
-      setStreamStats(current => ({...current, state: next ? 'paused' : 'streaming'}));
+      setStreamStats(current => ({ ...current, state: next ? 'paused' : 'streaming' }));
       if (!next) {
         appendReasoning(pendingReasoningRef.current);
         appendAnswer(pendingDeltaRef.current);
@@ -1266,7 +1268,7 @@ export default function App() {
 
   const stopStreaming = useCallback(async () => {
     if (!busy) return;
-    setStreamStats(prev => ({...prev, state:'stopping'}));
+    setStreamStats(prev => ({ ...prev, state: 'stopping' }));
     const jobID = activeJobIDRef.current || activeJobID;
     if (jobID) {
       try { await cancelChatJob(api, jobID); } catch (e) { showToast('停止生成失败：' + e.message, 'error'); }
@@ -1277,7 +1279,7 @@ export default function App() {
   const resolveToolConfirmation = useCallback(async (id, approve) => {
     try {
       await resolveMCPConfirmation(api, id, approve);
-      appendToActiveAssistant(m => ({...m, events:(m.events || []).map(item => item.confirmation?.id === id ? {...item, status:'resolved', text:(approve ? '✅ 已允许工具：' : '⛔ 已拒绝工具：') + (item.confirmation?.tool || 'MCP 工具')} : item)}));
+      appendToActiveAssistant(m => ({ ...m, events: (m.events || []).map(item => item.confirmation?.id === id ? { ...item, status: 'resolved', text: (approve ? '✅ 已允许工具：' : '⛔ 已拒绝工具：') + (item.confirmation?.tool || 'MCP 工具') } : item) }));
       showToast(approve ? '已允许工具执行' : '已拒绝工具执行', approve ? 'success' : 'info');
     } catch (e) {
       showToast('确认工具失败：' + e.message, 'error');
@@ -1286,15 +1288,17 @@ export default function App() {
 
   const createWorkspace = useCallback(async () => {
     if (busy) return;
-    const values = await showDialog({title:'新增工作空间', confirmText:'创建工作空间', fields:[
-      {name:'name', label:'工作空间名称', value:'', required:true},
-      {name:'system_prompt', label:'系统提示词内容', type:'textarea', rows:5, value:config.system_prompt || ''},
-    ]});
+    const values = await showDialog({
+      title: '新增工作空间', confirmText: '创建工作空间', fields: [
+        { name: 'name', label: '工作空间名称', value: '', required: true },
+        { name: 'system_prompt', label: '系统提示词内容', type: 'textarea', rows: 5, value: config.system_prompt || '' },
+      ]
+    });
     if (!values || !values.name.trim()) return;
-    await createWorkspaceRecord(api, {name: values.name.trim(), system_prompt: values.system_prompt || ''});
+    await createWorkspaceRecord(api, { name: values.name.trim(), system_prompt: values.system_prompt || '' });
     setCurrent(null);
     setCurrentTitle('未选择会话');
-    setMessages([{role:'empty', content:'已创建并切换到新工作空间。'}]);
+    setMessages([{ role: 'empty', content: '已创建并切换到新工作空间。' }]);
     setPendingAttachments([]);
     await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions()]);
     closeSidebarOnMobile();
@@ -1302,13 +1306,13 @@ export default function App() {
   }, [api, busy, closeSidebarOnMobile, config.system_prompt, loadConfig, loadMCPConfig, loadPrompts, loadScheduledTasks, loadSessions, loadSkills, refreshProductState, showDialog, showToast]);
 
   const deleteWorkspace = useCallback(async (id, name) => {
-    const ok = await showDialog({title:'删除工作空间', message:'确定删除工作空间「' + (name || id) + '」？这会删除该工作空间下的配置、技能、任务和会话。若删除当前工作空间，会自动切换到默认工作空间。', confirmText:'删除', danger:true, type:'confirm'});
+    const ok = await showDialog({ title: '删除工作空间', message: '确定删除工作空间「' + (name || id) + '」？这会删除该工作空间下的配置、技能、任务和会话。若删除当前工作空间，会自动切换到默认工作空间。', confirmText: '删除', danger: true, type: 'confirm' });
     if (!ok) return;
     const data = await deleteWorkspaceRecord(api, id);
     setWorkspaces(data.workspaces || []);
     setCurrent(null);
     setCurrentTitle('未选择会话');
-    setMessages([{role:'empty', content:'工作空间已删除。当前工作空间：' + (data.active || 'default')}]);
+    setMessages([{ role: 'empty', content: '工作空间已删除。当前工作空间：' + (data.active || 'default') }]);
     setPendingAttachments([]);
     await Promise.allSettled([loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions(), loadSetupStatus(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
     showToast('工作空间已删除', 'success');
@@ -1328,7 +1332,7 @@ export default function App() {
       enable_thinking: !!config.enable_thinking,
       hide_thinking: !!config.hide_thinking,
     });
-    setConfig(c => ({...c, api_key:''}));
+    setConfig(c => ({ ...c, api_key: '' }));
     await loadConfig();
     await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadSystemStatus()]);
     showToast('已保存到工作空间：' + workspaceID, 'success');
@@ -1341,13 +1345,15 @@ export default function App() {
   }, [api, prompts]);
 
   const runSetupWizard = useCallback(async () => {
-    const values = await showDialog({title:'首次配置', message:'配置默认工作空间和模型后即可开始对话。', confirmText:'完成初始化', fields:[
-      {name:'workspace_name', label:'默认工作空间名称', value:'default', required:true},
-      {name:'base_url', label:'模型 Base URL', value:config.base_url || 'https://api.openai.com/v1', required:true},
-      {name:'model', label:'默认模型', value:config.model || 'gpt-4o-mini', required:true},
-      {name:'api_key', label:'API Key（可留空）', type:'password', value:''},
-      {name:'system_prompt', label:'默认 System Prompt', type:'textarea', rows:4, value:config.system_prompt || '你是 ChatDock，本地优先 AI 工作台。默认用中文回答。'},
-    ]});
+    const values = await showDialog({
+      title: '首次配置', message: '配置默认工作空间和模型后即可开始对话。', confirmText: '完成初始化', fields: [
+        { name: 'workspace_name', label: '默认工作空间名称', value: 'default', required: true },
+        { name: 'base_url', label: '模型 Base URL', value: config.base_url || 'https://api.openai.com/v1', required: true },
+        { name: 'model', label: '默认模型', value: config.model || 'gpt-4o-mini', required: true },
+        { name: 'api_key', label: 'API Key（可留空）', type: 'password', value: '' },
+        { name: 'system_prompt', label: '默认 System Prompt', type: 'textarea', rows: 4, value: config.system_prompt || '你是 ChatDock，本地优先 AI 工作台。默认用中文回答。' },
+      ]
+    });
     if (!values) return;
     await initializeSetup(api, values);
     await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig()]);
@@ -1400,7 +1406,7 @@ export default function App() {
     try { JSON.parse(mcpConfig || '{}'); } catch (e) { showToast('MCP 配置不是合法 JSON：' + e.message, 'error'); return; }
     const c = await saveMCPConfigRequest(api, mcpConfig);
     setMcpConfig(c.content || mcpConfig);
-    await loadMCPStatus().catch(() => {});
+    await loadMCPStatus().catch(() => { });
     showToast('MCP 配置已保存', 'success');
   }, [api, loadMCPStatus, mcpConfig, showToast]);
 
@@ -1415,14 +1421,16 @@ export default function App() {
   const editSkill = useCallback(async (id) => {
     if (busy) return;
     const existing = id ? skills.find(s => s.id === id) : null;
-    const values = await showDialog({title: existing ? '编辑技能' : '新增技能', confirmText: existing ? '保存技能' : '新增技能', fields:[
-      {name:'name', label:'技能名称', value: existing ? existing.name : '', required:true},
-      {name:'description', label:'技能描述（可选）', type:'textarea', rows:2, value: existing ? (existing.description || '') : ''},
-      {name:'content', label:'技能内容', type:'textarea', rows:8, value: existing ? (existing.content || '') : '', required:true},
-    ]});
+    const values = await showDialog({
+      title: existing ? '编辑技能' : '新增技能', confirmText: existing ? '保存技能' : '新增技能', fields: [
+        { name: 'name', label: '技能名称', value: existing ? existing.name : '', required: true },
+        { name: 'description', label: '技能描述（可选）', type: 'textarea', rows: 2, value: existing ? (existing.description || '') : '' },
+        { name: 'content', label: '技能内容', type: 'textarea', rows: 8, value: existing ? (existing.content || '') : '', required: true },
+      ]
+    });
     if (!values) return;
     if (!values.name.trim() || !values.content.trim()) { showToast('技能名称和内容不能为空', 'error'); return; }
-    const payload = {name: values.name.trim(), description: values.description || '', content: values.content.trim(), enabled: existing ? !!existing.enabled : true};
+    const payload = { name: values.name.trim(), description: values.description || '', content: values.content.trim(), enabled: existing ? !!existing.enabled : true };
     const data = await saveSkillRecord(api, existing, payload);
     setSkills(data.skills || []);
     showToast(existing ? '技能已保存' : '技能已新增', 'success');
@@ -1431,14 +1439,14 @@ export default function App() {
   const toggleSkill = useCallback(async (id, enabled) => {
     const existing = skills.find(s => s.id === id);
     if (!existing) return;
-    const data = await saveSkillRecord(api, existing, {name: existing.name, description: existing.description || '', content: existing.content || '', enabled: !!enabled});
+    const data = await saveSkillRecord(api, existing, { name: existing.name, description: existing.description || '', content: existing.content || '', enabled: !!enabled });
     setSkills(data.skills || []);
   }, [api, skills]);
 
   const deleteSkill = useCallback(async (id) => {
     const existing = skills.find(s => s.id === id);
     if (!existing) return;
-    const ok = await showDialog({title:'删除技能', message:'确定删除技能「' + existing.name + '」？此操作不可恢复。', confirmText:'删除', danger:true, type:'confirm'});
+    const ok = await showDialog({ title: '删除技能', message: '确定删除技能「' + existing.name + '」？此操作不可恢复。', confirmText: '删除', danger: true, type: 'confirm' });
     if (!ok) return;
     const data = await deleteSkillRecord(api, id);
     setSkills(data.skills || []);
@@ -1448,21 +1456,23 @@ export default function App() {
   const editScheduledTask = useCallback(async (id) => {
     if (busy) return;
     const existing = id ? scheduledTasks.find(t => t.id === id) : null;
-    const values = await showDialog({title: existing ? '编辑自动化任务' : '新增自动化任务', message:'选择调度类型后，只需要填写对应的时间字段。', confirmText: existing ? '保存任务' : '新增任务', fields:[
-      {name:'title', label:'任务标题', value: existing ? existing.title : '', required:true},
-      {name:'prompt', label:'任务提示词', type:'textarea', rows:6, value: existing ? (existing.prompt || '') : '', required:true},
-      {name:'schedule_type', label:'调度类型', type:'select', value: existing ? existing.schedule_type : 'once', options:[{value:'once', label:'一次性'}, {value:'daily', label:'每天固定时间'}, {value:'interval', label:'按分钟间隔'}]},
-      {name:'run_at', label:'一次性运行时间', type:'datetime-local', value: existing && existing.run_at ? existing.run_at.slice(0,16) : defaultRunAtValue(), showWhen:{schedule_type:'once'}},
-      {name:'time_of_day', label:'每天运行时间', type:'time', value: existing ? (existing.time_of_day || '09:00') : '09:00', showWhen:{schedule_type:'daily'}},
-      {name:'interval_minutes', label:'间隔分钟数', type:'number', min:1, step:1, value: existing && existing.interval_minutes ? String(existing.interval_minutes) : '60', showWhen:{schedule_type:'interval'}, hint:'当前本地调度器最低按分钟执行；过短间隔会更频繁占用模型额度。'},
-    ]});
+    const values = await showDialog({
+      title: existing ? '编辑自动化任务' : '新增自动化任务', message: '选择调度类型后，只需要填写对应的时间字段。', confirmText: existing ? '保存任务' : '新增任务', fields: [
+        { name: 'title', label: '任务标题', value: existing ? existing.title : '', required: true },
+        { name: 'prompt', label: '任务提示词', type: 'textarea', rows: 6, value: existing ? (existing.prompt || '') : '', required: true },
+        { name: 'schedule_type', label: '调度类型', type: 'select', value: existing ? existing.schedule_type : 'once', options: [{ value: 'once', label: '一次性' }, { value: 'daily', label: '每天固定时间' }, { value: 'interval', label: '按分钟间隔' }] },
+        { name: 'run_at', label: '一次性运行时间', type: 'datetime-local', value: existing && existing.run_at ? existing.run_at.slice(0, 16) : defaultRunAtValue(), showWhen: { schedule_type: 'once' } },
+        { name: 'time_of_day', label: '每天运行时间', type: 'time', value: existing ? (existing.time_of_day || '09:00') : '09:00', showWhen: { schedule_type: 'daily' } },
+        { name: 'interval_minutes', label: '间隔分钟数', type: 'number', min: 1, step: 1, value: existing && existing.interval_minutes ? String(existing.interval_minutes) : '60', showWhen: { schedule_type: 'interval' }, hint: '当前本地调度器最低按分钟执行；过短间隔会更频繁占用模型额度。' },
+      ]
+    });
     if (!values) return;
     const titleValue = (values.title || '').trim();
     const promptValue = (values.prompt || '').trim();
     const typeValue = (values.schedule_type || '').trim().toLowerCase();
     if (!titleValue || !promptValue) { showToast('任务标题和提示词不能为空', 'error'); return; }
-    if (!['once','daily','interval'].includes(typeValue)) { showToast('调度类型只能是 once、daily 或 interval', 'error'); return; }
-    const payload = {title:titleValue, prompt:promptValue, enabled: existing ? !!existing.enabled : true, schedule_type:typeValue};
+    if (!['once', 'daily', 'interval'].includes(typeValue)) { showToast('调度类型只能是 once、daily 或 interval', 'error'); return; }
+    const payload = { title: titleValue, prompt: promptValue, enabled: existing ? !!existing.enabled : true, schedule_type: typeValue };
     if (typeValue === 'once') payload.run_at = values.run_at || '';
     if (typeValue === 'daily') payload.time_of_day = values.time_of_day || '';
     if (typeValue === 'interval') payload.interval_minutes = Math.floor(Number(values.interval_minutes || 0));
@@ -1474,7 +1484,7 @@ export default function App() {
   const toggleScheduledTask = useCallback(async (id, enabled) => {
     const existing = scheduledTasks.find(t => t.id === id);
     if (!existing) return;
-    const payload = {title: existing.title, prompt: existing.prompt, enabled: !!enabled, schedule_type: existing.schedule_type, run_at: existing.run_at || '', time_of_day: existing.time_of_day || '', interval_minutes: existing.interval_minutes || 0};
+    const payload = { title: existing.title, prompt: existing.prompt, enabled: !!enabled, schedule_type: existing.schedule_type, run_at: existing.run_at || '', time_of_day: existing.time_of_day || '', interval_minutes: existing.interval_minutes || 0 };
     const data = await saveScheduledTaskRecord(api, existing, payload);
     setScheduledTasks(data.tasks || []);
   }, [api, scheduledTasks]);
@@ -1482,7 +1492,7 @@ export default function App() {
   const deleteScheduledTask = useCallback(async (id) => {
     const existing = scheduledTasks.find(t => t.id === id);
     if (!existing) return;
-    const ok = await showDialog({title:'删除自动化任务', message:'确定删除定时任务「' + existing.title + '」？此操作不可恢复。', confirmText:'删除', danger:true, type:'confirm'});
+    const ok = await showDialog({ title: '删除自动化任务', message: '确定删除定时任务「' + existing.title + '」？此操作不可恢复。', confirmText: '删除', danger: true, type: 'confirm' });
     if (!ok) return;
     const data = await deleteScheduledTaskRecord(api, id);
     setScheduledTasks(data.tasks || []);
@@ -1492,7 +1502,7 @@ export default function App() {
   const runScheduledTaskNow = useCallback(async (id) => {
     const existing = scheduledTasks.find(t => t.id === id);
     if (!existing) return;
-    const ok = await showDialog({title:'立即运行任务', message:'立即运行定时任务「' + existing.title + '」？', confirmText:'立即运行', type:'confirm'});
+    const ok = await showDialog({ title: '立即运行任务', message: '立即运行定时任务「' + existing.title + '」？', confirmText: '立即运行', type: 'confirm' });
     if (!ok) return;
     try {
       const result = await runScheduledTask(api, id);
@@ -1503,23 +1513,23 @@ export default function App() {
         setCurrent(result.session.id);
         setCurrentTitle(result.session.title || '定时任务');
         setMessages(result.session.messages || []);
-        if (window.location.pathname !== sessionPath(result.session.id)) window.history.pushState({chatdock:true}, '', sessionPath(result.session.id));
+        if (window.location.pathname !== sessionPath(result.session.id)) window.history.pushState({ chatdock: true }, '', sessionPath(result.session.id));
         closeSettings();
       }
       showToast('定时任务已运行', 'success');
-    } catch (e) { await loadScheduledTasks().catch(() => {}); showToast('运行失败：' + e.message, 'error'); }
+    } catch (e) { await loadScheduledTasks().catch(() => { }); showToast('运行失败：' + e.message, 'error'); }
   }, [api, closeSettings, loadScheduledTasks, loadSessions, refreshProductState, scheduledTasks, showDialog, showToast]);
 
   const inspectToolEvent = useCallback(async (event) => {
     if (!event?.details) return;
-    await showDialog({title:'工具事件详情', confirmText:'关闭', hideCancel:true, variant:'tool-event-modal', toolEventDetail:buildToolEventDetail(event)});
+    await showDialog({ title: '工具事件详情', confirmText: '关闭', hideCancel: true, variant: 'tool-event-modal', toolEventDetail: buildToolEventDetail(event) });
   }, [showDialog]);
 
   const showContextPreview = useCallback(async () => {
     if (!current) return;
     try {
       const preview = await fetchContextPreview(api, current);
-      await showDialog({title:'上下文 / Token 预览', confirmText:'关闭', hideCancel:true, fields:[{name:'preview', label:'实际会发送给模型的上下文（token 为粗略估算）', type:'textarea', rows:16, value:contextPreviewText(preview)}]});
+      await showDialog({ title: '上下文 / Token 预览', confirmText: '关闭', hideCancel: true, fields: [{ name: 'preview', label: '实际会发送给模型的上下文（token 为粗略估算）', type: 'textarea', rows: 16, value: contextPreviewText(preview) }] });
     } catch (e) {
       showToast('上下文预览失败：' + e.message, 'error');
     }
@@ -1533,7 +1543,7 @@ export default function App() {
 
   const logout = useCallback(() => {
     localStorage.removeItem('chatdock.authToken');
-    setAuthPage({message:'请输入 ChatDock 账号和密码。'});
+    setAuthPage({ message: '请输入 ChatDock 账号和密码。' });
   }, []);
 
   const filteredSessions = useMemo(() => {
@@ -1552,29 +1562,29 @@ export default function App() {
   const streamElapsed = streamStats.started_at ? Math.max(0, Math.round((Date.now() - streamStats.started_at) / 1000)) : 0;
   const streamStatsText = busy ? streamStatusText(streamStats, streamElapsed) : '';
   const inputStats = busy ? streamStatsText : (pendingAttachments.length ? pendingAttachments.length + ' 个附件' + (input.trim() ? ' · ' + input.trim().length + ' 字' : '') : (input.trim() ? input.trim().length + ' 字' : (!modelReady ? '请先在配置中心完成模型 Base URL 和 Model' : '')));
-  const productDiagnostics = diagnosticsText({setupStatus, systemStatus, dataStatus, mcpStatus, providers});
+  const productDiagnostics = diagnosticsText({ setupStatus, systemStatus, dataStatus, mcpStatus, providers });
   const hasVisibleChatMessages = messages.some(m => m.role !== 'empty');
 
   const quickActions = useMemo(() => [
-    {id:'focus-input', title:'聚焦输入框', hint:'按 / 也可以快速输入', run:() => inputRef.current?.focus()},
-    {id:'new-session', title:'新建会话', hint:'在当前工作空间开始新对话', run:createSession},
-    {id:'continue', title:'发送“继续”', hint:'让当前会话继续上一轮内容', disabled:busy, run:() => sendMsg('继续')},
-    {id:'workspace-picker', title:'切换工作空间', hint:'加载不同模型、技能和会话', disabled:busy || !prompts.length, run:() => setWorkspacePickerOpen(true)},
-    {id:'settings', title:'打开配置中心', hint:'工作空间、模型、工具和数据统一管理', run:() => openSettings()},
-    {id:'settings-model', title:'模型设置', hint:'Base URL、API Key、模型和最终 Prompt', run:() => openSettings('model')},
-    {id:'settings-tools', title:'工具中心', hint:'MCP 配置、状态检测和连接测试', run:() => openSettings('tools')},
-    {id:'settings-automation', title:'自动化任务', hint:'创建、运行和暂停定时任务', run:() => openSettings('automation')},
-    {id:'settings-data', title:'数据状态', hint:'数据库、工作空间和会话数量', run:() => openSettings('data')},
-    {id:'copy-diagnostics', title:'复制诊断信息', hint:'复制脱敏后的系统、数据库、备份和 MCP 状态', run:() => copyText(productDiagnostics)},
-    {id:'copy-session', title:'复制当前会话全文', hint:'复制为 Markdown', disabled:!current, run:copyCurrentMarkdown},
-    {id:'export-session', title:'导出当前会话', hint:'下载 Markdown 文件', disabled:!current, run:exportCurrent},
-    {id:'context-preview', title:'查看上下文 / Token 预览', hint:'查看实际发送给模型的消息构成', disabled:!current, run:showContextPreview},
-    {id:'delete-session', title:'删除当前会话', hint:'删除后不可恢复', disabled:!current || busy, run:deleteCurrent},
-    {id:'rename-session', title:'重命名当前会话', hint:'整理侧栏会话列表', disabled:!current || busy, run:renameCurrent},
-    {id:'clone-session', title:'复制当前会话', hint:'保留上下文开一个副本', disabled:!current || busy, run:cloneCurrent},
-    {id:'branch-session', title:'创建分支对话', hint:'在新聊天中从当前上下文继续', disabled:!current || busy || !messages.length, run:() => branchCurrent()},
-    {id:'pin-session', title: currentPinned ? '取消置顶当前会话' : '置顶当前会话', hint:'让重要会话固定在列表顶部', disabled:!current, run:pinCurrent},
-    {id:'theme', title:'切换明暗主题', hint:'当前：' + (theme === 'day' ? '白天' : '夜晚'), run:() => setThemeState(theme === 'day' ? 'night' : 'day')},
+    { id: 'focus-input', title: '聚焦输入框', hint: '按 / 也可以快速输入', run: () => inputRef.current?.focus() },
+    { id: 'new-session', title: '新建会话', hint: '在当前工作空间开始新对话', run: createSession },
+    { id: 'continue', title: '发送“继续”', hint: '让当前会话继续上一轮内容', disabled: busy, run: () => sendMsg('继续') },
+    { id: 'workspace-picker', title: '切换工作空间', hint: '加载不同模型、技能和会话', disabled: busy || !prompts.length, run: () => setWorkspacePickerOpen(true) },
+    { id: 'settings', title: '打开配置中心', hint: '工作空间、模型、工具和数据统一管理', run: () => openSettings() },
+    { id: 'settings-model', title: '模型设置', hint: 'Base URL、API Key、模型和最终 Prompt', run: () => openSettings('model') },
+    { id: 'settings-tools', title: '工具中心', hint: 'MCP 配置、状态检测和连接测试', run: () => openSettings('tools') },
+    { id: 'settings-automation', title: '自动化任务', hint: '创建、运行和暂停定时任务', run: () => openSettings('automation') },
+    { id: 'settings-data', title: '数据状态', hint: '数据库、工作空间和会话数量', run: () => openSettings('data') },
+    { id: 'copy-diagnostics', title: '复制诊断信息', hint: '复制脱敏后的系统、数据库、备份和 MCP 状态', run: () => copyText(productDiagnostics) },
+    { id: 'copy-session', title: '复制当前会话全文', hint: '复制为 Markdown', disabled: !current, run: copyCurrentMarkdown },
+    { id: 'export-session', title: '导出当前会话', hint: '下载 Markdown 文件', disabled: !current, run: exportCurrent },
+    { id: 'context-preview', title: '查看上下文 / Token 预览', hint: '查看实际发送给模型的消息构成', disabled: !current, run: showContextPreview },
+    { id: 'delete-session', title: '删除当前会话', hint: '删除后不可恢复', disabled: !current || busy, run: deleteCurrent },
+    { id: 'rename-session', title: '重命名当前会话', hint: '整理侧栏会话列表', disabled: !current || busy, run: renameCurrent },
+    { id: 'clone-session', title: '复制当前会话', hint: '保留上下文开一个副本', disabled: !current || busy, run: cloneCurrent },
+    { id: 'branch-session', title: '创建分支对话', hint: '在新聊天中从当前上下文继续', disabled: !current || busy || !messages.length, run: () => branchCurrent() },
+    { id: 'pin-session', title: currentPinned ? '取消置顶当前会话' : '置顶当前会话', hint: '让重要会话固定在列表顶部', disabled: !current, run: pinCurrent },
+    { id: 'theme', title: '切换明暗主题', hint: '当前：' + (theme === 'day' ? '白天' : '夜晚'), run: () => setThemeState(theme === 'day' ? 'night' : 'day') },
   ], [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, messages.length, openSettings, pinCurrent, productDiagnostics, prompts.length, renameCurrent, sendMsg, showContextPreview, theme]);
 
   const settingsPanel = (
@@ -1597,7 +1607,7 @@ export default function App() {
     {settingsOpen ? <div id="settingsPage" className="settings-page">{settingsPanel}</div> : <div id="app" className={appClass}>
       <aside>
         <div className="sidebar-head">
-          <div className="brand"><div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">本地优先的 AI 工作台</div></div></div>
+          <div className="brand"><div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">会话、工具、任务，一站协同</div></div></div>
           <button id="sidebarToggle" className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}>{sidebarCollapsed ? '›' : '‹'}</button>
         </div>
         <div className="prompt-box">
@@ -1616,7 +1626,7 @@ export default function App() {
           const isActive = current === s.id;
           const menuOpen = sessionMenuID === s.id;
           return <div key={s.id} className={'session ' + (isActive ? 'active ' : '') + (s.pinned ? 'pinned ' : '') + (menuOpen ? 'menu-open' : '')} onClick={() => openSession(s.id)}>
-            <div className="session-main"><div className="session-title">{s.pinned ? <span className="pin-mark">置顶</span> : null}{s.title}</div>{s.match_snippet ? <div className="session-preview search-hit">{s.match_field ? s.match_field + '：' : ''}{s.match_snippet}</div> : (s.preview ? <div className="session-preview">{s.preview}</div> : null)}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div>
+            <div className="session-main"><div className="session-title">{s.pinned ? <span className="pin-mark" aria-label="置顶" title="置顶" /> : null}{s.title}</div>{s.match_snippet ? <div className="session-preview search-hit">{s.match_field ? s.match_field + '：' : ''}{s.match_snippet}</div> : (s.preview ? <div className="session-preview">{s.preview}</div> : null)}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div>
             <button type="button" className="session-menu-trigger" disabled={busy} onClick={e => { e.stopPropagation(); setSessionMenuID(menuOpen ? '' : s.id); }} aria-label={(s.title || '会话') + ' 操作'} aria-expanded={menuOpen ? 'true' : 'false'} title="会话操作">⋯</button>
             {menuOpen ? <div className="session-row-menu" onClick={e => e.stopPropagation()}>
               <button type="button" onClick={() => pinSessionByID(s.id, !!s.pinned)}>{s.pinned ? '取消置顶' : '置顶'}</button>
@@ -1646,17 +1656,17 @@ export default function App() {
         <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
         {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息">↓</button> : null}
         <div className="composer-shell">
-        {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} onDownload={downloadAttachment} /> : null}
-        <div className="composer">
-          <input ref={fileInputRef} type="file" multiple className="file-input" onChange={handleFileSelect} />
-          <button className="secondary attach-control" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} title="上传文件">+</button>
-          <ComposerModelPicker busy={busy} providers={providerChoices} selectedProvider={selectedModelProvider} selectedModel={selectedChatModel} open={modelPickerOpen} setOpen={setModelPickerOpen} selectModel={selectChatModel} openSettings={openSettings} />
-          {busy ? <button className="secondary stream-control" onClick={toggleStreamPause}>{streamPaused ? '继续' : '暂停'}</button> : null}
-          {busy ? <button className="danger stream-control" onClick={stopStreaming}>中断</button> : null}
-          <textarea ref={inputRef} id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendMsg(); } }} placeholder="输入消息" />
-          <button id="send" disabled={busy || uploadingFiles || (!input.trim() && !pendingAttachmentIDs.length) || !modelReady} onClick={() => sendMsg()} title={!modelReady ? '请先配置模型' : '发送'}>发送</button>
-        </div>
-        {inputStats ? <div className="composer-meta">{inputStats}</div> : null}
+          {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} onDownload={downloadAttachment} /> : null}
+          <div className="composer">
+            <input ref={fileInputRef} type="file" multiple className="file-input" onChange={handleFileSelect} />
+            <button className="secondary attach-control" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} title="上传文件">+</button>
+            <ComposerModelPicker busy={busy} providers={providerChoices} selectedProvider={selectedModelProvider} selectedModel={selectedChatModel} open={modelPickerOpen} setOpen={setModelPickerOpen} selectModel={selectChatModel} openSettings={openSettings} />
+            {busy ? <button className="secondary stream-control" onClick={toggleStreamPause}>{streamPaused ? '继续' : '暂停'}</button> : null}
+            {busy ? <button className="danger stream-control" onClick={stopStreaming}>中断</button> : null}
+            <textarea ref={inputRef} id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendMsg(); } }} placeholder="输入消息" />
+            <button id="send" disabled={busy || uploadingFiles || (!input.trim() && !pendingAttachmentIDs.length) || !modelReady} onClick={() => sendMsg()} title={!modelReady ? '请先配置模型' : '发送'}>发送</button>
+          </div>
+          {inputStats ? <div className="composer-meta">{inputStats}</div> : null}
         </div>
       </main>
 

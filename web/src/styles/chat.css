@@ -103,8 +103,8 @@ body.theme-light .quick-palette-item:not(:disabled):hover, body.theme-light .qui
 
 /* 会话置顶 */
 .session.pinned { border-left: 3px solid var(--primary); }
-.pin-mark { display:inline-flex; align-items:center; margin-right:6px; padding:2px 6px; border-radius:999px; background:rgba(37,99,235,.18); color:#93c5fd; font-size:11px; font-weight:700; vertical-align:middle; }
-body.theme-light .pin-mark { background:#dbeafe; color:#1d4ed8; }
+.pin-mark { background:rgba(16,163,127,.18); color:#6ee7b7; }
+body.theme-light .pin-mark { background:#dff7ed; color:#0f766e; }
 
 
 .msg {
@@ -1160,7 +1160,7 @@ body.theme-light .empty-capability-strip i {
   margin: 12px 0 14px !important;
   padding: 13px 14px !important;
   border-radius: 8px !important;
-  background: color-mix(in srgb, var(--gpt-surface) 92%, var(--gpt-text) 8%) !important;
+  background: color-mix(in srgb, var(--gpt-surface) 99%, var(--gpt-text) 1%) !important;
   border-color: color-mix(in srgb, var(--gpt-border) 86%, transparent) !important;
 }
 
@@ -1233,7 +1233,7 @@ body.theme-light .empty-capability-strip i {
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--gpt-border) 86%, transparent);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--gpt-surface) 92%, var(--gpt-text) 8%);
+  background: color-mix(in srgb, var(--gpt-surface) 99%, var(--gpt-text) 1%);
 }
 
 .markdown .code-block-head {
@@ -1244,7 +1244,7 @@ body.theme-light .empty-capability-strip i {
   min-height: 34px;
   padding: 0 10px 0 13px;
   border-bottom: 1px solid color-mix(in srgb, var(--gpt-border) 78%, transparent);
-  background: color-mix(in srgb, var(--gpt-surface) 84%, var(--gpt-text) 12%);
+  background: color-mix(in srgb, var(--gpt-surface) 98%, var(--gpt-text) 2%);
 }
 
 .markdown .code-block-lang {
@@ -1259,7 +1259,7 @@ body.theme-light .empty-capability-strip i {
   appearance: none;
   border: 1px solid color-mix(in srgb, var(--gpt-border) 82%, transparent);
   border-radius: 7px;
-  background: color-mix(in srgb, var(--gpt-surface) 88%, var(--gpt-text) 8%);
+  background: color-mix(in srgb, var(--gpt-surface) 99%, var(--gpt-text) 1%);
   color: var(--gpt-muted);
   cursor: pointer;
   font-size: 12px;
