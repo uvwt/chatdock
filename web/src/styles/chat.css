@@ -1328,104 +1328,151 @@ body.theme-light .empty-capability-strip i {
   }
 }
 
-/* 2026-07-04 工具调用展示：默认折叠成一条摘要，避免多次工具搜索横向铺满正文。 */
-.tool-events-compact {
-  width: min(560px, 100%);
-  margin: 10px 0 12px;
-  color: var(--gpt-muted);
-  font-size: 13px;
-}
-
-.tool-events-toggle {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  max-width: 100%;
-  min-height: 34px;
-  padding: 6px 10px;
+/* 2026-07-04 运行步骤展示：像状态清单一样展示具体名称，避免泛称和横向铺满。 */
+.tool-steps-card {
+  width: min(620px, 100%);
+  margin: 12px 0 14px;
+  padding: 8px;
   border: 1px solid color-mix(in srgb, var(--gpt-border) 78%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--gpt-surface) 72%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--gpt-surface) 58%, transparent);
   color: var(--gpt-muted);
-  box-shadow: none;
 }
 
-.tool-events-toggle:hover {
-  background: color-mix(in srgb, var(--gpt-surface-2) 82%, transparent);
-  border-color: color-mix(in srgb, var(--primary) 32%, var(--gpt-border));
+.tool-steps-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 4px 8px;
 }
 
-.tool-events-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--primary);
-  opacity: .72;
-}
-
-.tool-events-title {
+.tool-steps-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--gpt-text);
+  font-size: 13px;
   font-weight: 650;
 }
 
-.tool-events-meta {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--gpt-muted-2);
-}
-
-.tool-events-chevron {
-  color: var(--gpt-muted-2);
-  font-size: 14px;
-}
-
-.tool-events-list {
-  display: grid;
-  gap: 4px;
-  margin-top: 7px;
-  padding-left: 13px;
-  border-left: 2px solid color-mix(in srgb, var(--gpt-border) 76%, transparent);
-}
-
-.tool-events-list .tool-event,
-.msg.assistant > .tool-event {
-  display: grid;
-  width: min(520px, 100%);
-  margin: 0;
-  padding: 5px 8px;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--gpt-muted);
-  font-size: 12.5px;
-  line-height: 1.4;
-}
-
-.tool-events-list .tool-event.has-details::after,
-.msg.assistant > .tool-event.has-details::after {
-  content: "⌄";
-  align-self: center;
-  justify-self: end;
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.tool-events-list .tool-event-main,
-.msg.assistant > .tool-event .tool-event-main {
-  min-width: 0;
-}
-
-.tool-events-list .tool-event-meta,
-.msg.assistant > .tool-event .tool-event-meta {
-  margin-top: 2px;
+.tool-steps-count {
+  flex: none;
   color: var(--gpt-muted-2);
   font-size: 12px;
-  white-space: nowrap;
+}
+
+.tool-steps-list {
+  display: grid;
+  gap: 3px;
+}
+
+.tool-step-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--gpt-muted);
+  text-align: left;
+  box-shadow: none;
+}
+
+.tool-step-row:not(:disabled):hover {
+  background: color-mix(in srgb, var(--gpt-surface-2) 86%, transparent);
+}
+
+.tool-step-row:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.tool-step-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  color: #86efac;
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.tool-step-row.phase-running .tool-step-icon {
+  color: var(--gpt-muted-2);
+  background: color-mix(in srgb, var(--gpt-border) 56%, transparent);
+}
+
+.tool-step-row.phase-error .tool-step-icon {
+  color: #fecaca;
+  background: rgba(239, 68, 68, .18);
+}
+
+.tool-step-body {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.tool-step-name {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gpt-text);
+  font-size: 13px;
+  font-weight: 620;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.tool-step-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gpt-muted-2);
+  font-size: 12px;
+}
+
+.tool-step-status {
+  color: var(--gpt-muted-2);
+  font-size: 12px;
+}
+
+.tool-steps-more {
+  width: 100%;
+  min-height: 30px;
+  margin-top: 5px;
+  padding: 4px 8px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--gpt-muted-2);
+  font-size: 12px;
+  box-shadow: none;
+}
+
+.tool-steps-more:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--gpt-surface-2) 86%, transparent);
+  color: var(--gpt-text);
+}
+
+@media (max-width: 720px) {
+  .tool-steps-card {
+    width: 100%;
+    border-radius: 14px;
+  }
+
+  .tool-step-row {
+    grid-template-columns: 18px minmax(0, 1fr);
+  }
+
+  .tool-step-status {
+    display: none;
+  }
 }
 

@@ -51,6 +51,15 @@ function ReasoningBlock({ value, streaming = false, hidden = false }) {
 }
 
 
+function toolEventName(event) {
+  const details = event?.details || {};
+  const data = details.data || {};
+  // 展示真实名称，不再写“调用工具”这种泛称；执行代理工具时优先展示被执行的目标名称。
+  return String(
+    details.arguments?.name || data.arguments?.name || data.result?.tool || details.tool || data.tool || ''
+  ).trim();
+}
+
 function toolEventMetaText(event) {
   const meta = String(event?.meta || '').replace(/^关键词：/, '').trim();
   if (meta) return meta;
@@ -59,16 +68,36 @@ function toolEventMetaText(event) {
   return query ? String(query).trim() : '';
 }
 
-function uniqueToolEventMetas(events) {
+function uniqueToolNames(events) {
   const seen = new Set();
-  const metas = [];
+  const names = [];
   for (const event of events) {
-    const meta = toolEventMetaText(event);
-    if (!meta || seen.has(meta)) continue;
-    seen.add(meta);
-    metas.push(meta);
+    const name = toolEventName(event);
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    names.push(name);
   }
-  return metas;
+  return names;
+}
+
+function toolEventStatus(event) {
+  if (event.phase === 'running') return {icon: '○', text: '运行中'};
+  if (event.phase === 'error') return {icon: '×', text: '失败'};
+  return {icon: '✓', text: '完成'};
+}
+
+function ToolEventRow({ event, onInspectToolEvent }) {
+  const status = toolEventStatus(event);
+  const name = toolEventName(event);
+  const meta = toolEventMetaText(event);
+  return <button type="button" className={'tool-step-row ' + (event.phase ? 'phase-' + event.phase : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} disabled={!event.details}>
+    <span className="tool-step-icon">{status.icon}</span>
+    <span className="tool-step-body">
+      <span className="tool-step-name">{name}</span>
+      {meta ? <span className="tool-step-meta">{meta}</span> : null}
+    </span>
+    <span className="tool-step-status">{status.text}</span>
+  </button>;
 }
 
 function ToolEvents({ events = [], onResolveConfirmation, onInspectToolEvent }) {
@@ -76,29 +105,22 @@ function ToolEvents({ events = [], onResolveConfirmation, onInspectToolEvent }) 
   if (!events.length) return null;
 
   const confirmations = events.filter(event => event.kind === 'confirm' && event.status !== 'resolved');
-  const normalEvents = events.filter(event => !(event.kind === 'confirm' && event.status !== 'resolved'));
-  const running = normalEvents.some(event => event.phase === 'running');
-  const failed = normalEvents.some(event => event.phase === 'error');
-  const metas = uniqueToolEventMetas(normalEvents);
-  const title = failed ? '工具调用有异常' : (running ? '正在调用工具' : '已完成工具调用');
-  const metaText = metas.length ? metas.slice(0, 6).join('、') + (metas.length > 6 ? ' 等' : '') : '';
+  const normalEvents = events.filter(event => !(event.kind === 'confirm' && event.status !== 'resolved') && toolEventName(event));
+  const toolNames = uniqueToolNames(normalEvents);
+  const visibleEvents = open ? normalEvents : normalEvents.slice(0, 4);
+  const hiddenCount = Math.max(0, normalEvents.length - visibleEvents.length);
+  const title = toolNames.length ? toolNames.slice(0, 3).join('、') + (toolNames.length > 3 ? ' 等' : '') : '运行步骤';
 
   return <>
-    {normalEvents.length ? <section className={'tool-events-compact ' + (open ? 'open' : '')}>
-      <button type="button" className="tool-events-toggle" onClick={() => setOpen(value => !value)} aria-expanded={open}>
-        <span className="tool-events-dot" />
-        <span className="tool-events-title">{title} · {normalEvents.length} 次</span>
-        {metaText ? <span className="tool-events-meta">{metaText}</span> : null}
-        <span className="tool-events-chevron">{open ? '⌃' : '⌄'}</span>
-      </button>
-      {open ? <div className="tool-events-list">
-        {normalEvents.map((event, i) => <div key={i} className={'tool-event ' + (event.kind === 'run' ? 'run-event-inline ' : '') + (event.phase ? 'phase-' + event.phase + ' ' : '') + (event.details ? 'has-details' : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} role={event.details ? 'button' : undefined} tabIndex={event.details ? 0 : undefined} onKeyDown={e => { if (event.details && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onInspectToolEvent?.(event); } }}>
-          <div className="tool-event-main">
-            <div>{event.text}</div>
-            {event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}
-          </div>
-        </div>)}
-      </div> : null}
+    {normalEvents.length ? <section className="tool-steps-card">
+      <div className="tool-steps-head">
+        <span className="tool-steps-title">{title}</span>
+        <span className="tool-steps-count">{normalEvents.length} 次</span>
+      </div>
+      <div className="tool-steps-list">
+        {visibleEvents.map((event, i) => <ToolEventRow key={i} event={event} onInspectToolEvent={onInspectToolEvent} />)}
+      </div>
+      {hiddenCount ? <button type="button" className="tool-steps-more" onClick={() => setOpen(true)}>展开剩余 {hiddenCount} 次</button> : (open && normalEvents.length > 4 ? <button type="button" className="tool-steps-more" onClick={() => setOpen(false)}>收起</button> : null)}
     </section> : null}
     {confirmations.map((event, i) => <div key={'confirm-' + i} className={'tool-event ' + (event.details ? 'has-details' : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} role={event.details ? 'button' : undefined} tabIndex={event.details ? 0 : undefined} onKeyDown={e => { if (event.details && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onInspectToolEvent?.(event); } }}>
       <div className="tool-event-main">
