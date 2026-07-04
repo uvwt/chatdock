@@ -2210,3 +2210,234 @@ body.theme-light .mcp-inline-warning.danger {
     width: 100% !important;
   }
 }
+
+/* 2026-07 配置中心浅色审美：去掉彩色光晕和高饱和强调，回到白底、浅灰边框、黑灰层级。 */
+.settings-page {
+  background: #f6f7f9 !important;
+  color: #111827 !important;
+}
+
+.settings-page .settings,
+.settings-page .settings[style] {
+  color: #111827 !important;
+}
+
+.settings-page .settings-header,
+.settings-page .module-tabs,
+.settings-page .module-view.active,
+.settings-page .product-card,
+.settings-page .skill-card,
+.settings-page .task-card,
+.settings-page .stat-card,
+.settings-page .model-summary-card,
+.settings-page .settings-section,
+.settings-page .mcp-form-card,
+.settings-page .empty.compact,
+.settings-page .backup-item,
+.settings-page .backup-health,
+.settings-page .mcp-raw-json,
+.settings-page .mcp-advanced-fields {
+  border-color: #e6e8ec !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04) !important;
+}
+
+.settings-page .settings-header,
+.settings-page .module-view.active {
+  box-shadow: 0 10px 30px rgba(15, 23, 42, .045) !important;
+}
+
+.settings-page .settings-header h2,
+.settings-page .module-view-title span,
+.settings-page .settings-block-head label,
+.settings-page .product-card-head b,
+.settings-page .skill-name,
+.settings-page .task-name,
+.settings-page .stat-value,
+.settings-page .model-summary-card b,
+.settings-page .settings-section-head b,
+.settings-page .mcp-form-head b {
+  color: #111827 !important;
+}
+
+.settings-page .settings-header p,
+.settings-page .module-view-title p,
+.settings-page .hint,
+.settings-page .product-meta,
+.settings-page .skill-desc,
+.settings-page .task-desc,
+.settings-page .task-meta,
+.settings-page .stat-label,
+.settings-page .model-summary-card span,
+.settings-page .model-summary-card small,
+.settings-page .settings-section-head p {
+  color: #6b7280 !important;
+}
+
+.settings-page .module-tab {
+  color: #4b5563 !important;
+  background: transparent !important;
+}
+
+.settings-page .module-tab:hover {
+  background: #f4f5f7 !important;
+  color: #111827 !important;
+}
+
+.settings-page .module-tab::before {
+  background: #d1d5db !important;
+}
+
+.settings-page .module-tab.active {
+  border-color: #d8dde5 !important;
+  background: #f3f4f6 !important;
+  color: #111827 !important;
+  box-shadow: inset 0 0 0 1px #e5e7eb !important;
+}
+
+.settings-page .module-tab.active::before {
+  background: #111827 !important;
+}
+
+.settings-page .product-card.active,
+.settings-page #workspaceCards .product-card.active {
+  border-color: #d8dde5 !important;
+  background: #fbfcfd !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04) !important;
+}
+
+.settings-page .workspace-summary-card {
+  border-color: #e6e8ec !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04) !important;
+}
+
+.settings-page .workspace-summary-card b {
+  color: #111827 !important;
+}
+
+.settings-page .workspace-summary-card span {
+  color: #6b7280 !important;
+}
+
+.settings-page .setup-banner,
+.settings-page .setup-banner.ok {
+  border-color: #e6e8ec !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04) !important;
+}
+
+.settings-page .setup-banner b {
+  color: #111827 !important;
+}
+
+.settings-page input,
+.settings-page textarea,
+.settings-page select,
+.settings-page .session-search {
+  border-color: #d8dde5 !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+.settings-page input:focus,
+.settings-page textarea:focus,
+.settings-page select:focus,
+.settings-page .session-search:focus {
+  border-color: #9ca3af !important;
+  box-shadow: 0 0 0 4px rgba(17, 24, 39, .08) !important;
+}
+
+.settings-page button:not(.danger):not(.secondary),
+.settings-page .settings-actions button:not(.secondary):not(.danger),
+.settings-page .mcp-primary-actions button:first-child {
+  border-color: #111827 !important;
+  background: #111827 !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.settings-page button.secondary {
+  border-color: #d8dde5 !important;
+  background: #ffffff !important;
+  color: #374151 !important;
+}
+
+.settings-page button.secondary:hover:not(:disabled),
+.settings-page button:not(.danger):not(.secondary):hover:not(:disabled) {
+  filter: none !important;
+  transform: none !important;
+}
+
+.settings-page .badge {
+  border-color: #e5e7eb !important;
+  background: #f9fafb !important;
+  color: #374151 !important;
+}
+
+.settings-page .badge.ok,
+.settings-page .product-card.active .badge {
+  border-color: #d8dde5 !important;
+  background: #f3f4f6 !important;
+  color: #111827 !important;
+}
+
+.settings-page .badge.warn {
+  border-color: #fde68a !important;
+  background: #fffbeb !important;
+  color: #92400e !important;
+}
+
+.settings-page .model-option.active {
+  border-color: #9ca3af !important;
+  box-shadow: inset 0 0 0 1px #d1d5db !important;
+}
+
+.settings-page .diagnostics-preview,
+.settings-page .code-preview {
+  border-color: #e6e8ec !important;
+  background: #f9fafb !important;
+  color: #111827 !important;
+  box-shadow: none !important;
+}
+
+@media (min-width: 1040px) {
+  .settings-page {
+    padding: 28px clamp(30px, 3.6vw, 66px) !important;
+  }
+
+  .settings-page .settings-header,
+  .settings-page .module-tabs,
+  .settings-page .module-view.active {
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+  }
+
+  .settings-page .settings-header {
+    min-height: 88px !important;
+    padding: 22px 28px !important;
+  }
+
+  .settings-page .settings-header h2 {
+    font-size: 29px !important;
+  }
+
+  .settings-page .module-tabs {
+    top: 28px !important;
+  }
+}
+
+@media (max-width: 1039px) {
+  .settings-page .settings {
+    background: #ffffff !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .055) !important;
+  }
+
+  .settings-page .module-tab.active {
+    border-color: #d8dde5 !important;
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+  }
+}
