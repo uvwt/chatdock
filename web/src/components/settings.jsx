@@ -38,7 +38,25 @@ export function SettingsPanel(props) {
 function moduleLabel(m) {
   return ({workspace:'工作空间', model:'模型', skills:'技能库', tools:'工具中心', runs:'执行记录', agent:'Agent 任务', automation:'自动化', data:'数据', security:'安全'})[m] || m;
 }
-function ModuleView({ name, activeModule, children }) { return <div className={'module-view ' + (activeModule === name ? 'active' : '')} data-module-view={name}>{children}</div>; }
+function moduleDescription(m) {
+  return ({
+    workspace: '管理多工作空间、会话数量、技能和自动化任务的整体入口。',
+    model: '配置模型供应商、默认模型、上下文压缩和回复行为。',
+    skills: '给当前工作空间维护可开关的补充系统指令。',
+    tools: '添加、检测和维护 MCP Server，不再要求直接手写 JSON。',
+    runs: '查看 MCP 工具调用和执行结果，方便排障。',
+    agent: '跟踪可恢复的 AgentDock 任务，必要时继续执行。',
+    automation: '管理当前工作空间下的定时任务和运行状态。',
+    data: '检查数据库、备份、会话和工作空间数据健康。',
+    security: '查看运行状态、诊断信息和访问入口。',
+  })[m] || '';
+}
+function ModuleView({ name, activeModule, children }) {
+  return <div className={'module-view ' + (activeModule === name ? 'active' : '')} data-module-view={name}>
+    <div className="module-view-title"><div><span>{moduleLabel(name)}</span><p>{moduleDescription(name)}</p></div></div>
+    {children}
+  </div>;
+}
 
 function normalizeModelNames(value) {
   const raw = Array.isArray(value) ? value.join('\n') : String(value || '');

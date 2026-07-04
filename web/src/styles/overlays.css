@@ -84,6 +84,7 @@ body.theme-light .session-actions-sheet { background: #ffffff; border-color: #e2
 }
 
 .auth-page-visible .app,
+.auth-page-visible .settings-page,
 .auth-page-visible .settings-mask,
 .auth-page-visible .sidebar-mask {
   display: none !important;
