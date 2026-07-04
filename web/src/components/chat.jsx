@@ -86,11 +86,6 @@ export function EmptyState({ createSession, openSettings, openWorkspacePicker, b
     {title:'调用', text:'模型、MCP、Skill 和附件统一进同一入口。', key:'⌘K'},
     {title:'追踪', text:'任务、工具事件和运行记录都能复查。', key:'✓'},
   ];
-  const capabilityItems = [
-    {title:'配置中心', text:'模型、Prompt、工具状态统一维护'},
-    {title:'数据状态', text:'数据库、备份和会话健康可见'},
-    {title:'自动化', text:'定时任务与运行记录可追踪'},
-  ];
   return <div className="empty-state product-empty-state">
     <section className="product-hero">
       <div className="hero-copy">
@@ -112,9 +107,6 @@ export function EmptyState({ createSession, openSettings, openWorkspacePicker, b
           <div><small>{String(index + 1).padStart(2, '0')}</small><b>{step.title}</b><span>{step.text}</span></div><strong>{step.key}</strong>
         </div>)}
       </div>
-    </section>
-    <section className="empty-capability-strip">
-      {capabilityItems.map((item, index) => <div key={item.title}><i aria-hidden="true">{String(index + 1).padStart(2, '0')}</i><b>{item.title}</b><span>{item.text}</span></div>)}
     </section>
   </div>;
 }
