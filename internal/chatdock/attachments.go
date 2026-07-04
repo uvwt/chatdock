@@ -174,7 +174,7 @@ func (a *App) prepareVisionAttachmentURLs(history []model.Message) []model.Messa
 			if !model.IsImageAttachment(*attachment) {
 				continue
 			}
-			modelURL, err := a.modelImageURL(attachment.ID, expiresAt)
+			modelURL, err := a.modelImageURL(attachment.ID, attachment.Name, expiresAt)
 			if err != nil {
 				continue
 			}
@@ -196,7 +196,7 @@ func cloneModelMessages(history []model.Message) []model.Message {
 	return out
 }
 
-func (a *App) modelImageURL(id string, expiresAt time.Time) (string, error) {
+func (a *App) modelImageURL(id string, filename string, expiresAt time.Time) (string, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return "", fmt.Errorf("attachment id is empty")
@@ -212,12 +212,23 @@ func (a *App) modelImageURL(id string, expiresAt time.Time) (string, error) {
 		return "", fmt.Errorf("CHATDOCK_PUBLIC_BASE_URL host is empty")
 	}
 	expires := strconv.FormatInt(expiresAt.Unix(), 10)
-	parsed.Path = strings.TrimRight(parsed.Path, "/") + "/api/model-images/" + url.PathEscape(id)
+	parsed.Path = strings.TrimRight(parsed.Path, "/") + "/api/model-images/" + url.PathEscape(id) + "/" + url.PathEscape(modelImageURLName(filename))
 	q := parsed.Query()
 	q.Set("expires", expires)
 	q.Set("sig", a.signModelImage(id, expires))
 	parsed.RawQuery = q.Encode()
 	return parsed.String(), nil
+}
+
+func modelImageURLName(filename string) string {
+	name := cleanUploadName(filename)
+	if strings.TrimSpace(name) == "" {
+		return "image"
+	}
+	if filepath.Ext(name) == "" {
+		return name + ".jpg"
+	}
+	return name
 }
 
 func (a *App) verifyModelImageSignature(id string, expiresRaw string, sig string, now time.Time) bool {

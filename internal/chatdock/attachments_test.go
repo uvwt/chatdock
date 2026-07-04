@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestUploadAttachmentInjectsTextIntoModelContext(t *testing.T) {
@@ -234,5 +235,22 @@ func TestDownloadUploadedAttachment(t *testing.T) {
 	}
 	if cd := w.Header().Get("Content-Disposition"); !strings.Contains(cd, "attachment") || !strings.Contains(cd, "note.txt") {
 		t.Fatalf("unexpected content disposition: %q", cd)
+	}
+}
+
+func TestModelImageURLIncludesFilenameExtension(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web", PublicBaseURL: "https://chatdock.200399.xyz"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	url, err := app.modelImageURL("att_1", "pixel.png", time.Unix(1893456000, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(url, "https://chatdock.200399.xyz/api/model-images/att_1/pixel.png?") {
+		t.Fatalf("expected image URL to include filename extension, got %s", url)
+	}
+	if !strings.Contains(url, "expires=") || !strings.Contains(url, "sig=") {
+		t.Fatalf("expected signed URL, got %s", url)
 	}
 }
