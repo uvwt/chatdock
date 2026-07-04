@@ -112,7 +112,7 @@ func (a *App) semanticToolScores(ctx context.Context, catalog toolCatalog, query
 	if err != nil || len(records) == 0 {
 		return nil
 	}
-	queryCtx, queryCancel := context.WithTimeout(ctx, 5*time.Second)
+	queryCtx, queryCancel := context.WithTimeout(ctx, 900*time.Millisecond)
 	defer queryCancel()
 	queryVector, ok := a.cachedQueryEmbedding(queryCtx, cfg, query)
 	if !ok {
@@ -128,7 +128,7 @@ func (a *App) semanticToolScores(ctx context.Context, catalog toolCatalog, query
 }
 
 func (a *App) cachedQueryEmbedding(ctx context.Context, cfg model.ModelConfig, query string) ([]float64, bool) {
-	key := strings.TrimSpace(cfg.EmbeddingModel) + "\x00" + strings.TrimSpace(query)
+	key := strings.TrimSpace(cfg.EmbeddingModel) + "\x00" + normalizeEmbeddingQuery(query)
 	a.embeddingMu.Lock()
 	if vector, ok := a.embeddingMemo[key]; ok && len(vector) > 0 {
 		a.embeddingMu.Unlock()
@@ -149,6 +149,10 @@ func (a *App) cachedQueryEmbedding(ctx context.Context, cfg model.ModelConfig, q
 	a.embeddingMemo[key] = append([]float64(nil), vectors[0]...)
 	a.embeddingMu.Unlock()
 	return vectors[0], true
+}
+
+func normalizeEmbeddingQuery(query string) string {
+	return strings.ToLower(strings.Join(strings.Fields(strings.TrimSpace(query)), " "))
 }
 
 func (a *App) clearQueryEmbeddingCache() {
