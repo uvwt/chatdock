@@ -330,7 +330,7 @@ function ProviderKeysEditor({ value, setValue, values, setValues }) {
       <label className="provider-key-current" title="设为当前 Key"><input type="radio" name="provider-current-key" checked={(selectedID || rows[0]?.id) === row.id} onChange={() => setSelected(row.id)} /></label>
       <input value={row.id || ''} placeholder="main" onChange={e => { const id = e.target.value; updateRow(index, {id}); if (selectedID === row.id) setSelected(id); }} />
       <input value={row.name || ''} placeholder="主 key" onChange={e => updateRow(index, {name: e.target.value})} />
-      <input type="password" value={row.api_key || ''} placeholder="新增填明文；******** 保留" onChange={e => updateRow(index, {api_key: e.target.value})} />
+      <input type="text" className="provider-key-secret" value={row.api_key || ''} placeholder="新增填明文；已保存 Key 只隐藏中间" onChange={e => updateRow(index, {api_key: e.target.value})} />
       <label className="provider-key-enabled"><input type="checkbox" checked={row.enabled !== false} onChange={e => updateRow(index, {enabled: e.target.checked})} /><span>{row.enabled === false ? '停用' : '启用'}</span></label>
       <input type="number" min="1" value={row.priority || index + 1} onChange={e => updateRow(index, {priority: Number(e.target.value || index + 1)})} />
       <button type="button" className="secondary small" onClick={() => removeRow(index)} disabled={rows.length <= 1}>删除</button>

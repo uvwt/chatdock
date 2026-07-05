@@ -35,10 +35,23 @@ func maskSecret(value string) string {
 	if value == "" {
 		return ""
 	}
-	if len(value) <= 8 {
-		return "******"
+	runes := []rune(value)
+	if len(runes) <= 8 {
+		if len(runes) <= 2 {
+			return strings.Repeat("*", len(runes))
+		}
+		return string(runes[:1]) + strings.Repeat("*", len(runes)-2) + string(runes[len(runes)-1:])
 	}
-	return value[:4] + "******" + value[len(value)-4:]
+	prefixLen := 6
+	suffixLen := 4
+	if len(runes) > 24 {
+		prefixLen = 8
+		suffixLen = 6
+	}
+	if len(runes) <= prefixLen+suffixLen {
+		return string(runes[:2]) + strings.Repeat("*", len(runes)-4) + string(runes[len(runes)-2:])
+	}
+	return string(runes[:prefixLen]) + strings.Repeat("*", 8) + string(runes[len(runes)-suffixLen:])
 }
 
 func (s *Store) ResolveChatModelConfig(base model.ModelConfig, providerID string, selectedModel string) (model.ModelConfig, error) {
