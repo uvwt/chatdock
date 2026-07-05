@@ -107,6 +107,9 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 		if isBuiltinImageTool(name) {
 			return a.callBuiltinImageTool(ctx, name, args)
 		}
+		if isBuiltinModelProviderTool(name) {
+			return a.callBuiltinModelProviderTool(ctx, name, args)
+		}
 		if !mcpReady {
 			return nil, fmt.Errorf("MCP tool is not available: %s", name)
 		}
