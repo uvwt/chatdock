@@ -94,6 +94,7 @@ func (s *Store) upsertProviderFromConfigLocked(workspaceID string, cfg model.Mod
 		}
 		records[i].BaseURL = strings.TrimSpace(cfg.BaseURL)
 		records[i].APIKey = strings.TrimSpace(cfg.APIKey)
+		records[i].APIKeys = upsertLegacyAPIKeyRecord(records[i].APIKeys, cfg.APIKey, now)
 		records[i].DefaultModel = strings.TrimSpace(cfg.Model)
 		records[i].Models = normalizeProviderModelNames(cfg.Models, cfg.Model)
 		records[i].Enabled = strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != ""

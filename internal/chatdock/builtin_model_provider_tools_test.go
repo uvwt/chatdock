@@ -90,13 +90,9 @@ func TestBuiltinModelProviderToolsExposeExpectedActions(t *testing.T) {
 	}
 	for _, name := range []string{
 		builtinToolListModelProviders,
-		builtinToolCreateModelProvider,
-		builtinToolUpdateModelProvider,
-		builtinToolSetModelProviderEnabled,
-		builtinToolDeleteModelProvider,
+		builtinToolSaveModelProvider,
 		builtinToolTestModelProvider,
-		builtinToolListModelProviderModels,
-		builtinToolSetWorkspaceModelProvider,
+		builtinToolDeleteModelProvider,
 	} {
 		if !names[name] {
 			t.Fatalf("missing builtin model provider tool %s in %#v", name, names)
@@ -143,6 +139,63 @@ func TestBuiltinModelProviderModelsCanSaveFetchedModels(t *testing.T) {
 	updated := modelsResult["provider"].(store.ModelProvider)
 	if !updated.HasAPIKey || !containsString(updated.Models, "fetched-a") || !containsString(updated.Models, "fetched-b") {
 		t.Fatalf("fetched models should be saved without exposing key: %#v", updated)
+	}
+}
+
+func TestBuiltinModelProviderSaveSupportsMultipleKeys(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	savedRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolSaveModelProvider, map[string]any{
+		"id":            "multi-key",
+		"name":          "Multi Key",
+		"base_url":      "http://127.0.0.1:12345/v1",
+		"default_model": "demo-model",
+		"key_strategy":  "auto",
+		"api_keys": []any{
+			map[string]any{"id": "main", "name": "主 key", "api_key": "main-secret", "enabled": true, "priority": 2},
+			map[string]any{"id": "backup", "name": "备用 key", "api_key": "backup-secret", "enabled": true, "priority": 1},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := savedRaw.(map[string]any)["provider"].(store.ModelProvider)
+	if len(provider.APIKeys) != 2 || provider.APIKeys[0].APIKeyMasked == "" || provider.APIKeys[0].HasAPIKey != true {
+		t.Fatalf("expected masked key metadata: %#v", provider)
+	}
+	if raw, ok := savedRaw.(map[string]any)["api_keys"]; ok && raw != nil {
+		t.Fatalf("tool result should not expose raw api_keys payload: %#v", savedRaw)
+	}
+
+	cfg, ok, err := app.store.ModelProviderConfig(provider.ID)
+	if err != nil || !ok {
+		t.Fatalf("expected config: ok=%v err=%v", ok, err)
+	}
+	if cfg.APIKey != "backup-secret" {
+		t.Fatalf("auto strategy should choose lowest-priority enabled key, got %q", cfg.APIKey)
+	}
+
+	updatedRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolSaveModelProvider, map[string]any{
+		"id":              provider.ID,
+		"selected_key_id": "main",
+		"key_strategy":    "manual",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated := updatedRaw.(map[string]any)["provider"].(store.ModelProvider)
+	if updated.SelectedKeyID != "main" || updated.KeyStrategy != "manual" {
+		t.Fatalf("expected manual selected key: %#v", updated)
+	}
+	cfg, ok, err = app.store.ModelProviderConfig(provider.ID)
+	if err != nil || !ok {
+		t.Fatalf("expected config after manual switch: ok=%v err=%v", ok, err)
+	}
+	if cfg.APIKey != "main-secret" {
+		t.Fatalf("manual strategy should use selected key, got %q", cfg.APIKey)
 	}
 }
 

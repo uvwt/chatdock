@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"chatdock/internal/chatdock/mcp"
-	"chatdock/internal/chatdock/model"
 	"chatdock/internal/chatdock/store"
 )
 
 const (
 	builtinToolListModelProviders        = "chatdock_model_providers_list"
+	builtinToolSaveModelProvider         = "chatdock_model_provider_save"
 	builtinToolCreateModelProvider       = "chatdock_model_provider_create"
 	builtinToolUpdateModelProvider       = "chatdock_model_provider_update"
 	builtinToolSetModelProviderEnabled   = "chatdock_model_provider_set_enabled"
@@ -24,14 +24,27 @@ const (
 )
 
 func builtinModelProviderTools() []mcp.MCPTool {
+	keyProps := map[string]any{
+		"id":       map[string]any{"type": "string", "description": "Key id，例如 main、backup；为空时按名称自动生成"},
+		"name":     map[string]any{"type": "string", "description": "Key 显示名称，例如 主 key、备用 key"},
+		"api_key":  map[string]any{"type": "string", "description": "API Key 明文。留空或传 ******** 表示保留原 Key。工具结果不会回显明文。"},
+		"enabled":  map[string]any{"type": "boolean", "description": "是否启用该 Key，默认 true"},
+		"priority": map[string]any{"type": "integer", "description": "auto 策略下优先级，数字越小越优先"},
+	}
 	providerProps := map[string]any{
-		"name":          map[string]any{"type": "string", "description": "供应商显示名称，例如 OpenAI、Volc Ark、Ollama、LM Studio"},
-		"base_url":      map[string]any{"type": "string", "description": "OpenAI 兼容 Base URL，例如 https://api.openai.com/v1 或 http://127.0.0.1:11434/v1"},
-		"api_key":       map[string]any{"type": "string", "description": "API Key。创建或修改时可传；留空或传 ******** 表示保留原 Key。工具结果不会回显明文 Key。"},
-		"default_model": map[string]any{"type": "string", "description": "默认模型名称，例如 gpt-4o-mini、doubao-seed-1-6、qwen3-coder"},
-		"models":        map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "可选模型列表。也兼容传入逗号或换行分隔字符串。"},
-		"timeout_ms":    map[string]any{"type": "integer", "description": "请求超时毫秒，默认 120000"},
-		"enabled":       map[string]any{"type": "boolean", "description": "是否启用供应商，默认 true"},
+		"id":                       map[string]any{"type": "string", "description": "供应商 id；存在则编辑，不存在则创建；为空时创建并自动生成"},
+		"name":                     map[string]any{"type": "string", "description": "供应商显示名称，例如 OpenAI、Volc Ark、Ollama、LM Studio"},
+		"base_url":                 map[string]any{"type": "string", "description": "OpenAI 兼容 Base URL，例如 https://api.openai.com/v1 或 http://127.0.0.1:11434/v1"},
+		"api_key":                  map[string]any{"type": "string", "description": "兼容旧单 Key 参数。传入后会写入/更新当前 Key；留空或 ******** 表示保留。推荐改用 api_keys。"},
+		"default_model":            map[string]any{"type": "string", "description": "默认模型名称，例如 gpt-4o-mini、doubao-seed-1-6、qwen3-coder"},
+		"models":                   map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "可选模型列表。也兼容传入逗号或换行分隔字符串。"},
+		"timeout_ms":               map[string]any{"type": "integer", "description": "请求超时毫秒，默认 120000"},
+		"enabled":                  map[string]any{"type": "boolean", "description": "是否启用供应商，默认 true"},
+		"key_strategy":             map[string]any{"type": "string", "enum": []string{"auto", "manual"}, "description": "Key 选择策略。auto=优先 selected_key_id，失败/不可用时按 priority 选择其他启用 Key；manual=只使用 selected_key_id。默认 auto。"},
+		"selected_key_id":          map[string]any{"type": "string", "description": "当前选中的 Key id。manual 策略必须有效；auto 策略下会优先使用它。"},
+		"api_keys":                 map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": keyProps}, "description": "同一供应商的多个 Key。结果只返回 has_api_key/api_key_masked 和测试状态，不返回明文。"},
+		"set_as_workspace_default": map[string]any{"type": "boolean", "description": "保存后是否设为当前工作空间默认供应商"},
+		"workspace_model":          map[string]any{"type": "string", "description": "设为当前工作空间默认供应商时使用的模型；为空用 default_model"},
 	}
 	return []mcp.MCPTool{
 		{
@@ -39,32 +52,24 @@ func builtinModelProviderTools() []mcp.MCPTool {
 			Name:        "model_providers_list",
 			FullName:    builtinToolListModelProviders,
 			Title:       "查询模型供应商",
-			Description: "查询全局模型供应商。可传 id 精确查询，或传 query 按名称、Base URL、模型名模糊过滤。结果只返回 has_api_key 和掩码，不返回明文 API Key。",
+			Description: "查询全局模型供应商。可传 id 精确查询，或传 query 按名称、Base URL、模型名模糊过滤。结果只返回 has_api_key/api_key_masked 和 key 状态，不返回明文 API Key。",
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string"}, "query": map[string]any{"type": "string"}}},
 		},
 		{
 			Server:      builtinToolServerModelProviders,
-			Name:        "model_provider_create",
-			FullName:    builtinToolCreateModelProvider,
-			Title:       "新增模型供应商",
-			Description: "新增一个全局 OpenAI 兼容模型供应商。适合用户提供 Base URL、API Key、默认模型后使用。创建后不会自动切换当前工作空间，若要切换请再调用 chatdock_workspace_model_provider_set。",
-			InputSchema: map[string]any{"type": "object", "properties": mergeSchemaProps(map[string]any{"id": map[string]any{"type": "string", "description": "可选供应商 id；为空时自动按名称或域名生成"}}, providerProps), "required": []string{"name", "base_url", "default_model"}},
+			Name:        "model_provider_save",
+			FullName:    builtinToolSaveModelProvider,
+			Title:       "保存模型供应商",
+			Description: "新增或编辑 OpenAI 兼容模型供应商；也可启用/停用、设置当前工作空间默认供应商，并在 api_keys 中维护多个 Key。",
+			InputSchema: map[string]any{"type": "object", "properties": providerProps},
 		},
 		{
 			Server:      builtinToolServerModelProviders,
-			Name:        "model_provider_update",
-			FullName:    builtinToolUpdateModelProvider,
-			Title:       "编辑模型供应商",
-			Description: "按 id 编辑全局模型供应商。未传字段会保留原值；api_key 留空或传 ******** 会保留原 Key。",
-			InputSchema: map[string]any{"type": "object", "properties": mergeSchemaProps(map[string]any{"id": map[string]any{"type": "string", "description": "要编辑的供应商 id"}}, providerProps), "required": []string{"id"}},
-		},
-		{
-			Server:      builtinToolServerModelProviders,
-			Name:        "model_provider_set_enabled",
-			FullName:    builtinToolSetModelProviderEnabled,
-			Title:       "启用或停用模型供应商",
-			Description: "按 id 启用或停用全局模型供应商。启用不会自动切换当前工作空间；需要切换默认供应商时调用 chatdock_workspace_model_provider_set。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "供应商 id"}, "enabled": map[string]any{"type": "boolean", "description": "true=启用，false=停用"}}, "required": []string{"id", "enabled"}},
+			Name:        "model_provider_test",
+			FullName:    builtinToolTestModelProvider,
+			Title:       "测试模型供应商",
+			Description: "测试供应商连接。selected_key_id 有值时只测指定 Key；all_keys=true 时测试所有启用 Key；fetch_models=true 请求 /models；save_models=true 保存模型列表。成功的 Key 会记录 last_status=ok 并设为 selected_key_id。",
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "供应商 id"}, "model": map[string]any{"type": "string", "description": "可选，临时测试的模型名"}, "selected_key_id": map[string]any{"type": "string", "description": "只测试指定 Key"}, "all_keys": map[string]any{"type": "boolean", "description": "测试所有启用 Key"}, "fetch_models": map[string]any{"type": "boolean", "description": "请求 /models 并返回模型列表"}, "save_models": map[string]any{"type": "boolean", "description": "将成功获取的模型列表保存回供应商"}}, "required": []string{"id"}},
 		},
 		{
 			Server:      builtinToolServerModelProviders,
@@ -74,36 +79,12 @@ func builtinModelProviderTools() []mcp.MCPTool {
 			Description: "按 id 删除全局模型供应商。删除前必须确认用户明确要求删除；正在被工作空间使用或最后一个供应商不能删除。",
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "要删除的供应商 id"}}, "required": []string{"id"}},
 		},
-		{
-			Server:      builtinToolServerModelProviders,
-			Name:        "model_provider_test",
-			FullName:    builtinToolTestModelProvider,
-			Title:       "测试模型供应商",
-			Description: "按 id 测试全局模型供应商的 chat/completions 连接。可传 model 覆盖默认模型。不会回显 API Key。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "供应商 id"}, "model": map[string]any{"type": "string", "description": "可选，临时测试的模型名"}}, "required": []string{"id"}},
-		},
-		{
-			Server:      builtinToolServerModelProviders,
-			Name:        "model_provider_models",
-			FullName:    builtinToolListModelProviderModels,
-			Title:       "获取供应商模型列表",
-			Description: "按 id 请求供应商 /models 接口。save=true 时会把返回模型列表保存到该供应商。不会回显 API Key。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "供应商 id"}, "save": map[string]any{"type": "boolean", "description": "是否保存返回的模型列表，默认 false"}}, "required": []string{"id"}},
-		},
-		{
-			Server:      builtinToolServerModelProviders,
-			Name:        "workspace_model_provider_set",
-			FullName:    builtinToolSetWorkspaceModelProvider,
-			Title:       "设置当前工作空间默认供应商",
-			Description: "把当前工作空间默认模型切换到指定全局供应商和模型。只影响当前工作空间，不会修改供应商连接信息。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"provider_id": map[string]any{"type": "string", "description": "全局供应商 id"}, "model": map[string]any{"type": "string", "description": "可选模型名；为空时使用供应商默认模型"}}, "required": []string{"provider_id"}},
-		},
 	}
 }
 
 func isBuiltinModelProviderTool(name string) bool {
 	switch name {
-	case builtinToolListModelProviders, builtinToolCreateModelProvider, builtinToolUpdateModelProvider, builtinToolSetModelProviderEnabled, builtinToolDeleteModelProvider, builtinToolTestModelProvider, builtinToolListModelProviderModels, builtinToolSetWorkspaceModelProvider:
+	case builtinToolListModelProviders, builtinToolSaveModelProvider, builtinToolCreateModelProvider, builtinToolUpdateModelProvider, builtinToolSetModelProviderEnabled, builtinToolDeleteModelProvider, builtinToolTestModelProvider, builtinToolListModelProviderModels, builtinToolSetWorkspaceModelProvider:
 		return true
 	default:
 		return false
@@ -114,42 +95,15 @@ func (a *App) callBuiltinModelProviderTool(ctx context.Context, name string, arg
 	switch name {
 	case builtinToolListModelProviders:
 		return a.builtinListModelProviders(args)
+	case builtinToolSaveModelProvider:
+		return a.builtinSaveModelProvider(args)
 	case builtinToolCreateModelProvider:
-		input, err := modelProviderInputFromArgs(args, nil)
-		if err != nil {
-			return nil, err
-		}
-		provider, err := a.store.CreateModelProvider(input)
-		if err != nil {
-			return nil, err
-		}
-		if !input.Enabled {
-			disabledInput := modelProviderInputFromProvider(provider)
-			disabledInput.Enabled = false
-			provider, err = a.store.UpdateModelProvider(provider.ID, disabledInput)
-			if err != nil {
-				return nil, err
-			}
-		}
-		return map[string]any{"ok": true, "provider": provider, "secret_handling": "api_key 已保存但不会回显。"}, nil
+		return a.builtinSaveModelProvider(args)
 	case builtinToolUpdateModelProvider:
-		id, err := requiredStringArg(args, "id")
-		if err != nil {
-			return nil, err
+		if _, ok := args["id"]; !ok {
+			return nil, fmt.Errorf("id is required")
 		}
-		previous, err := a.findModelProvider(id)
-		if err != nil {
-			return nil, err
-		}
-		input, err := modelProviderInputFromArgs(args, &previous)
-		if err != nil {
-			return nil, err
-		}
-		provider, err := a.store.UpdateModelProvider(id, input)
-		if err != nil {
-			return nil, err
-		}
-		return map[string]any{"ok": true, "provider": provider, "secret_handling": "api_key 已保存但不会回显。"}, nil
+		return a.builtinSaveModelProvider(args)
 	case builtinToolSetModelProviderEnabled:
 		id, err := requiredStringArg(args, "id")
 		if err != nil {
@@ -165,7 +119,7 @@ func (a *App) callBuiltinModelProviderTool(ctx context.Context, name string, arg
 		}
 		input := modelProviderInputFromProvider(previous)
 		input.Enabled = enabled
-		provider, err := a.store.UpdateModelProvider(id, input)
+		provider, err := a.store.UpdateModelProvider(previous.ID, input)
 		if err != nil {
 			return nil, err
 		}
@@ -180,70 +134,157 @@ func (a *App) callBuiltinModelProviderTool(ctx context.Context, name string, arg
 		}
 		return map[string]any{"ok": true, "deleted_id": id}, nil
 	case builtinToolTestModelProvider:
-		cfg, provider, err := a.modelProviderConfigFromArgs(args)
-		if err != nil {
-			return nil, err
-		}
-		ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-		defer cancel()
-		if err := a.client.TestModelProvider(ctx, cfg); err != nil {
-			return map[string]any{"ok": false, "provider_id": provider.ID, "model": cfg.Model, "error": err.Error()}, nil
-		}
-		return map[string]any{"ok": true, "provider_id": provider.ID, "model": cfg.Model}, nil
+		return a.builtinTestModelProvider(ctx, args)
 	case builtinToolListModelProviderModels:
-		cfg, provider, err := a.modelProviderConfigFromArgs(args)
-		if err != nil {
-			return nil, err
+		if save, ok := optionalBoolArg(args, "save"); ok {
+			args["save_models"] = save
 		}
-		ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-		defer cancel()
-		models, err := a.client.ListModels(ctx, cfg)
-		if err != nil {
-			return map[string]any{"ok": false, "provider_id": provider.ID, "error": err.Error(), "models": []string{}}, nil
-		}
-		result := map[string]any{"ok": true, "provider_id": provider.ID, "models": models, "count": len(models)}
-		if save, ok := optionalBoolArg(args, "save"); ok && save {
-			input := modelProviderInputFromProvider(provider)
-			input.Models = models
-			if input.DefaultModel == "" && len(models) > 0 {
-				input.DefaultModel = models[0]
-			}
-			updated, err := a.store.UpdateModelProvider(provider.ID, input)
-			if err != nil {
-				return nil, err
-			}
-			result["saved"] = true
-			result["provider"] = updated
-		}
-		return result, nil
+		args["fetch_models"] = true
+		return a.builtinTestModelProvider(ctx, args)
 	case builtinToolSetWorkspaceModelProvider:
 		providerID, err := requiredStringArg(args, "provider_id")
 		if err != nil {
 			return nil, err
 		}
-		provider, err := a.findModelProvider(providerID)
+		workspace, err := a.setWorkspaceModelProvider(providerID, strings.TrimSpace(stringArg(args, "model")))
 		if err != nil {
 			return nil, err
 		}
-		if !provider.Enabled {
-			return nil, fmt.Errorf("model provider is disabled: %s", provider.ID)
-		}
-		cfg := a.store.GetModelConfig()
-		cfg.ProviderID = provider.ID
-		modelName := strings.TrimSpace(stringArg(args, "model"))
-		if modelName == "" {
-			modelName = provider.DefaultModel
-		}
-		cfg.Model = modelName
-		cfg.Models = append([]string(nil), provider.Models...)
-		saved, err := a.store.SaveModelConfig(cfg)
-		if err != nil {
-			return nil, err
-		}
-		return map[string]any{"ok": true, "workspace": a.store.ActivePrompt(), "provider_id": saved.ProviderID, "model": saved.Model}, nil
+		return workspace, nil
 	default:
 		return nil, fmt.Errorf("unknown builtin model provider tool: %s", name)
 	}
+}
+
+func (a *App) builtinSaveModelProvider(args map[string]any) (map[string]any, error) {
+	id := strings.TrimSpace(stringArg(args, "id"))
+	var previous *store.ModelProvider
+	if id != "" {
+		if found, err := a.findModelProvider(id); err == nil {
+			previous = &found
+		}
+	}
+	input, err := modelProviderInputFromArgs(args, previous)
+	if err != nil {
+		return nil, err
+	}
+	var provider store.ModelProvider
+	if previous != nil {
+		provider, err = a.store.UpdateModelProvider(previous.ID, input)
+	} else {
+		provider, err = a.store.CreateModelProvider(input)
+		if err == nil && !input.Enabled {
+			disabledInput := modelProviderInputFromProvider(provider)
+			disabledInput.Enabled = false
+			provider, err = a.store.UpdateModelProvider(provider.ID, disabledInput)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	result := map[string]any{"ok": true, "provider": provider, "secret_handling": "api_key/api_keys 已保存但不会回显；结果只包含 has_api_key/api_key_masked。"}
+	if setDefault, ok := optionalBoolArg(args, "set_as_workspace_default"); ok && setDefault {
+		workspaceModel := strings.TrimSpace(stringArg(args, "workspace_model"))
+		workspace, err := a.setWorkspaceModelProvider(provider.ID, workspaceModel)
+		if err != nil {
+			return nil, err
+		}
+		result["workspace"] = workspace
+	}
+	return result, nil
+}
+
+func (a *App) builtinTestModelProvider(ctx context.Context, args map[string]any) (map[string]any, error) {
+	id, err := requiredStringArg(args, "id")
+	if err != nil {
+		return nil, err
+	}
+	selectedKeyID := strings.TrimSpace(stringArg(args, "selected_key_id"))
+	allKeys, _ := optionalBoolArg(args, "all_keys")
+	fetchModels, _ := optionalBoolArg(args, "fetch_models")
+	saveModels, _ := optionalBoolArg(args, "save_models")
+	if saveModels {
+		fetchModels = true
+	}
+	modelName := strings.TrimSpace(stringArg(args, "model"))
+	keyConfigs, provider, err := a.store.ModelProviderKeyConfigs(id, selectedKeyID, modelName, allKeys)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 25*time.Second)
+	defer cancel()
+
+	keyResults := make([]map[string]any, 0, len(keyConfigs))
+	var savedProvider *store.ModelProvider
+	var savedModels []string
+	okAny := false
+	selectedSuccess := false
+	for _, item := range keyConfigs {
+		cfg := item.Config
+		cfg.SystemPrompt = "你是 ChatDock 的模型供应商连通性测试助手。请只回复 OK。"
+		result := map[string]any{"key_id": item.KeyID, "key_name": item.KeyName, "model": cfg.Model}
+		var models []string
+		var testErr error
+		if fetchModels {
+			models, testErr = a.client.ListModels(ctx, cfg)
+			if testErr == nil {
+				result["models"] = models
+				result["count"] = len(models)
+			}
+		} else {
+			testErr = a.client.TestModelProvider(ctx, cfg)
+		}
+		if testErr != nil {
+			result["ok"] = false
+			result["error"] = testErr.Error()
+			if item.KeyID != "" {
+				_, _ = a.store.MarkModelProviderKeyTestResult(provider.ID, item.KeyID, false, testErr.Error(), false)
+			}
+			keyResults = append(keyResults, result)
+			continue
+		}
+		result["ok"] = true
+		okAny = true
+		if item.KeyID != "" {
+			selectThis := !selectedSuccess
+			updated, _ := a.store.MarkModelProviderKeyTestResult(provider.ID, item.KeyID, true, "", selectThis)
+			if selectThis {
+				selectedSuccess = true
+				savedProvider = &updated
+			}
+		}
+		if saveModels && len(models) > 0 && len(savedModels) == 0 {
+			updated, err := a.store.UpdateModelProviderModels(provider.ID, models)
+			if err != nil {
+				return nil, err
+			}
+			savedProvider = &updated
+			savedModels = models
+			result["saved"] = true
+		}
+		keyResults = append(keyResults, result)
+	}
+	response := map[string]any{"ok": okAny, "provider_id": provider.ID, "model": modelName, "key_results": keyResults}
+	if modelName == "" {
+		response["model"] = provider.DefaultModel
+	}
+	if len(keyResults) == 1 {
+		for k, v := range keyResults[0] {
+			if k != "key_id" && k != "key_name" {
+				response[k] = v
+			}
+		}
+		response["selected_key_id"] = keyResults[0]["key_id"]
+	}
+	if len(savedModels) > 0 {
+		response["saved"] = true
+		response["models"] = savedModels
+		response["count"] = len(savedModels)
+	}
+	if savedProvider != nil {
+		response["provider"] = *savedProvider
+	}
+	return response, nil
 }
 
 func (a *App) builtinListModelProviders(args map[string]any) (map[string]any, error) {
@@ -286,31 +327,30 @@ func (a *App) findModelProvider(id string) (store.ModelProvider, error) {
 	return store.ModelProvider{}, fmt.Errorf("model provider not found: %s", id)
 }
 
-func (a *App) modelProviderConfigFromArgs(args map[string]any) (model.ModelConfig, store.ModelProvider, error) {
-	id, err := requiredStringArg(args, "id")
+func (a *App) setWorkspaceModelProvider(providerID string, modelName string) (map[string]any, error) {
+	provider, err := a.findModelProvider(providerID)
 	if err != nil {
-		return model.ModelConfig{}, store.ModelProvider{}, err
+		return nil, err
 	}
-	provider, err := a.findModelProvider(id)
+	if !provider.Enabled {
+		return nil, fmt.Errorf("model provider is disabled: %s", provider.ID)
+	}
+	cfg := a.store.GetModelConfig()
+	cfg.ProviderID = provider.ID
+	if strings.TrimSpace(modelName) == "" {
+		modelName = provider.DefaultModel
+	}
+	cfg.Model = strings.TrimSpace(modelName)
+	cfg.Models = append([]string(nil), provider.Models...)
+	saved, err := a.store.SaveModelConfig(cfg)
 	if err != nil {
-		return model.ModelConfig{}, store.ModelProvider{}, err
+		return nil, err
 	}
-	cfg, ok, err := a.store.ModelProviderConfig(provider.ID)
-	if err != nil {
-		return model.ModelConfig{}, store.ModelProvider{}, err
-	}
-	if !ok {
-		return model.ModelConfig{}, store.ModelProvider{}, fmt.Errorf("model provider not found: %s", provider.ID)
-	}
-	if modelName := strings.TrimSpace(stringArg(args, "model")); modelName != "" {
-		cfg.Model = modelName
-	}
-	cfg.SystemPrompt = "你是 ChatDock 的模型供应商连通性测试助手。请只回复 OK。"
-	return model.NormalizeModelConfig(cfg), provider, nil
+	return map[string]any{"ok": true, "workspace": a.store.ActivePrompt(), "provider_id": saved.ProviderID, "model": saved.Model}, nil
 }
 
 func modelProviderInputFromArgs(args map[string]any, previous *store.ModelProvider) (store.ModelProviderInput, error) {
-	input := store.ModelProviderInput{Type: "openai-compatible", Enabled: true, TimeoutMS: 120000}
+	input := store.ModelProviderInput{Type: "openai-compatible", Enabled: true, TimeoutMS: 120000, KeyStrategy: "auto"}
 	if previous != nil {
 		input = modelProviderInputFromProvider(*previous)
 	}
@@ -340,6 +380,17 @@ func modelProviderInputFromArgs(args map[string]any, previous *store.ModelProvid
 	if value, ok := optionalBoolArg(args, "enabled"); ok {
 		input.Enabled = value
 	}
+	if value, ok := optionalStringArg(args, "key_strategy"); ok {
+		input.KeyStrategy = strings.ToLower(value)
+	}
+	if value, ok := optionalStringArg(args, "selected_key_id"); ok {
+		input.SelectedKeyID = value
+	}
+	if apiKeys, ok, err := optionalAPIKeyInputsArg(args, "api_keys"); err != nil {
+		return store.ModelProviderInput{}, err
+	} else if ok {
+		input.APIKeys = apiKeys
+	}
 	if strings.TrimSpace(input.Name) == "" {
 		return store.ModelProviderInput{}, fmt.Errorf("name is required")
 	}
@@ -353,16 +404,24 @@ func modelProviderInputFromArgs(args map[string]any, previous *store.ModelProvid
 }
 
 func modelProviderInputFromProvider(provider store.ModelProvider) store.ModelProviderInput {
+	keys := make([]store.ModelProviderAPIKeyInput, 0, len(provider.APIKeys))
+	for _, key := range provider.APIKeys {
+		enabled := key.Enabled
+		keys = append(keys, store.ModelProviderAPIKeyInput{ID: key.ID, Name: key.Name, APIKey: "********", Enabled: &enabled, Priority: key.Priority})
+	}
 	return store.ModelProviderInput{
-		ID:           provider.ID,
-		Name:         provider.Name,
-		Type:         provider.Type,
-		BaseURL:      provider.BaseURL,
-		APIKey:       "********",
-		DefaultModel: provider.DefaultModel,
-		Models:       append([]string(nil), provider.Models...),
-		TimeoutMS:    provider.TimeoutMS,
-		Enabled:      provider.Enabled,
+		ID:            provider.ID,
+		Name:          provider.Name,
+		Type:          provider.Type,
+		BaseURL:       provider.BaseURL,
+		APIKey:        "********",
+		DefaultModel:  provider.DefaultModel,
+		Models:        append([]string(nil), provider.Models...),
+		TimeoutMS:     provider.TimeoutMS,
+		Enabled:       provider.Enabled,
+		KeyStrategy:   provider.KeyStrategy,
+		SelectedKeyID: provider.SelectedKeyID,
+		APIKeys:       keys,
 	}
 }
 
@@ -398,4 +457,42 @@ func optionalStringSliceArg(args map[string]any, key string) ([]string, bool) {
 		add(fmt.Sprint(v))
 	}
 	return out, true
+}
+
+func optionalAPIKeyInputsArg(args map[string]any, key string) ([]store.ModelProviderAPIKeyInput, bool, error) {
+	value, ok := args[key]
+	if !ok || value == nil {
+		return nil, false, nil
+	}
+	items, ok := value.([]any)
+	if !ok {
+		return nil, true, fmt.Errorf("%s must be array", key)
+	}
+	out := make([]store.ModelProviderAPIKeyInput, 0, len(items))
+	for idx, item := range items {
+		raw, ok := item.(map[string]any)
+		if !ok {
+			return nil, true, fmt.Errorf("%s[%d] must be object", key, idx)
+		}
+		input := store.ModelProviderAPIKeyInput{}
+		if value, ok := optionalStringArg(raw, "id"); ok {
+			input.ID = value
+		}
+		if value, ok := optionalStringArg(raw, "name"); ok {
+			input.Name = value
+		}
+		if value, ok := optionalStringArg(raw, "api_key"); ok {
+			input.APIKey = value
+		}
+		if enabled, ok := optionalBoolArg(raw, "enabled"); ok {
+			input.Enabled = &enabled
+		}
+		if priority, ok, err := optionalIntArg(raw, "priority"); err != nil {
+			return nil, true, err
+		} else if ok {
+			input.Priority = priority
+		}
+		out = append(out, input)
+	}
+	return out, true, nil
 }
