@@ -52,6 +52,10 @@ func NewStore(dataDir string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("migrate legacy data: %w", err)
 	}
+	if err := store.EnsureGlobalModelProviders(); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("ensure global model providers: %w", err)
+	}
 	if err := store.MarkRunningChatJobsInterrupted(); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("mark running chat jobs interrupted: %w", err)

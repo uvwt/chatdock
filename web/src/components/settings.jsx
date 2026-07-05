@@ -5,7 +5,7 @@ import { settingsModules, diagnosticsText, fmtBytes, fmtDuration, fmtRelativeAge
 
 export function SettingsPanel(props) {
   const {
-    activeModule, busy, closeSettings, config, continueAgentTask, createWorkspace, dataStatus, deleteScheduledTask, deleteSkill, deleteWorkspace,
+    activeModule, busy, closeSettings, config, continueAgentTask, createWorkspace, dataStatus, deleteScheduledTask, deleteSkill, deleteWorkspace, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
     editScheduledTask, editSkill, loadAgentTasks, loadDataStatus, loadMCPConfig, loadMCPStatus, loadRuns, loadScheduledTasks, loadSkills,
     loadSystemStatus, logout, mcpConfig, mcpStatus, onCopy, providers, promptPreview, refreshProductState, refreshVisibleSettings, runScheduledTaskNow, viewScheduledTaskRuns, openScheduledTaskSession, runSetupWizard,
     runs, saveConfig, saveMCPConfig, scheduledTasks, selectWorkspace, setConfig, setMcpConfig, setSkillSearch, setTaskSearch, setupStatus,
@@ -24,7 +24,7 @@ export function SettingsPanel(props) {
     <div className="settings-header"><div><h2>配置中心</h2><p>工作空间、模型、技能、工具和数据状态统一管理。</p></div><div className="settings-header-actions"><button className="secondary small" onClick={() => closeSettings()}>返回对话</button><button className="secondary small" onClick={refreshVisibleSettings || refreshProductState}>刷新</button></div></div>
     <div className="module-tabs">{settingsModules.map(m => <button key={m} className={'module-tab ' + (activeModule === m ? 'active' : '')} onClick={() => switchSettingsModule(m)}>{moduleLabel(m)}</button>)}</div>
     <ModuleView name="workspace" activeModule={activeModule}><WorkspaceModule setupStatus={setupStatus} workspaces={workspaces} createWorkspace={createWorkspace} selectWorkspace={selectWorkspace} deleteWorkspace={deleteWorkspace} runSetupWizard={runSetupWizard} /></ModuleView>
-    <ModuleView name="model" activeModule={activeModule}><ModelModule config={config} setConfig={setConfig} saveConfig={saveConfig} showPromptPreview={showPromptPreview} promptPreview={promptPreview} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} loadingModels={loadingModels} providers={providers} /></ModuleView>
+    <ModuleView name="model" activeModule={activeModule}><ModelModule config={config} setConfig={setConfig} saveConfig={saveConfig} showPromptPreview={showPromptPreview} promptPreview={promptPreview} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} loadingModels={loadingModels} providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} /></ModuleView>
     <ModuleView name="skills" activeModule={activeModule}><div className="settings-block-head"><label>技能库（当前工作空间）</label><button className="secondary small" onClick={() => editSkill()}>新增技能</button></div><input className="session-search" placeholder="搜索技能" value={skillSearch} onChange={e => setSkillSearch(e.target.value)} /><div className="skills-list">{filteredSkills.length ? filteredSkills.map(s => <SkillCard key={s.id} skill={s} editSkill={editSkill} deleteSkill={deleteSkill} toggleSkill={toggleSkill} />) : <div className="hint">暂无技能。技能会作为当前工作空间的补充系统指令注入模型请求。</div>}</div><div className="settings-actions"><button className="secondary" onClick={loadSkills}>刷新技能</button></div></ModuleView>
     <ModuleView name="tools" activeModule={activeModule}><ToolsModule mcpStatus={mcpStatus} mcpConfig={mcpConfig} setMcpConfig={setMcpConfig} saveMCPConfig={saveMCPConfig} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} /></ModuleView>
     <ModuleView name="runs" activeModule={activeModule}><div className="settings-block-head"><label>MCP 执行记录</label><button className="secondary small" onClick={loadRuns}>刷新</button></div>{runs.length ? runs.map(r => <RunCard key={r.id} run={r} />) : <div className="empty compact">还没有 MCP 执行记录。</div>}</ModuleView>
@@ -94,40 +94,44 @@ function WorkspaceModule({ setupStatus, workspaces, createWorkspace, selectWorks
   </>;
 }
 
-function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptPreview, testModelProvider, fetchProviderModels, availableModels, loadingModels, providers }) {
+function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptPreview, testModelProvider, fetchProviderModels, availableModels, loadingModels, providers, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels }) {
   const update = (key, value) => setConfig(c => ({...c, [key]: value}));
+  const providerModels = (provider) => normalizeModelNames([...(provider?.models || []), provider?.default_model].filter(Boolean));
+  const activeProvider = providers.find(p => p.id === config.provider_id) || providers[0] || null;
+  const chooseProvider = (id) => setConfig(c => {
+    const provider = providers.find(p => p.id === id) || providers[0] || null;
+    const models = providerModels(provider);
+    const model = models.includes(c.model) ? c.model : (provider?.default_model || models[0] || c.model || '');
+    return {...c, provider_id: provider?.id || '', base_url: provider?.base_url || '', has_api_key: !!provider?.has_api_key, model, models};
+  });
   const chooseModel = (name) => setConfig(c => {
     const models = normalizeModelNames([...(c.models || []), name]);
     return {...c, model: name, models};
   });
-  const updateModels = (value) => setConfig(c => {
-    const models = normalizeModelNames(value);
-    const model = models.includes(c.model) ? c.model : (models[0] || c.model);
-    return {...c, model, models};
-  });
   const contextMode = config.context_mode || 'auto';
   let endpointLabel = '未配置';
-  try { endpointLabel = config.base_url ? new URL(config.base_url).host : '未配置'; } catch { endpointLabel = config.base_url || '未配置'; }
+  try { endpointLabel = activeProvider?.base_url ? new URL(activeProvider.base_url).host : (config.base_url ? new URL(config.base_url).host : '未配置'); } catch { endpointLabel = activeProvider?.base_url || config.base_url || '未配置'; }
   const thinkingLabel = config.hide_thinking ? '隐藏思考' : (config.enable_thinking ? '显示思考' : '未启用');
   let embeddingEndpointLabel = '未配置';
   try { embeddingEndpointLabel = config.embedding_base_url ? new URL(config.embedding_base_url).host : '未配置'; } catch { embeddingEndpointLabel = config.embedding_base_url || '未配置'; }
+  const selectedProviderModels = providerModels(activeProvider);
   return <>
-    <div className="settings-block-head model-page-head"><label>当前工作空间模型</label><span className="hint">先看概览，再改连接、模型和上下文。</span></div>
+    <div className="settings-block-head model-page-head"><label>当前工作空间模型</label><span className="hint">工作空间只保存默认供应商和模型；供应商本身是全局配置。</span></div>
     <div className="model-summary-grid">
-      <div className="model-summary-card"><span>接口</span><b>{endpointLabel}</b><small>{config.has_api_key ? 'API Key 已保存' : 'API Key 未保存'}</small></div>
-      <div className="model-summary-card"><span>模型</span><b>{config.model || '未选择模型'}</b><small>{contextMode === 'auto' ? '上下文自动管理' : '上下文：' + contextMode}</small></div>
+      <div className="model-summary-card"><span>供应商</span><b>{activeProvider?.name || '未选择供应商'}</b><small>{endpointLabel}</small></div>
+      <div className="model-summary-card"><span>模型</span><b>{config.model || activeProvider?.default_model || '未选择模型'}</b><small>{contextMode === 'auto' ? '上下文自动管理' : '上下文：' + contextMode}</small></div>
       <div className="model-summary-card"><span>思考</span><b>{thinkingLabel}</b><small>{config.hide_thinking ? '完全不展示思考内容' : '输出完成后默认折叠'}</small></div>
       <div className="model-summary-card"><span>工具搜索</span><b>{embeddingEndpointLabel}</b><small>{config.embedding_base_url ? 'M3 混合搜索' : '关键词搜索'} · {config.has_embedding_api_key ? 'Key 已保存' : 'Key 未保存'}</small></div>
     </div>
 
     <section className="settings-section model-section">
-      <div className="settings-section-head"><div><b>连接与模型</b><p>配置兼容 OpenAI 的接口、密钥和模型名称。</p></div><button className="secondary small" onClick={fetchProviderModels} disabled={loadingModels}>{loadingModels ? '获取中…' : '获取模型列表'}</button></div>
+      <div className="settings-section-head"><div><b>工作空间默认模型</b><p>选择当前工作空间默认使用的全局供应商和模型。</p></div><button className="secondary small" onClick={fetchProviderModels} disabled={loadingModels || !activeProvider}>{loadingModels ? '获取中…' : '获取当前供应商模型'}</button></div>
       <div className="settings-form-grid">
-        <label>Base URL<input value={config.base_url} onChange={e => update('base_url', e.target.value)} placeholder="https://api.openai.com/v1" /></label>
-        <label>API Key<input type="password" value={config.api_key} onChange={e => update('api_key', e.target.value)} placeholder={config.has_api_key ? '已保存，留空不修改' : '未设置'} /></label>
-        <label>默认模型<input value={config.model} onChange={e => chooseModel(e.target.value)} placeholder="gpt-4o-mini" /></label><label className="model-field-wide">可选模型（每行一个）<textarea className="model-list-editor" rows={4} value={modelListText(config)} onChange={e => updateModels(e.target.value)} placeholder={"gpt-4o-mini\ngpt-4.1-mini"} /></label>
+        <label>默认供应商<select value={activeProvider?.id || ''} onChange={e => chooseProvider(e.target.value)}>{providers.length ? providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>) : <option value="">未配置供应商</option>}</select></label>
+        <label>默认模型<input value={config.model || ''} onChange={e => chooseModel(e.target.value)} placeholder={activeProvider?.default_model || 'gpt-4o-mini'} /></label>
       </div>
-      {availableModels.length ? <div className="model-options">{availableModels.map(name => <button key={name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => chooseModel(name)}>{name}</button>)}</div> : <div className="hint">填写 Base URL 和 API Key 后，可从接口获取可用模型名称。</div>}
+      {selectedProviderModels.length ? <div className="model-options">{selectedProviderModels.map(name => <button key={name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => chooseModel(name)}>{name}</button>)}</div> : <div className="hint">还没有模型列表，可以在下方供应商卡片里获取模型列表，或手动输入模型名。</div>}
+      {availableModels.length ? <div className="model-options">{availableModels.map(name => <button key={'fetched-' + name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => chooseModel(name)}>{name}</button>)}</div> : null}
     </section>
 
     <section className="settings-section model-section">
@@ -148,12 +152,12 @@ function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptP
       <div className="thinking-options"><label className="check-row"><input type="checkbox" checked={!!config.enable_thinking} onChange={e => update('enable_thinking', e.target.checked)} /> 启用模型思考</label><label className="check-row"><input type="checkbox" checked={!!config.hide_thinking} onChange={e => update('hide_thinking', e.target.checked)} /> 隐藏思考内容</label></div>
     </section>
 
-    <div className="settings-actions model-primary-actions"><button onClick={saveConfig}>保存模型设置</button><button className="secondary" onClick={showPromptPreview}>查看最终 Prompt</button><button className="secondary" onClick={testModelProvider}>测试连接</button></div>
+    <div className="settings-actions model-primary-actions"><button onClick={saveConfig}>保存工作空间默认模型</button><button className="secondary" onClick={showPromptPreview}>查看最终 Prompt</button><button className="secondary" onClick={testModelProvider}>测试当前默认供应商</button></div>
     {promptPreview ? <pre className="code-preview">{promptPreview}</pre> : null}
 
     <section className="settings-section provider-section">
-      <div className="settings-section-head"><div><b>模型供应商</b><p>来自各工作空间的供应商配置，仅展示摘要，避免误改密钥。</p></div></div>
-      <div className="provider-grid">{providers.length ? providers.map(p => <TextCard key={(p.workspace_id || '') + p.id} title={p.name || p.id} hint={p.base_url || '-'} badge={p.type || 'openai'}><div className="product-meta">默认模型：{p.default_model || '-'} · 模型 {p.models?.length || 0} 个 · Key：{p.has_api_key ? (p.api_key_masked || '******') : '未设置'} · 工作空间：{p.workspace_name || '-'}</div></TextCard>) : <div className="empty compact">还没有模型供应商配置。</div>}</div>
+      <div className="settings-section-head"><div><b>全局模型供应商</b><p>供应商全局共享；工作空间只引用默认供应商和模型。</p></div><button className="secondary small" onClick={() => editModelProvider(null)}>新增供应商</button></div>
+      <div className="provider-grid">{providers.length ? providers.map(p => <TextCard key={p.id} title={p.name || p.id} hint={p.base_url || '-'} badge={p.enabled ? (p.type || 'openai') : '停用'} active={p.id === config.provider_id}><div className="product-meta">默认模型：{p.default_model || '-'} · 模型 {p.models?.length || 0} 个 · Key：{p.has_api_key ? (p.api_key_masked || '******') : '未设置'}</div><div className="product-actions"><button className="secondary small" onClick={() => editModelProvider(p)}>编辑</button><button className="secondary small" onClick={() => testSavedModelProvider(p)}>测试</button><button className="secondary small" onClick={() => fetchSavedProviderModels(p)}>获取模型</button><button className="danger small" onClick={() => deleteModelProvider(p)}>删除</button></div></TextCard>) : <div className="empty compact">还没有模型供应商配置。</div>}</div>
     </section>
   </>;
 }

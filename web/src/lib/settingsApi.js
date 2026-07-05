@@ -4,6 +4,18 @@ export function fetchMCPConfig(api) { return api('/api/mcp-config'); }
 export function fetchSetupStatus(api) { return api('/api/setup/status'); }
 export function fetchWorkspaces(api) { return api('/api/workspaces'); }
 export function fetchModelProviders(api) { return api('/api/model-providers'); }
+
+export function createModelProvider(api, payload) {
+  return api('/api/model-providers', {method:'POST', body: JSON.stringify(payload)});
+}
+
+export function updateModelProvider(api, id, payload) {
+  return api('/api/model-providers/' + encodeURIComponent(id), {method:'PUT', body: JSON.stringify(payload)});
+}
+
+export function deleteModelProvider(api, id) {
+  return api('/api/model-providers/' + encodeURIComponent(id), {method:'DELETE'});
+}
 export function fetchSkills(api) { return api('/api/skills'); }
 export function fetchScheduledTasks(api) { return api('/api/scheduled-tasks'); }
 export function fetchScheduledTaskRuns(api, id) { return api('/api/scheduled-tasks/' + encodeURIComponent(id) + '/runs?limit=30'); }

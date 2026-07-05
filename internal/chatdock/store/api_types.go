@@ -21,20 +21,30 @@ type SetupInitRequest struct {
 }
 
 type ModelProvider struct {
-	ID            string    `json:"id"`
-	Name          string    `json:"name"`
-	Type          string    `json:"type"`
-	BaseURL       string    `json:"base_url"`
-	HasAPIKey     bool      `json:"has_api_key"`
-	APIKeyMasked  string    `json:"api_key_masked,omitempty"`
-	DefaultModel  string    `json:"default_model"`
-	Models        []string  `json:"models,omitempty"`
-	TimeoutMS     int       `json:"timeout_ms"`
-	Enabled       bool      `json:"enabled"`
-	WorkspaceID   string    `json:"workspace_id,omitempty"`
-	WorkspaceName string    `json:"workspace_name,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	Type         string    `json:"type"`
+	BaseURL      string    `json:"base_url"`
+	HasAPIKey    bool      `json:"has_api_key"`
+	APIKeyMasked string    `json:"api_key_masked,omitempty"`
+	DefaultModel string    `json:"default_model"`
+	Models       []string  `json:"models,omitempty"`
+	TimeoutMS    int       `json:"timeout_ms"`
+	Enabled      bool      `json:"enabled"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type ModelProviderInput struct {
+	ID           string   `json:"id,omitempty"`
+	Name         string   `json:"name"`
+	Type         string   `json:"type,omitempty"`
+	BaseURL      string   `json:"base_url"`
+	APIKey       string   `json:"api_key,omitempty"`
+	DefaultModel string   `json:"default_model"`
+	Models       []string `json:"models,omitempty"`
+	TimeoutMS    int      `json:"timeout_ms,omitempty"`
+	Enabled      bool     `json:"enabled"`
 }
 
 type Workspace struct {

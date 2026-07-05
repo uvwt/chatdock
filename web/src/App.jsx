@@ -6,7 +6,7 @@ import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtDuration, 
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
 import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessions, pinSession, renameSession, searchSessions, updateSessionModel } from './lib/sessionApi.js';
-import { createWorkspaceRecord, deleteScheduledTaskRecord, deleteSkillRecord, deleteWorkspaceRecord, fetchAgentTasks, fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchPrompts, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchRuns, fetchScheduledTaskRuns, fetchScheduledTasks, fetchSetupStatus, fetchSkills, fetchSystemStatus, fetchWorkspaces, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveSkillRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest } from './lib/settingsApi.js';
+import { createModelProvider as createModelProviderRequest, createWorkspaceRecord, deleteModelProvider as deleteModelProviderRequest, deleteScheduledTaskRecord, deleteSkillRecord, deleteWorkspaceRecord, fetchAgentTasks, fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchPrompts, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchRuns, fetchScheduledTaskRuns, fetchScheduledTasks, fetchSetupStatus, fetchSkills, fetchSystemStatus, fetchWorkspaces, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveSkillRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest, updateModelProvider as updateModelProviderRequest } from './lib/settingsApi.js';
 import { uploadFileRequest } from './lib/upload.js';
 
 function streamStatusText(stats, elapsed) {
@@ -35,11 +35,11 @@ function uniqueModelNames(value) {
 }
 
 function providerChoiceID(provider) {
-  return provider?.workspace_id || provider?.id || '';
+  return provider?.id || '';
 }
 
 function providerLabel(provider) {
-  return provider?.workspace_name || provider?.name || provider?.id || '供应商';
+  return provider?.name || provider?.id || '供应商';
 }
 
 function compactModelName(name) {
@@ -609,6 +609,7 @@ export default function App() {
   const loadConfig = useCallback(async () => {
     const c = await fetchConfig(api);
     setConfig({
+      provider_id: c.provider_id || '',
       base_url: c.base_url || '',
       api_key: '',
       model: c.model || '',
@@ -1227,12 +1228,12 @@ export default function App() {
     return { ...provider, choice_id: id, models };
   }).filter(provider => provider.choice_id && (provider.enabled || provider.models.length)), [providers]);
   const selectedModelProvider = useMemo(() => {
-    const activeID = activePrompt?.name || '';
+    const activeID = config.provider_id || '';
     return providerChoices.find(provider => provider.choice_id === chatModel.provider_id)
       || providerChoices.find(provider => provider.choice_id === activeID)
       || providerChoices[0]
       || null;
-  }, [activePrompt?.name, chatModel.provider_id, providerChoices]);
+  }, [chatModel.provider_id, config.provider_id, providerChoices]);
   const selectedChatModel = chatModel.model || selectedModelProvider?.default_model || selectedModelProvider?.models?.[0] || config.model || '';
   const selectedModelBaseURL = selectedModelProvider?.base_url || config.base_url || '';
 
@@ -1240,10 +1241,9 @@ export default function App() {
     if (!providerChoices.length) return;
     const stillValid = providerChoices.some(provider => provider.choice_id === chatModel.provider_id && (!chatModel.model || provider.models.includes(chatModel.model)));
     if (stillValid) return;
-    const activeID = activePrompt?.name || '';
-    const provider = providerChoices.find(item => item.choice_id === activeID) || providerChoices[0];
+    const provider = providerChoices.find(item => item.choice_id === (config.provider_id || '')) || providerChoices[0];
     setChatModel({ provider_id: provider.choice_id, model: provider.default_model || provider.models[0] || config.model || '' });
-  }, [activePrompt?.name, chatModel.model, chatModel.provider_id, config.model, providerChoices]);
+  }, [chatModel.model, chatModel.provider_id, config.model, config.provider_id, providerChoices]);
 
   const selectChatModel = useCallback((provider, modelName) => {
     const next = { provider_id: provider.choice_id, model: modelName };
@@ -1573,10 +1573,8 @@ export default function App() {
   const saveConfig = useCallback(async () => {
     const workspaceID = (prompts.find(p => p.active) || {}).name || 'default';
     await saveWorkspaceConfig(api, workspaceID, {
-      base_url: config.base_url,
-      api_key: config.api_key,
+      provider_id: config.provider_id,
       model: config.model,
-      models: uniqueModelNames(config.models?.length ? config.models : config.model),
       system_prompt: config.system_prompt,
       context_mode: config.context_mode || 'auto',
       max_context_messages: Number(config.max_context_messages || 12),
@@ -1618,8 +1616,7 @@ export default function App() {
   const testModelProvider = useCallback(async () => {
     try {
       const data = await testModelProviderRequest(api, {
-        base_url: config.base_url,
-        api_key: config.api_key,
+        provider_id: config.provider_id,
         model: config.model,
         system_prompt: config.system_prompt,
         context_mode: config.context_mode || 'auto',
@@ -1636,8 +1633,7 @@ export default function App() {
     setLoadingModels(true);
     try {
       const data = await fetchProviderModelsRequest(api, {
-        base_url: config.base_url,
-        api_key: config.api_key,
+        provider_id: config.provider_id,
         model: config.model,
         system_prompt: config.system_prompt,
         context_mode: config.context_mode || 'auto',
@@ -1656,6 +1652,72 @@ export default function App() {
       setLoadingModels(false);
     }
   }, [api, config, showToast]);
+
+  const editModelProvider = useCallback(async (existing = null) => {
+    const modelText = uniqueModelNames([...(existing?.models || []), existing?.default_model].filter(Boolean)).join('\n');
+    const values = await showDialog({
+      title: existing ? '编辑模型供应商' : '新增模型供应商',
+      confirmText: existing ? '保存供应商' : '新增供应商',
+      fields: [
+        { name: 'name', label: '供应商名称', value: existing?.name || '', required: true },
+        { name: 'base_url', label: 'Base URL', value: existing?.base_url || 'https://api.openai.com/v1', required: true },
+        { name: 'api_key', label: 'API Key', type: 'password', value: '', placeholder: existing?.has_api_key ? '已保存，留空不修改' : '未设置' },
+        { name: 'default_model', label: '默认模型', value: existing?.default_model || 'gpt-4o-mini', required: true },
+        { name: 'models', label: '可选模型（每行一个）', type: 'textarea', rows: 5, value: modelText || (existing?.default_model || 'gpt-4o-mini') },
+        { name: 'enabled', label: '状态', type: 'select', value: existing && existing.enabled === false ? 'false' : 'true', options: [{ value: 'true', label: '启用' }, { value: 'false', label: '停用' }] },
+      ]
+    });
+    if (!values) return;
+    const payload = {
+      name: String(values.name || '').trim(),
+      base_url: String(values.base_url || '').trim(),
+      api_key: String(values.api_key || '').trim(),
+      default_model: String(values.default_model || '').trim(),
+      models: uniqueModelNames(values.models || values.default_model),
+      enabled: values.enabled !== 'false',
+    };
+    if (existing) await updateModelProviderRequest(api, existing.id, payload);
+    else await createModelProviderRequest(api, payload);
+    await Promise.allSettled([loadModelProviders(), loadConfig(), loadSetupStatus(), loadWorkspaces()]);
+    showToast(existing ? '模型供应商已保存' : '模型供应商已新增', 'success');
+  }, [api, loadConfig, loadModelProviders, loadSetupStatus, loadWorkspaces, showDialog, showToast]);
+
+  const deleteModelProvider = useCallback(async (provider) => {
+    if (!provider?.id) return;
+    const ok = await showDialog({ title: '删除模型供应商', message: '确定删除模型供应商「' + (provider.name || provider.id) + '」？正在被工作空间使用的供应商不会被删除。', confirmText: '删除', danger: true, type: 'confirm' });
+    if (!ok) return;
+    await deleteModelProviderRequest(api, provider.id);
+    await Promise.allSettled([loadModelProviders(), loadConfig(), loadSetupStatus(), loadWorkspaces()]);
+    showToast('模型供应商已删除', 'success');
+  }, [api, loadConfig, loadModelProviders, loadSetupStatus, loadWorkspaces, showDialog, showToast]);
+
+  const testSavedModelProvider = useCallback(async (provider) => {
+    if (!provider?.id) return;
+    try {
+      const data = await testModelProviderRequest(api, { provider_id: provider.id, model: provider.default_model });
+      showToast(data.ok ? '供应商连接正常：' + (data.model || provider.default_model || '') : '供应商连接失败：' + (data.error || 'unknown'), data.ok ? 'success' : 'error');
+    } catch (e) { showToast('供应商连接失败：' + e.message, 'error'); }
+  }, [api, showToast]);
+
+  const fetchSavedProviderModels = useCallback(async (provider) => {
+    if (!provider?.id) return;
+    try {
+      const data = await fetchProviderModelsRequest(api, { provider_id: provider.id, model: provider.default_model });
+      const models = data.models || [];
+      if (models.length) {
+        await updateModelProviderRequest(api, provider.id, {
+          name: provider.name || provider.id,
+          base_url: provider.base_url || '',
+          api_key: '********',
+          default_model: provider.default_model || models[0],
+          models,
+          enabled: provider.enabled !== false,
+        });
+        await Promise.allSettled([loadModelProviders(), loadConfig(), loadWorkspaces()]);
+      }
+      showToast(models.length ? '已更新 ' + models.length + ' 个模型' : '接口可用，但没有返回模型名称', models.length ? 'success' : 'warn');
+    } catch (e) { showToast('获取供应商模型失败：' + e.message, 'error'); }
+  }, [api, loadConfig, loadModelProviders, loadWorkspaces, showToast]);
 
   const saveMCPConfig = useCallback(async () => {
     try { JSON.parse(mcpConfig || '{}'); } catch (e) { showToast('MCP 配置不是合法 JSON：' + e.message, 'error'); return; }
@@ -1930,6 +1992,7 @@ export default function App() {
     <SettingsPanel
       activeModule={activeModule} busy={busy} closeSettings={closeSettings} config={config} continueAgentTask={continueAgentTask}
       createWorkspace={createWorkspace} dataStatus={dataStatus} deleteScheduledTask={deleteScheduledTask} deleteSkill={deleteSkill} deleteWorkspace={deleteWorkspace}
+      editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels}
       editScheduledTask={editScheduledTask} editSkill={editSkill} loadAgentTasks={loadAgentTasks} loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig}
       loadMCPStatus={loadMCPStatus} loadRuns={loadRuns} loadScheduledTasks={loadScheduledTasks} loadSkills={loadSkills} loadSystemStatus={loadSystemStatus}
       mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers} promptPreview={promptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}

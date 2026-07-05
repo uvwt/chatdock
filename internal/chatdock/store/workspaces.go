@@ -93,33 +93,15 @@ func (s *Store) SaveWorkspaceConfig(workspaceID string, next model.ModelConfig) 
 	if !exists {
 		return model.PublicModelConfig{}, fmt.Errorf("workspace not found: %s", workspaceID)
 	}
-	current, err := s.modelConfigForPromptLocked(workspaceID)
+	saved, err := s.saveModelConfigForWorkspaceLocked(workspaceID, next)
 	if err != nil {
 		return model.PublicModelConfig{}, err
 	}
-	if strings.TrimSpace(next.APIKey) == "" || strings.TrimSpace(next.APIKey) == "********" {
-		next.APIKey = current.APIKey
-	}
-	if strings.TrimSpace(next.EmbeddingAPIKey) == "" || strings.TrimSpace(next.EmbeddingAPIKey) == "********" {
-		next.EmbeddingAPIKey = current.EmbeddingAPIKey
-	}
-	if strings.TrimSpace(next.EmbeddingBaseURL) != current.EmbeddingBaseURL || strings.TrimSpace(next.EmbeddingModel) != current.EmbeddingModel {
-		if err := s.deleteToolEmbeddingsForPromptLocked(workspaceID); err != nil {
-			return model.PublicModelConfig{}, err
-		}
-	}
-	if strings.TrimSpace(next.SystemPrompt) == "" {
-		next.SystemPrompt = current.SystemPrompt
-	}
-	next = model.NormalizeModelConfig(next)
 	// 工作空间配置可以在不切换当前会话空间的情况下保存；如果保存的是当前空间，同步内存态，避免后续聊天继续用旧配置。
 	if workspaceID == s.activePrompt {
-		s.modelCfg = next
+		s.modelCfg = saved
 	}
-	if err := s.setPromptJSONLocked(workspaceID, "config", next); err != nil {
-		return model.PublicModelConfig{}, err
-	}
-	return model.ToPublicModelConfig(next), nil
+	return model.ToPublicModelConfig(saved), nil
 }
 
 func (s *Store) PromptPreview(workspaceID string) (PromptPreviewResponse, error) {

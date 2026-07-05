@@ -8,37 +8,6 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func (s *Store) ListModelProviders() ([]ModelProvider, error) {
-	workspaces, err := s.ListWorkspaces()
-	if err != nil {
-		return nil, err
-	}
-	providers := make([]ModelProvider, 0, len(workspaces.Workspaces))
-	for _, ws := range workspaces.Workspaces {
-		cfg, err := s.modelConfigForPrompt(ws.ID)
-		if err != nil {
-			return nil, err
-		}
-		providers = append(providers, ModelProvider{
-			ID:            cfg.ProviderID,
-			Name:          providerName(ws.Name, cfg),
-			Type:          "openai-compatible",
-			BaseURL:       cfg.BaseURL,
-			HasAPIKey:     strings.TrimSpace(cfg.APIKey) != "",
-			APIKeyMasked:  maskSecret(cfg.APIKey),
-			DefaultModel:  cfg.Model,
-			Models:        append([]string(nil), cfg.Models...),
-			TimeoutMS:     120000,
-			Enabled:       strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != "",
-			WorkspaceID:   ws.ID,
-			WorkspaceName: ws.Name,
-			CreatedAt:     ws.CreatedAt,
-			UpdatedAt:     ws.UpdatedAt,
-		})
-	}
-	return providers, nil
-}
-
 func (s *Store) modelConfigForPrompt(prompt string) (model.ModelConfig, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -57,15 +26,8 @@ func (s *Store) modelConfigForPromptLocked(prompt string) (model.ModelConfig, er
 	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
 		return model.ModelConfig{}, err
 	}
-	return model.NormalizeModelConfig(cfg), nil
-}
-
-func providerName(workspace string, cfg model.ModelConfig) string {
-	base := strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(cfg.BaseURL), "https://"), "http://")
-	if base == "" {
-		base = "OpenAI Compatible"
-	}
-	return workspace + " · " + base
+	cfg = model.NormalizeModelConfig(cfg)
+	return s.applyProviderToConfigLocked(cfg)
 }
 
 func maskSecret(value string) string {
@@ -80,28 +42,23 @@ func maskSecret(value string) string {
 }
 
 func (s *Store) ResolveChatModelConfig(base model.ModelConfig, providerID string, selectedModel string) (model.ModelConfig, error) {
-	providerID = strings.TrimSpace(providerID)
+	providerID = normalizeProviderID(providerID)
 	selectedModel = strings.TrimSpace(selectedModel)
-	if providerID == "" && selectedModel == "" {
-		return model.NormalizeModelConfig(base), nil
-	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	next := model.NormalizeModelConfig(base)
+	if providerID == "" {
+		providerID = next.ProviderID
+	}
 	if providerID != "" {
-		s.mu.RLock()
-		exists, err := s.promptExistsLocked(providerID)
+		providerCfg, ok, err := s.modelProviderConfigLocked(providerID)
 		if err != nil {
-			s.mu.RUnlock()
 			return model.ModelConfig{}, err
 		}
-		if !exists {
-			s.mu.RUnlock()
+		if !ok {
 			return model.ModelConfig{}, fmt.Errorf("model provider not found: %s", providerID)
-		}
-		providerCfg, err := s.modelConfigForPromptLocked(providerID)
-		s.mu.RUnlock()
-		if err != nil {
-			return model.ModelConfig{}, err
 		}
 		// 供应商选择只切换连接、密钥和模型；当前会话的系统提示词、技能和上下文策略继续沿用当前工作空间。
 		next.ProviderID = providerCfg.ProviderID
@@ -120,4 +77,23 @@ func (s *Store) ResolveChatModelConfig(base model.ModelConfig, providerID string
 		return model.ModelConfig{}, fmt.Errorf("model provider is incomplete")
 	}
 	return next, nil
+}
+
+func (s *Store) applyProviderToConfigLocked(cfg model.ModelConfig) (model.ModelConfig, error) {
+	cfg = model.NormalizeModelConfig(cfg)
+	providerCfg, ok, err := s.modelProviderConfigLocked(cfg.ProviderID)
+	if err != nil {
+		return model.ModelConfig{}, err
+	}
+	if !ok {
+		return cfg, nil
+	}
+	cfg.ProviderID = providerCfg.ProviderID
+	cfg.BaseURL = providerCfg.BaseURL
+	cfg.APIKey = providerCfg.APIKey
+	cfg.Models = append([]string(nil), providerCfg.Models...)
+	if cfg.Model == "" {
+		cfg.Model = providerCfg.Model
+	}
+	return model.NormalizeModelConfig(cfg), nil
 }

@@ -58,6 +58,7 @@ func (s *Store) InitializeSetup(input SetupInitRequest) (SetupStatus, error) {
 		return SetupStatus{}, err
 	}
 	cfg := s.modelCfg
+	cfg.ProviderID = providerIDFromWorkspace(name)
 	cfg.BaseURL = strings.TrimSpace(input.BaseURL)
 	cfg.APIKey = strings.TrimSpace(input.APIKey)
 	cfg.Model = strings.TrimSpace(input.Model)
@@ -66,6 +67,10 @@ func (s *Store) InitializeSetup(input SetupInitRequest) (SetupStatus, error) {
 		cfg.SystemPrompt = model.DefaultModelConfig().SystemPrompt
 	}
 	s.modelCfg = model.NormalizeModelConfig(cfg)
+	if err := s.upsertProviderFromConfigLocked(s.activePrompt, s.modelCfg); err != nil {
+		s.mu.Unlock()
+		return SetupStatus{}, err
+	}
 	err = s.setPromptJSONLocked(s.activePrompt, "config", s.modelCfg)
 	s.mu.Unlock()
 	if err != nil {

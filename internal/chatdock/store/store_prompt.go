@@ -189,6 +189,11 @@ func (s *Store) loadModelConfigLocked() error {
 		return err
 	}
 	s.modelCfg = model.NormalizeModelConfig(s.modelCfg)
+	merged, err := s.applyProviderToConfigLocked(s.modelCfg)
+	if err != nil {
+		return err
+	}
+	s.modelCfg = merged
 	return nil
 }
 
