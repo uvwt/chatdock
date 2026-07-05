@@ -58,10 +58,10 @@ func TestBuildChatMessagesHoistsRuntimeSystemContext(t *testing.T) {
 		{Role: "user", Content: "latest user"},
 	}
 	got := BuildChatMessages(cfg, history)
-	if len(got) != 3 {
-		t.Fatalf("expected base system, runtime system, and latest user, got %#v", got)
+	if len(got) != 2 {
+		t.Fatalf("expected merged system and latest user, got %#v", got)
 	}
-	if got[0]["content"] != "base system" || got[1]["content"] != "AgentDock Capability Context" || got[2]["content"] != "latest user" {
+	if got[0]["role"] != "system" || !strings.Contains(got[0]["content"], "base system") || !strings.Contains(got[0]["content"], "AgentDock Capability Context") || got[1]["content"] != "latest user" {
 		t.Fatalf("runtime system context was not preserved before user message: %#v", got)
 	}
 }
@@ -73,13 +73,13 @@ func TestBuildChatMessagesAutoSummarizesEarlierContext(t *testing.T) {
 		history = append(history, model.Message{Role: "user", Content: fmt.Sprintf("message-%02d", i)})
 	}
 	got := BuildChatMessages(cfg, history)
-	if len(got) != 14 {
-		t.Fatalf("expected system, summary, and 12 recent messages, got %#v", got)
+	if len(got) != 13 {
+		t.Fatalf("expected merged system and 12 recent messages, got %#v", got)
 	}
-	if !strings.Contains(got[1]["content"], "早期会话摘要") || !strings.Contains(got[1]["content"], "message-02") {
-		t.Fatalf("expected earlier context summary, got %#v", got[1])
+	if got[0]["role"] != "system" || !strings.Contains(got[0]["content"], "sys") || !strings.Contains(got[0]["content"], "早期会话摘要") || !strings.Contains(got[0]["content"], "message-02") {
+		t.Fatalf("expected merged system with earlier context summary, got %#v", got[0])
 	}
-	if got[2]["content"] != "message-03" || got[len(got)-1]["content"] != "message-14" {
+	if got[1]["content"] != "message-03" || got[len(got)-1]["content"] != "message-14" {
 		t.Fatalf("recent messages were not preserved: %#v", got)
 	}
 }
@@ -388,11 +388,8 @@ func TestCompleteWithMCPToolsEventsHasNoFixedRoundCap(t *testing.T) {
 func TestAppendMCPToolUseHint(t *testing.T) {
 	messages := []map[string]any{{"role": "system", "content": "base"}, {"role": "user", "content": "hi"}}
 	out := appendMCPToolUseHint(messages, []mcp.MCPTool{{Name: "read", FullName: "agentdock__read"}})
-	if len(out) != 3 {
-		t.Fatalf("expected hint to be inserted, got %#v", out)
-	}
-	if out[1]["role"] != "system" || !strings.Contains(out[1]["content"].(string), "MCP") {
-		t.Fatalf("expected MCP system hint after existing system prompt, got %#v", out)
+	if len(out) != 2 || out[0]["role"] != "system" || !strings.Contains(out[0]["content"].(string), "MCP") || !strings.Contains(out[0]["content"].(string), "base") {
+		t.Fatalf("expected MCP system hint merged with existing system prompt, got %#v", out)
 	}
 }
 

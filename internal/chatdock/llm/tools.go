@@ -238,7 +238,7 @@ func appendMCPToolUseHint(messages []map[string]any, tools []mcp.MCPTool) []map[
 	if !inserted {
 		out = append(out, hint)
 	}
-	return out
+	return mergeLeadingSystemMessagesAny(out)
 }
 
 func (c *ChatClient) streamChatWithRawMessages(ctx context.Context, cfg model.ModelConfig, messages []map[string]any, tools []map[string]any, emit func(string, any) error) (ModelChatResponse, error) {
@@ -509,7 +509,28 @@ func BuildChatMessagesAny(cfg model.ModelConfig, history []model.Message) []map[
 			messages = append(messages, map[string]any{"role": "user", "content": imageContent})
 		}
 	}
-	return messages
+	return mergeLeadingSystemMessagesAny(messages)
+}
+
+func mergeLeadingSystemMessagesAny(messages []map[string]any) []map[string]any {
+	if len(messages) < 2 || messages[0]["role"] != "system" {
+		return messages
+	}
+	parts := make([]string, 0)
+	idx := 0
+	for idx < len(messages) && messages[idx]["role"] == "system" {
+		if text := strings.TrimSpace(fmt.Sprint(messages[idx]["content"])); text != "" {
+			parts = append(parts, text)
+		}
+		idx++
+	}
+	if len(parts) <= 1 {
+		return messages
+	}
+	out := make([]map[string]any, 0, len(messages)-len(parts)+1)
+	out = append(out, map[string]any{"role": "system", "content": strings.Join(parts, "\n\n---\n\n")})
+	out = append(out, messages[idx:]...)
+	return out
 }
 
 func FirstNonEmptyString(values ...string) string {

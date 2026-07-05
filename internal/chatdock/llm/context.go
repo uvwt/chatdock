@@ -21,7 +21,28 @@ func BuildChatMessages(cfg model.ModelConfig, history []model.Message) []map[str
 	for _, item := range prepared {
 		messages = append(messages, map[string]string{"role": item.Role, "content": item.Content})
 	}
-	return messages
+	return mergeLeadingSystemMessages(messages)
+}
+
+func mergeLeadingSystemMessages(messages []map[string]string) []map[string]string {
+	if len(messages) < 2 || messages[0]["role"] != "system" {
+		return messages
+	}
+	parts := make([]string, 0)
+	idx := 0
+	for idx < len(messages) && messages[idx]["role"] == "system" {
+		if text := strings.TrimSpace(messages[idx]["content"]); text != "" {
+			parts = append(parts, text)
+		}
+		idx++
+	}
+	if len(parts) <= 1 {
+		return messages
+	}
+	out := make([]map[string]string, 0, len(messages)-len(parts)+1)
+	out = append(out, map[string]string{"role": "system", "content": strings.Join(parts, "\n\n---\n\n")})
+	out = append(out, messages[idx:]...)
+	return out
 }
 
 func BuildChatContextMessages(cfg model.ModelConfig, history []model.Message) []ContextMessage {
