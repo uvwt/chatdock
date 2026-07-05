@@ -937,3 +937,90 @@ body.theme-light .session-actions-sheet { background: #ffffff; border-color: #e2
     justify-content: flex-start;
   }
 }
+
+/* 2026-07-05 简化供应商配置：隐藏低价值字段，只保留预设、模型和 Key。 */
+.app-modal-card.provider-modal-simple {
+  width: min(760px, 100%);
+}
+
+.app-modal-card.provider-modal-simple .app-modal-message {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(34, 197, 94, .22);
+  border-radius: 14px;
+  background: rgba(34, 197, 94, .08);
+  color: #bbf7d0;
+}
+
+.theme-light .app-modal-card.provider-modal-simple .app-modal-message {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.app-modal-card.provider-modal-simple .app-modal-fields {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.app-modal-card.provider-modal-simple .provider-keys-field,
+.app-modal-card.provider-modal-simple .app-modal-field:has(textarea) {
+  grid-column: 1 / -1;
+}
+
+.provider-keys-editor.simplified {
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, .12);
+}
+
+.theme-light .provider-keys-editor.simplified {
+  background: #f8fafc;
+}
+
+.provider-keys-editor.simplified .provider-keys-list {
+  display: grid;
+  gap: 10px;
+}
+
+.provider-keys-editor.simplified .provider-key-row {
+  grid-template-columns: 74px minmax(120px, .8fr) minmax(240px, 1.5fr) 76px 66px;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, .2);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .04);
+}
+
+.theme-light .provider-keys-editor.simplified .provider-key-row {
+  border-color: #e2e8f0;
+  background: #ffffff;
+}
+
+.provider-keys-editor.simplified .provider-key-current {
+  justify-content: flex-start;
+  padding-left: 4px;
+  color: #94a3b8;
+}
+
+.theme-light .provider-keys-editor.simplified .provider-key-current {
+  color: #475569;
+}
+
+.provider-keys-editor.simplified .provider-key-current span {
+  margin: 0 !important;
+  font-size: 12px !important;
+}
+
+.provider-keys-editor.simplified .provider-key-add {
+  justify-self: start;
+  margin-top: 2px;
+}
+
+@media (max-width: 720px) {
+  .app-modal-card.provider-modal-simple .app-modal-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .provider-keys-editor.simplified .provider-key-row {
+    grid-template-columns: 1fr;
+  }
+}

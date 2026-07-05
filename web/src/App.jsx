@@ -35,6 +35,27 @@ function uniqueModelNames(value) {
 }
 
 
+
+const MODEL_PROVIDER_PRESETS = [
+  { value: 'volcengine-coding', label: '火山方舟 · Coding Plan', name: '火山', base_url: 'https://ark.cn-beijing.volces.com/api/coding/v3', default_model: 'deepseek-v4-pro' },
+  { value: 'openai', label: 'OpenAI Compatible', name: 'OpenAI', base_url: 'https://api.openai.com/v1', default_model: 'gpt-4o-mini' },
+  { value: 'custom', label: '自定义', name: '', base_url: '', default_model: '' },
+];
+
+function inferProviderPreset(provider = {}) {
+  const base = String(provider.base_url || '').trim().replace(/\/$/, '');
+  const hit = MODEL_PROVIDER_PRESETS.find(item => item.value !== 'custom' && item.base_url.replace(/\/$/, '') === base);
+  return hit?.value || 'custom';
+}
+
+function providerPresetFillMap() {
+  return Object.fromEntries(MODEL_PROVIDER_PRESETS.map(item => [item.value, {
+    name: item.name,
+    base_url: item.base_url,
+    default_model: item.default_model,
+  }]));
+}
+
 function providerKeyRows(provider = {}) {
   const keys = Array.isArray(provider.api_keys) ? provider.api_keys : (Array.isArray(provider.apiKeys) ? provider.apiKeys : []);
   if (!keys.length) return [{id: 'main', name: '主 key', api_key: '', enabled: true, priority: 1}];
@@ -44,18 +65,25 @@ function providerKeyRows(provider = {}) {
     api_key: key.api_key || key.apiKey || key.api_key_masked || key.apiKeyMasked || (key.has_api_key ? '********' : ''),
     enabled: key.enabled === false ? false : true,
     priority: Number(key.priority || index + 1) || index + 1,
+    saved: !!(key.api_key || key.apiKey || key.api_key_masked || key.apiKeyMasked || key.has_api_key),
   }));
 }
 
 function providerKeyInputsFromRows(rows, fallbackSecret = '') {
   const values = Array.isArray(rows) ? rows : [];
-  const clean = values.map((item, index) => {
-    const id = String(item?.id || ('key-' + (index + 1))).trim();
-    const name = String(item?.name || id || ('Key ' + (index + 1))).trim();
+  const used = new Set();
+  const clean = [];
+  values.forEach((item, index) => {
     const secret = String(item?.api_key || item?.apiKey || '').trim();
-    const priority = Number(item?.priority || index + 1) || index + 1;
-    return { id, name, api_key: secret || fallbackSecret || '********', enabled: item?.enabled === false ? false : true, priority };
-  }).filter(item => item.id || item.name || item.api_key);
+    const saved = item?.saved === true || secret.includes('*');
+    if (!secret && !saved && !fallbackSecret) return;
+    let id = String(item?.id || '').trim();
+    if (!id) id = index === 0 ? 'main' : 'key-' + (index + 1);
+    while (used.has(id)) id = id + '-' + (index + 1);
+    used.add(id);
+    const name = String(item?.name || (index === 0 ? '主 key' : '备用 key ' + index)).trim();
+    clean.push({ id, name, api_key: secret || fallbackSecret || '********', enabled: item?.enabled === false ? false : true, priority: clean.length + 1 });
+  });
   return clean.length ? clean : null;
 }
 
@@ -1720,29 +1748,31 @@ export default function App() {
     const modelText = uniqueModelNames([...(existing?.models || []), existing?.default_model].filter(Boolean)).join('\n');
     const keyRows = providerKeyRows(existing);
     const selectedKeyID = existing?.selected_key_id || existing?.selectedKeyID || keyRows[0]?.id || 'main';
+    const preset = inferProviderPreset(existing || {});
     const values = await showDialog({
-      variant: 'provider-modal',
+      variant: 'provider-modal provider-modal-simple',
       title: existing ? '编辑模型供应商' : '新增模型供应商',
+      message: '只填名称、模型和 Key。Base URL、Key ID、优先级会自动处理。',
       confirmText: existing ? '保存供应商' : '新增供应商',
       fields: [
-        { name: 'name', label: '供应商名称', value: existing?.name || '', required: true },
-        { name: 'base_url', label: 'Base URL', value: existing?.base_url || 'https://api.openai.com/v1', required: true },
-        { name: 'api_key', label: '兼容单 Key（可留空）', type: 'password', value: '', placeholder: existing?.has_api_key ? '已保存，留空不修改；推荐使用下方多 Key' : '没有多 Key 时可直接填这里' },
-        { name: 'key_strategy', label: 'Key 策略', type: 'select', value: existing?.key_strategy || existing?.keyStrategy || 'auto', options: [{ value: 'auto', label: '自动：优先当前 Key，失败时按优先级切换' }, { value: 'manual', label: '手动：只使用当前 Key' }] },
+        { name: 'provider_preset', label: '供应商', type: 'select', value: preset, options: MODEL_PROVIDER_PRESETS.map(item => ({ value: item.value, label: item.label })), fillByValue: providerPresetFillMap() },
+        { name: 'name', label: '名称', value: existing?.name || (MODEL_PROVIDER_PRESETS.find(item => item.value === preset)?.name || ''), required: true },
+        { name: 'base_url', label: '自定义 Base URL', value: existing?.base_url || (MODEL_PROVIDER_PRESETS.find(item => item.value === preset)?.base_url || ''), required: true, showWhen: { provider_preset: 'custom' }, placeholder: 'https://example.com/v1' },
+        { name: 'default_model', label: '默认模型', value: existing?.default_model || (MODEL_PROVIDER_PRESETS.find(item => item.value === preset)?.default_model || 'gpt-4o-mini'), required: true },
         { name: 'selected_key_id', label: '当前 Key', type: 'hidden', value: selectedKeyID },
-        { name: 'api_keys', label: '多个 Key', type: 'provider_keys', value: keyRows, hint: '新增 Key 直接点“添加 Key”；已有 Key 显示 ******** 表示保留原值。可在每行选择当前 Key、启停和设置优先级。' },
-        { name: 'default_model', label: '默认模型', value: existing?.default_model || 'gpt-4o-mini', required: true },
-        { name: 'models', label: '可用模型（手动添加，每行一个）', type: 'textarea', rows: 5, value: modelText || (existing?.default_model || 'gpt-4o-mini') },
+        { name: 'key_strategy', label: 'Key 策略', type: 'hidden', value: existing?.key_strategy || existing?.keyStrategy || 'auto' },
+        { name: 'api_keys', label: 'Key 列表', type: 'provider_keys', value: keyRows, hint: '只需要填 Key 名称和 Key。ID 与优先级自动生成；当前 Key 用单选按钮切换；已保存 Key 只隐藏中间字段。' },
+        { name: 'models', label: '可用模型（每行一个）', type: 'textarea', rows: 4, value: modelText || (existing?.default_model || (MODEL_PROVIDER_PRESETS.find(item => item.value === preset)?.default_model || 'gpt-4o-mini')), hint: '这里是真正会出现在聊天模型选择器里的模型。候选模型需要逐个加入。' },
         { name: 'enabled', label: '状态', type: 'select', value: existing && existing.enabled === false ? 'false' : 'true', options: [{ value: 'true', label: '启用' }, { value: 'false', label: '停用' }] },
       ]
     });
     if (!values) return;
-    const apiKeys = providerKeyInputsFromRows(values.api_keys, String(values.api_key || '').trim());
+    const apiKeys = providerKeyInputsFromRows(values.api_keys, '');
     const selectedFromDraft = String(values.selected_key_id || '').trim();
     const payload = {
       name: String(values.name || '').trim(),
       base_url: String(values.base_url || '').trim(),
-      api_key: String(values.api_key || '').trim(),
+      api_key: '',
       default_model: String(values.default_model || '').trim(),
       models: uniqueModelNames(values.models || values.default_model),
       enabled: values.enabled !== 'false',
