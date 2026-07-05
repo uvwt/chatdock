@@ -38,7 +38,7 @@ func (a *App) agentDockRuntimeContext(ctx context.Context) string {
 
 	fetchCtx, cancel := context.WithTimeout(ctx, 2500*time.Millisecond)
 	defer cancel()
-	text, err := fetchAgentDockRuntimeContext(fetchCtx, url)
+	text, err := fetchAgentDockRuntimeContext(fetchCtx, url, a.cfg.AgentDockContextToken)
 	if err != nil || strings.TrimSpace(text) == "" {
 		return stale
 	}
@@ -50,12 +50,15 @@ func (a *App) agentDockRuntimeContext(ctx context.Context) string {
 	return text
 }
 
-func fetchAgentDockRuntimeContext(ctx context.Context, url string) (string, error) {
+func fetchAgentDockRuntimeContext(ctx context.Context, url string, token string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Accept", "application/json")
+	if token = strings.TrimSpace(token); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 	resp, err := (&http.Client{Timeout: 2500 * time.Millisecond}).Do(req)
 	if err != nil {
 		return "", err

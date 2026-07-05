@@ -10,17 +10,18 @@ import (
 
 func main() {
 	cfg := model.ServerConfig{
-		Addr:                getenv("CHATDOCK_ADDR", ":8720"),
-		DataDir:             getenv("CHATDOCK_DATA", defaultDataDir()),
-		WebDir:              os.Getenv("CHATDOCK_WEB"),
-		AuthToken:           os.Getenv("CHATDOCK_AUTH_TOKEN"),
-		AuthUsername:        os.Getenv("CHATDOCK_AUTH_USERNAME"),
-		AuthCredential:      os.Getenv("CHATDOCK_AUTH_CREDENTIAL"),
-		PublicBaseURL:       os.Getenv("CHATDOCK_PUBLIC_BASE_URL"),
-		EmbeddingBaseURL:    os.Getenv("CHATDOCK_EMBEDDING_BASE_URL"),
-		EmbeddingAPIKey:     os.Getenv("CHATDOCK_EMBEDDING_API_KEY"),
-		EmbeddingModel:      getenv("CHATDOCK_EMBEDDING_MODEL", "BAAI/bge-m3"),
-		AgentDockContextURL: os.Getenv("CHATDOCK_AGENTDOCK_CONTEXT_URL"),
+		Addr:                  getenv("CHATDOCK_ADDR", ":8720"),
+		DataDir:               getenv("CHATDOCK_DATA", defaultDataDir()),
+		WebDir:                os.Getenv("CHATDOCK_WEB"),
+		AuthToken:             os.Getenv("CHATDOCK_AUTH_TOKEN"),
+		AuthUsername:          os.Getenv("CHATDOCK_AUTH_USERNAME"),
+		AuthCredential:        os.Getenv("CHATDOCK_AUTH_CREDENTIAL"),
+		PublicBaseURL:         os.Getenv("CHATDOCK_PUBLIC_BASE_URL"),
+		EmbeddingBaseURL:      os.Getenv("CHATDOCK_EMBEDDING_BASE_URL"),
+		EmbeddingAPIKey:       os.Getenv("CHATDOCK_EMBEDDING_API_KEY"),
+		EmbeddingModel:        getenv("CHATDOCK_EMBEDDING_MODEL", "BAAI/bge-m3"),
+		AgentDockContextURL:   os.Getenv("CHATDOCK_AGENTDOCK_CONTEXT_URL"),
+		AgentDockContextToken: os.Getenv("CHATDOCK_AGENTDOCK_CONTEXT_TOKEN"),
 	}
 
 	app, err := chatdock.NewApp(cfg)
