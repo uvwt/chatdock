@@ -35,32 +35,28 @@ function uniqueModelNames(value) {
 }
 
 
-function providerKeyDraftText(provider = {}) {
+function providerKeyRows(provider = {}) {
   const keys = Array.isArray(provider.api_keys) ? provider.api_keys : (Array.isArray(provider.apiKeys) ? provider.apiKeys : []);
-  const rows = keys.map((key, index) => {
-    const id = String(key.id || ('key-' + (index + 1))).trim();
-    const name = String(key.name || id || ('Key ' + (index + 1))).trim();
-    const secret = key.api_key || key.apiKey || key.api_key_masked || key.apiKeyMasked || (key.has_api_key ? '********' : '');
-    const enabled = key.enabled === false ? 'false' : 'true';
-    const priority = Number(key.priority || index + 1) || index + 1;
-    return [id, name, secret || '', enabled, String(priority)].join('|');
-  });
-  return rows.join('\n');
+  if (!keys.length) return [{id: 'main', name: '主 key', api_key: '', enabled: true, priority: 1}];
+  return keys.map((key, index) => ({
+    id: String(key.id || ('key-' + (index + 1))).trim(),
+    name: String(key.name || key.id || ('Key ' + (index + 1))).trim(),
+    api_key: key.api_key || key.apiKey || key.api_key_masked || key.apiKeyMasked || (key.has_api_key ? '********' : ''),
+    enabled: key.enabled === false ? false : true,
+    priority: Number(key.priority || index + 1) || index + 1,
+  }));
 }
 
-function providerKeyInputsFromDraft(text, fallbackSecret = '') {
-  const rows = String(text || '').split(/\n+/).map(line => line.trim()).filter(Boolean);
-  if (!rows.length) return null;
-  return rows.map((line, index) => {
-    const parts = line.split('|').map(part => part.trim());
-    const id = parts[0] || ('key-' + (index + 1));
-    const name = parts[1] || id;
-    const secret = parts[2] || '';
-    const enabledRaw = String(parts[3] || 'true').toLowerCase();
-    const enabled = !['false', '0', 'no', 'off', '停用', '禁用'].includes(enabledRaw);
-    const priority = Number(parts[4] || index + 1) || index + 1;
-    return { id, name, api_key: secret || fallbackSecret || '********', enabled, priority };
-  });
+function providerKeyInputsFromRows(rows, fallbackSecret = '') {
+  const values = Array.isArray(rows) ? rows : [];
+  const clean = values.map((item, index) => {
+    const id = String(item?.id || ('key-' + (index + 1))).trim();
+    const name = String(item?.name || id || ('Key ' + (index + 1))).trim();
+    const secret = String(item?.api_key || item?.apiKey || '').trim();
+    const priority = Number(item?.priority || index + 1) || index + 1;
+    return { id, name, api_key: secret || fallbackSecret || '********', enabled: item?.enabled === false ? false : true, priority };
+  }).filter(item => item.id || item.name || item.api_key);
+  return clean.length ? clean : null;
 }
 
 function providerChoiceID(provider) {
@@ -1722,8 +1718,8 @@ export default function App() {
 
   const editModelProvider = useCallback(async (existing = null) => {
     const modelText = uniqueModelNames([...(existing?.models || []), existing?.default_model].filter(Boolean)).join('\n');
-    const keyDraft = providerKeyDraftText(existing);
-    const selectedKeyID = existing?.selected_key_id || existing?.selectedKeyID || '';
+    const keyRows = providerKeyRows(existing);
+    const selectedKeyID = existing?.selected_key_id || existing?.selectedKeyID || keyRows[0]?.id || 'main';
     const values = await showDialog({
       variant: 'provider-modal',
       title: existing ? '编辑模型供应商' : '新增模型供应商',
@@ -1733,15 +1729,15 @@ export default function App() {
         { name: 'base_url', label: 'Base URL', value: existing?.base_url || 'https://api.openai.com/v1', required: true },
         { name: 'api_key', label: '兼容单 Key（可留空）', type: 'password', value: '', placeholder: existing?.has_api_key ? '已保存，留空不修改；推荐使用下方多 Key' : '没有多 Key 时可直接填这里' },
         { name: 'key_strategy', label: 'Key 策略', type: 'select', value: existing?.key_strategy || existing?.keyStrategy || 'auto', options: [{ value: 'auto', label: '自动：优先当前 Key，失败时按优先级切换' }, { value: 'manual', label: '手动：只使用当前 Key' }] },
-        { name: 'selected_key_id', label: '当前 Key ID', value: selectedKeyID || 'main', hint: '例如 main、backup-1；手动策略必须填一个已启用的 Key ID。' },
-        { name: 'api_keys_text', label: '多个 Key（每行：ID | 名称 | Key | 启用 | 优先级）', type: 'textarea', rows: 6, value: keyDraft || 'main | 主 key |  | true | 1', hint: '已有 Key 的 Key 列显示 ******** 时表示保留原值；新增 Key 在第三列填明文。启用可填 true/false，优先级数字越小越靠前。' },
+        { name: 'selected_key_id', label: '当前 Key', type: 'hidden', value: selectedKeyID },
+        { name: 'api_keys', label: '多个 Key', type: 'provider_keys', value: keyRows, hint: '新增 Key 直接点“添加 Key”；已有 Key 显示 ******** 表示保留原值。可在每行选择当前 Key、启停和设置优先级。' },
         { name: 'default_model', label: '默认模型', value: existing?.default_model || 'gpt-4o-mini', required: true },
         { name: 'models', label: '可用模型（手动添加，每行一个）', type: 'textarea', rows: 5, value: modelText || (existing?.default_model || 'gpt-4o-mini') },
         { name: 'enabled', label: '状态', type: 'select', value: existing && existing.enabled === false ? 'false' : 'true', options: [{ value: 'true', label: '启用' }, { value: 'false', label: '停用' }] },
       ]
     });
     if (!values) return;
-    const apiKeys = providerKeyInputsFromDraft(values.api_keys_text, String(values.api_key || '').trim());
+    const apiKeys = providerKeyInputsFromRows(values.api_keys, String(values.api_key || '').trim());
     const selectedFromDraft = String(values.selected_key_id || '').trim();
     const payload = {
       name: String(values.name || '').trim(),
@@ -1759,7 +1755,6 @@ export default function App() {
     await Promise.allSettled([loadModelProviders(), loadConfig(), loadSetupStatus(), loadWorkspaces()]);
     showToast(existing ? '模型供应商已保存' : '模型供应商已新增', 'success');
   }, [api, loadConfig, loadModelProviders, loadSetupStatus, loadWorkspaces, showDialog, showToast]);
-
 
   const deleteModelProvider = useCallback(async (provider) => {
     if (!provider?.id) return;

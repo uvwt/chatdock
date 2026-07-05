@@ -250,7 +250,7 @@ export function DialogHost({ dialog, closeDialog }) {
       <div className="app-modal-title">{dialog.title || '确认'}</div>
       {dialog.message ? <div className="app-modal-message">{dialog.message}</div> : null}
       {dialog.toolEventDetail ? <ToolEventDetail detail={dialog.toolEventDetail} /> : null}
-      <div className="app-modal-fields">{visibleFields.map(field => <label key={field.name} className="app-modal-field"><span>{field.label || field.name}</span>{renderDialogField(field, values[field.name] ?? '', value => setValues(v => ({...v, [field.name]: value})))}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</label>)}</div>
+      <div className="app-modal-fields">{visibleFields.map(field => field.type === 'hidden' ? renderDialogField(field, values[field.name] ?? '', value => setValues(v => ({...v, [field.name]: value})), values, setValues) : <label key={field.name} className={'app-modal-field ' + (field.type === 'provider_keys' ? 'provider-keys-field' : '')}><span>{field.label || field.name}</span>{renderDialogField(field, values[field.name] ?? '', value => setValues(v => ({...v, [field.name]: value})), values, setValues)}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</label>)}</div>
       <div className="app-modal-actions">{dialog.hideCancel ? null : <button type="button" className="secondary app-modal-cancel" onClick={() => closeDialog(null)}>{dialog.cancelText || '取消'}</button>}<button type="submit" className={dialog.danger ? 'danger' : ''}>{dialog.confirmText || '确定'}</button></div>
     </form></div>
   </div>;
@@ -302,7 +302,46 @@ function formatDialogValue(value, emptyText = '无') {
   catch { return String(value); }
 }
 
-function renderDialogField(field, value, setValue) {
+
+function ProviderKeysEditor({ value, setValue, values, setValues }) {
+  const rows = Array.isArray(value) && value.length ? value : [{id: 'main', name: '主 key', api_key: '', enabled: true, priority: 1}];
+  const selectedID = String(values?.selected_key_id || rows[0]?.id || '').trim();
+  const updateRow = (index, patch) => {
+    const next = rows.map((row, i) => i === index ? {...row, ...patch} : row);
+    setValue(next);
+  };
+  const setSelected = (id) => setValues?.(current => ({...current, selected_key_id: id}));
+  const addRow = () => {
+    const index = rows.length + 1;
+    const id = 'key-' + index;
+    const next = [...rows, {id, name: 'Key ' + index, api_key: '', enabled: true, priority: index}];
+    setValue(next);
+    if (!selectedID) setSelected(id);
+  };
+  const removeRow = (index) => {
+    const removedID = rows[index]?.id;
+    const next = rows.filter((_, i) => i !== index);
+    setValue(next.length ? next : [{id: 'main', name: '主 key', api_key: '', enabled: true, priority: 1}]);
+    if (selectedID === removedID) setSelected((next[0] || {}).id || 'main');
+  };
+  return <div className="provider-keys-editor">
+    <div className="provider-keys-head"><span>当前</span><span>ID</span><span>名称</span><span>Key</span><span>启用</span><span>优先级</span><span></span></div>
+    <div className="provider-keys-list">{rows.map((row, index) => <div className="provider-key-row" key={index}>
+      <label className="provider-key-current" title="设为当前 Key"><input type="radio" name="provider-current-key" checked={(selectedID || rows[0]?.id) === row.id} onChange={() => setSelected(row.id)} /></label>
+      <input value={row.id || ''} placeholder="main" onChange={e => { const id = e.target.value; updateRow(index, {id}); if (selectedID === row.id) setSelected(id); }} />
+      <input value={row.name || ''} placeholder="主 key" onChange={e => updateRow(index, {name: e.target.value})} />
+      <input type="password" value={row.api_key || ''} placeholder="新增填明文；******** 保留" onChange={e => updateRow(index, {api_key: e.target.value})} />
+      <label className="provider-key-enabled"><input type="checkbox" checked={row.enabled !== false} onChange={e => updateRow(index, {enabled: e.target.checked})} /><span>{row.enabled === false ? '停用' : '启用'}</span></label>
+      <input type="number" min="1" value={row.priority || index + 1} onChange={e => updateRow(index, {priority: Number(e.target.value || index + 1)})} />
+      <button type="button" className="secondary small" onClick={() => removeRow(index)} disabled={rows.length <= 1}>删除</button>
+    </div>)}</div>
+    <button type="button" className="secondary small provider-key-add" onClick={addRow}>+ 添加 Key</button>
+  </div>;
+}
+
+function renderDialogField(field, value, setValue, values = {}, setValues = null) {
+  if (field.type === 'hidden') return <input key={field.name} type="hidden" value={value || ''} readOnly />;
+  if (field.type === 'provider_keys') return <ProviderKeysEditor value={value} setValue={setValue} values={values} setValues={setValues} />;
   if (field.type === 'textarea') return <textarea rows={field.rows || 5} value={value} placeholder={field.placeholder || ''} required={!!field.required} onChange={e => setValue(e.target.value)} />;
   if (field.type === 'select') return <select value={value} required={!!field.required} onChange={e => setValue(e.target.value)}>{(field.options || []).map(opt => typeof opt === 'string' ? <option key={opt} value={opt}>{opt}</option> : <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select>;
   return <input type={field.type || 'text'} min={field.min} max={field.max} step={field.step} value={value} placeholder={field.placeholder || ''} required={!!field.required} onChange={e => setValue(e.target.value)} />;
