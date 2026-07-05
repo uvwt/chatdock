@@ -118,6 +118,12 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 		}
 		return a.mcpClient.CallTool(ctx, mcpCfg, name, args)
 	}
+	preflightEmit := recordingEmit
+	if emit == nil {
+		preflightEmit = nil
+	}
+	preflight := a.runConversationPreflight(ctx, history, catalog, runRealTool, preflightEmit)
+	history = appendPreflightContext(history, preflight)
 	toolEmit := recordingEmit
 	if emit == nil {
 		// 非流式 /api/chat 不需要把最终回答改成流式请求；工具仍会执行，只是不记录前端运行事件。
