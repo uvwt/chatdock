@@ -79,30 +79,43 @@ func (a *App) modelConfigFromRequest(r *http.Request) (model.ModelConfig, error)
 	if strings.TrimSpace(string(raw)) == "" || strings.TrimSpace(string(raw)) == "{}" {
 		return cfg, nil
 	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return model.ModelConfig{}, err
+	}
 	next := cfg
 	if err := json.Unmarshal(raw, &next); err != nil {
 		return model.ModelConfig{}, err
 	}
-	if strings.TrimSpace(next.ProviderID) != "" {
+	resolvedFromProvider := false
+	if _, hasProviderID := fields["provider_id"]; hasProviderID && strings.TrimSpace(next.ProviderID) != "" {
 		if providerCfg, ok, err := a.store.ModelProviderConfig(next.ProviderID); err != nil {
 			return model.ModelConfig{}, err
 		} else if ok {
-			if strings.TrimSpace(next.BaseURL) == "" {
+			resolvedFromProvider = true
+			_, hasBaseURL := fields["base_url"]
+			_, hasModel := fields["model"]
+			_, hasModels := fields["models"]
+			_, hasAPIKey := fields["api_key"]
+			if !hasBaseURL || strings.TrimSpace(next.BaseURL) == "" {
 				next.BaseURL = providerCfg.BaseURL
 			}
-			if strings.TrimSpace(next.Model) == "" {
+			if !hasModel || strings.TrimSpace(next.Model) == "" {
 				next.Model = providerCfg.Model
 			}
-			if len(next.Models) == 0 {
+			if !hasModels || len(next.Models) == 0 {
 				next.Models = append([]string(nil), providerCfg.Models...)
 			}
-			if strings.TrimSpace(next.APIKey) == "" || isMaskedModelSecret(next.APIKey) {
+			if !hasAPIKey || strings.TrimSpace(next.APIKey) == "" || isMaskedModelSecret(next.APIKey) {
 				next.APIKey = providerCfg.APIKey
 			}
+		} else {
+			return model.ModelConfig{}, fmt.Errorf("model provider not found: %s", next.ProviderID)
 		}
 	}
-	// 前端密码框为空或显示掩码时，继续复用已保存 Key；接口响应绝不回显 Key。
-	if strings.TrimSpace(next.APIKey) == "" || isMaskedModelSecret(next.APIKey) {
+	// 前端密码框为空或显示掩码时，继续复用已保存 Key；但如果本次按 provider_id 解析，
+	// 只能使用该 provider 自己的 key，不能错误回退到当前工作区/其他 provider 的 key。
+	if !resolvedFromProvider && (strings.TrimSpace(next.APIKey) == "" || isMaskedModelSecret(next.APIKey)) {
 		next.APIKey = cfg.APIKey
 	}
 	return model.NormalizeModelConfig(next), nil

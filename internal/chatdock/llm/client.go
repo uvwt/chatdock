@@ -147,6 +147,9 @@ func summarizeModelProviderBody(contentType string, body []byte) string {
 }
 
 func (c *ChatClient) TestModelProvider(ctx context.Context, cfg model.ModelConfig) error {
-	_, err := c.ListModels(ctx, cfg)
+	cfg = model.NormalizeModelConfig(cfg)
+	cfg.SystemPrompt = "你是 ChatDock 的模型供应商连通性测试助手。请只回复 OK。"
+	cfg.Temperature = 0
+	_, err := c.Complete(ctx, cfg, []model.Message{{Role: "user", Content: "请回复 OK，用于测试模型供应商连通性。"}})
 	return err
 }

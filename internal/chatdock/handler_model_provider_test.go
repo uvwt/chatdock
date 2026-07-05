@@ -3,6 +3,7 @@ package chatdock
 import (
 	"bytes"
 	"chatdock/internal/chatdock/model"
+	"chatdock/internal/chatdock/store"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -17,8 +18,14 @@ func TestModelProviderTestUsesRequestConfig(t *testing.T) {
 		case seenPath <- r.URL.Path:
 		default:
 		}
+		if r.URL.Path != "/chat/completions" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error":"wrong path"}`))
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":[]}`))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"OK"}}]}`))
 	}))
 	defer modelServer.Close()
 
@@ -34,7 +41,7 @@ func TestModelProviderTestUsesRequestConfig(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("model provider test status %d: %s", w.Code, w.Body.String())
 	}
-	if got := <-seenPath; got != "/models" {
+	if got := <-seenPath; got != "/chat/completions" {
 		t.Fatalf("unexpected model test path: %s", got)
 	}
 	var result map[string]any
@@ -54,7 +61,7 @@ func TestModelProviderTestKeepsSavedAPIKeyWhenMasked(t *testing.T) {
 		default:
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":[]}`))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"OK"}}]}`))
 	}))
 	defer modelServer.Close()
 
@@ -75,6 +82,52 @@ func TestModelProviderTestKeepsSavedAPIKeyWhenMasked(t *testing.T) {
 	}
 	if got := <-seenAuth; got != "Bearer saved-secret" {
 		t.Fatalf("unexpected authorization header: %q", got)
+	}
+}
+
+func TestModelProviderRequestProviderIDDoesNotReuseCurrentWorkspaceKey(t *testing.T) {
+	seenAuth := make(chan string, 1)
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case seenAuth <- r.Header.Get("Authorization"):
+		default:
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"id":"provider-model"}]}`))
+	}))
+	defer modelServer.Close()
+
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "current-workspace-secret"}); err != nil {
+		t.Fatal(err)
+	}
+	provider, err := app.store.CreateModelProvider(store.ModelProviderInput{Name: "Provider No Key", BaseURL: modelServer.URL, DefaultModel: "provider-model", Enabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := `{"provider_id":"` + provider.ID + `","api_key":"********"}`
+	cfg, err := app.modelConfigFromRequest(httptest.NewRequest(http.MethodPost, "/api/model-providers/models", bytes.NewReader([]byte(body))))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.BaseURL != modelServer.URL {
+		t.Fatalf("provider_id should resolve provider base url, got %q want %q", cfg.BaseURL, modelServer.URL)
+	}
+	if cfg.APIKey != "" {
+		t.Fatalf("provider_id should not reuse unrelated workspace key, got %q", cfg.APIKey)
+	}
+	routes := app.routes()
+	r := httptest.NewRequest(http.MethodPost, "/api/model-providers/models", bytes.NewReader([]byte(body)))
+	w := httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("model provider models status %d: %s", w.Code, w.Body.String())
+	}
+	if got := <-seenAuth; got != "" {
+		t.Fatalf("provider_id request reused unrelated workspace key: %q", got)
 	}
 }
 
