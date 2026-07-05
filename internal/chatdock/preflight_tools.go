@@ -236,7 +236,7 @@ func toolNameMatches(fullName, name, candidate string) bool {
 func preflightMemoryArgs(toolName string, query string) map[string]any {
 	switch strings.ToLower(strings.TrimSpace(toolName)) {
 	case "recall_bootstrap":
-		return map[string]any{"project": "agentdock", "max_bytes": 8000}
+		return map[string]any{"max_bytes": 8000}
 	default:
 		return map[string]any{"query": query, "limit": 6}
 	}

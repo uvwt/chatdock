@@ -13,6 +13,7 @@ services:
       CHATDOCK_ADDR: :8720
       CHATDOCK_DATA: /data
       CHATDOCK_PUBLIC_BASE_URL: https://chatdock.200399.xyz
+      CHATDOCK_AGENTDOCK_CONTEXT_URL: http://host.docker.internal:18766/capabilities/context
     ports:
       - "127.0.0.1:8720:8720"
     volumes:
