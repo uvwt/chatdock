@@ -126,7 +126,7 @@ func isMaskedModelSecret(value string) bool {
 	if value == "" {
 		return true
 	}
-	return strings.Trim(value, "*") == ""
+	return strings.Contains(value, "*")
 }
 
 func (a *App) handleTestModelProvider(w http.ResponseWriter, r *http.Request) {

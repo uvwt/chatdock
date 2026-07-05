@@ -913,6 +913,5 @@ func isMaskedSecret(value string) bool {
 	if value == "" {
 		return true
 	}
-	trimmed := strings.Trim(value, "*")
-	return trimmed == ""
+	return strings.Contains(value, "*")
 }
