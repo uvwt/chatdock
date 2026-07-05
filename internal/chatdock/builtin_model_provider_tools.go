@@ -68,8 +68,8 @@ func builtinModelProviderTools() []mcp.MCPTool {
 			Name:        "model_provider_test",
 			FullName:    builtinToolTestModelProvider,
 			Title:       "测试模型供应商",
-			Description: "测试供应商连接。selected_key_id 有值时只测指定 Key；all_keys=true 时测试所有启用 Key；fetch_models=true 请求 /models；save_models=true 保存模型列表。成功的 Key 会记录 last_status=ok 并设为 selected_key_id。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "供应商 id"}, "model": map[string]any{"type": "string", "description": "可选，临时测试的模型名"}, "selected_key_id": map[string]any{"type": "string", "description": "只测试指定 Key"}, "all_keys": map[string]any{"type": "boolean", "description": "测试所有启用 Key"}, "fetch_models": map[string]any{"type": "boolean", "description": "请求 /models 并返回模型列表"}, "save_models": map[string]any{"type": "boolean", "description": "将成功获取的模型列表保存回供应商"}}, "required": []string{"id"}},
+			Description: "测试供应商真实聊天连接。必须调用 /chat/completions；fetch_models=true 时附带读取 /models；save_models=true 仅在聊天测试成功且模型列表读取成功后保存模型列表。只有聊天测试成功才算可用并记录 last_status=ok。",
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "供应商 id"}, "model": map[string]any{"type": "string", "description": "可选，临时测试的模型名"}, "selected_key_id": map[string]any{"type": "string", "description": "只测试指定 Key"}, "all_keys": map[string]any{"type": "boolean", "description": "测试所有启用 Key"}, "fetch_models": map[string]any{"type": "boolean", "description": "请求 /models 并返回模型列表"}, "save_models": map[string]any{"type": "boolean", "description": "聊天测试成功且 /models 成功后，将模型列表保存回供应商"}}, "required": []string{"id"}},
 		},
 		{
 			Server:      builtinToolServerModelProviders,
@@ -136,11 +136,7 @@ func (a *App) callBuiltinModelProviderTool(ctx context.Context, name string, arg
 	case builtinToolTestModelProvider:
 		return a.builtinTestModelProvider(ctx, args)
 	case builtinToolListModelProviderModels:
-		if save, ok := optionalBoolArg(args, "save"); ok {
-			args["save_models"] = save
-		}
-		args["fetch_models"] = true
-		return a.builtinTestModelProvider(ctx, args)
+		return a.builtinListModelProviderModels(ctx, args)
 	case builtinToolSetWorkspaceModelProvider:
 		providerID, err := requiredStringArg(args, "provider_id")
 		if err != nil {
@@ -194,6 +190,76 @@ func (a *App) builtinSaveModelProvider(args map[string]any) (map[string]any, err
 	return result, nil
 }
 
+func (a *App) builtinListModelProviderModels(ctx context.Context, args map[string]any) (map[string]any, error) {
+	id, err := requiredStringArg(args, "id")
+	if err != nil {
+		return nil, err
+	}
+	selectedKeyID := strings.TrimSpace(stringArg(args, "selected_key_id"))
+	allKeys, _ := optionalBoolArg(args, "all_keys")
+	saveModels, _ := optionalBoolArg(args, "save")
+	modelName := strings.TrimSpace(stringArg(args, "model"))
+	keyConfigs, provider, err := a.store.ModelProviderKeyConfigs(id, selectedKeyID, modelName, allKeys)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 25*time.Second)
+	defer cancel()
+
+	keyResults := make([]map[string]any, 0, len(keyConfigs))
+	var savedProvider *store.ModelProvider
+	var savedModels []string
+	okAny := false
+	for _, item := range keyConfigs {
+		cfg := item.Config
+		result := map[string]any{"key_id": item.KeyID, "key_name": item.KeyName, "model": cfg.Model, "operation": "model_list"}
+		models, listErr := a.client.ListModels(ctx, cfg)
+		if listErr != nil {
+			result["ok"] = false
+			result["model_list_ok"] = false
+			result["error"] = listErr.Error()
+			keyResults = append(keyResults, result)
+			continue
+		}
+		result["ok"] = true
+		result["model_list_ok"] = true
+		result["models"] = models
+		result["count"] = len(models)
+		okAny = true
+		if saveModels && len(models) > 0 && len(savedModels) == 0 {
+			updated, err := a.store.UpdateModelProviderModels(provider.ID, models)
+			if err != nil {
+				return nil, err
+			}
+			savedProvider = &updated
+			savedModels = models
+			result["saved"] = true
+		}
+		keyResults = append(keyResults, result)
+	}
+	response := map[string]any{"ok": okAny, "operation": "model_list", "provider_id": provider.ID, "model": modelName, "key_results": keyResults}
+	if modelName == "" {
+		response["model"] = provider.DefaultModel
+	}
+	if len(keyResults) == 1 {
+		for k, v := range keyResults[0] {
+			if k != "key_id" && k != "key_name" {
+				response[k] = v
+			}
+		}
+		response["selected_key_id"] = keyResults[0]["key_id"]
+	}
+	if len(savedModels) > 0 {
+		response["saved"] = true
+		response["models"] = savedModels
+		response["count"] = len(savedModels)
+	}
+	if savedProvider != nil {
+		response["provider"] = *savedProvider
+	}
+	return response, nil
+}
+
 func (a *App) builtinTestModelProvider(ctx context.Context, args map[string]any) (map[string]any, error) {
 	id, err := requiredStringArg(args, "id")
 	if err != nil {
@@ -224,26 +290,34 @@ func (a *App) builtinTestModelProvider(ctx context.Context, args map[string]any)
 		cfg.SystemPrompt = "你是 ChatDock 的模型供应商连通性测试助手。请只回复 OK。"
 		result := map[string]any{"key_id": item.KeyID, "key_name": item.KeyName, "model": cfg.Model}
 		var models []string
-		var testErr error
+		var listErr error
 		if fetchModels {
-			models, testErr = a.client.ListModels(ctx, cfg)
-			if testErr == nil {
+			models, listErr = a.client.ListModels(ctx, cfg)
+			if listErr == nil {
+				result["model_list_ok"] = true
 				result["models"] = models
 				result["count"] = len(models)
+			} else {
+				result["model_list_ok"] = false
+				result["model_list_error"] = listErr.Error()
 			}
-		} else {
-			testErr = a.client.TestModelProvider(ctx, cfg)
 		}
-		if testErr != nil {
+
+		chatErr := a.client.TestModelProvider(ctx, cfg)
+		if chatErr != nil {
 			result["ok"] = false
-			result["error"] = testErr.Error()
+			result["chat_test_ok"] = false
+			result["chat_test_error"] = chatErr.Error()
+			result["error"] = chatErr.Error()
 			if item.KeyID != "" {
-				_, _ = a.store.MarkModelProviderKeyTestResult(provider.ID, item.KeyID, false, testErr.Error(), false)
+				_, _ = a.store.MarkModelProviderKeyTestResult(provider.ID, item.KeyID, false, chatErr.Error(), false)
 			}
 			keyResults = append(keyResults, result)
 			continue
 		}
+
 		result["ok"] = true
+		result["chat_test_ok"] = true
 		okAny = true
 		if item.KeyID != "" {
 			selectThis := !selectedSuccess
@@ -253,6 +327,7 @@ func (a *App) builtinTestModelProvider(ctx context.Context, args map[string]any)
 				savedProvider = &updated
 			}
 		}
+
 		if saveModels && len(models) > 0 && len(savedModels) == 0 {
 			updated, err := a.store.UpdateModelProviderModels(provider.ID, models)
 			if err != nil {
@@ -264,7 +339,11 @@ func (a *App) builtinTestModelProvider(ctx context.Context, args map[string]any)
 		}
 		keyResults = append(keyResults, result)
 	}
-	response := map[string]any{"ok": okAny, "provider_id": provider.ID, "model": modelName, "key_results": keyResults}
+	operation := "chat_test"
+	if fetchModels {
+		operation = "chat_test_with_model_list"
+	}
+	response := map[string]any{"ok": okAny, "operation": operation, "provider_id": provider.ID, "model": modelName, "key_results": keyResults}
 	if modelName == "" {
 		response["model"] = provider.DefaultModel
 	}

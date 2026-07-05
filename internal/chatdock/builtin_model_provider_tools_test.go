@@ -140,6 +140,74 @@ func TestBuiltinModelProviderModelsCanSaveFetchedModels(t *testing.T) {
 	if !updated.HasAPIKey || !containsString(updated.Models, "fetched-a") || !containsString(updated.Models, "fetched-b") {
 		t.Fatalf("fetched models should be saved without exposing key: %#v", updated)
 	}
+	if len(updated.APIKeys) != 1 || updated.APIKeys[0].LastStatus != "" {
+		t.Fatalf("model-list operation must not mark chat test status: %#v", updated.APIKeys)
+	}
+}
+
+func TestBuiltinModelProviderTestDoesNotTreatModelListAsChatAvailability(t *testing.T) {
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/models":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]string{{"id": "listed-b"}, {"id": "listed-c"}}})
+		case "/v1/chat/completions":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusTooManyRequests)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]any{"message": "quota exceeded"}})
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer modelServer.Close()
+
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	createdRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolCreateModelProvider, map[string]any{
+		"name":          "False Positive Guard",
+		"base_url":      modelServer.URL + "/v1",
+		"api_key":       "saved-secret",
+		"default_model": "initial-model",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := createdRaw.(map[string]any)["provider"].(store.ModelProvider)
+
+	testRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolTestModelProvider, map[string]any{"id": provider.ID, "save_models": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := testRaw.(map[string]any)
+	if result["ok"] != false || result["chat_test_ok"] != false || result["model_list_ok"] != true {
+		t.Fatalf("model list success must not become chat availability: %#v", result)
+	}
+	if _, ok := result["saved"]; ok {
+		t.Fatalf("failed chat test should not save models through test tool: %#v", result)
+	}
+	if result["operation"] != "chat_test_with_model_list" {
+		t.Fatalf("unexpected operation: %#v", result)
+	}
+
+	providers, err := app.store.ListModelProviders()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var updated store.ModelProvider
+	for _, item := range providers {
+		if item.ID == provider.ID {
+			updated = item
+			break
+		}
+	}
+	if containsString(updated.Models, "listed-b") || containsString(updated.Models, "listed-c") {
+		t.Fatalf("test tool should not save listed models when chat test failed: %#v", updated.Models)
+	}
+	if len(updated.APIKeys) != 1 || updated.APIKeys[0].LastStatus != "error" {
+		t.Fatalf("chat failure should mark key test status error: %#v", updated.APIKeys)
+	}
 }
 
 func TestBuiltinModelProviderSaveSupportsMultipleKeys(t *testing.T) {
