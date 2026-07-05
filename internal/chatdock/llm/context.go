@@ -32,12 +32,13 @@ func buildChatContextMessages(cfg model.ModelConfig, history []model.Message) []
 	cfg = model.NormalizeModelConfig(cfg)
 	recentCount, summarizeOld := contextPlan(cfg)
 	valid := validChatHistory(history)
-	start := len(valid) - recentCount
+	historySystems, conversation := splitHistorySystemMessages(valid)
+	start := len(conversation) - recentCount
 	if start < 0 {
 		start = 0
 	}
 
-	messages := make([]chatContextMessage, 0, recentCount+2)
+	messages := make([]chatContextMessage, 0, recentCount+len(historySystems)+2)
 	if systemPrompt := buildSystemPrompt(cfg); strings.TrimSpace(systemPrompt) != "" {
 		messages = append(messages, chatContextMessage{Role: "system", Content: systemPrompt})
 	}
@@ -45,12 +46,17 @@ func buildChatContextMessages(cfg model.ModelConfig, history []model.Message) []
 	// 自动上下文不是简单丢弃早期历史：超过最近窗口的内容会被提炼成
 	// 一条系统摘要，既节省 token，也避免模型完全忘记当前会话的来龙去脉。
 	if summarizeOld && start > 0 {
-		if summary := summarizeEarlierContext(valid[:start]); summary != "" {
+		if summary := summarizeEarlierContext(conversation[:start]); summary != "" {
 			messages = append(messages, chatContextMessage{Role: "system", Content: summary})
 		}
 	}
 
-	for _, item := range valid[start:] {
+	// ChatDock 运行时注入的 Capability Context / Preflight Context 都是 system 消息。
+	// 它们必须稳定出现在用户消息之前，也不能被“最近 N 条消息”裁剪掉。
+	for _, item := range historySystems {
+		messages = append(messages, chatContextMessage{Role: item.Role, Content: item.Content, ModelAttachments: item.ModelAttachments})
+	}
+	for _, item := range conversation[start:] {
 		messages = append(messages, chatContextMessage{Role: item.Role, Content: item.Content, ModelAttachments: item.ModelAttachments})
 	}
 	return messages
@@ -106,6 +112,19 @@ func contextPlan(cfg model.ModelConfig) (int, bool) {
 	default:
 		return 12, true
 	}
+}
+
+func splitHistorySystemMessages(history []model.Message) ([]model.Message, []model.Message) {
+	systems := make([]model.Message, 0)
+	conversation := make([]model.Message, 0, len(history))
+	for _, item := range history {
+		if item.Role == "system" {
+			systems = append(systems, item)
+			continue
+		}
+		conversation = append(conversation, item)
+	}
+	return systems, conversation
 }
 
 func validChatHistory(history []model.Message) []model.Message {

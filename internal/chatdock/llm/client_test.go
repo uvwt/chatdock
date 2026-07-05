@@ -49,6 +49,23 @@ func TestBuildChatMessagesCustomModeLimitsContext(t *testing.T) {
 	}
 }
 
+func TestBuildChatMessagesHoistsRuntimeSystemContext(t *testing.T) {
+	cfg := model.ModelConfig{SystemPrompt: "base system", ContextMode: model.ContextModeCustom, MaxContextMessages: 1}
+	history := []model.Message{
+		{Role: "user", Content: "older user"},
+		{Role: "assistant", Content: "older assistant"},
+		{Role: "system", Content: "AgentDock Capability Context"},
+		{Role: "user", Content: "latest user"},
+	}
+	got := BuildChatMessages(cfg, history)
+	if len(got) != 3 {
+		t.Fatalf("expected base system, runtime system, and latest user, got %#v", got)
+	}
+	if got[0]["content"] != "base system" || got[1]["content"] != "AgentDock Capability Context" || got[2]["content"] != "latest user" {
+		t.Fatalf("runtime system context was not preserved before user message: %#v", got)
+	}
+}
+
 func TestBuildChatMessagesAutoSummarizesEarlierContext(t *testing.T) {
 	cfg := model.ModelConfig{SystemPrompt: "sys", ContextMode: model.ContextModeAuto}
 	history := make([]model.Message, 0, 14)
