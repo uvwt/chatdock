@@ -125,13 +125,13 @@ function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptP
     </div>
 
     <section className="settings-section model-section">
-      <div className="settings-section-head"><div><b>工作空间默认模型</b><p>选择当前工作空间默认使用的全局供应商和模型。</p></div><button className="secondary small" onClick={fetchProviderModels} disabled={loadingModels || !activeProvider}>{loadingModels ? '获取中…' : '获取当前供应商模型'}</button></div>
+      <div className="settings-section-head"><div><b>工作空间默认模型</b><p>选择当前工作空间默认使用的全局供应商和模型。</p></div><button className="secondary small" onClick={fetchProviderModels} disabled={loadingModels || !activeProvider}>{loadingModels ? '获取中…' : '获取候选模型'}</button></div>
       <div className="settings-form-grid">
         <label>默认供应商<select value={activeProvider?.id || ''} onChange={e => chooseProvider(e.target.value)}>{providers.length ? providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>) : <option value="">未配置供应商</option>}</select></label>
         <label>默认模型<input value={config.model || ''} onChange={e => chooseModel(e.target.value)} placeholder={activeProvider?.default_model || 'gpt-4o-mini'} /></label>
       </div>
-      {selectedProviderModels.length ? <div className="model-options">{selectedProviderModels.map(name => <button key={name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => chooseModel(name)}>{name}</button>)}</div> : <div className="hint">还没有模型列表，可以在下方供应商卡片里获取模型列表，或手动输入模型名。</div>}
-      {availableModels.length ? <div className="model-options">{availableModels.map(name => <button key={'fetched-' + name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => chooseModel(name)}>{name}</button>)}</div> : null}
+      {selectedProviderModels.length ? <div className="model-options">{selectedProviderModels.map(name => <button key={name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => chooseModel(name)}>{name}</button>)}</div> : <div className="hint">还没有可用模型列表，请手动输入模型名，或从候选模型中选择后保存。</div>}
+      {availableModels.length ? <div><div className="hint">候选模型目录：仅用于查看。点击后只填入当前默认模型，保存后才会进入当前供应商可用模型列表。</div><div className="model-options">{availableModels.map(name => <button key={'candidate-' + name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => chooseModel(name)}>{name}</button>)}</div></div> : null}
     </section>
 
     <section className="settings-section model-section">
@@ -157,7 +157,7 @@ function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptP
 
     <section className="settings-section provider-section">
       <div className="settings-section-head"><div><b>全局模型供应商</b><p>供应商全局共享；工作空间只引用默认供应商和模型。</p></div><button className="secondary small" onClick={() => editModelProvider(null)}>新增供应商</button></div>
-      <div className="provider-grid">{providers.length ? providers.map(p => <TextCard key={p.id} title={p.name || p.id} hint={p.base_url || '-'} badge={p.enabled ? (p.type || 'openai') : '停用'} active={p.id === config.provider_id}><div className="product-meta">默认模型：{p.default_model || '-'} · 模型 {p.models?.length || 0} 个 · Key：{p.has_api_key ? (p.api_key_masked || '******') : '未设置'}</div><div className="product-actions"><button className="secondary small" onClick={() => editModelProvider(p)}>编辑</button><button className="secondary small" onClick={() => testSavedModelProvider(p)}>测试</button><button className="secondary small" onClick={() => fetchSavedProviderModels(p)}>获取模型</button><button className="danger small" onClick={() => deleteModelProvider(p)}>删除</button></div></TextCard>) : <div className="empty compact">还没有模型供应商配置。</div>}</div>
+      <div className="provider-grid">{providers.length ? providers.map(p => <TextCard key={p.id} title={p.name || p.id} hint={p.base_url || '-'} badge={p.enabled ? (p.type || 'openai') : '停用'} active={p.id === config.provider_id}><div className="product-meta">默认模型：{p.default_model || '-'} · 可用模型 {p.models?.length || 0} 个 · Key：{p.has_api_key ? (p.api_key_masked || '******') : '未设置'}</div><div className="product-actions"><button className="secondary small" onClick={() => editModelProvider(p)}>编辑</button><button className="secondary small" onClick={() => testSavedModelProvider(p)}>测试</button><button className="secondary small" onClick={() => fetchSavedProviderModels(p)}>候选模型</button><button className="danger small" onClick={() => deleteModelProvider(p)}>删除</button></div></TextCard>) : <div className="empty compact">还没有模型供应商配置。</div>}</div>
     </section>
   </>;
 }

@@ -65,7 +65,7 @@ function ComposerModelPicker({ busy, providers, selectedProvider, selectedModel,
           <div className="model-chip-list">
             {provider.models.length ? provider.models.map(name => <button type="button" key={provider.choice_id + name} className={'model-chip ' + (selectedProvider?.choice_id === provider.choice_id && selectedModel === name ? 'active' : '')} onClick={() => selectModel(provider, name)}>{name}</button>) : <button type="button" className="model-chip" onClick={() => openSettings('model')}>添加模型</button>}
           </div>
-        </div>) : <div className="empty compact">还没有可选模型，请先到配置中心添加。</div>}
+        </div>) : <div className="empty compact">还没有可用模型，请先到配置中心手动添加。</div>}
       </div>
     </div> : null}
   </div>;
@@ -1642,12 +1642,12 @@ export default function App() {
         enable_thinking: !!config.enable_thinking,
         hide_thinking: !!config.hide_thinking,
       });
-      const models = data.models || [];
+      const models = data.candidate_models || data.models || [];
       setAvailableModels(models);
-      showToast(models.length ? '已获取 ' + models.length + ' 个模型' : '接口可用，但没有返回模型名称', models.length ? 'success' : 'warn');
+      showToast(models.length ? '已获取 ' + models.length + ' 个候选模型，仅用于查看，需手动保存为可用模型' : '接口可用，但没有返回候选模型名称', models.length ? 'success' : 'warn');
     } catch (e) {
       setAvailableModels([]);
-      showToast('获取模型列表失败：' + e.message, 'error');
+      showToast('获取候选模型失败：' + e.message, 'error');
     } finally {
       setLoadingModels(false);
     }
@@ -1663,7 +1663,7 @@ export default function App() {
         { name: 'base_url', label: 'Base URL', value: existing?.base_url || 'https://api.openai.com/v1', required: true },
         { name: 'api_key', label: 'API Key', type: 'password', value: '', placeholder: existing?.has_api_key ? '已保存，留空不修改' : '未设置' },
         { name: 'default_model', label: '默认模型', value: existing?.default_model || 'gpt-4o-mini', required: true },
-        { name: 'models', label: '可选模型（每行一个）', type: 'textarea', rows: 5, value: modelText || (existing?.default_model || 'gpt-4o-mini') },
+        { name: 'models', label: '可用模型（手动添加，每行一个）', type: 'textarea', rows: 5, value: modelText || (existing?.default_model || 'gpt-4o-mini') },
         { name: 'enabled', label: '状态', type: 'select', value: existing && existing.enabled === false ? 'false' : 'true', options: [{ value: 'true', label: '启用' }, { value: 'false', label: '停用' }] },
       ]
     });
@@ -1703,21 +1703,11 @@ export default function App() {
     if (!provider?.id) return;
     try {
       const data = await fetchProviderModelsRequest(api, { provider_id: provider.id, model: provider.default_model });
-      const models = data.models || [];
-      if (models.length) {
-        await updateModelProviderRequest(api, provider.id, {
-          name: provider.name || provider.id,
-          base_url: provider.base_url || '',
-          api_key: '********',
-          default_model: provider.default_model || models[0],
-          models,
-          enabled: provider.enabled !== false,
-        });
-        await Promise.allSettled([loadModelProviders(), loadConfig(), loadWorkspaces()]);
-      }
-      showToast(models.length ? '已更新 ' + models.length + ' 个模型' : '接口可用，但没有返回模型名称', models.length ? 'success' : 'warn');
-    } catch (e) { showToast('获取供应商模型失败：' + e.message, 'error'); }
-  }, [api, loadConfig, loadModelProviders, loadWorkspaces, showToast]);
+      const models = data.candidate_models || data.models || [];
+      setAvailableModels(models);
+      showToast(models.length ? '已获取 ' + models.length + ' 个候选模型，仅用于查看，需编辑供应商手动添加到可用模型列表' : '接口可用，但没有返回候选模型名称', models.length ? 'success' : 'warn');
+    } catch (e) { showToast('获取候选模型失败：' + e.message, 'error'); }
+  }, [api, showToast]);
 
   const saveMCPConfig = useCallback(async () => {
     try { JSON.parse(mcpConfig || '{}'); } catch (e) { showToast('MCP 配置不是合法 JSON：' + e.message, 'error'); return; }

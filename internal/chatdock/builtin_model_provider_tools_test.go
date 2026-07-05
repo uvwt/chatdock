@@ -100,7 +100,7 @@ func TestBuiltinModelProviderToolsExposeExpectedActions(t *testing.T) {
 	}
 }
 
-func TestBuiltinModelProviderModelsCanSaveFetchedModels(t *testing.T) {
+func TestBuiltinModelProviderModelsReturnsCandidateCatalogOnly(t *testing.T) {
 	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/models" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
@@ -128,20 +128,34 @@ func TestBuiltinModelProviderModelsCanSaveFetchedModels(t *testing.T) {
 	}
 	provider := createdRaw.(map[string]any)["provider"].(store.ModelProvider)
 
-	modelsRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolListModelProviderModels, map[string]any{"id": provider.ID, "save": true})
+	modelsRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolListModelProviderModels, map[string]any{"id": provider.ID})
 	if err != nil {
 		t.Fatal(err)
 	}
 	modelsResult := modelsRaw.(map[string]any)
-	if modelsResult["ok"] != true || modelsResult["count"] != 2 || modelsResult["saved"] != true {
-		t.Fatalf("unexpected models result: %#v", modelsResult)
+	if modelsResult["ok"] != true || modelsResult["count"] != 2 || modelsResult["saved"] == true || modelsResult["operation"] != "model_catalog" {
+		t.Fatalf("unexpected candidate catalog result: %#v", modelsResult)
 	}
-	updated := modelsResult["provider"].(store.ModelProvider)
-	if !updated.HasAPIKey || !containsString(updated.Models, "fetched-a") || !containsString(updated.Models, "fetched-b") {
-		t.Fatalf("fetched models should be saved without exposing key: %#v", updated)
+	candidates, _ := modelsResult["candidate_models"].([]string)
+	if !containsString(candidates, "fetched-a") || !containsString(candidates, "fetched-b") {
+		t.Fatalf("candidate models should be returned: %#v", modelsResult)
+	}
+	providers, err := app.store.ListModelProviders()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var updated store.ModelProvider
+	for _, item := range providers {
+		if item.ID == provider.ID {
+			updated = item
+			break
+		}
+	}
+	if containsString(updated.Models, "fetched-a") || containsString(updated.Models, "fetched-b") {
+		t.Fatalf("candidate catalog must not be saved automatically: %#v", updated.Models)
 	}
 	if len(updated.APIKeys) != 1 || updated.APIKeys[0].LastStatus != "" {
-		t.Fatalf("model-list operation must not mark chat test status: %#v", updated.APIKeys)
+		t.Fatalf("catalog operation must not mark chat test status: %#v", updated.APIKeys)
 	}
 }
 
@@ -176,19 +190,23 @@ func TestBuiltinModelProviderTestDoesNotTreatModelListAsChatAvailability(t *test
 	}
 	provider := createdRaw.(map[string]any)["provider"].(store.ModelProvider)
 
-	testRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolTestModelProvider, map[string]any{"id": provider.ID, "save_models": true})
+	testRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolTestModelProvider, map[string]any{"id": provider.ID, "fetch_models": true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	result := testRaw.(map[string]any)
 	if result["ok"] != false || result["chat_test_ok"] != false || result["model_list_ok"] != true {
-		t.Fatalf("model list success must not become chat availability: %#v", result)
+		t.Fatalf("candidate catalog success must not become chat availability: %#v", result)
 	}
 	if _, ok := result["saved"]; ok {
-		t.Fatalf("failed chat test should not save models through test tool: %#v", result)
+		t.Fatalf("test tool must not auto-save candidate models: %#v", result)
 	}
 	if result["operation"] != "chat_test_with_model_list" {
 		t.Fatalf("unexpected operation: %#v", result)
+	}
+	candidates, _ := result["candidate_models"].([]string)
+	if !containsString(candidates, "listed-b") || !containsString(candidates, "listed-c") {
+		t.Fatalf("candidate models should be returned alongside failed chat test: %#v", result)
 	}
 
 	providers, err := app.store.ListModelProviders()
@@ -203,7 +221,7 @@ func TestBuiltinModelProviderTestDoesNotTreatModelListAsChatAvailability(t *test
 		}
 	}
 	if containsString(updated.Models, "listed-b") || containsString(updated.Models, "listed-c") {
-		t.Fatalf("test tool should not save listed models when chat test failed: %#v", updated.Models)
+		t.Fatalf("test tool must not auto-save candidate models: %#v", updated.Models)
 	}
 	if len(updated.APIKeys) != 1 || updated.APIKeys[0].LastStatus != "error" {
 		t.Fatalf("chat failure should mark key test status error: %#v", updated.APIKeys)

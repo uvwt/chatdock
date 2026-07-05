@@ -157,5 +157,5 @@ func (a *App) handleListProviderModels(w http.ResponseWriter, r *http.Request) {
 		writeJSONResponse(w, http.StatusBadGateway, map[string]any{"ok": false, "error": err.Error(), "models": []string{}})
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true, "provider_id": cfg.ProviderID, "models": models})
+	writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true, "operation": "model_catalog", "provider_id": cfg.ProviderID, "candidate_models": models, "models": models, "note": "上游 /models 返回的是候选模型目录，不代表当前账号可用；不会自动写入供应商可用模型列表。"})
 }

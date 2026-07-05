@@ -37,7 +37,7 @@ func builtinModelProviderTools() []mcp.MCPTool {
 		"base_url":                 map[string]any{"type": "string", "description": "OpenAI 兼容 Base URL，例如 https://api.openai.com/v1 或 http://127.0.0.1:11434/v1"},
 		"api_key":                  map[string]any{"type": "string", "description": "兼容旧单 Key 参数。传入后会写入/更新当前 Key；留空或 ******** 表示保留。推荐改用 api_keys。"},
 		"default_model":            map[string]any{"type": "string", "description": "默认模型名称，例如 gpt-4o-mini、doubao-seed-1-6、qwen3-coder"},
-		"models":                   map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "可选模型列表。也兼容传入逗号或换行分隔字符串。"},
+		"models":                   map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "可用模型列表，必须由用户手动添加或确认；也兼容传入逗号或换行分隔字符串。"},
 		"timeout_ms":               map[string]any{"type": "integer", "description": "请求超时毫秒，默认 120000"},
 		"enabled":                  map[string]any{"type": "boolean", "description": "是否启用供应商，默认 true"},
 		"key_strategy":             map[string]any{"type": "string", "enum": []string{"auto", "manual"}, "description": "Key 选择策略。auto=优先 selected_key_id，失败/不可用时按 priority 选择其他启用 Key；manual=只使用 selected_key_id。默认 auto。"},
@@ -68,8 +68,8 @@ func builtinModelProviderTools() []mcp.MCPTool {
 			Name:        "model_provider_test",
 			FullName:    builtinToolTestModelProvider,
 			Title:       "测试模型供应商",
-			Description: "测试供应商真实聊天连接。必须调用 /chat/completions；fetch_models=true 时附带读取 /models；save_models=true 仅在聊天测试成功且模型列表读取成功后保存模型列表。只有聊天测试成功才算可用并记录 last_status=ok。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "供应商 id"}, "model": map[string]any{"type": "string", "description": "可选，临时测试的模型名"}, "selected_key_id": map[string]any{"type": "string", "description": "只测试指定 Key"}, "all_keys": map[string]any{"type": "boolean", "description": "测试所有启用 Key"}, "fetch_models": map[string]any{"type": "boolean", "description": "请求 /models 并返回模型列表"}, "save_models": map[string]any{"type": "boolean", "description": "聊天测试成功且 /models 成功后，将模型列表保存回供应商"}}, "required": []string{"id"}},
+			Description: "Test real chat connectivity with /chat/completions. fetch_models=true only returns candidate_models from /models; candidate models are not saved automatically. Only chat success marks the provider/key usable.",
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "供应商 id"}, "model": map[string]any{"type": "string", "description": "可选，临时测试的模型名"}, "selected_key_id": map[string]any{"type": "string", "description": "只测试指定 Key"}, "all_keys": map[string]any{"type": "boolean", "description": "测试所有启用 Key"}, "fetch_models": map[string]any{"type": "boolean", "description": "Return candidate_models from /models without saving"}}, "required": []string{"id"}},
 		},
 		{
 			Server:      builtinToolServerModelProviders,
@@ -197,7 +197,6 @@ func (a *App) builtinListModelProviderModels(ctx context.Context, args map[strin
 	}
 	selectedKeyID := strings.TrimSpace(stringArg(args, "selected_key_id"))
 	allKeys, _ := optionalBoolArg(args, "all_keys")
-	saveModels, _ := optionalBoolArg(args, "save")
 	modelName := strings.TrimSpace(stringArg(args, "model"))
 	keyConfigs, provider, err := a.store.ModelProviderKeyConfigs(id, selectedKeyID, modelName, allKeys)
 	if err != nil {
@@ -207,12 +206,10 @@ func (a *App) builtinListModelProviderModels(ctx context.Context, args map[strin
 	defer cancel()
 
 	keyResults := make([]map[string]any, 0, len(keyConfigs))
-	var savedProvider *store.ModelProvider
-	var savedModels []string
 	okAny := false
 	for _, item := range keyConfigs {
 		cfg := item.Config
-		result := map[string]any{"key_id": item.KeyID, "key_name": item.KeyName, "model": cfg.Model, "operation": "model_list"}
+		result := map[string]any{"key_id": item.KeyID, "key_name": item.KeyName, "model": cfg.Model, "operation": "model_catalog"}
 		models, listErr := a.client.ListModels(ctx, cfg)
 		if listErr != nil {
 			result["ok"] = false
@@ -223,21 +220,14 @@ func (a *App) builtinListModelProviderModels(ctx context.Context, args map[strin
 		}
 		result["ok"] = true
 		result["model_list_ok"] = true
+		result["candidate_models"] = models
 		result["models"] = models
 		result["count"] = len(models)
+		result["note"] = "model catalog only; add models manually to provider.models"
 		okAny = true
-		if saveModels && len(models) > 0 && len(savedModels) == 0 {
-			updated, err := a.store.UpdateModelProviderModels(provider.ID, models)
-			if err != nil {
-				return nil, err
-			}
-			savedProvider = &updated
-			savedModels = models
-			result["saved"] = true
-		}
 		keyResults = append(keyResults, result)
 	}
-	response := map[string]any{"ok": okAny, "operation": "model_list", "provider_id": provider.ID, "model": modelName, "key_results": keyResults}
+	response := map[string]any{"ok": okAny, "operation": "model_catalog", "provider_id": provider.ID, "model": modelName, "key_results": keyResults, "note": "candidate model catalog only; add usable models manually to provider.models"}
 	if modelName == "" {
 		response["model"] = provider.DefaultModel
 	}
@@ -248,14 +238,6 @@ func (a *App) builtinListModelProviderModels(ctx context.Context, args map[strin
 			}
 		}
 		response["selected_key_id"] = keyResults[0]["key_id"]
-	}
-	if len(savedModels) > 0 {
-		response["saved"] = true
-		response["models"] = savedModels
-		response["count"] = len(savedModels)
-	}
-	if savedProvider != nil {
-		response["provider"] = *savedProvider
 	}
 	return response, nil
 }
@@ -268,10 +250,6 @@ func (a *App) builtinTestModelProvider(ctx context.Context, args map[string]any)
 	selectedKeyID := strings.TrimSpace(stringArg(args, "selected_key_id"))
 	allKeys, _ := optionalBoolArg(args, "all_keys")
 	fetchModels, _ := optionalBoolArg(args, "fetch_models")
-	saveModels, _ := optionalBoolArg(args, "save_models")
-	if saveModels {
-		fetchModels = true
-	}
 	modelName := strings.TrimSpace(stringArg(args, "model"))
 	keyConfigs, provider, err := a.store.ModelProviderKeyConfigs(id, selectedKeyID, modelName, allKeys)
 	if err != nil {
@@ -282,7 +260,6 @@ func (a *App) builtinTestModelProvider(ctx context.Context, args map[string]any)
 
 	keyResults := make([]map[string]any, 0, len(keyConfigs))
 	var savedProvider *store.ModelProvider
-	var savedModels []string
 	okAny := false
 	selectedSuccess := false
 	for _, item := range keyConfigs {
@@ -295,8 +272,10 @@ func (a *App) builtinTestModelProvider(ctx context.Context, args map[string]any)
 			models, listErr = a.client.ListModels(ctx, cfg)
 			if listErr == nil {
 				result["model_list_ok"] = true
+				result["candidate_models"] = models
 				result["models"] = models
 				result["count"] = len(models)
+				result["note"] = "model catalog only; add models manually to provider.models"
 			} else {
 				result["model_list_ok"] = false
 				result["model_list_error"] = listErr.Error()
@@ -328,15 +307,6 @@ func (a *App) builtinTestModelProvider(ctx context.Context, args map[string]any)
 			}
 		}
 
-		if saveModels && len(models) > 0 && len(savedModels) == 0 {
-			updated, err := a.store.UpdateModelProviderModels(provider.ID, models)
-			if err != nil {
-				return nil, err
-			}
-			savedProvider = &updated
-			savedModels = models
-			result["saved"] = true
-		}
 		keyResults = append(keyResults, result)
 	}
 	operation := "chat_test"
@@ -354,11 +324,6 @@ func (a *App) builtinTestModelProvider(ctx context.Context, args map[string]any)
 			}
 		}
 		response["selected_key_id"] = keyResults[0]["key_id"]
-	}
-	if len(savedModels) > 0 {
-		response["saved"] = true
-		response["models"] = savedModels
-		response["count"] = len(savedModels)
 	}
 	if savedProvider != nil {
 		response["provider"] = *savedProvider
