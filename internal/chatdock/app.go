@@ -17,19 +17,22 @@ import (
 )
 
 type App struct {
-	cfg           model.ServerConfig
-	store         *storepkg.Store
-	client        *llm.ChatClient
-	mcpClient     *mcp.MCPClient
-	server        *http.Server
-	jobMu         sync.Mutex
-	jobCancel     map[string]context.CancelFunc
-	confirmMu     sync.Mutex
-	confirmations map[string]*MCPConfirmation
-	runningMu     sync.Mutex
-	running       map[string]bool
-	embeddingMu   sync.Mutex
-	embeddingMemo map[string][]float64
+	cfg                   model.ServerConfig
+	store                 *storepkg.Store
+	client                *llm.ChatClient
+	mcpClient             *mcp.MCPClient
+	server                *http.Server
+	jobMu                 sync.Mutex
+	jobCancel             map[string]context.CancelFunc
+	confirmMu             sync.Mutex
+	confirmations         map[string]*MCPConfirmation
+	runningMu             sync.Mutex
+	running               map[string]bool
+	embeddingMu           sync.Mutex
+	embeddingMemo         map[string][]float64
+	agentDockContextMu    sync.Mutex
+	agentDockContext      string
+	agentDockContextUntil time.Time
 }
 
 func NewApp(cfg model.ServerConfig) (*App, error) {

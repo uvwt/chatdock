@@ -6,17 +6,10 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"chatdock/internal/chatdock/model"
 )
-
-var agentDockRuntimeContextCache = struct {
-	sync.Mutex
-	text    string
-	expires time.Time
-}{}
 
 func (a *App) appendAgentDockRuntimeContext(ctx context.Context, history []model.Message) []model.Message {
 	text := strings.TrimSpace(a.agentDockRuntimeContext(ctx))
@@ -34,14 +27,14 @@ func (a *App) agentDockRuntimeContext(ctx context.Context) string {
 		return ""
 	}
 	now := time.Now()
-	agentDockRuntimeContextCache.Lock()
-	if agentDockRuntimeContextCache.text != "" && now.Before(agentDockRuntimeContextCache.expires) {
-		text := agentDockRuntimeContextCache.text
-		agentDockRuntimeContextCache.Unlock()
+	a.agentDockContextMu.Lock()
+	if a.agentDockContext != "" && now.Before(a.agentDockContextUntil) {
+		text := a.agentDockContext
+		a.agentDockContextMu.Unlock()
 		return text
 	}
-	stale := agentDockRuntimeContextCache.text
-	agentDockRuntimeContextCache.Unlock()
+	stale := a.agentDockContext
+	a.agentDockContextMu.Unlock()
 
 	fetchCtx, cancel := context.WithTimeout(ctx, 2500*time.Millisecond)
 	defer cancel()
@@ -50,10 +43,10 @@ func (a *App) agentDockRuntimeContext(ctx context.Context) string {
 		return stale
 	}
 	text = compactPreflightText(text, 12000)
-	agentDockRuntimeContextCache.Lock()
-	agentDockRuntimeContextCache.text = text
-	agentDockRuntimeContextCache.expires = now.Add(5 * time.Minute)
-	agentDockRuntimeContextCache.Unlock()
+	a.agentDockContextMu.Lock()
+	a.agentDockContext = text
+	a.agentDockContextUntil = now.Add(5 * time.Minute)
+	a.agentDockContextMu.Unlock()
 	return text
 }
 
