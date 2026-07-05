@@ -2510,3 +2510,147 @@ body.theme-light .mcp-inline-warning.danger {
     color: #0f172a !important;
   }
 }
+
+/* 2026-07-05 模型配置页整理：候选模型单击加入 + 保存操作前置。 */
+.settings-page .model-save-toolbar {
+  position: sticky !important;
+  top: 12px;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 10px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #dfe9e3;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .075);
+  backdrop-filter: blur(12px);
+}
+
+.settings-page .model-save-toolbar > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.settings-page .model-save-toolbar b {
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.settings-page .model-save-toolbar span {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.settings-page .model-save-toolbar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
+.settings-page .model-save-toolbar-actions button {
+  min-height: 36px;
+  padding: 0 13px;
+  white-space: nowrap;
+}
+
+.settings-page .model-primary-actions {
+  position: sticky !important;
+  bottom: 10px !important;
+  z-index: 12 !important;
+  margin: 16px 0 4px !important;
+  padding: 10px !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 18px !important;
+  background: rgba(255, 255, 255, .94) !important;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, .08) !important;
+  backdrop-filter: blur(12px);
+}
+
+.settings-page [data-module-view="model"] .settings-section {
+  margin: 10px 0 14px !important;
+}
+
+.settings-page [data-module-view="model"] .settings-section-head {
+  align-items: center !important;
+}
+
+.settings-page .candidate-model-block {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.settings-page .candidate-model-options {
+  max-height: 260px;
+  overflow: auto;
+  padding-right: 3px;
+}
+
+.settings-page .model-option.candidate {
+  border-style: dashed !important;
+  background: #ffffff !important;
+}
+
+.settings-page .model-option.candidate.added {
+  border-style: solid !important;
+  border-color: #bbf7d0 !important;
+  background: #ecfdf5 !important;
+  color: #065f46 !important;
+}
+
+.settings-page .model-options {
+  max-width: 100%;
+}
+
+.settings-page .model-option {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+@media (min-width: 1040px) {
+  .settings-page [data-module-view="model"] .model-summary-grid {
+    grid-template-columns: 1.1fr 1.1fr .8fr .95fr !important;
+  }
+
+  .settings-page [data-module-view="model"] .settings-form-grid {
+    grid-template-columns: minmax(230px, .8fr) minmax(360px, 1.2fr) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .settings-page .model-save-toolbar {
+    top: 8px;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px;
+  }
+
+  .settings-page .model-save-toolbar-actions,
+  .settings-page .model-primary-actions {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .settings-page .model-save-toolbar-actions button,
+  .settings-page .model-primary-actions button {
+    width: 100% !important;
+  }
+
+  .settings-page .candidate-model-options {
+    max-height: 220px;
+  }
+
+  .settings-page [data-module-view="model"] .settings-section-head {
+    align-items: stretch !important;
+  }
+}

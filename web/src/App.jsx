@@ -410,6 +410,7 @@ export default function App() {
   const [workspaces, setWorkspaces] = useState([]);
   const [providers, setProviders] = useState([]);
   const [availableModels, setAvailableModels] = useState([]);
+  const [candidateProviderID, setCandidateProviderID] = useState('');
   const [loadingModels, setLoadingModels] = useState(false);
   const [prompts, setPrompts] = useState([]);
   const [sessions, setSessions] = useState([]);
@@ -1643,6 +1644,7 @@ export default function App() {
         hide_thinking: !!config.hide_thinking,
       });
       const models = data.candidate_models || data.models || [];
+      setCandidateProviderID(config.provider_id || data.provider_id || '');
       setAvailableModels(models);
       showToast(models.length ? '已获取 ' + models.length + ' 个候选模型，仅用于查看，需手动保存为可用模型' : '接口可用，但没有返回候选模型名称', models.length ? 'success' : 'warn');
     } catch (e) {
@@ -1652,6 +1654,42 @@ export default function App() {
       setLoadingModels(false);
     }
   }, [api, config, showToast]);
+
+  const addCandidateModelToProvider = useCallback(async (modelName) => {
+    const name = String(modelName || '').trim();
+    if (!name) return;
+    const providerID = candidateProviderID || config.provider_id;
+    const provider = providers.find(p => p.id === providerID) || providers.find(p => p.id === config.provider_id);
+    if (!provider?.id) {
+      showToast('请先选择供应商，再添加候选模型', 'error');
+      return;
+    }
+    const models = uniqueModelNames([...(provider.models || []), name]);
+    await updateModelProviderRequest(api, provider.id, {
+      name: provider.name || provider.id,
+      base_url: provider.base_url || '',
+      api_key: '********',
+      default_model: provider.default_model || name,
+      models,
+      enabled: provider.enabled !== false,
+      key_strategy: provider.key_strategy || provider.keyStrategy,
+      selected_key_id: provider.selected_key_id || provider.selectedKeyID || '',
+      api_keys: (provider.api_keys || provider.apiKeys || []).map(key => ({
+        ...key,
+        api_key: key.api_key || '********',
+      })),
+    });
+    setConfig(c => ({
+      ...c,
+      provider_id: provider.id,
+      base_url: provider.base_url || c.base_url || '',
+      has_api_key: !!provider.has_api_key,
+      model: name,
+      models,
+    }));
+    await Promise.allSettled([loadModelProviders(), loadWorkspaces()]);
+    showToast((provider.models || []).includes(name) ? '候选模型已在可用列表：' + name : '已加入可用模型列表：' + name, 'success');
+  }, [api, candidateProviderID, config.provider_id, loadConfig, loadModelProviders, loadWorkspaces, providers, showToast]);
 
   const editModelProvider = useCallback(async (existing = null) => {
     const modelText = uniqueModelNames([...(existing?.models || []), existing?.default_model].filter(Boolean)).join('\n');
@@ -1704,8 +1742,9 @@ export default function App() {
     try {
       const data = await fetchProviderModelsRequest(api, { provider_id: provider.id, model: provider.default_model });
       const models = data.candidate_models || data.models || [];
+      setCandidateProviderID(provider.id || data.provider_id || '');
       setAvailableModels(models);
-      showToast(models.length ? '已获取 ' + models.length + ' 个候选模型，仅用于查看，需编辑供应商手动添加到可用模型列表' : '接口可用，但没有返回候选模型名称', models.length ? 'success' : 'warn');
+      showToast(models.length ? '已获取 ' + models.length + ' 个候选模型，点击单个模型可加入可用模型列表' : '接口可用，但没有返回候选模型名称', models.length ? 'success' : 'warn');
     } catch (e) { showToast('获取候选模型失败：' + e.message, 'error'); }
   }, [api, showToast]);
 
@@ -1989,7 +2028,7 @@ export default function App() {
       runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} openScheduledTaskSession={openScheduledTaskSession} runSetupWizard={runSetupWizard} runs={runs} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
       scheduledTasks={scheduledTasks} selectWorkspace={selectWorkspace} setConfig={setConfig} setMcpConfig={setMcpConfig} setTaskSearch={setTaskSearch}
       setupStatus={setupStatus} showPromptPreview={showPromptPreview} skillSearch={skillSearch} skills={skills} switchSettingsModule={switchSettingsModule}
-      systemStatus={systemStatus} taskSearch={taskSearch} testMCP={testMCP} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} loadingModels={loadingModels} toggleScheduledTask={toggleScheduledTask}
+      systemStatus={systemStatus} taskSearch={taskSearch} testMCP={testMCP} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} toggleScheduledTask={toggleScheduledTask}
       toggleSkill={toggleSkill} workspaces={workspaces} agentTasks={agentTasks} setSkillSearch={setSkillSearch} logout={logout}
     />
   );

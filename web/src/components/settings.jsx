@@ -9,7 +9,7 @@ export function SettingsPanel(props) {
     editScheduledTask, editSkill, loadAgentTasks, loadDataStatus, loadMCPConfig, loadMCPStatus, loadRuns, loadScheduledTasks, loadSkills,
     loadSystemStatus, logout, mcpConfig, mcpStatus, onCopy, providers, promptPreview, refreshProductState, refreshVisibleSettings, runScheduledTaskNow, viewScheduledTaskRuns, openScheduledTaskSession, runSetupWizard,
     runs, saveConfig, saveMCPConfig, scheduledTasks, selectWorkspace, setConfig, setMcpConfig, setSkillSearch, setTaskSearch, setupStatus,
-    showPromptPreview, skillSearch, skills, switchSettingsModule, systemStatus, taskSearch, testMCP, testModelProvider, fetchProviderModels, availableModels, loadingModels, toggleScheduledTask,
+    showPromptPreview, skillSearch, skills, switchSettingsModule, systemStatus, taskSearch, testMCP, testModelProvider, fetchProviderModels, availableModels, candidateProviderID, addCandidateModelToProvider, loadingModels, toggleScheduledTask,
     toggleSkill, workspaces, agentTasks,
   } = props;
   const filteredSkills = useMemo(() => {
@@ -24,7 +24,7 @@ export function SettingsPanel(props) {
     <div className="settings-header"><div><h2>配置中心</h2><p>工作空间、模型、技能、工具和数据状态统一管理。</p></div><div className="settings-header-actions"><button className="secondary small" onClick={() => closeSettings()}>返回对话</button><button className="secondary small" onClick={refreshVisibleSettings || refreshProductState}>刷新</button></div></div>
     <div className="module-tabs">{settingsModules.map(m => <button key={m} className={'module-tab ' + (activeModule === m ? 'active' : '')} onClick={() => switchSettingsModule(m)}>{moduleLabel(m)}</button>)}</div>
     <ModuleView name="workspace" activeModule={activeModule}><WorkspaceModule setupStatus={setupStatus} workspaces={workspaces} createWorkspace={createWorkspace} selectWorkspace={selectWorkspace} deleteWorkspace={deleteWorkspace} runSetupWizard={runSetupWizard} /></ModuleView>
-    <ModuleView name="model" activeModule={activeModule}><ModelModule config={config} setConfig={setConfig} saveConfig={saveConfig} showPromptPreview={showPromptPreview} promptPreview={promptPreview} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} loadingModels={loadingModels} providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} /></ModuleView>
+    <ModuleView name="model" activeModule={activeModule}><ModelModule config={config} setConfig={setConfig} saveConfig={saveConfig} showPromptPreview={showPromptPreview} promptPreview={promptPreview} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} /></ModuleView>
     <ModuleView name="skills" activeModule={activeModule}><div className="settings-block-head"><label>技能库（当前工作空间）</label><button className="secondary small" onClick={() => editSkill()}>新增技能</button></div><input className="session-search" placeholder="搜索技能" value={skillSearch} onChange={e => setSkillSearch(e.target.value)} /><div className="skills-list">{filteredSkills.length ? filteredSkills.map(s => <SkillCard key={s.id} skill={s} editSkill={editSkill} deleteSkill={deleteSkill} toggleSkill={toggleSkill} />) : <div className="hint">暂无技能。技能会作为当前工作空间的补充系统指令注入模型请求。</div>}</div><div className="settings-actions"><button className="secondary" onClick={loadSkills}>刷新技能</button></div></ModuleView>
     <ModuleView name="tools" activeModule={activeModule}><ToolsModule mcpStatus={mcpStatus} mcpConfig={mcpConfig} setMcpConfig={setMcpConfig} saveMCPConfig={saveMCPConfig} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} /></ModuleView>
     <ModuleView name="runs" activeModule={activeModule}><div className="settings-block-head"><label>MCP 执行记录</label><button className="secondary small" onClick={loadRuns}>刷新</button></div>{runs.length ? runs.map(r => <RunCard key={r.id} run={r} />) : <div className="empty compact">还没有 MCP 执行记录。</div>}</ModuleView>
@@ -94,7 +94,7 @@ function WorkspaceModule({ setupStatus, workspaces, createWorkspace, selectWorks
   </>;
 }
 
-function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptPreview, testModelProvider, fetchProviderModels, availableModels, loadingModels, providers, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels }) {
+function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptPreview, testModelProvider, fetchProviderModels, availableModels, candidateProviderID, addCandidateModelToProvider, loadingModels, providers, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels }) {
   const update = (key, value) => setConfig(c => ({...c, [key]: value}));
   const providerModels = (provider) => normalizeModelNames([...(provider?.models || []), provider?.default_model].filter(Boolean));
   const activeProvider = providers.find(p => p.id === config.provider_id) || providers[0] || null;
@@ -115,6 +115,8 @@ function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptP
   let embeddingEndpointLabel = '未配置';
   try { embeddingEndpointLabel = config.embedding_base_url ? new URL(config.embedding_base_url).host : '未配置'; } catch { embeddingEndpointLabel = config.embedding_base_url || '未配置'; }
   const selectedProviderModels = providerModels(activeProvider);
+  const candidateProvider = providers.find(p => p.id === candidateProviderID) || activeProvider;
+  const candidateProviderModels = providerModels(candidateProvider);
   return <>
     <div className="settings-block-head model-page-head"><label>当前工作空间模型</label><span className="hint">工作空间只保存默认供应商和模型；供应商本身是全局配置。</span></div>
     <div className="model-summary-grid">
@@ -124,14 +126,19 @@ function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptP
       <div className="model-summary-card"><span>工具搜索</span><b>{embeddingEndpointLabel}</b><small>{config.embedding_base_url ? 'M3 混合搜索' : '关键词搜索'} · {config.has_embedding_api_key ? 'Key 已保存' : 'Key 未保存'}</small></div>
     </div>
 
+    <div className="model-save-toolbar">
+      <div><b>保存当前模型配置</b><span>常用操作放在顶部，避免滚到底部才能保存。</span></div>
+      <div className="model-save-toolbar-actions"><button onClick={saveConfig}>保存默认模型</button><button className="secondary" onClick={testModelProvider}>测试连接</button><button className="secondary" onClick={showPromptPreview}>Prompt</button></div>
+    </div>
+
     <section className="settings-section model-section">
-      <div className="settings-section-head"><div><b>工作空间默认模型</b><p>选择当前工作空间默认使用的全局供应商和模型。</p></div><button className="secondary small" onClick={fetchProviderModels} disabled={loadingModels || !activeProvider}>{loadingModels ? '获取中…' : '获取候选模型'}</button></div>
+      <div className="settings-section-head"><div><b>默认供应商与可用模型</b><p>上方是已确认的可用模型；候选模型需要逐个点击加入。</p></div><button className="secondary small" onClick={fetchProviderModels} disabled={loadingModels || !activeProvider}>{loadingModels ? '获取中…' : '获取候选模型'}</button></div>
       <div className="settings-form-grid">
         <label>默认供应商<select value={activeProvider?.id || ''} onChange={e => chooseProvider(e.target.value)}>{providers.length ? providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>) : <option value="">未配置供应商</option>}</select></label>
         <label>默认模型<input value={config.model || ''} onChange={e => chooseModel(e.target.value)} placeholder={activeProvider?.default_model || 'gpt-4o-mini'} /></label>
       </div>
-      {selectedProviderModels.length ? <div className="model-options">{selectedProviderModels.map(name => <button key={name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => chooseModel(name)}>{name}</button>)}</div> : <div className="hint">还没有可用模型列表，请手动输入模型名，或从候选模型中选择后保存。</div>}
-      {availableModels.length ? <div><div className="hint">候选模型目录：仅用于查看。点击后只填入当前默认模型，保存后才会进入当前供应商可用模型列表。</div><div className="model-options">{availableModels.map(name => <button key={'candidate-' + name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => chooseModel(name)}>{name}</button>)}</div></div> : null}
+      {selectedProviderModels.length ? <div className="model-options">{selectedProviderModels.map(name => <button key={name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => chooseModel(name)}>{name}</button>)}</div> : <div className="hint">还没有可用模型列表，请手动输入模型名，或从候选模型中逐个加入。</div>}
+      {availableModels.length ? <div className="candidate-model-block"><div className="hint">候选模型目录：来自 {candidateProvider?.name || '当前供应商'}。点击单个候选模型会立即加入该供应商的可用模型列表，并切换为当前选择。</div><div className="model-options candidate-model-options">{availableModels.map(name => { const alreadyAdded = candidateProviderModels.includes(name); return <button key={'candidate-' + name} type="button" className={'model-option candidate ' + (alreadyAdded ? 'added ' : '') + (name === config.model ? 'active' : '')} onClick={() => addCandidateModelToProvider?.(name)}>{alreadyAdded ? '已加入 · ' : '+ 加入 · '}{name}</button>; })}</div></div> : null}
     </section>
 
     <section className="settings-section model-section">
@@ -152,7 +159,7 @@ function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptP
       <div className="thinking-options"><label className="check-row"><input type="checkbox" checked={!!config.enable_thinking} onChange={e => update('enable_thinking', e.target.checked)} /> 启用模型思考</label><label className="check-row"><input type="checkbox" checked={!!config.hide_thinking} onChange={e => update('hide_thinking', e.target.checked)} /> 隐藏思考内容</label></div>
     </section>
 
-    <div className="settings-actions model-primary-actions"><button onClick={saveConfig}>保存工作空间默认模型</button><button className="secondary" onClick={showPromptPreview}>查看最终 Prompt</button><button className="secondary" onClick={testModelProvider}>测试当前默认供应商</button></div>
+    <div className="settings-actions model-primary-actions"><button onClick={saveConfig}>保存默认模型</button><button className="secondary" onClick={showPromptPreview}>查看 Prompt</button><button className="secondary" onClick={testModelProvider}>测试连接</button></div>
     {promptPreview ? <pre className="code-preview">{promptPreview}</pre> : null}
 
     <section className="settings-section provider-section">
