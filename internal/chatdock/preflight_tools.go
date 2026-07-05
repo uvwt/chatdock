@@ -50,7 +50,7 @@ func decideConversationPreflight(history []model.Message) conversationPreflightD
 	}
 
 	if explainOnly {
-		return conversationPreflightDecision{NeedsMemory: recentProject, Reason: "project_discussion_or_explanation"}
+		return conversationPreflightDecision{Reason: "project_discussion_or_explanation"}
 	}
 
 	if recentProject && hardAction {
@@ -62,7 +62,7 @@ func decideConversationPreflight(history []model.Message) conversationPreflightD
 	}
 
 	if recentProject {
-		return conversationPreflightDecision{NeedsMemory: true, Reason: "project_context"}
+		return conversationPreflightDecision{Reason: "project_context"}
 	}
 
 	return conversationPreflightDecision{Reason: "plain_chat"}

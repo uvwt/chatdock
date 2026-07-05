@@ -8,11 +8,15 @@ import (
 
 func TestDecideConversationPreflightProjectExplanation(t *testing.T) {
 	decision := decideConversationPreflight([]model.Message{{Role: "user", Content: "ChatDock 强制调用工具建议吗？"}})
-	if !decision.NeedsMemory {
-		t.Fatalf("expected project explanation to need memory")
+	if decision.NeedsMemory || decision.NeedsTaskTemplate {
+		t.Fatalf("expected project explanation to rely on capability context only, got %+v", decision)
 	}
-	if decision.NeedsTaskTemplate {
-		t.Fatalf("expected project explanation not to need task template")
+}
+
+func TestDecideConversationPreflightProjectMentionOnly(t *testing.T) {
+	decision := decideConversationPreflight([]model.Message{{Role: "user", Content: "ChatDock 这个设计合理吗？"}})
+	if decision.NeedsMemory || decision.NeedsTaskTemplate {
+		t.Fatalf("expected project mention/discussion not to force tools, got %+v", decision)
 	}
 }
 
