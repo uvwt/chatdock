@@ -230,7 +230,7 @@ func toolNameMatches(fullName, name, candidate string) bool {
 	fullName = strings.ToLower(strings.TrimSpace(fullName))
 	name = strings.ToLower(strings.TrimSpace(name))
 	candidate = strings.ToLower(strings.TrimSpace(candidate))
-	return name == candidate || fullName == candidate || strings.HasSuffix(fullName, "__"+candidate)
+	return name == candidate || fullName == candidate || strings.HasSuffix(fullName, "__"+candidate) || strings.HasSuffix(fullName, "_"+candidate)
 }
 
 func preflightMemoryArgs(toolName string, query string) map[string]any {

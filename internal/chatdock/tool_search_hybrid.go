@@ -20,28 +20,37 @@ type hybridToolMatch struct {
 	keyword     int
 	semantic    float64
 	semanticHit bool
+	pinned      bool
 }
 
 func (a *App) searchToolCatalog(ctx context.Context, catalog toolCatalog, args map[string]any) map[string]any {
+	return searchToolCatalogWithApp(ctx, a, catalog, args)
+}
+
+func searchToolCatalogWithApp(ctx context.Context, app *App, catalog toolCatalog, args map[string]any) map[string]any {
 	query := strings.TrimSpace(stringArg(args, "query"))
 	limit := intArgWithDefault(args, "limit", 8, 1, 20)
-	matches := a.hybridToolMatches(ctx, catalog, query, limit)
+	matches := hybridToolMatches(ctx, app, catalog, query, limit)
 	items := make([]map[string]any, 0, len(matches))
 	for _, match := range matches {
 		item := map[string]any{"name": match.tool.FullName, "server": match.tool.Server, "title": firstNonEmpty(match.tool.Title, match.tool.Name), "description": compactToolDescription(match.tool.Description)}
-		if match.semanticHit {
+		if match.pinned && match.keyword == 0 && !match.semanticHit {
+			item["match_reason"] = "基础工具固定候选"
+		} else if match.pinned {
+			item["match_reason"] = "基础工具固定候选 + 搜索匹配"
+		} else if match.semanticHit {
 			item["match_reason"] = "关键词 + M3 向量混合匹配"
 		} else if match.keyword > 0 {
 			item["match_reason"] = "关键词匹配"
 		}
 		items = append(items, item)
 	}
-	return map[string]any{"query": query, "count": len(items), "tools": items, "search_mode": a.toolSearchMode(), "next": "调用 chatdock_tools_describe，传入候选工具的 name，获取参数 schema；然后用 chatdock_tool_execute 执行。"}
+	return map[string]any{"query": query, "count": len(items), "tools": items, "search_mode": app.toolSearchMode(), "next": "调用 chatdock_tools_describe，传入候选工具的 name，获取参数 schema；然后用 chatdock_tool_execute 执行。"}
 }
 
-func (a *App) hybridToolMatches(ctx context.Context, catalog toolCatalog, query string, limit int) []hybridToolMatch {
+func hybridToolMatches(ctx context.Context, app *App, catalog toolCatalog, query string, limit int) []hybridToolMatch {
 	keyword := keywordToolScores(catalog, query)
-	semantic := a.semanticToolScores(ctx, catalog, query)
+	semantic := app.semanticToolScores(ctx, catalog, query)
 	matches := make([]hybridToolMatch, 0, len(catalog.tools))
 	for _, tool := range catalog.tools {
 		match := hybridToolMatch{tool: tool, keyword: keyword[tool.FullName]}
@@ -64,8 +73,39 @@ func (a *App) hybridToolMatches(ctx context.Context, catalog toolCatalog, query 
 	if len(matches) > limit {
 		matches = matches[:limit]
 	}
+	return appendPinnedToolMatches(catalog, matches)
+}
+
+func appendPinnedToolMatches(catalog toolCatalog, matches []hybridToolMatch) []hybridToolMatch {
+	existing := map[string]int{}
+	for index, match := range matches {
+		existing[match.tool.FullName] = index
+	}
+	for _, candidate := range pinnedToolSearchCandidates {
+		tool, ok := findPinnedCatalogTool(catalog, candidate)
+		if !ok {
+			continue
+		}
+		if index, ok := existing[tool.FullName]; ok {
+			matches[index].pinned = true
+			continue
+		}
+		matches = append(matches, hybridToolMatch{tool: tool, pinned: true})
+		existing[tool.FullName] = len(matches) - 1
+	}
 	return matches
 }
+
+func findPinnedCatalogTool(catalog toolCatalog, candidate string) (mcp.MCPTool, bool) {
+	for _, tool := range catalog.tools {
+		if toolNameMatches(tool.FullName, tool.Name, candidate) {
+			return tool, true
+		}
+	}
+	return mcp.MCPTool{}, false
+}
+
+var pinnedToolSearchCandidates = []string{"skill_manage", "task_manage"}
 
 func keywordToolScores(catalog toolCatalog, query string) map[string]int {
 	query = strings.ToLower(strings.TrimSpace(query))
@@ -102,6 +142,9 @@ func keywordToolScores(catalog toolCatalog, query string) map[string]int {
 }
 
 func (a *App) semanticToolScores(ctx context.Context, catalog toolCatalog, query string) map[string]float64 {
+	if a == nil || a.store == nil || a.client == nil {
+		return nil
+	}
 	cfg := a.embeddingConfig()
 	if strings.TrimSpace(query) == "" || strings.TrimSpace(cfg.EmbeddingBaseURL) == "" {
 		return nil
@@ -225,7 +268,18 @@ func (a *App) saveMissingToolEmbeddings(ctx context.Context, model string, exist
 
 func toolSearchText(tool mcp.MCPTool) string {
 	rawSchema, _ := json.Marshal(tool.InputSchema)
-	return strings.Join([]string{tool.FullName, tool.Server, tool.Name, tool.Title, tool.Description, string(rawSchema)}, "\n")
+	return strings.Join([]string{tool.FullName, tool.Server, tool.Name, tool.Title, tool.Description, pinnedToolSearchAliases(tool), string(rawSchema)}, "\n")
+}
+
+func pinnedToolSearchAliases(tool mcp.MCPTool) string {
+	switch {
+	case toolNameMatches(tool.FullName, tool.Name, "skill_manage"):
+		return "Skill 技能 skill 工具 技能管理 Skill Runtime validate install run rollback env"
+	case toolNameMatches(tool.FullName, tool.Name, "task_manage"):
+		return "任务模板 workflow template template_match 可恢复任务 task_manage 多步骤流程 部署 排障 开发"
+	default:
+		return ""
+	}
 }
 
 func toolSourceHash(tool mcp.MCPTool) string {
@@ -250,13 +304,22 @@ func cosineSimilarity(a []float64, b []float64) float64 {
 }
 
 func (a *App) toolSearchMode() string {
-	if strings.TrimSpace(a.embeddingConfig().EmbeddingBaseURL) == "" {
+	if a == nil || strings.TrimSpace(a.embeddingConfig().EmbeddingBaseURL) == "" {
 		return "keyword"
 	}
 	return "hybrid_m3"
 }
 
 func (a *App) embeddingConfig() model.ModelConfig {
+	if a == nil || a.store == nil {
+		cfg := model.ModelConfig{}
+		if a != nil {
+			cfg.EmbeddingBaseURL = a.cfg.EmbeddingBaseURL
+			cfg.EmbeddingAPIKey = a.cfg.EmbeddingAPIKey
+			cfg.EmbeddingModel = a.cfg.EmbeddingModel
+		}
+		return model.NormalizeModelConfig(cfg)
+	}
 	cfg := a.store.GetModelConfig()
 	if strings.TrimSpace(cfg.EmbeddingBaseURL) == "" && strings.TrimSpace(a.cfg.EmbeddingBaseURL) != "" {
 		cfg.EmbeddingBaseURL = a.cfg.EmbeddingBaseURL
