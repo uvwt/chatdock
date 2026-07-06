@@ -11,9 +11,8 @@ ChatDock 是一个自用的轻量 AI 对话中控台，目标是：提示词可�
 - 可配置最近上下文消息数，用来控制 token 消耗。
 - 可通过 `chat_template_kwargs.enable_thinking` 控制模型思考开关。
 - 可隐藏 `<think>...</think>` 思考内容。
-- 提示词空间：每个空间独立保存模型配置、MCP 配置、技能、定时任务和会话。
-- 技能：每个提示词空间可维护一组可开关的补充系统指令，发送消息时自动注入当前模型请求。
-- 定时任务：每个提示词空间可维护一组本地定时提示，支持一次性、每日、间隔执行，并把运行结果写入任务专属会话。
+- 工作空间：每个空间独立保存模型配置、MCP 配置、自动化任务和会话。
+- 自动化任务：每个工作空间可维护一组本地定时提示，支持一次性、每日、间隔执行，并把运行结果写入任务运行记录和关联会话。
 - 会话创建、列表、删除、重命名、置顶、全文复制、复制会话、Markdown 导出；会话列表显示最近消息摘要，搜索同时匹配标题和摘要，置顶会话固定在列表顶部。
 - 无 MCP 工具时保留真正流式输出；启用 MCP 工具时通过 SSE 输出工具调用事件和最终回答。
 - MCP HTTP JSON-RPC 客户端：支持 `tools/list`、`tools/call`、Bearer token、server 超时、工具列表缓存、工具 allow/deny/confirm 规则。
@@ -35,7 +34,7 @@ chatdock/
 │   └── package.json
 ├── deploy/                # launchd 示例
 ├── Dockerfile
-├── compose.yaml
+├── compose.dev.yaml       # 源码目录开发示例；生产不要用这个文件部署
 ├── Makefile
 └── go.mod
 ```
@@ -95,9 +94,9 @@ ChatDock 使用 SQLite 作为持久化存储，默认数据库路径为：
 <用户配置目录>/chatdock/chatdock.sqlite
 ```
 
-也可以用 `CHATDOCK_DATA` 指定数据目录。旧版 JSON 数据首次启动时会自动迁移进 SQLite：`config.json`、`mcp.json`、`skills.json`、`scheduled_tasks.json` 和 `sessions/*.json` 都会导入数据库。旧 JSON 文件不会被自动删除，可作为迁移备份。
+也可以用 `CHATDOCK_DATA` 指定数据目录。旧版 JSON 数据首次启动时会自动迁移进 SQLite：`config.json`、`mcp.json`、`scheduled_tasks.json` 和 `sessions/*.json` 都会导入数据库。旧 JSON 文件不会被自动删除，可作为迁移备份。
 
-技能、MCP 配置、定时任务和会话都按提示词空间隔离保存到 SQLite。技能适合放可复用的工作方式、输出格式、代码审查规则、写作规范等；只有启用的技能会在发送消息时追加到 system prompt 后面，不会写入会话消息正文。
+MCP 配置、自动化任务和会话都按工作空间隔离保存到 SQLite。Schema 变更通过 `schema_migrations` 记录版本，旧库升级时会自动补齐字段。
 
 定时任务当前支持：
 
@@ -140,18 +139,34 @@ ChatDock 使用 SQLite 作为持久化存储，默认数据库路径为：
 
 Dockerfile 是自包含多阶段构建：先用 Node 构建 Vite/React 前端，再用 Go 编译嵌入前端资源的二进制，最终镜像只包含运行时二进制和数据目录。
 
+源码目录只保留开发示例 compose：
+
 ```bash
-docker-compose up -d --build
+make dev-up
 curl http://127.0.0.1:8720/api/health
 ```
 
-如果你的 Docker CLI 已启用 Compose 插件，也可以使用 `docker compose up -d --build`。
+Mac mini 生产部署必须使用专用目录，防止把 `/data` 挂到源码仓库导致“数据像丢失”：
+
+```bash
+make prod-check
+make deploy-prod
+```
+
+生产期望：
+
+```text
+compose: /Volumes/KIOXIA/Docker/chatdock/compose.yaml
+/data:   /Volumes/KIOXIA/Docker/chatdock/data
+```
+
+如果需要手动使用 Docker Compose，请显式指定开发示例：`docker compose -f compose.dev.yaml up -d --build`。
 
 Compose 不需要再挂载或配置 `CHATDOCK_WEB`，前端页面、后端 API 和 MCP 相关能力都运行在 `8720` 同一个端口。默认还会把 `./backups` 只读挂载到容器 `/backups`，用于配置中心展示最近数据库备份状态。
 
 ### 生产部署说明
 
-仓库 `compose.yaml` 是本地自托管示例，默认把当前目录的 `./data` 挂载到容器 `/data`。当前 Mac mini 生产实例使用外置盘数据目录 `/Volumes/KIOXIA/Docker/chatdock/data`，并把 `/Volumes/KIOXIA/Docker/chatdock/backups` 只读挂载到容器 `/backups` 展示数据库备份状态；外置盘 compose 文件在自动化工具中可能出现 `Interrupted system call`。生产更新时应先确认外置盘路径稳定；如果 compose 文件不可稳定读写，可采用“继承旧容器环境变量、替换 `chatdock:local` 容器、继续挂载外置盘 data”的手动容器替换流程。
+仓库 `compose.dev.yaml` 是本地开发示例，默认把当前目录的 `./data` 挂载到容器 `/data`。当前 Mac mini 生产实例使用外置盘数据目录 `/Volumes/KIOXIA/Docker/chatdock/data`，并把 `/Volumes/KIOXIA/Docker/chatdock/backups` 只读挂载到容器 `/backups` 展示数据库备份状态。生产更新统一使用 `make deploy-prod`，它会从 `/Volumes/KIOXIA/Docker/chatdock/compose.yaml` 构建并在启动后检查容器 label 和 `/data` mount。
 
 ## macOS launchd
 

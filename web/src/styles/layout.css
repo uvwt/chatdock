@@ -65,14 +65,14 @@
     body.theme-light button.secondary { background: #e2e8f0; color: #0f172a; }
     body.theme-light .prompt-box { background: #f8fafc; border-color: #e2e8f0; }
     body.theme-light .workspace-picker-trigger { background: #ffffff; color: #0f172a; border-color: #cbd5e1; }
-    body.theme-light .skill-card,
+    body.theme-light .task-card,
     body.theme-light .task-card { background: #f8fafc; border-color: #e2e8f0; }
-    body.theme-light .skill-name,
+    body.theme-light .task-name,
     body.theme-light .task-name { color: #0f172a; }
-    body.theme-light .skill-desc,
+    body.theme-light .task-desc,
     body.theme-light .task-desc,
     body.theme-light .task-meta { color: #64748b; }
-    body.theme-light .skill-toggle,
+    body.theme-light .task-toggle,
     body.theme-light .task-toggle { color: #334155; }
     body.theme-light .task-error { color: #b91c1c; }
     body.theme-light .prompt-box label { color: #64748b; }

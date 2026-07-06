@@ -158,32 +158,6 @@ function ProvidersModule({ config, setConfig, providers, editModelProvider, dele
   </>;
 }
 
-function ReplyModule({ config, setConfig, saveConfig, showPromptPreview, promptPreview }) {
-  const update = (key, value) => setConfig(c => ({...c, [key]: value}));
-  const contextMode = config.context_mode || 'auto';
-  return <section className="settings-section reply-section">
-    <div className="settings-section-head"><div><b>回复行为</b></div><div className="settings-actions inline"><button onClick={() => saveConfig?.()}>保存</button><button className="secondary" onClick={() => showPromptPreview?.()}>预览 Prompt</button></div></div>
-    <label>System Prompt<textarea className="system-prompt-editor" value={config.system_prompt} onChange={e => update('system_prompt', e.target.value)} /></label>
-    <div className="settings-form-grid compact"><label>上下文模式<select value={contextMode} onChange={e => update('context_mode', e.target.value)}><option value="auto">自动，推荐</option><option value="compact">精简</option><option value="expanded">更多历史</option><option value="custom">自定义</option></select></label><label>Temperature<input type="number" step="0.1" min="0" max="2" value={config.temperature} onChange={e => update('temperature', e.target.value)} /></label></div>
-    {contextMode === 'custom' ? <div className="settings-form-grid compact"><label>自定义最近消息数<input type="number" min="1" value={config.max_context_messages} onChange={e => update('max_context_messages', e.target.value)} /></label></div> : null}
-    <div className="thinking-options"><label className="check-row"><input type="checkbox" checked={!!config.enable_thinking} onChange={e => update('enable_thinking', e.target.checked)} /> 启用模型思考</label><label className="check-row"><input type="checkbox" checked={!!config.hide_thinking} onChange={e => update('hide_thinking', e.target.checked)} /> 隐藏思考内容</label></div>
-    {promptPreview ? <pre className="code-preview">{promptPreview}</pre> : null}
-  </section>;
-}
-
-function EmbeddingModule({ config, setConfig, saveConfig }) {
-  const update = (key, value) => setConfig(c => ({...c, [key]: value}));
-  return <section className="settings-section embedding-section">
-    <div className="settings-section-head"><div><b>工具搜索向量化</b></div><button onClick={() => saveConfig?.()}>保存</button></div>
-    <div className="settings-form-grid">
-      <label>Embedding Base URL<input value={config.embedding_base_url || ''} onChange={e => update('embedding_base_url', e.target.value)} placeholder="http://127.0.0.1:8000/v1" /></label>
-      <label>Embedding API Key<input type="password" value={config.embedding_api_key || ''} onChange={e => update('embedding_api_key', e.target.value)} placeholder={config.has_embedding_api_key ? '已保存，留空不修改' : '可留空'} /></label>
-      <label>Embedding 模型<input value={config.embedding_model || 'BAAI/bge-m3'} onChange={e => update('embedding_model', e.target.value)} placeholder="BAAI/bge-m3" /></label>
-    </div>
-    <div className="hint">留空则使用关键词搜索；配置后会用向量召回工具。</div>
-  </section>;
-}
-
 
 function parseMCPConfigDraft(content) {
   try {
@@ -228,7 +202,7 @@ function mcpTokenExpiryState(token) {
   const parts = String(token || '').split('.');
   if (parts.length < 2) return null;
   try {
-    const payload = JSON.parse(atob(parts[0].replace(/-/g, '+').replace(/_/g, '/')));
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
     const exp = Number(payload.exp || 0);
     if (!exp) return null;
     const expiresAt = new Date(exp * 1000);

@@ -1,14 +1,14 @@
     .settings-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
     .settings-block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
     .settings-block-head label { margin: 0; }
-    .skills-list, .tasks-list { display: grid; gap: 8px; margin-top: 8px; }
-    .skill-card, .task-card { border: 1px solid #1f2937; border-radius: 12px; padding: 10px; background: #111827; }
-    .skill-head, .task-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-    .skill-name, .task-name { font-weight: 700; color: #e2e8f0; overflow-wrap: anywhere; }
-    .skill-desc, .task-desc { color: #94a3b8; font-size: 12px; margin-top: 4px; line-height: 1.45; overflow-wrap: anywhere; }
-    .skill-actions, .task-actions { display: flex; gap: 6px; flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; }
-    .skill-toggle, .task-toggle { display: flex; gap: 6px; align-items: center; color: #cbd5e1; font-size: 12px; margin: 8px 0 0; }
-    .skill-toggle input, .task-toggle input { width: auto; }
+    .tasks-list, .tasks-list { display: grid; gap: 8px; margin-top: 8px; }
+    .task-card, .task-card { border: 1px solid #1f2937; border-radius: 12px; padding: 10px; background: #111827; }
+    .task-head, .task-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .task-name, .task-name { font-weight: 700; color: #e2e8f0; overflow-wrap: anywhere; }
+    .task-desc, .task-desc { color: #94a3b8; font-size: 12px; margin-top: 4px; line-height: 1.45; overflow-wrap: anywhere; }
+    .task-actions, .task-actions { display: flex; gap: 6px; flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; }
+    .task-toggle, .task-toggle { display: flex; gap: 6px; align-items: center; color: #cbd5e1; font-size: 12px; margin: 8px 0 0; }
+    .task-toggle input, .task-toggle input { width: auto; }
     .task-meta { color: #64748b; font-size: 12px; margin-top: 6px; line-height: 1.5; }
     .task-error { color: #fca5a5; font-size: 12px; margin-top: 6px; overflow-wrap: anywhere; }
     label { display: block; color: #cbd5e1; font-size: 13px; margin: 14px 0 6px; }
@@ -50,7 +50,7 @@
 .task-actions { flex-wrap:wrap; justify-content:flex-end; }
 .theme-light .module-tab { background:#f8fafc; border-color:#cbd5e1; color:#0f172a; }
 .theme-light .module-tab.active { background:#0f766e; color:#fff; border-color:#0f766e; }
-.theme-light .product-card, .theme-light .stat-card, .theme-light .skill-card, .theme-light .task-card { background:#fff; border-color:#cbd5e1; }
+.theme-light .product-card, .theme-light .stat-card, .theme-light .task-card, .theme-light .task-card { background:#fff; border-color:#cbd5e1; }
 .theme-light .product-card.active { background:#ecfdf5; border-color:#0f766e; }
 .theme-light .product-meta, .theme-light .stat-label { color:#64748b; }
 .theme-light .stat-value { color:#0f172a; }
@@ -237,7 +237,7 @@ body.theme-light .model-option { background:#f8fafc; }
 }
 
 .product-card,
-.skill-card,
+.task-card,
 .task-card,
 .stat-card,
 .empty.compact,
@@ -263,7 +263,7 @@ body.theme-light .model-option { background:#f8fafc; }
 }
 
 .product-meta,
-.skill-desc,
+.task-desc,
 .task-desc,
 .task-meta,
 .hint,
@@ -275,14 +275,14 @@ body.theme-light .model-option { background:#f8fafc; }
 }
 
 .stat-value,
-.skill-name,
+.task-name,
 .task-name {
   color: var(--gpt-text);
 }
 
 label,
 .check-row,
-.skill-toggle,
+.task-toggle,
 .task-toggle {
   color: var(--gpt-muted);
 }
@@ -829,7 +829,7 @@ body.theme-light .mcp-inline-warning.danger {
   .settings-page .backup-list,
   .settings-page .mcp-status-grid,
   .settings-page .tasks-list,
-  .settings-page .skills-list,
+  .settings-page .tasks-list,
   .settings-page #workspaceCards {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1327,7 +1327,7 @@ body.theme-light .mcp-inline-warning.danger {
 
   .settings-page #workspaceCards,
   .settings-page .provider-grid,
-  .settings-page .skills-list,
+  .settings-page .tasks-list,
   .settings-page .tasks-list,
   .settings-page .mcp-status-grid {
     display: grid;
@@ -1337,7 +1337,7 @@ body.theme-light .mcp-inline-warning.danger {
 
   .settings-page #workspaceCards .product-card,
   .settings-page .provider-grid .product-card,
-  .settings-page .skill-card,
+  .settings-page .task-card,
   .settings-page .task-card,
   .settings-page .stat-card,
   .settings-page .mcp-status-grid .product-card {
@@ -1396,7 +1396,7 @@ body.theme-light .mcp-inline-warning.danger {
   }
 
   .settings-page .product-card-head b,
-  .settings-page .skill-name,
+  .settings-page .task-name,
   .settings-page .task-name,
   .settings-page .stat-value {
     color: #0f172a;
@@ -1407,7 +1407,7 @@ body.theme-light .mcp-inline-warning.danger {
   .settings-page .product-card-head .hint,
   .settings-page .product-meta,
   .settings-page .hint,
-  .settings-page .skill-desc,
+  .settings-page .task-desc,
   .settings-page .task-desc,
   .settings-page .task-meta,
   .settings-page .stat-label {
@@ -1538,7 +1538,7 @@ body.theme-light .mcp-inline-warning.danger {
 
   .settings-page #workspaceCards .product-card,
   .settings-page .provider-grid .product-card,
-  .settings-page .skill-card,
+  .settings-page .task-card,
   .settings-page .task-card,
   .settings-page .mcp-status-grid .product-card {
     transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
@@ -1546,7 +1546,7 @@ body.theme-light .mcp-inline-warning.danger {
 
   .settings-page #workspaceCards .product-card:hover,
   .settings-page .provider-grid .product-card:hover,
-  .settings-page .skill-card:hover,
+  .settings-page .task-card:hover,
   .settings-page .task-card:hover,
   .settings-page .mcp-status-grid .product-card:hover {
     transform: translateY(-2px);
@@ -1678,7 +1678,7 @@ body.theme-light .mcp-inline-warning.danger {
 
 .settings-page .hint,
 .settings-page .product-meta,
-.settings-page .skill-desc,
+.settings-page .task-desc,
 .settings-page .task-desc,
 .settings-page .task-meta,
 .settings-page .stat-label,
@@ -1689,7 +1689,7 @@ body.theme-light .mcp-inline-warning.danger {
 }
 
 .settings-page .product-card,
-.settings-page .skill-card,
+.settings-page .task-card,
 .settings-page .task-card,
 .settings-page .stat-card,
 .settings-page .model-summary-card,
@@ -1709,7 +1709,7 @@ body.theme-light .mcp-inline-warning.danger {
 }
 
 .settings-page .product-card,
-.settings-page .skill-card,
+.settings-page .task-card,
 .settings-page .task-card,
 .settings-page .stat-card,
 .settings-page .model-summary-card,
@@ -1721,7 +1721,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .product-card,
 .settings-page #workspaceCards .product-card,
 .settings-page .provider-grid .product-card,
-.settings-page .skill-card,
+.settings-page .task-card,
 .settings-page .task-card,
 .settings-page .mcp-status-grid .product-card {
   min-height: 0 !important;
@@ -1746,14 +1746,14 @@ body.theme-light .mcp-inline-warning.danger {
 }
 
 .settings-page .product-card-head,
-.settings-page .skill-head,
+.settings-page .task-head,
 .settings-page .task-head {
   align-items: flex-start !important;
   gap: 14px !important;
 }
 
 .settings-page .product-card-head b,
-.settings-page .skill-name,
+.settings-page .task-name,
 .settings-page .task-name,
 .settings-page .stat-value,
 .settings-page .model-summary-card b,
@@ -2056,7 +2056,7 @@ body.theme-light .mcp-inline-warning.danger {
 
   .settings-page #workspaceCards,
   .settings-page .provider-grid,
-  .settings-page .skills-list,
+  .settings-page .tasks-list,
   .settings-page .tasks-list,
   .settings-page .mcp-status-grid,
   .settings-page .mcp-form-list {
@@ -2189,7 +2189,7 @@ body.theme-light .mcp-inline-warning.danger {
 
   .settings-page .settings-section-head,
   .settings-page .mcp-form-head,
-  .settings-page .skill-head,
+  .settings-page .task-head,
   .settings-page .task-head,
   .settings-page .product-card-head {
     flex-direction: column !important;
@@ -2226,7 +2226,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .module-tabs,
 .settings-page .module-view.active,
 .settings-page .product-card,
-.settings-page .skill-card,
+.settings-page .task-card,
 .settings-page .task-card,
 .settings-page .stat-card,
 .settings-page .model-summary-card,
@@ -2252,7 +2252,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .module-view-title span,
 .settings-page .settings-block-head label,
 .settings-page .product-card-head b,
-.settings-page .skill-name,
+.settings-page .task-name,
 .settings-page .task-name,
 .settings-page .stat-value,
 .settings-page .model-summary-card b,
@@ -2265,7 +2265,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .module-view-title p,
 .settings-page .hint,
 .settings-page .product-meta,
-.settings-page .skill-desc,
+.settings-page .task-desc,
 .settings-page .task-desc,
 .settings-page .task-meta,
 .settings-page .stat-label,
@@ -2883,7 +2883,7 @@ body.theme-light .mcp-inline-warning.danger {
 }
 
 .settings-page .product-card,
-.settings-page .skill-card,
+.settings-page .task-card,
 .settings-page .task-card,
 .settings-page .stat-card,
 .settings-page .mcp-form-card,
@@ -3353,7 +3353,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .module-tabs,
 .settings-page .module-view.active,
 .settings-page .product-card,
-.settings-page .skill-card,
+.settings-page .task-card,
 .settings-page .task-card,
 .settings-page .stat-card,
 .settings-page .model-summary-card,
@@ -3396,7 +3396,7 @@ body.theme-light .mcp-inline-warning.danger {
 
 .settings-page .hint,
 .settings-page .product-meta,
-.settings-page .skill-desc,
+.settings-page .task-desc,
 .settings-page .task-desc,
 .settings-page .task-meta,
 .settings-page .stat-label,
@@ -3411,7 +3411,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .product-card,
 .settings-page #workspaceCards .product-card,
 .settings-page .provider-grid .product-card,
-.settings-page .skill-card,
+.settings-page .task-card,
 .settings-page .task-card,
 .settings-page .stat-card,
 .settings-page .model-summary-card,
@@ -3424,7 +3424,7 @@ body.theme-light .mcp-inline-warning.danger {
 }
 
 .settings-page .product-card-head,
-.settings-page .skill-head,
+.settings-page .task-head,
 .settings-page .task-head,
 .settings-page .settings-section-head,
 .settings-page .mcp-form-head {
@@ -3432,7 +3432,7 @@ body.theme-light .mcp-inline-warning.danger {
 }
 
 .settings-page .product-card-head b,
-.settings-page .skill-name,
+.settings-page .task-name,
 .settings-page .task-name,
 .settings-page .stat-value,
 .settings-page .model-summary-card b,
@@ -3491,7 +3491,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page #dataStatus,
 .settings-page #workspaceCards,
 .settings-page .provider-grid,
-.settings-page .skills-list,
+.settings-page .tasks-list,
 .settings-page .tasks-list,
 .settings-page .mcp-status-grid,
 .settings-page .mcp-form-list,
@@ -3643,7 +3643,7 @@ body.theme-light .mcp-inline-warning.danger {
 
   .settings-page #workspaceCards,
   .settings-page .provider-grid,
-  .settings-page .skills-list,
+  .settings-page .tasks-list,
   .settings-page .tasks-list,
   .settings-page .mcp-status-grid,
   .settings-page .mcp-form-list {
@@ -4142,7 +4142,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .model-inline-card,
 .settings-page .settings-section,
 .settings-page .product-card,
-.settings-page .skill-card,
+.settings-page .task-card,
 .settings-page .task-card,
 .settings-page .stat-card,
 .settings-page .workspace-summary-card,
@@ -4166,7 +4166,7 @@ body.theme-light .mcp-inline-warning.danger {
 }
 
 .settings-page .product-card,
-.settings-page .skill-card,
+.settings-page .task-card,
 .settings-page .task-card,
 .settings-page .stat-card,
 .settings-page .workspace-summary-card,
@@ -4179,7 +4179,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .settings-block-head,
 .settings-page .product-card-head,
 .settings-page .task-head,
-.settings-page .skill-head,
+.settings-page .task-head,
 .settings-page .mcp-form-head,
 .settings-page .model-quick-head {
   margin-bottom: 8px !important;
@@ -4191,7 +4191,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .settings-block-head label,
 .settings-page .product-card-head b,
 .settings-page .task-name,
-.settings-page .skill-name,
+.settings-page .task-name,
 .settings-page .mcp-form-head b,
 .settings-page .model-quick-head b {
   font-size: 15px !important;
@@ -4203,7 +4203,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .product-meta,
 .settings-page .task-meta,
 .settings-page .task-desc,
-.settings-page .skill-desc,
+.settings-page .task-desc,
 .settings-page .stat-label,
 .settings-page .settings-section-head p,
 .settings-page .mcp-form-head span,
@@ -4252,7 +4252,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .model-inline-grid,
 .settings-page #workspaceCards,
 .settings-page .provider-grid,
-.settings-page .skills-list,
+.settings-page .tasks-list,
 .settings-page .tasks-list,
 .settings-page #dataStatus,
 .settings-page .mcp-status-grid,
@@ -4267,7 +4267,7 @@ body.theme-light .mcp-inline-warning.danger {
 
 .settings-page .task-card,
 .settings-page .product-card,
-.settings-page .skill-card {
+.settings-page .task-card {
   min-height: 0 !important;
 }
 
@@ -4425,7 +4425,7 @@ body.theme-light .mcp-inline-warning.danger {
   .settings-page .model-inline-card,
   .settings-page .settings-section,
   .settings-page .product-card,
-  .settings-page .skill-card,
+  .settings-page .task-card,
   .settings-page .task-card,
   .settings-page .stat-card,
   .settings-page .workspace-summary-card,
@@ -4582,7 +4582,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .model-inline-card,
 .settings-page .settings-section,
 .settings-page .product-card,
-.settings-page .skill-card,
+.settings-page .task-card,
 .settings-page .task-card,
 .settings-page .stat-card,
 .settings-page .workspace-summary-card,
@@ -4606,7 +4606,7 @@ body.theme-light .mcp-inline-warning.danger {
 }
 
 .settings-page .product-card,
-.settings-page .skill-card,
+.settings-page .task-card,
 .settings-page .task-card,
 .settings-page .stat-card,
 .settings-page .workspace-summary-card,
@@ -4619,7 +4619,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .settings-block-head,
 .settings-page .product-card-head,
 .settings-page .task-head,
-.settings-page .skill-head,
+.settings-page .task-head,
 .settings-page .mcp-form-head,
 .settings-page .model-quick-head {
   padding: 0 0 9px !important;
@@ -4635,7 +4635,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .settings-block-head label,
 .settings-page .product-card-head b,
 .settings-page .task-name,
-.settings-page .skill-name,
+.settings-page .task-name,
 .settings-page .mcp-form-head b,
 .settings-page .model-quick-head b {
   color: var(--set-text) !important;
@@ -4648,7 +4648,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .product-meta,
 .settings-page .task-meta,
 .settings-page .task-desc,
-.settings-page .skill-desc,
+.settings-page .task-desc,
 .settings-page .stat-label,
 .settings-page .settings-section-head p,
 .settings-page .mcp-form-head span,
@@ -4664,7 +4664,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .model-inline-grid,
 .settings-page #workspaceCards,
 .settings-page .provider-grid,
-.settings-page .skills-list,
+.settings-page .tasks-list,
 .settings-page .tasks-list,
 .settings-page #dataStatus,
 .settings-page .mcp-status-grid,
@@ -4951,7 +4951,7 @@ body.theme-light .mcp-inline-warning.danger {
   .settings-page .model-inline-card,
   .settings-page .settings-section,
   .settings-page .product-card,
-  .settings-page .skill-card,
+  .settings-page .task-card,
   .settings-page .task-card,
   .settings-page .stat-card,
   .settings-page .workspace-summary-card,
@@ -4967,7 +4967,7 @@ body.theme-light .mcp-inline-warning.danger {
   .settings-page .settings-block-head,
   .settings-page .product-card-head,
   .settings-page .task-head,
-  .settings-page .skill-head,
+  .settings-page .task-head,
   .settings-page .mcp-form-head,
   .settings-page .model-quick-head {
     padding-bottom: 8px !important;
@@ -5041,7 +5041,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .mcp-form-card,
 .settings-page .product-card,
 .settings-page .task-card,
-.settings-page .skill-card,
+.settings-page .task-card,
 .settings-page .workspace-summary-card,
 .settings-page .backup-item,
 .settings-page .backup-health,
@@ -5151,7 +5151,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .mcp-form-card,
 .settings-page .product-card,
 .settings-page .task-card,
-.settings-page .skill-card,
+.settings-page .task-card,
 .settings-page .workspace-summary-card,
 .settings-page .stat-card,
 .settings-page .model-summary-card,
@@ -5275,7 +5275,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .mcp-form-card,
 .settings-page .product-card,
 .settings-page .task-card,
-.settings-page .skill-card,
+.settings-page .task-card,
 .settings-page .workspace-summary-card,
 .settings-page .stat-card,
 .settings-page .model-summary-card,
@@ -5294,7 +5294,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .mcp-form-head,
 .settings-page .product-card-head,
 .settings-page .task-head,
-.settings-page .skill-head {
+.settings-page .task-head {
   border-bottom: 0 !important;
   padding-bottom: 0 !important;
 }
@@ -5305,7 +5305,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .mcp-form-head b,
 .settings-page .product-card-head b,
 .settings-page .task-name,
-.settings-page .skill-name,
+.settings-page .task-name,
 .settings-page .stat-value,
 .settings-page .workspace-summary-card b,
 .settings-page .model-summary-card b {
@@ -5317,7 +5317,7 @@ body.theme-light .mcp-inline-warning.danger {
 .settings-page .product-meta,
 .settings-page .task-meta,
 .settings-page .task-desc,
-.settings-page .skill-desc,
+.settings-page .task-desc,
 .settings-page .stat-label,
 .settings-page .settings-section-head p,
 .settings-page .mcp-form-head .hint,
@@ -5539,7 +5539,7 @@ body.theme-light .mcp-inline-warning.danger {
 
   .settings-page .product-card,
   .settings-page .task-card,
-  .settings-page .skill-card,
+  .settings-page .task-card,
   .settings-page .workspace-summary-card,
   .settings-page .stat-card,
   .settings-page .model-summary-card,
@@ -5724,7 +5724,7 @@ body.theme-light .mcp-inline-warning.danger {
   .settings-page .mcp-form-card,
   .settings-page .product-card,
   .settings-page .task-card,
-  .settings-page .skill-card,
+  .settings-page .task-card,
   .settings-page .workspace-summary-card,
   .settings-page .stat-card,
   .settings-page .model-summary-card,

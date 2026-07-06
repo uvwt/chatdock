@@ -1,7 +1,9 @@
 APP := chatdock
 WEB_DIR := web
+DEV_COMPOSE := compose.dev.yaml
+PROD_CHATDOCK_DIR ?= /Volumes/KIOXIA/Docker/chatdock
 
-.PHONY: run build web-deps web-build web-dev js-check test vet fmt fmt-check check clean
+.PHONY: run build web-deps web-build web-dev js-check frontend-lint test vet fmt fmt-check check clean dev-up dev-down prod-check deploy-prod
 
 run: web-build
 	go run ./cmd/chatdock
@@ -29,6 +31,9 @@ js-check: web-deps
 	node --check $(WEB_DIR)/vite.config.js
 	@for f in $(WEB_DIR)/src/lib/*.js; do node --check $$f; done
 
+frontend-lint: js-check
+	node scripts/check-frontend.mjs
+
 test: web-build
 	go test ./...
 
@@ -38,10 +43,22 @@ vet: web-build
 fmt-check:
 	test -z "$$(gofmt -l cmd internal web/*.go)"
 
-check: fmt-check js-check vet test build
+check: fmt-check frontend-lint vet test build
 
 fmt:
 	gofmt -w cmd internal web/*.go
+
+dev-up:
+	docker compose -f $(DEV_COMPOSE) up -d --build
+
+dev-down:
+	docker compose -f $(DEV_COMPOSE) down
+
+prod-check:
+	CHATDOCK_PROD_DIR=$(PROD_CHATDOCK_DIR) scripts/check-prod-compose.sh
+
+deploy-prod:
+	cd $(PROD_CHATDOCK_DIR) && CHATDOCK_PROD_DIR=$(PROD_CHATDOCK_DIR) $(CURDIR)/scripts/deploy-prod.sh
 
 clean:
 	rm -rf bin $(WEB_DIR)/dist

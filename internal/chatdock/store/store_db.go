@@ -62,26 +62,6 @@ func (s *Store) initSQLite() error {
 	return s.ensureSQLiteSchemaUpdates()
 }
 
-func (s *Store) ensureSQLiteSchemaUpdates() error {
-	stmts := []string{
-		`ALTER TABLE chat_jobs ADD COLUMN request_id TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE sessions ADD COLUMN title TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE sessions ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`,
-		`ALTER TABLE sessions ADD COLUMN provider_id TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE sessions ADD COLUMN model TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE tool_embeddings ADD COLUMN embedding_blob BLOB NOT NULL DEFAULT x''`,
-	}
-	for _, stmt := range stmts {
-		if _, err := s.db.Exec(stmt); err != nil {
-			if strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
-				continue
-			}
-			return err
-		}
-	}
-	return nil
-}
-
 func (s *Store) migrateLegacyData() error {
 	migrated, err := s.metaValue("json_migrated")
 	if err != nil {
