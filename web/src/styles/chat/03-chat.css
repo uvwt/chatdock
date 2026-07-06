@@ -1,0 +1,490 @@
+.msg.assistant.markdown,
+.msg.assistant > .markdown,
+.msg.assistant > .answer,
+.msg.assistant .answer.markdown {
+  max-width: 700px !important;
+  color: color-mix(in srgb, var(--gpt-text) 98%, var(--gpt-muted)) !important;
+  font-size: 15.75px !important;
+  font-weight: 400 !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  line-height: 1.66 !important;
+  letter-spacing: 0 !important;
+  white-space: normal !important;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.msg.assistant.markdown > :first-child,
+.msg.assistant > .markdown > :first-child,
+.msg.assistant > .answer > :first-child {
+  margin-top: 0 !important;
+}
+
+.msg.assistant.markdown > :last-child,
+.msg.assistant > .markdown > :last-child,
+.msg.assistant > .answer > :last-child {
+  margin-bottom: 0 !important;
+}
+
+.msg.assistant.markdown p,
+.msg.assistant .markdown p,
+.msg.assistant .answer p {
+  margin: 0 0 10px !important;
+}
+
+.msg.assistant.markdown p:empty,
+.msg.assistant .markdown p:empty,
+.msg.assistant .answer p:empty {
+  display: none !important;
+}
+
+.msg.assistant.markdown ul,
+.msg.assistant.markdown ol,
+.msg.assistant .markdown ul,
+.msg.assistant .markdown ol,
+.msg.assistant .answer ul,
+.msg.assistant .answer ol {
+  margin: 8px 0 13px !important;
+  padding-left: 1.22rem !important;
+}
+
+.msg.assistant.markdown li,
+.msg.assistant .markdown li,
+.msg.assistant .answer li {
+  margin: 4px 0 !important;
+  padding-left: .12rem !important;
+}
+
+.msg.assistant.markdown li::marker,
+.msg.assistant .markdown li::marker,
+.msg.assistant .answer li::marker {
+  color: var(--gpt-muted-2);
+  font-size: .86em;
+}
+
+.msg.assistant.markdown li > p,
+.msg.assistant .markdown li > p,
+.msg.assistant .answer li > p {
+  display: inline !important;
+  margin: 0 !important;
+}
+
+.msg.assistant.markdown li > p + p,
+.msg.assistant .markdown li > p + p,
+.msg.assistant .answer li > p + p {
+  display: block !important;
+  margin-top: 8px !important;
+}
+
+.msg.assistant.markdown strong,
+.msg.assistant .markdown strong,
+.msg.assistant .answer strong {
+  color: var(--text-strong) !important;
+  font-weight: 590 !important;
+}
+
+.msg.assistant.markdown h1,
+.msg.assistant.markdown h2,
+.msg.assistant.markdown h3,
+.msg.assistant.markdown h4,
+.msg.assistant .markdown h1,
+.msg.assistant .markdown h2,
+.msg.assistant .markdown h3,
+.msg.assistant .markdown h4,
+.msg.assistant .answer h1,
+.msg.assistant .answer h2,
+.msg.assistant .answer h3,
+.msg.assistant .answer h4 {
+  margin: 20px 0 8px !important;
+  padding-top: 0 !important;
+  border-top: 0 !important;
+  color: var(--text-strong) !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+}
+
+.msg.assistant.markdown h1,
+.msg.assistant .markdown h1,
+.msg.assistant .answer h1 { font-size: 20px !important; line-height: 1.28 !important; }
+.msg.assistant.markdown h2,
+.msg.assistant .markdown h2,
+.msg.assistant .answer h2 { font-size: 18px !important; line-height: 1.32 !important; }
+.msg.assistant.markdown h3,
+.msg.assistant .markdown h3,
+.msg.assistant .answer h3 { font-size: 16px !important; line-height: 1.38 !important; }
+.msg.assistant.markdown h4,
+.msg.assistant .markdown h4,
+.msg.assistant .answer h4 { font-size: 15.5px !important; line-height: 1.42 !important; }
+
+.msg.assistant.markdown code,
+.msg.assistant .markdown code,
+.msg.assistant .answer code {
+  padding: .12em .36em !important;
+  border: 1px solid color-mix(in srgb, var(--gpt-border) 72%, transparent) !important;
+  border-radius: 6px !important;
+  background: color-mix(in srgb, var(--gpt-surface) 82%, transparent) !important;
+  color: var(--text-strong) !important;
+  font-weight: 390 !important;
+  font-size: .9em !important;
+}
+
+.msg.assistant.markdown pre,
+.msg.assistant .markdown pre,
+.msg.assistant .answer pre {
+  margin: 12px 0 14px !important;
+  padding: 13px 14px !important;
+  border-radius: 8px !important;
+  background: color-mix(in srgb, var(--gpt-surface) 99%, var(--gpt-text) 1%) !important;
+  border-color: color-mix(in srgb, var(--gpt-border) 86%, transparent) !important;
+}
+
+.msg.assistant.markdown pre code,
+.msg.assistant .markdown pre code,
+.msg.assistant .answer pre code {
+  border: 0 !important;
+  background: transparent !important;
+  color: #0f172a !important;
+  padding: 0 !important;
+}
+
+.msg.assistant.markdown blockquote,
+.msg.assistant .markdown blockquote,
+.msg.assistant .answer blockquote {
+  margin: 10px 0 12px !important;
+  padding: 4px 0 4px 12px !important;
+  border-left: 3px solid color-mix(in srgb, var(--primary) 72%, var(--gpt-border)) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--gpt-muted) !important;
+}
+
+.msg.assistant.markdown .table-wrap,
+.msg.assistant .markdown .table-wrap,
+.msg.assistant .answer .table-wrap {
+  margin: 13px 0 16px !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+}
+
+.msg.assistant.markdown th,
+.msg.assistant.markdown td,
+.msg.assistant .markdown th,
+.msg.assistant .markdown td,
+.msg.assistant .answer th,
+.msg.assistant .answer td {
+  padding: 8px 10px !important;
+  line-height: 1.45 !important;
+}
+
+.msg.assistant .reasoning {
+  margin-bottom: 12px !important;
+}
+
+@media (max-width: 720px) {
+  .msg.assistant,
+  .msg.assistant.markdown {
+    max-width: none !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .msg.assistant.markdown,
+  .msg.assistant > .markdown,
+  .msg.assistant > .answer,
+  .msg.assistant .answer.markdown {
+    max-width: none !important;
+    font-size: 15px !important;
+    line-height: 1.64 !important;
+  }
+}
+
+/* Markdown code blocks: copy button and lightweight syntax highlighting. */
+.markdown .code-block {
+  margin: 12px 0 14px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--gpt-border) 86%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--gpt-surface) 99%, var(--gpt-text) 1%);
+}
+
+.markdown .code-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
+  padding: 0 10px 0 13px;
+  border-bottom: 1px solid color-mix(in srgb, var(--gpt-border) 78%, transparent);
+  background: color-mix(in srgb, var(--gpt-surface) 98%, var(--gpt-text) 2%);
+}
+
+.markdown .code-block-lang {
+  color: var(--gpt-muted);
+  font-size: 12px;
+  font-weight: 560;
+  letter-spacing: .02em;
+  text-transform: lowercase;
+}
+
+.markdown .code-block-copy {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--gpt-border) 82%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--gpt-surface) 99%, var(--gpt-text) 1%);
+  color: var(--gpt-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 470;
+  line-height: 1;
+  padding: 6px 9px;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.markdown .code-block-copy:hover {
+  border-color: color-mix(in srgb, var(--primary) 48%, var(--gpt-border));
+  background: color-mix(in srgb, var(--gpt-surface) 80%, var(--primary) 10%);
+  color: var(--text-strong);
+}
+
+.markdown .code-block-copy.copied {
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--gpt-border));
+  background: color-mix(in srgb, var(--gpt-surface) 76%, var(--primary) 14%);
+  color: var(--text-strong);
+}
+
+.markdown .code-block-pre,
+.msg.assistant.markdown .code-block-pre,
+.msg.assistant .markdown .code-block-pre,
+.msg.assistant .answer .code-block-pre {
+  margin: 0 !important;
+  padding: 13px 14px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  overflow: auto;
+}
+
+.markdown .code-block-pre code,
+.msg.assistant.markdown .code-block-pre code,
+.msg.assistant .markdown .code-block-pre code,
+.msg.assistant .answer .code-block-pre code {
+  display: block;
+  min-width: max-content;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #0f172a !important;
+  font-size: 13px !important;
+  font-weight: 390 !important;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.68 !important;
+  tab-size: 2;
+  white-space: pre;
+}
+
+.markdown .hl-comment { color: var(--gpt-muted); font-style: italic; }
+.markdown .hl-string { color: #047857; }
+.markdown .hl-number { color: #b45309; }
+.markdown .hl-keyword { color: #1d4ed8; }
+.markdown .hl-punctuation { color: #64748b; }
+
+@media (max-width: 720px) {
+  .markdown .code-block {
+    border-radius: 8px;
+  }
+
+  .markdown .code-block-pre,
+  .msg.assistant.markdown .code-block-pre,
+  .msg.assistant .markdown .code-block-pre,
+  .msg.assistant .answer .code-block-pre {
+    padding: 12px !important;
+  }
+}
+
+/* 2026-07-04 运行步骤展示：像状态清单一样展示具体名称，避免泛称和横向铺满。 */
+.tool-steps-card {
+  width: min(620px, 100%);
+  margin: 12px 0 14px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--gpt-border) 78%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--gpt-surface) 58%, transparent);
+  color: var(--gpt-muted);
+}
+
+.tool-steps-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 4px 8px;
+}
+
+.tool-steps-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gpt-text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.tool-steps-count {
+  flex: none;
+  color: var(--gpt-muted-2);
+  font-size: 12px;
+}
+
+.tool-steps-list {
+  display: grid;
+  gap: 3px;
+}
+
+.tool-step-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--gpt-muted);
+  text-align: left;
+  box-shadow: none;
+}
+
+.tool-step-row:not(:disabled):hover {
+  background: color-mix(in srgb, var(--gpt-surface-2) 86%, transparent);
+}
+
+.tool-step-row:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.tool-step-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  color: #86efac;
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.tool-step-row.phase-running .tool-step-icon {
+  color: var(--gpt-muted-2);
+  background: color-mix(in srgb, var(--gpt-border) 56%, transparent);
+}
+
+.tool-step-row.phase-error .tool-step-icon {
+  color: #fecaca;
+  background: rgba(239, 68, 68, .18);
+}
+
+.tool-step-body {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.tool-step-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gpt-text);
+  font-size: 13px;
+  font-weight: 620;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.tool-step-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gpt-muted-2);
+  font-size: 12px;
+}
+
+.tool-step-status {
+  color: var(--gpt-muted-2);
+  font-size: 12px;
+}
+
+.tool-steps-more {
+  width: 100%;
+  min-height: 30px;
+  margin-top: 5px;
+  padding: 4px 8px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--gpt-muted-2);
+  font-size: 12px;
+  box-shadow: none;
+}
+
+.tool-steps-more:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--gpt-surface-2) 86%, transparent);
+  color: var(--gpt-text);
+}
+
+@media (max-width: 720px) {
+  .tool-steps-card {
+    width: 100%;
+    border-radius: 14px;
+  }
+
+  .tool-step-row {
+    grid-template-columns: 18px minmax(0, 1fr);
+  }
+
+  .tool-step-status {
+    display: none;
+  }
+}
+
+
+.chat-error-card {
+  margin: 12px 0 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(239, 68, 68, .28);
+  border-radius: 14px;
+  background: rgba(239, 68, 68, .08);
+  color: var(--text);
+  display: grid;
+  gap: 5px;
+}
+
+.chat-error-card b {
+  color: #fecaca;
+  font-size: 13px;
+}
+
+.chat-error-card span {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-error-card small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+body.theme-light .chat-error-card {
+  background: #fff7f7;
+  border-color: #fecaca;
+}
+
+body.theme-light .chat-error-card b {
+  color: #b91c1c;
+}

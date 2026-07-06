@@ -1,0 +1,230 @@
+.settings-page .module-tab.active::after {
+  content: '' !important;
+  position: absolute !important;
+  left: 6px !important;
+  top: 9px !important;
+  bottom: 9px !important;
+  width: 3px !important;
+  border-radius: 999px !important;
+  background: #10a37f !important;
+}
+
+.settings-page .module-view.active {
+  border-color: #edf0f4 !important;
+}
+
+.settings-page .module-view-title {
+  margin-bottom: 12px !important;
+  padding-bottom: 12px !important;
+}
+
+.settings-page .module-view-title span {
+  font-size: 22px !important;
+}
+
+.settings-page .module-view-title p,
+.settings-page .settings-section-head p {
+  font-size: 13px !important;
+}
+
+.settings-page .settings-block-head {
+  margin: 16px 0 10px !important;
+}
+
+.settings-page .settings-block-head.model-page-head {
+  margin-top: 0 !important;
+}
+
+.settings-page .workspace-summary-grid,
+.settings-page .model-summary-grid {
+  gap: 10px !important;
+  margin: 8px 0 12px !important;
+}
+
+.settings-page .workspace-summary-card,
+.settings-page .model-summary-card {
+  min-height: unset !important;
+  padding: 12px 13px !important;
+  gap: 4px !important;
+  border-radius: 14px !important;
+}
+
+.settings-page .workspace-summary-card b,
+.settings-page .model-summary-card b {
+  font-size: 15px !important;
+}
+
+.settings-page .model-save-toolbar {
+  top: 10px !important;
+  margin: 8px 0 12px !important;
+  padding: 12px 14px !important;
+  gap: 12px !important;
+  border-radius: 14px !important;
+}
+
+.settings-page .model-save-toolbar > div:first-child span {
+  font-size: 12px !important;
+}
+
+.settings-page .model-save-toolbar-actions {
+  gap: 8px !important;
+}
+
+.settings-page [data-module-view="model"] .settings-section {
+  margin: 8px 0 10px !important;
+}
+
+.settings-page .settings-disclosure {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.settings-page .settings-disclosure > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px !important;
+}
+
+.settings-page .settings-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-page .settings-disclosure > summary b {
+  display: block;
+  color: #111827 !important;
+  font-size: 15px !important;
+  font-weight: 850;
+}
+
+.settings-page .settings-disclosure > summary p {
+  margin: 3px 0 0;
+  color: #6b7280 !important;
+  font-size: 12px !important;
+  line-height: 1.45;
+}
+
+.settings-page .settings-disclosure > summary > span {
+  flex: 0 0 auto;
+  border: 1px solid #d8dde5;
+  border-radius: 999px;
+  padding: 4px 9px !important;
+  color: #4b5563;
+  background: #f9fafb;
+  font-size: 11px !important;
+  font-weight: 800;
+}
+
+.settings-page .settings-disclosure[open] > summary {
+  border-bottom: 1px solid #eef0f3;
+}
+
+.settings-page .settings-disclosure[open] > summary > span::before {
+  content: '已';
+}
+
+.settings-page .settings-disclosure > :not(summary) {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+
+.settings-page .settings-disclosure > :last-child {
+  margin-bottom: 16px;
+}
+
+.settings-page .provider-actions-inline {
+  display: flex;
+  justify-content: flex-end;
+  margin: 12px 0;
+}
+
+.settings-page .provider-disclosure .provider-grid {
+  margin-top: 0;
+}
+
+.settings-page .model-primary-actions {
+  display: none !important;
+}
+
+.settings-page .product-card,
+.settings-page .task-card,
+.settings-page .stat-card,
+.settings-page .mcp-form-card,
+.settings-page .settings-section {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .035) !important;
+}
+
+@media (min-width: 1040px) {
+  .settings-page .settings,
+  .settings-page .settings[style] {
+    grid-template-columns: 196px minmax(0, 1fr) !important;
+    gap: 16px !important;
+  }
+
+  .settings-page .module-tabs {
+    width: 196px !important;
+    padding: 8px !important;
+    gap: 8px !important;
+  }
+
+  .settings-page .module-view.active {
+    padding: 20px !important;
+  }
+
+  .settings-page [data-module-view="model"] .model-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .settings-page [data-module-view="model"] .settings-form-grid {
+    grid-template-columns: minmax(220px, .8fr) minmax(320px, 1.2fr) !important;
+  }
+}
+
+@media (max-width: 1039px) {
+  .settings-page .settings-header {
+    padding: 16px !important;
+  }
+
+  .settings-page .module-tabs {
+    gap: 8px !important;
+    padding: 8px !important;
+  }
+
+  .settings-page .module-nav-group {
+    display: flex;
+    gap: 8px;
+  }
+
+  .settings-page .module-group-label,
+  .settings-page .module-tab.active::after,
+  .settings-page .settings-disclosure > summary > span {
+    display: none !important;
+  }
+
+  .settings-page .module-tab,
+  .settings-page .module-tabs button.module-tab {
+    min-height: 32px !important;
+    padding: 0 12px !important;
+  }
+
+  .settings-page .settings-disclosure > summary {
+    align-items: flex-start;
+    padding: 14px !important;
+  }
+
+  .settings-page .settings-disclosure > :not(summary) {
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+
+  .settings-page .provider-actions-inline {
+    display: grid;
+  }
+
+  .settings-page .provider-actions-inline button {
+    width: 100%;
+  }
+}

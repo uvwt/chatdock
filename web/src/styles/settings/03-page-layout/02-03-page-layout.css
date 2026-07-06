@@ -1,0 +1,467 @@
+/* 2026-07 配置中心桌面视觉重做：参考独立控制台布局，强化白色画布、左侧导航和工作区卡片。 */
+@media (min-width: 1040px) {
+  .settings-page {
+    padding: 30px clamp(34px, 4vw, 70px);
+    background:
+      radial-gradient(circle at 14% -8%, rgba(45, 212, 191, .16), transparent 34%),
+      radial-gradient(circle at 92% 0, rgba(15, 118, 110, .10), transparent 32%),
+      linear-gradient(135deg, #fbfaf7 0%, #f7fafc 48%, #fbfdff 100%);
+    color: #0f172a;
+  }
+
+  .settings-page .settings {
+    width: min(1760px, 100%);
+    min-height: calc(100dvh - 60px);
+    grid-template-columns: 286px minmax(0, 1fr);
+    grid-template-rows: 140px minmax(0, 1fr);
+    gap: 22px 28px;
+  }
+
+  .settings-page .settings-header {
+    min-height: 118px;
+    padding: 28px 36px;
+    border: 1px solid rgba(226, 232, 240, .96);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, .90);
+    box-shadow: 0 18px 48px rgba(15, 23, 42, .08);
+    backdrop-filter: blur(14px);
+  }
+
+  .settings-page .settings-header h2 {
+    color: #0f172a;
+    font-size: 34px;
+    line-height: 1.1;
+    letter-spacing: -.04em;
+  }
+
+  .settings-page .settings-header p {
+    max-width: 760px;
+    margin-top: 9px;
+    color: #64748b;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .settings-page .settings-header-actions {
+    gap: 14px;
+  }
+
+  .settings-page .settings-header-actions button {
+    min-height: 46px;
+    padding: 0 18px;
+    border-radius: 11px;
+    border-color: #dbe4f0;
+    background: #ffffff;
+    color: #334155;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+    font-size: 15px;
+    font-weight: 750;
+  }
+
+  .settings-page .settings-header-actions button:last-child {
+    border-color: #0f766e;
+    background: linear-gradient(135deg, #0f766e, #115e59);
+    color: #ffffff;
+    box-shadow: 0 14px 30px rgba(15, 118, 110, .20);
+  }
+
+  .settings-page .module-tabs {
+    top: 30px;
+    gap: 10px;
+    padding: 22px;
+    border: 1px solid rgba(226, 232, 240, .96);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, .90);
+    box-shadow: 0 18px 48px rgba(15, 23, 42, .08);
+    backdrop-filter: blur(14px);
+  }
+
+  .settings-page .module-tab {
+    min-height: 52px;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 11px;
+    background: transparent;
+    color: #334155;
+    font-size: 16px;
+    font-weight: 750;
+    box-shadow: none;
+  }
+
+  .settings-page .module-tab::before {
+    content: "□";
+    width: 22px;
+    display: inline-flex;
+    justify-content: center;
+    color: #0f172a;
+    font-size: 18px;
+    opacity: .86;
+  }
+
+  .settings-page .module-tab:nth-child(1)::before { content: "▱"; }
+  .settings-page .module-tab:nth-child(2)::before { content: "◇"; }
+  .settings-page .module-tab:nth-child(3)::before { content: "✣"; }
+  .settings-page .module-tab:nth-child(4)::before { content: "⌘"; }
+  .settings-page .module-tab:nth-child(5)::before { content: "▧"; }
+  .settings-page .module-tab:nth-child(6)::before { content: "◎"; }
+  .settings-page .module-tab:nth-child(7)::before { content: "⏱"; }
+  .settings-page .module-tab:nth-child(8)::before { content: "◉"; }
+  .settings-page .module-tab:nth-child(9)::before { content: "♢"; }
+
+  .settings-page .module-tab.active {
+    background: linear-gradient(135deg, #0f766e, #115e59);
+    color: #ffffff;
+    box-shadow: 0 14px 24px rgba(15, 118, 110, .20);
+  }
+
+  .settings-page .module-tab.active::before {
+    color: #ffffff;
+    opacity: 1;
+  }
+
+  .settings-page .module-view.active {
+    padding: 28px;
+    border: 1px solid rgba(226, 232, 240, .96);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, .90);
+    box-shadow: 0 18px 48px rgba(15, 23, 42, .08);
+    backdrop-filter: blur(14px);
+  }
+
+  .settings-page .setup-banner {
+    min-height: 84px;
+    padding: 20px 24px;
+    border: 1px solid rgba(34, 197, 94, .24);
+    border-radius: 14px;
+    background:
+      radial-gradient(circle at 78% 25%, rgba(20, 184, 166, .16), transparent 24%),
+      linear-gradient(135deg, rgba(240, 253, 244, .96), rgba(236, 253, 245, .88));
+    color: #0f172a;
+  }
+
+  .settings-page .setup-banner b {
+    color: #0f172a;
+    font-size: 18px;
+  }
+
+  .settings-page .setup-banner::before {
+    content: "✓";
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 14px;
+    border-radius: 999px;
+    background: #22c55e;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 900;
+  }
+
+  .settings-page .settings-block-head {
+    margin: 26px 0 16px;
+    align-items: center;
+  }
+
+  .settings-page .settings-block-head label {
+    color: #0f172a;
+    font-size: 18px;
+    font-weight: 850;
+  }
+
+  .settings-page .settings-block-head button,
+  .settings-page .product-actions button,
+  .settings-page .settings-actions button {
+    border-radius: 10px;
+    font-weight: 750;
+  }
+
+  .settings-page .settings-block-head button:not(.danger),
+  .settings-page .settings-actions button:not(.secondary):not(.danger) {
+    border-color: #0f766e;
+    background: linear-gradient(135deg, #0f766e, #115e59);
+    color: #ffffff;
+  }
+
+  .settings-page #workspaceCards,
+  .settings-page .provider-grid,
+  .settings-page .tasks-list,
+  .settings-page .tasks-list,
+  .settings-page .mcp-status-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(320px, 1fr));
+    gap: 22px;
+  }
+
+  .settings-page #workspaceCards .product-card,
+  .settings-page .provider-grid .product-card,
+  .settings-page .task-card,
+  .settings-page .stat-card,
+  .settings-page .mcp-status-grid .product-card {
+    position: relative;
+    min-height: 148px;
+    padding: 26px 26px 22px 112px;
+    border: 1px solid #dbe4f0;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .72);
+    color: #0f172a;
+    box-shadow: none;
+  }
+
+  .settings-page #workspaceCards .product-card::before,
+  .settings-page .provider-grid .product-card::before {
+    content: "□";
+    position: absolute;
+    left: 26px;
+    top: 26px;
+    width: 58px;
+    height: 58px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: #ecfdf5;
+    color: #0f766e;
+    font-size: 28px;
+    font-weight: 900;
+  }
+
+  .settings-page #workspaceCards .product-card:nth-child(2)::before,
+  .settings-page .provider-grid .product-card:nth-child(2)::before {
+    content: "✣";
+    background: #faf5ff;
+    color: #7c3aed;
+  }
+
+  .settings-page #workspaceCards .product-card:nth-child(3)::before,
+  .settings-page .provider-grid .product-card:nth-child(3)::before {
+    content: "Aa";
+    background: #ecfdf5;
+    color: #22c55e;
+    font-size: 22px;
+  }
+
+  .settings-page .product-card.active,
+  .settings-page #workspaceCards .product-card.active {
+    border-color: #0f766e;
+    background: linear-gradient(135deg, #fbfaf7, #ffffff);
+    box-shadow: inset 0 0 0 1px rgba(15, 118, 110, .18);
+  }
+
+  .settings-page .product-card-head {
+    margin-bottom: 14px;
+  }
+
+  .settings-page .product-card-head b,
+  .settings-page .task-name,
+  .settings-page .task-name,
+  .settings-page .stat-value {
+    color: #0f172a;
+    font-size: 18px;
+    font-weight: 850;
+  }
+
+  .settings-page .product-card-head .hint,
+  .settings-page .product-meta,
+  .settings-page .hint,
+  .settings-page .task-desc,
+  .settings-page .task-desc,
+  .settings-page .task-meta,
+  .settings-page .stat-label {
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .settings-page .badge {
+    border: 0;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #334155;
+    font-weight: 800;
+  }
+
+  .settings-page .product-card.active .badge {
+    background: #0f766e;
+    color: #ffffff;
+  }
+
+  .settings-page input,
+  .settings-page select,
+  .settings-page textarea {
+    border-color: #dbe4f0;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #0f172a;
+  }
+}
+
+@media (min-width: 1500px) {
+  .settings-page .settings { grid-template-columns: 300px minmax(0, 1fr); }
+  .settings-page .module-view.active { padding: 30px; }
+}
+
+/* 2026-07 前端美化收尾：配置中心更像独立控制台，先给用户扫一眼关键状态。 */
+.workspace-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 2px 0 18px;
+}
+
+.workspace-summary-card {
+  position: relative;
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--gpt-border);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(16, 163, 127, .12), transparent 34%),
+    var(--gpt-surface-2);
+}
+
+.workspace-summary-card span {
+  display: block;
+  color: var(--gpt-muted);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: .02em;
+}
+
+.workspace-summary-card b {
+  display: block;
+  min-width: 0;
+  margin-top: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gpt-text);
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -.03em;
+}
+
+@media (min-width: 1040px) {
+  .settings-page .settings-header {
+    overflow: hidden;
+  }
+
+  .settings-page .settings-header::after {
+    content: "";
+    position: absolute;
+    right: 18%;
+    bottom: -70px;
+    width: 340px;
+    height: 150px;
+    pointer-events: none;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(45, 212, 191, .18), transparent 68%);
+  }
+
+  .settings-page .settings-header > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .settings-page .module-view.active {
+    min-height: calc(100dvh - 222px);
+  }
+
+  .settings-page .workspace-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+
+  .settings-page .workspace-summary-card {
+    padding: 20px 22px;
+    border-color: #dbe4f0;
+    border-radius: 16px;
+    background:
+      radial-gradient(circle at 86% 10%, rgba(15, 118, 110, .10), transparent 32%),
+      linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,250,252,.86));
+    box-shadow: 0 12px 30px rgba(15, 23, 42, .05);
+  }
+
+  .settings-page .workspace-summary-card span {
+    color: #64748b;
+    font-size: 13px;
+  }
+
+  .settings-page .workspace-summary-card b {
+    color: #0f172a;
+    font-size: 24px;
+  }
+
+  .settings-page #workspaceCards .product-card,
+  .settings-page .provider-grid .product-card,
+  .settings-page .task-card,
+  .settings-page .mcp-status-grid .product-card {
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+  }
+
+  .settings-page #workspaceCards .product-card:hover,
+  .settings-page .provider-grid .product-card:hover,
+  .settings-page .task-card:hover,
+  .settings-page .task-card:hover,
+  .settings-page .mcp-status-grid .product-card:hover {
+    transform: translateY(-2px);
+    border-color: #99f6e4;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, .08);
+  }
+
+  .settings-page .product-actions {
+    margin-top: 18px;
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .workspace-summary-card {
+    padding: 13px 14px;
+    border-radius: 16px;
+  }
+
+  .workspace-summary-card b {
+    font-size: 18px;
+  }
+}
+
+@media (min-width: 1040px) {
+  .settings-page .settings-header {
+    position: relative;
+  }
+}
+
+
+/* 2026-07 像用户截图一样校准桌面配置页：左侧导航收窄到截图比例，内容区更宽。 */
+@media (min-width: 1040px) {
+  .settings-page .settings,
+  .settings-page .settings[style] {
+    grid-template-columns: 250px minmax(0, 1fr) !important;
+    gap: 22px 28px !important;
+  }
+
+  .settings-page .module-tabs {
+    width: 250px !important;
+    margin: 0 !important;
+    padding: 20px 18px !important;
+  }
+
+  .settings-page .module-view.active {
+    margin: 0 !important;
+  }
+}
+
+@media (min-width: 1500px) {
+  .settings-page .settings {
+    grid-template-columns: 250px minmax(0, 1fr) !important;
+  }
+}

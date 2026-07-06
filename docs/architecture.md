@@ -14,7 +14,7 @@ internal/chatdock/store/   SQLite 存储、迁移、会话、任务、附件、�
 web/                       前端源码与 Go embed 入口
 web/src/components/        React 组件层
 web/src/lib/               前端 API、传输层、协议解析和纯函数
-web/src/styles/            前端 CSS 模块
+web/src/styles/            前端 CSS 模块；大文件用同名子目录分块，入口只 import
 scripts/                   本地检查、生产部署保护和辅助脚本
 ```
 
@@ -66,6 +66,7 @@ web/src/lib/settingsApi.js      配置中心、工作空间、模型、MCP、自
 web/src/lib/upload.js           文件上传传输层，封装 XHR 和进度回调
 web/src/lib/sse.js              SSE 流解析
 web/src/lib/toolEvents.js       工具调用事件合并、展示文案和 message parts 更新
+web/src/lib/sessionPresentation.js 会话列表和定时任务运行会话的纯展示派生逻辑
 web/src/lib/modelProviderForm.js 模型供应商表单 Key、模型名和选择器纯函数
 web/src/hooks/useSettingsData.js 配置页数据状态和加载器 hook
 web/src/hooks/useAttachments.js  文件上传、附件列表、下载和 ready attachment 派生状态
@@ -73,6 +74,7 @@ web/src/lib/appUtils.js         时间、容量、状态标签、路由路径、
 
 web/src/components/base.jsx     通用 UI：Markdown、弹窗、登录页、快捷面板、工作空间选择
 web/src/components/chat.jsx     对话工作台、消息、附件卡片、空状态
+web/src/components/appChrome.jsx 主应用壳层：Sidebar、Topbar、ComposerBar
 web/src/components/settings.jsx 配置中心：工作空间、模型、供应商、MCP、自动化、数据、安全
 ```
 

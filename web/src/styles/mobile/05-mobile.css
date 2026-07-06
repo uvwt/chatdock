@@ -1,0 +1,217 @@
+/* 手机端下滑按钮：避开输入框，保持一眼可点。 */
+@media (max-width: 720px) {
+  .jump-latest {
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px)) !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    border-color: rgba(226, 232, 240, .96) !important;
+    background: rgba(255, 255, 255, .96) !important;
+    color: #0f172a !important;
+    box-shadow: 0 16px 44px rgba(15, 23, 42, .16) !important;
+  }
+}
+
+/* 手机侧栏会话删除按钮常驻可见，避免隐藏操作找不到。 */
+@media (max-width: 720px) {
+  aside .session-main {
+    padding-right: 34px !important;
+  }
+
+  aside .session-delete {
+    top: 50% !important;
+    right: 10px !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    transform: translateY(-50%);
+    background: #f8fafc !important;
+    color: #94a3b8 !important;
+    opacity: 1 !important;
+    font-size: 20px !important;
+  }
+}
+
+
+/* 2026-07 快捷指令面板重排：手机端改成轻量弹层，避免按钮挤压和文字重叠。 */
+@media (max-width: 720px) {
+  .quick-palette-backdrop.show {
+    align-items: flex-start !important;
+    justify-content: center !important;
+    padding: calc(14px + env(safe-area-inset-top, 0px)) 10px 10px !important;
+    background: rgba(15, 23, 42, .42) !important;
+    backdrop-filter: blur(6px) !important;
+  }
+
+  .quick-palette {
+    width: min(100%, 420px) !important;
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px)) !important;
+    border: 1px solid rgba(226, 232, 240, .96) !important;
+    border-radius: 24px !important;
+    background: rgba(255, 255, 255, .98) !important;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, .2) !important;
+  }
+
+  .quick-palette-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 38px !important;
+    gap: 8px !important;
+    padding: 12px 12px 10px !important;
+    border-bottom: 1px solid #edf2f7 !important;
+    background: rgba(255, 255, 255, .98) !important;
+  }
+
+  .quick-palette-head input {
+    min-height: 40px !important;
+    padding: 0 12px !important;
+    border: 1px solid #d7dee9 !important;
+    border-radius: 15px !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 14px !important;
+    font-weight: 560 !important;
+  }
+
+  .quick-palette-close,
+  .quick-palette-head > button {
+    width: 38px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    border-radius: 13px !important;
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+    font-size: 20px !important;
+    font-weight: 650 !important;
+    line-height: 1 !important;
+  }
+
+  .quick-palette-list {
+    display: grid !important;
+    gap: 7px !important;
+    padding: 10px 12px 12px !important;
+    overflow: auto !important;
+  }
+
+  .quick-palette-item {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 42px !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-height: 52px !important;
+    padding: 8px 10px 8px 12px !important;
+    border: 1px solid #e4eaf2 !important;
+    border-radius: 15px !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+  }
+
+  .quick-palette-item span {
+    display: grid !important;
+    gap: 2px !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .quick-palette-item b {
+    overflow: hidden !important;
+    color: #0f172a !important;
+    font-size: 14px !important;
+    font-weight: 760 !important;
+    line-height: 1.16 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .quick-palette-item small {
+    overflow: hidden !important;
+    color: #64748b !important;
+    font-size: 11px !important;
+    font-weight: 560 !important;
+    line-height: 1.22 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .quick-palette-item em {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    min-height: 26px !important;
+    padding: 0 !important;
+    border-radius: 999px !important;
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+    font-size: 11px !important;
+    font-weight: 760 !important;
+  }
+
+  .quick-palette-item:disabled {
+    opacity: .48 !important;
+  }
+
+  .quick-palette-foot {
+    position: sticky;
+    bottom: 0;
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    border-top: 1px solid #edf2f7 !important;
+    background: rgba(255, 255, 255, .98) !important;
+    color: #64748b !important;
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+  }
+
+  aside .session-delete {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  aside .session:hover .session-delete,
+  aside .session:focus-within .session-delete {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
+
+/* 2026-07 修复手机端会话操作：触屏没有 hover，右侧入口必须是单个可点触点。 */
+@media (max-width: 720px) {
+  aside .session-delete {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    z-index: 2 !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    border: 1px solid rgba(226, 232, 240, .9) !important;
+    background: rgba(248, 250, 252, .98) !important;
+    color: #64748b !important;
+  }
+
+  aside .session-delete:active {
+    background: #fee2e2 !important;
+    border-color: #fecaca !important;
+    color: #b91c1c !important;
+  }
+}
+
+/* 2026-07 手机端删除入口收口：触屏端改成当前/聚焦会话才显示 X。 */
+@media (max-width: 720px) {
+  aside .session-delete {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  aside .session.active .session-delete,
+  aside .session:focus-within .session-delete {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}

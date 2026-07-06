@@ -1,0 +1,392 @@
+/* 文件上传：输入框上方的附件栏和聊天气泡内附件卡片。 */
+.file-input { display: none; }
+.attach-control { flex: 0 0 44px; min-width: 44px; font-size: 22px; line-height: 1; padding: 8px 0; }
+.composer-shell .attachment-list { max-width: 900px; margin: 0 auto 8px; padding: 0 14px; }
+.attachment-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.attachment-chip { display: inline-flex; align-items: center; gap: 9px; max-width: min(100%, 360px); padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-soft); color: var(--text); }
+.attachment-chip.error { border-color: rgba(239, 68, 68, .55); }
+.attachment-icon { flex: 0 0 auto; opacity: .82; }
+.attachment-main { min-width: 0; display: grid; gap: 2px; }
+.attachment-main b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-strong); }
+.attachment-main span { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.attachment-remove { flex: 0 0 24px; width: 24px; height: 24px; min-height: 24px; padding: 0; border-radius: 999px; background: var(--border); color: var(--text); line-height: 24px; }
+.msg .attachment-list { margin-top: 10px; }
+.user .attachment-chip { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.25); color: #fff; }
+.user .attachment-main b { color: #fff; }
+.user .attachment-main span { color: rgba(255,255,255,.72); }
+.user .attachment-remove { display: none; }
+
+@media (max-width: 720px) {
+  .composer-shell .attachment-list { padding: 0 10px; }
+  .attach-control { flex: 0 0 42px; min-width: 42px; }
+  .attachment-chip { max-width: 100%; }
+}
+
+/* 独立配置页：配置中心不再作为聊天页右侧抽屉渲染，避免手机端受侧边栏和聊天布局挤压。 */
+.settings-page {
+  height: 100dvh;
+  width: 100%;
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at top left, rgba(16,163,127,.10), transparent 34%),
+    var(--gpt-bg);
+  color: var(--gpt-text);
+  padding: max(16px, env(safe-area-inset-top)) 16px max(22px, env(safe-area-inset-bottom));
+}
+
+.settings-page .settings {
+  position: static;
+  transform: none;
+  width: min(1520px, calc(100vw - 48px));
+  min-height: auto;
+  margin: 0 auto;
+  padding: 24px clamp(20px, 2.2vw, 34px);
+  border: 1px solid var(--gpt-border);
+  border-radius: 26px;
+  background: var(--gpt-sidebar);
+  box-shadow: 0 24px 80px rgba(0,0,0,.22);
+  transition: none;
+  overflow: visible;
+}
+
+.settings-page .settings-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--gpt-sidebar);
+  border-bottom-color: var(--gpt-border);
+  padding-top: 2px;
+}
+
+.settings-page .module-view.active {
+  width: 100%;
+  max-width: none;
+}
+
+
+@media (min-width: 1200px) {
+  .settings-page {
+    padding-left: clamp(24px, 4vw, 72px);
+    padding-right: clamp(24px, 4vw, 72px);
+  }
+
+  .settings-page .settings-header,
+  .settings-page .module-tabs,
+  .settings-page .module-view.active {
+    max-width: none;
+  }
+
+  .settings-page .stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .settings-page .backup-list,
+  .settings-page .mcp-status-grid,
+  .settings-page .tasks-list,
+  .settings-page .tasks-list,
+  .settings-page #workspaceCards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .settings-page .diagnostics-preview,
+  .settings-page .code-preview {
+    max-height: min(52vh, 620px);
+  }
+}
+
+@media (min-width: 1600px) {
+  .settings-page .settings {
+    width: min(1680px, calc(100vw - 72px));
+  }
+}
+
+@media (max-width: 720px) {
+  .settings-page {
+    padding: max(10px, env(safe-area-inset-top)) 10px max(18px, env(safe-area-inset-bottom));
+  }
+  .settings-page .settings {
+    width: 100%;
+    padding: 14px;
+    border-radius: 20px;
+  }
+  .settings-page .settings-header {
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .settings-page .settings-header-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+/* 2026-07 配置页截图优化：模型页分区、概览卡片和移动端断行。 */
+.settings-page,
+.settings-page .settings,
+.settings-page .module-view.active,
+.settings .product-card,
+.settings .product-card-head,
+.settings .product-card-head > div {
+  min-width: 0;
+}
+
+.settings .product-card {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.settings .product-card-head b,
+.settings .product-card-head .hint,
+.settings .product-meta {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.model-page-head {
+  align-items: flex-end;
+}
+
+.model-summary-grid,
+.settings-form-grid,
+.provider-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.model-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 10px 0 16px;
+}
+
+.model-summary-card,
+.settings-section {
+  border: 1px solid var(--gpt-border);
+  border-radius: 20px;
+  background: var(--gpt-surface-2);
+}
+
+.model-summary-card {
+  padding: 14px;
+  display: grid;
+  gap: 5px;
+}
+
+.model-summary-card span,
+.model-summary-card small,
+.settings-section-head p {
+  color: var(--gpt-muted);
+}
+
+.model-summary-card span {
+  font-size: 12px;
+}
+
+.model-summary-card b {
+  color: var(--gpt-text);
+  font-size: 16px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.settings-section {
+  padding: 16px;
+  margin: 12px 0;
+}
+
+.settings-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.settings-section-head b {
+  color: var(--gpt-text);
+  font-size: 17px;
+}
+
+.settings-section-head p {
+  margin: 4px 0 0;
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.settings-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-form-grid.compact {
+  align-items: start;
+}
+
+.settings-form-grid label,
+.settings-section label {
+  margin-top: 0;
+}
+
+.model-field-wide {
+  grid-column: 1 / -1;
+}
+
+.thinking-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 12px;
+}
+
+.thinking-options .check-row {
+  margin: 0;
+}
+
+.model-primary-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 12px 0 2px;
+  background: linear-gradient(180deg, transparent, var(--gpt-bg) 28%);
+}
+
+.provider-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.provider-grid .product-card {
+  min-height: 118px;
+}
+
+@media (max-width: 760px) {
+  .model-page-head {
+    align-items: flex-start;
+  }
+
+  .model-summary-grid,
+  .settings-form-grid,
+  .provider-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-section {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .settings-section-head {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .settings-section-head button,
+  .model-primary-actions button {
+    width: 100%;
+  }
+
+  .model-primary-actions {
+    margin: 0 -2px;
+  }
+
+  .settings-page .module-view.active {
+    overflow: hidden;
+  }
+
+  .provider-grid .product-card {
+    min-height: 0;
+  }
+}
+
+/* 2026-07 配置中心大屏重排：桌面使用控制台布局，避免把移动端弹窗硬拉宽。 */
+@media (min-width: 1040px) {
+  .settings-page {
+    padding: 24px clamp(24px, 3vw, 56px);
+    background:
+      radial-gradient(circle at 12% 0, rgba(16,163,127,.12), transparent 34%),
+      radial-gradient(circle at 88% 12%, rgba(15,118,110,.10), transparent 30%),
+      var(--gpt-bg);
+  }
+
+  .settings-page .settings {
+    width: min(1760px, 100%);
+    min-height: calc(100dvh - 48px);
+    display: grid;
+    grid-template-columns: 236px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 18px 20px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .settings-page .settings-header {
+    grid-column: 1 / -1;
+    position: static;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 18px 20px;
+    border: 1px solid var(--gpt-border);
+    border-radius: 24px;
+    background: var(--gpt-sidebar);
+    box-shadow: 0 14px 36px rgba(15,23,42,.08);
+  }
+
+  .settings-page .settings-header h2 { font-size: 24px; }
+  .settings-page .settings-header p { max-width: 720px; margin-top: 4px; }
+  .settings-page .settings-header-actions { margin-left: auto; flex-shrink: 0; }
+
+  .settings-page .module-tabs {
+    grid-column: 1;
+    grid-row: 2;
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: visible;
+    white-space: normal;
+    padding: 12px;
+    border: 1px solid var(--gpt-border);
+    border-radius: 24px;
+    background: var(--gpt-sidebar);
+    box-shadow: 0 14px 36px rgba(15,23,42,.08);
+  }
+
+  .settings-page .module-tab {
+    width: 100%;
+    min-height: 44px;
+    justify-content: flex-start;
+    padding: 12px 14px;
+    border-radius: 16px;
+  }
+
+  .settings-page .module-view.active {
+    grid-column: 2;
+    grid-row: 2;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--gpt-border);
+    border-radius: 24px;
+    background: var(--gpt-sidebar);
+    box-shadow: 0 14px 36px rgba(15,23,42,.08);
+  }
+
+  .settings-page .settings-block-head:first-child { margin-top: 0; }
+
+  .settings-page .diagnostics-preview,
+  .settings-page .code-preview {
+    max-height: min(58vh, 640px);
+  }
+}
+
+@media (min-width: 1500px) {
+  .settings-page .settings { grid-template-columns: 260px minmax(0, 1fr); }
+  .settings-page .module-view.active { padding: 24px; }
+}

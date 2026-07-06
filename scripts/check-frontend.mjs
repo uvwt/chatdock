@@ -54,6 +54,17 @@ for (const name of ['Sidebar', 'Topbar', 'ComposerBar']) {
   if (app.includes('function ' + name)) failures.push(`app chrome component should stay outside App.jsx: ${name}`);
 }
 if (!read('web/src/lib/quickActions.js').includes('export function buildQuickActions')) failures.push('quick action construction belongs in web/src/lib/quickActions.js');
+const componentExportChecks = [
+  ['web/src/components/chat.jsx', 'export function MessageView'],
+  ['web/src/components/settings.jsx', 'export function SettingsPanel'],
+  ['web/src/components/base.jsx', 'export function DialogHost'],
+  ['web/src/hooks/useAttachments.js', 'export function useAttachments'],
+  ['web/src/hooks/useSettingsData.js', 'export function useSettingsData'],
+  ['web/src/lib/sessionPresentation.js', 'export function scheduledTaskSessionRows'],
+];
+for (const [file, token] of componentExportChecks) {
+  if (!read(file).includes(token)) failures.push(`expected export missing in ${file}: ${token}`);
+}
 
 
 const cssResiduals = [

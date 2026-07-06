@@ -15,6 +15,7 @@ import { appendInlineReasoningPart, appendInlineTextPart, appendToolStartEvent, 
 import { providerChoiceID, providerKeyInputsFromRows, providerKeyRows, providerLabel, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
 import { useSettingsData } from './hooks/useSettingsData.js';
 import { buildQuickActions } from './lib/quickActions.js';
+import { scheduledTaskSessionRows, visibleSessionRows } from './lib/sessionPresentation.js';
 
 export default function App() {
   const [authPage, setAuthPage] = useState(null);
@@ -1471,40 +1472,13 @@ export default function App() {
     }
   }, [scheduledTasks, selectedScheduledTaskID]);
 
-  const selectedScheduledTaskSessions = useMemo(() => {
-    if (!selectedScheduledTaskID) return [];
-    const byID = new Map(sessions.map(item => [item.id, item]));
-    const seen = new Set();
-    return (selectedScheduledTaskRuns || []).filter(run => run.session_id && !seen.has(run.session_id)).map(run => {
-      seen.add(run.session_id);
-      const session = byID.get(run.session_id);
-      const runTitle = session?.title || run.task_title || selectedScheduledTask?.title || '定时任务';
-      if (session) {
-        return {
-          ...session,
-          title: runTitle,
-          preview: '',
-          scheduled_run: run,
-        };
-      }
-      return {
-        id: run.session_id,
-        title: runTitle + ' · ' + fmtTime(run.started_at),
-        preview: '',
-        last_role: run.status === 'failed' ? 'error' : 'assistant',
-        count: 1,
-        updated_at: run.finished_at || run.started_at,
-        scheduled_run: run,
-      };
-    });
-  }, [selectedScheduledTask?.title, selectedScheduledTaskID, selectedScheduledTaskRuns, sessions]);
+  const selectedScheduledTaskSessions = useMemo(() => scheduledTaskSessionRows({
+    selectedScheduledTaskID, selectedScheduledTaskRuns, selectedScheduledTask, sessions,
+  }), [selectedScheduledTask, selectedScheduledTaskID, selectedScheduledTaskRuns, sessions]);
 
-  const filteredSessions = useMemo(() => {
-    const q = sessionSearch.trim();
-    if (q) return sessionSearchResults;
-    if (selectedScheduledTaskID) return selectedScheduledTaskSessions;
-    return sessions;
-  }, [selectedScheduledTaskID, selectedScheduledTaskSessions, sessionSearch, sessionSearchResults, sessions]);
+  const filteredSessions = useMemo(() => visibleSessionRows({
+    sessionSearch, sessionSearchResults, selectedScheduledTaskID, selectedScheduledTaskSessions, sessions,
+  }), [selectedScheduledTaskID, selectedScheduledTaskSessions, sessionSearch, sessionSearchResults, sessions]);
 
   const currentSummary = useMemo(() => sessions.find(s => s.id === current) || null, [current, sessions]);
   const currentPinned = !!currentSummary?.pinned;

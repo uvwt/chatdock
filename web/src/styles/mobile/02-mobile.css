@@ -1,0 +1,386 @@
+/* 2026-07 手机侧栏产品化：抽屉更接近独立聊天应用，而不是桌面侧栏缩小版。 */
+@media (max-width: 720px) {
+  .sidebar-mask.show {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: rgba(15, 23, 42, .52);
+    backdrop-filter: blur(1.5px);
+  }
+
+  aside {
+    width: min(78vw, 360px);
+    padding: calc(env(safe-area-inset-top, 0px) + 18px) 14px calc(env(safe-area-inset-bottom, 0px) + 22px);
+    border-right: 1px solid rgba(148, 163, 184, .18);
+    background:
+      radial-gradient(circle at 12% 0, rgba(16, 185, 129, .08), transparent 34%),
+      linear-gradient(180deg, #fbfdff 0%, #f8fafc 100%);
+    color: #111827;
+    box-shadow: 18px 0 64px rgba(15, 23, 42, .26);
+  }
+
+  .sidebar-head {
+    min-height: 58px;
+    padding: 0 0 16px;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .brand-logo {
+    flex: 0 0 54px;
+    width: 54px;
+    height: 54px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #2dd4bf 0%, #2563eb 52%, #8b5cf6 100%);
+    color: #fff;
+    font-size: 26px;
+    box-shadow: 0 14px 30px rgba(37, 99, 235, .22);
+  }
+
+  .brand-copy {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+  }
+
+  .brand-text {
+    color: #0f172a;
+    font-size: 21px;
+    line-height: 1.08;
+    font-weight: 800;
+    letter-spacing: -.03em;
+  }
+
+  .brand-text::before {
+    content: none;
+  }
+
+  .sub {
+    margin: 0;
+    color: #7b8794;
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: 600;
+  }
+
+  .sidebar-toggle {
+    flex: 0 0 48px;
+    width: 48px;
+    height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    border: 1px solid rgba(203, 213, 225, .86);
+    background: rgba(255, 255, 255, .86);
+    color: #0f172a;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, .10);
+    font-size: 30px;
+    line-height: 1;
+  }
+
+  .prompt-box {
+    margin: 0 0 14px;
+    padding: 0;
+  }
+
+  .workspace-picker-trigger {
+    width: 100%;
+    min-height: 62px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "icon name meta arrow";
+    gap: 8px;
+    align-items: center;
+    padding: 0 18px;
+    border: 1px solid rgba(94, 234, 212, .22);
+    border-radius: 18px;
+    background: rgba(236, 253, 245, .78);
+    color: #0f172a;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .65);
+  }
+
+  .workspace-picker-icon {
+    grid-area: icon;
+    color: #0f9f83;
+    font-size: 20px;
+  }
+
+  .workspace-picker-name {
+    grid-area: name;
+    color: #0f172a;
+    font-size: 18px;
+    font-weight: 800;
+  }
+
+  .workspace-picker-meta {
+    grid-area: meta;
+    color: #1f2937;
+    font-size: 17px;
+    font-weight: 800;
+  }
+
+  .workspace-picker-arrow {
+    grid-area: arrow;
+    color: #0f172a;
+    font-size: 22px;
+    font-weight: 800;
+  }
+
+  .session-search-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 62px;
+    gap: 10px;
+    margin: 0 0 18px;
+  }
+
+  .session-search-box {
+    min-height: 62px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px;
+    border: 1px solid rgba(203, 213, 225, .82);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, .92);
+    box-shadow: 0 10px 26px rgba(15, 23, 42, .05);
+  }
+
+  .session-search-icon {
+    color: #94a3b8;
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  .session-search {
+    flex: 1;
+    width: 100%;
+    min-height: 42px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #0f172a;
+    font-size: 17px;
+    font-weight: 650;
+  }
+
+  .session-search::placeholder {
+    color: #8792a2;
+  }
+
+  .session-search:focus {
+    box-shadow: none;
+  }
+
+  .new {
+    width: 62px;
+    min-height: 62px;
+    margin: 0;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(203, 213, 225, .82);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, .92);
+    color: #0f172a;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, .05);
+  }
+
+  .new-symbol {
+    font-size: 32px;
+    line-height: 1;
+    font-weight: 800;
+  }
+
+  .new-label {
+    display: none;
+  }
+
+  .session-search-meta {
+    margin: -8px 4px 12px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  #sessions {
+    gap: 0;
+    padding-bottom: 18px;
+  }
+
+  .session {
+    position: relative;
+    min-height: 64px;
+    display: grid;
+    align-content: center;
+    margin: 0;
+    padding: 13px 14px 13px 42px;
+    border-radius: 0;
+    border-bottom: 1px solid rgba(226, 232, 240, .88);
+    color: #111827;
+    background: transparent;
+  }
+
+  .session::before {
+    content: "○";
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #14a085;
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .session.active {
+    border-bottom-color: transparent;
+    border-radius: 12px;
+    background: rgba(222, 250, 245, .92);
+    box-shadow: inset 0 0 0 1px rgba(20, 160, 133, .10);
+  }
+
+  .session:hover {
+    background: rgba(241, 245, 249, .85);
+  }
+
+  .session-title {
+    color: #0f172a;
+    font-size: 18px;
+    line-height: 1.22;
+    font-weight: 800;
+    letter-spacing: -.02em;
+  }
+
+  .session-preview,
+  .session-meta {
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 12px;
+  }
+
+  .pin-mark {
+    margin-right: 6px;
+    background: rgba(20, 160, 133, .12);
+    color: #0f766e;
+  }
+}
+
+
+/* 手机侧栏二次校准：去掉重复 logo、隐藏列表杂项，避免图标压字。 */
+@media (max-width: 720px) {
+  aside .brand-text::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  aside .brand-logo {
+    flex-basis: 48px;
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    font-size: 24px;
+  }
+
+  aside .brand {
+    gap: 10px;
+  }
+
+  aside .brand-text {
+    font-size: 20px;
+  }
+
+  aside .sub {
+    max-width: 176px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  aside .sidebar-toggle {
+    flex-basis: 46px;
+    width: 46px;
+    height: 46px;
+    font-size: 28px;
+  }
+
+  aside .workspace-picker-trigger {
+    min-height: 56px;
+    padding: 0 16px;
+    border-radius: 17px;
+  }
+
+  aside .workspace-picker-name,
+  aside .workspace-picker-meta {
+    font-size: 17px;
+  }
+
+  aside .session-search-row {
+    grid-template-columns: minmax(0, 1fr) 58px;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  aside .session-search-box,
+  aside .new {
+    min-height: 58px;
+    border-radius: 17px;
+  }
+
+  aside #sessions {
+    gap: 0;
+  }
+
+  aside .session {
+    min-height: 58px;
+    padding: 14px 12px 14px 50px;
+    border-radius: 0;
+    border-left: 0 !important;
+    border-bottom: 1px solid rgba(226, 232, 240, .88);
+    box-shadow: none;
+  }
+
+  aside .session::before {
+    content: "";
+    left: 18px;
+    width: 15px;
+    height: 15px;
+    border: 2px solid #14a085;
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  aside .session.active {
+    border-radius: 12px;
+    border-bottom-color: transparent;
+    background: rgba(225, 245, 244, .95);
+  }
+
+  aside .session.active::before {
+    background: rgba(20, 160, 133, .12);
+  }
+
+  aside .session-title {
+    font-size: 18px;
+    line-height: 1.22;
+  }
+
+  aside .session-preview,
+  aside .session-meta {
+    display: none;
+  }
+}

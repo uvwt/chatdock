@@ -9,6 +9,7 @@ const budgets = {
   exactDuplicateBlocks: 32,
   selectorsRepeatedAtLeast4: 76,
   maxSelectorLayers: 24,
+  maxCssFileLines: 650,
 };
 
 function read(file) { return fs.readFileSync(path.join(root, file), 'utf8'); }
@@ -35,6 +36,12 @@ function scopedKey(file, offset) {
   }
   if (!contexts.length) return 'base';
   return contexts.slice(-2).join(' > ');
+}
+
+for (const file of listCSS(stylesDir)) {
+  const rel = path.relative(root, file);
+  const lineCount = fs.readFileSync(file, 'utf8').split(/\n/).length;
+  if (lineCount > budgets.maxCssFileLines) failures.push(`CSS file ${rel} has ${lineCount} lines, exceeds budget ${budgets.maxCssFileLines}`);
 }
 
 const settingsEntry = read('web/src/styles/settings.css');
@@ -74,4 +81,4 @@ if (failures.length) {
   console.error(failures.map(item => `css health: ${item}`).join('\n'));
   process.exit(1);
 }
-console.log(`css health ok: exact_duplicate_blocks=${duplicateBlockCount}/${budgets.exactDuplicateBlocks}, repeated_selectors>=4=${repeatedSelectorCount}/${budgets.selectorsRepeatedAtLeast4}, max_selector_layers<=${budgets.maxSelectorLayers}`);
+console.log(`css health ok: exact_duplicate_blocks=${duplicateBlockCount}/${budgets.exactDuplicateBlocks}, repeated_selectors>=4=${repeatedSelectorCount}/${budgets.selectorsRepeatedAtLeast4}, max_selector_layers<=${budgets.maxSelectorLayers}, max_css_file_lines<=${budgets.maxCssFileLines}`);

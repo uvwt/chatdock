@@ -1,0 +1,372 @@
+.settings-page .settings-section-head b,
+.settings-page .settings-block-head label,
+.settings-page .product-card-head b,
+.settings-page .task-name,
+.settings-page .task-name,
+.settings-page .mcp-form-head b,
+.settings-page .model-quick-head b {
+  color: var(--set-text) !important;
+  font-size: 15px !important;
+  line-height: 1.22 !important;
+  font-weight: 820 !important;
+}
+
+.settings-page .hint,
+.settings-page .product-meta,
+.settings-page .task-meta,
+.settings-page .task-desc,
+.settings-page .task-desc,
+.settings-page .stat-label,
+.settings-page .settings-section-head p,
+.settings-page .mcp-form-head span,
+.settings-page .model-quick-head span {
+  color: var(--set-muted) !important;
+  font-size: 12px !important;
+  line-height: 1.42 !important;
+}
+
+.settings-page .settings-form-grid,
+.settings-page .mcp-form-grid,
+.settings-page .workspace-summary-grid,
+.settings-page .model-inline-grid,
+.settings-page #workspaceCards,
+.settings-page .provider-grid,
+.settings-page .tasks-list,
+.settings-page .tasks-list,
+.settings-page #dataStatus,
+.settings-page .mcp-status-grid,
+.settings-page .mcp-form-list {
+  gap: 12px !important;
+}
+
+.settings-page input,
+.settings-page textarea,
+.settings-page select,
+.settings-page .session-search {
+  min-height: 36px !important;
+  border: 1px solid #d7dee8 !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+  color: #172033 !important;
+  font-size: 13px !important;
+  box-shadow: none !important;
+}
+
+.settings-page input:focus,
+.settings-page textarea:focus,
+.settings-page select:focus {
+  border-color: rgba(16, 163, 127, .55) !important;
+  box-shadow: 0 0 0 3px rgba(16, 163, 127, .11) !important;
+  outline: none !important;
+}
+
+.settings-page textarea {
+  min-height: 92px !important;
+}
+
+.settings-page button,
+.settings-page button.secondary,
+.settings-page button.small,
+.settings-page .settings-actions button,
+.settings-page .product-actions button,
+.settings-page .task-actions button {
+  min-height: 32px !important;
+  border-radius: 9px !important;
+  box-shadow: none !important;
+  font-weight: 760 !important;
+}
+
+.settings-page button:not(.secondary):not(.danger):not(.module-tab):not(.model-option),
+.settings-page .settings-actions button:not(.secondary):not(.danger) {
+  background: #111827 !important;
+  border-color: #111827 !important;
+  color: #fff !important;
+}
+
+.settings-page button.secondary,
+.settings-page .product-actions button.secondary,
+.settings-page .task-actions button.secondary {
+  background: #fff !important;
+  border: 1px solid var(--set-border) !important;
+  color: #344054 !important;
+}
+
+.settings-page button.danger,
+.settings-page .product-actions button.danger,
+.settings-page .task-actions button.danger {
+  background: #fff !important;
+  color: #b42318 !important;
+  border: 1px solid #f3c7c2 !important;
+}
+
+.settings-page .badge {
+  border: 0 !important;
+  background: #eef8f4 !important;
+  color: #047857 !important;
+  font-size: 11px !important;
+  min-height: 21px !important;
+  padding: 2px 8px !important;
+}
+
+.settings-page .code-preview,
+.settings-page .diagnostics-preview,
+.settings-page pre {
+  background: #0f172a !important;
+  color: #dbeafe !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+}
+
+.settings-page .mcp-advanced-fields,
+.settings-page .mcp-raw-json,
+.settings-page details.settings-section,
+.settings-page .model-mini-details {
+  background: var(--set-muted-surface) !important;
+  border: 1px solid var(--set-line) !important;
+  box-shadow: none !important;
+  border-radius: 12px !important;
+}
+
+.settings-page .mcp-tool-picker {
+  background: transparent !important;
+  border: 0 !important;
+  border-top: 1px solid var(--set-line) !important;
+  border-radius: 0 !important;
+}
+
+.settings-page .mcp-tool-policy-list {
+  border-top: 1px solid var(--set-line) !important;
+}
+
+.settings-page .mcp-tool-policy-row {
+  border: 0 !important;
+  border-bottom: 1px solid var(--set-line) !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+.settings-page .mcp-tool-policy-row:last-child {
+  border-bottom: 0 !important;
+}
+
+.settings-page #dataStatus .stat-card {
+  display: grid !important;
+  gap: 4px !important;
+}
+
+.settings-page .stat-value,
+.settings-page .workspace-summary-card b {
+  color: #172033 !important;
+  font-size: 18px !important;
+  letter-spacing: -.02em !important;
+}
+
+@media (min-width: 1040px) {
+  .settings-page {
+    padding: 24px !important;
+  }
+
+  .settings-page .settings,
+  .settings-page .settings[style] {
+    width: min(1180px, 100%) !important;
+    min-height: calc(100dvh - 48px) !important;
+    margin: 0 auto !important;
+    display: grid !important;
+    grid-template-columns: 164px minmax(0, 1fr) !important;
+    grid-template-rows: auto 1fr !important;
+    gap: 14px 18px !important;
+  }
+
+  .settings-page .settings-header {
+    min-height: 48px !important;
+    padding: 0 !important;
+    grid-column: 1 / -1 !important;
+  }
+
+  .settings-page .settings-header h2 {
+    font-size: 24px !important;
+  }
+
+  .settings-page .settings-header p {
+    display: block !important;
+    margin-top: 2px !important;
+    font-size: 12px !important;
+  }
+
+  .settings-page .settings-header-actions button.secondary,
+  .settings-page .settings-header-actions button.secondary.small {
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
+  .settings-page .module-tabs {
+    width: 164px !important;
+    top: 24px !important;
+    padding: 9px !important;
+    border-radius: 16px !important;
+  }
+
+  .settings-page .module-tab {
+    min-height: 34px !important;
+    padding: 0 10px !important;
+    border-radius: 10px !important;
+  }
+
+  .settings-page .module-view.active {
+    max-width: 998px !important;
+  }
+
+  .settings-page .workspace-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .settings-page #dataStatus {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .settings-page .provider-grid,
+  .settings-page .tasks-list,
+  .settings-page .mcp-form-list,
+  .settings-page .mcp-status-grid,
+  .settings-page #workspaceCards {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .settings-page .model-inline-grid {
+    grid-template-columns: minmax(0, 1.18fr) minmax(270px, .82fr) !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .settings-page {
+    padding: 0 !important;
+    background: #f6f7f9 !important;
+  }
+
+  .settings-page .settings {
+    padding: 12px !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .settings-page .settings-header {
+    padding: 2px 0 10px !important;
+    margin-bottom: 8px !important;
+    border: 0 !important;
+  }
+
+  .settings-page .settings-header h2 {
+    font-size: 22px !important;
+  }
+
+  .settings-page .settings-header p {
+    display: none !important;
+  }
+
+  .settings-page .module-tabs {
+    width: auto !important;
+    margin: 0 -2px 10px !important;
+    padding: 0 2px 2px !important;
+    display: flex !important;
+    overflow-x: auto !important;
+    gap: 6px !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .settings-page .module-nav-group {
+    display: contents !important;
+  }
+
+  .settings-page .module-group-label {
+    display: none !important;
+  }
+
+  .settings-page .module-tab {
+    flex: 0 0 auto !important;
+    min-height: 34px !important;
+    padding: 0 12px !important;
+    border-radius: 999px !important;
+    background: #fff !important;
+    border: 1px solid var(--set-border) !important;
+    box-shadow: none !important;
+  }
+
+  .settings-page .module-tab.active {
+    background: #111827 !important;
+    color: #fff !important;
+    box-shadow: none !important;
+  }
+
+  .settings-page .module-view.active {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .settings-page .module-view-title {
+    margin-bottom: 10px !important;
+    padding-bottom: 8px !important;
+  }
+
+  .settings-page .module-view-title span {
+    font-size: 20px !important;
+  }
+
+  .settings-page .model-quick-panel,
+  .settings-page .model-inline-card,
+  .settings-page .settings-section,
+  .settings-page .product-card,
+  .settings-page .task-card,
+  .settings-page .stat-card,
+  .settings-page .workspace-summary-card,
+  .settings-page .model-summary-card,
+  .settings-page .mcp-form-card,
+  .settings-page .mcp-status-grid .product-card,
+  .settings-page .empty.compact {
+    border-radius: 13px !important;
+    padding: 12px !important;
+  }
+
+  .settings-page .settings-section-head,
+  .settings-page .settings-block-head,
+  .settings-page .product-card-head,
+  .settings-page .task-head,
+  .settings-page .task-head,
+  .settings-page .mcp-form-head,
+  .settings-page .model-quick-head {
+    padding-bottom: 8px !important;
+  }
+
+  .settings-page .settings-form-grid,
+  .settings-page .mcp-form-grid,
+  .settings-page .model-inline-grid {
+    grid-template-columns: 1fr !important;
+    gap: 9px !important;
+  }
+
+  .settings-page #dataStatus {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .settings-page .model-quick-head,
+  .settings-page .settings-section-head,
+  .settings-page .product-card-head,
+  .settings-page .task-head {
+    align-items: flex-start !important;
+  }
+
+  .settings-page .model-quick-actions,
+  .settings-page .product-actions,
+  .settings-page .task-actions,
+  .settings-page .settings-actions {
+    gap: 6px !important;
+  }
+
+  .settings-page .mcp-tool-policy-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 5px !important;
+  }
+}

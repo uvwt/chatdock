@@ -1,0 +1,109 @@
+@media (max-width: 1039px) {
+  .settings-page {
+    padding: max(12px, env(safe-area-inset-top)) 12px max(18px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .settings-page .settings {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 14px !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 22px !important;
+    background: rgba(255, 255, 255, .94) !important;
+    box-shadow: 0 18px 48px rgba(15, 23, 42, .08) !important;
+  }
+
+  .settings-page .settings-header {
+    position: static !important;
+    display: grid !important;
+    gap: 12px !important;
+    padding-bottom: 14px !important;
+    background: transparent !important;
+  }
+
+  .settings-page .settings-header h2 {
+    color: #0f172a !important;
+    font-size: 26px !important;
+  }
+
+  .settings-page .settings-header p {
+    color: #64748b !important;
+  }
+
+  .settings-page .settings-header-actions {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .settings-page .settings-header-actions button {
+    width: 100% !important;
+  }
+
+  .settings-page .module-tabs {
+    margin: 12px -2px 16px !important;
+    padding: 0 2px 4px !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+  }
+
+  .settings-page .module-tab {
+    min-height: 40px !important;
+    padding: 0 13px !important;
+    border-radius: 999px !important;
+    border: 1px solid #dbe4f0 !important;
+    background: #ffffff !important;
+    color: #475569 !important;
+  }
+
+  .settings-page .module-tab.active {
+    border-color: #0f766e !important;
+    background: #ecfdf5 !important;
+    color: #115e59 !important;
+  }
+
+  .settings-page .module-tab::before {
+    content: none !important;
+  }
+
+  .settings-page .module-view-title {
+    margin-top: 4px;
+  }
+
+  .settings-page .module-view-title span {
+    font-size: 24px;
+  }
+
+  .settings-page .workspace-summary-grid,
+  .settings-page .model-summary-grid,
+  .settings-page .settings-form-grid,
+  .settings-page .provider-grid,
+  .settings-page .mcp-form-grid,
+  .settings-page #dataStatus {
+    grid-template-columns: 1fr !important;
+  }
+
+  .settings-page .settings-section-head,
+  .settings-page .mcp-form-head,
+  .settings-page .task-head,
+  .settings-page .task-head,
+  .settings-page .product-card-head {
+    flex-direction: column !important;
+  }
+
+  .settings-page .settings-actions,
+  .settings-page .mcp-form-actions,
+  .settings-page .mcp-primary-actions,
+  .settings-page .model-primary-actions {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .settings-page .settings-actions button,
+  .settings-page .mcp-form-actions button,
+  .settings-page .mcp-primary-actions button,
+  .settings-page .model-primary-actions button {
+    width: 100% !important;
+  }
+}
