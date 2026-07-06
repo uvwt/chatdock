@@ -1,0 +1,428 @@
+/* Mobile polish + MCP 配置表单化：默认不再要求用户手写 JSON。 */
+.mcp-status-grid,
+.mcp-form-list {
+  display: grid;
+  gap: 10px;
+  margin: 8px 0 14px;
+}
+
+.mcp-status-grid .product-card {
+  margin: 0;
+}
+
+.mcp-form-card {
+  border: 1px solid var(--gpt-border, var(--border));
+  border-radius: 18px;
+  background: var(--gpt-surface-2, var(--panel-soft));
+  padding: 14px;
+  display: grid;
+  gap: 11px;
+}
+
+.mcp-form-card.new-server {
+  border-style: dashed;
+}
+
+.mcp-form-head,
+.mcp-form-head-actions,
+.mcp-form-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mcp-form-head b {
+  color: var(--gpt-text, var(--text));
+  font-size: 17px;
+}
+
+.mcp-form-head-actions,
+.mcp-form-actions {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+
+.mcp-rename-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.mcp-rename-row button {
+  min-height: 44px;
+}
+
+.mcp-form-card label {
+  margin: 0;
+  color: var(--gpt-muted, var(--muted));
+  font-size: 13px;
+}
+
+.mcp-form-card label > input,
+.mcp-form-card label > select,
+.mcp-form-card label > textarea {
+  margin-top: 6px;
+}
+
+.mcp-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mcp-advanced-fields {
+  border: 1px solid var(--gpt-border, var(--border));
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,.025);
+}
+
+.mcp-advanced-fields summary,
+.mcp-raw-json summary {
+  cursor: pointer;
+  color: var(--gpt-text, var(--text));
+  font-weight: 700;
+}
+
+.mcp-advanced-fields[open] {
+  display: grid;
+  gap: 11px;
+}
+
+.mcp-advanced-fields textarea {
+  min-height: 74px;
+  max-height: 160px;
+  resize: vertical;
+}
+
+.mcp-primary-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 10px 0 0;
+  background: linear-gradient(180deg, transparent, var(--gpt-bg, var(--bg)) 30%);
+}
+
+.mcp-primary-actions button:first-child {
+  background: var(--gpt-accent, var(--primary));
+  color: var(--gpt-accent-contrast, #fff);
+}
+
+.mcp-raw-json {
+  margin-top: 12px;
+  border: 1px dashed var(--gpt-border, var(--border));
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.mcp-raw-json .mcp-editor {
+  margin-top: 10px;
+  min-height: 180px;
+}
+
+body.theme-light .mcp-form-card {
+  background: #ffffff;
+  border-color: #dbe4f0;
+}
+
+body.theme-light .mcp-advanced-fields,
+body.theme-light .mcp-raw-json {
+  background: #f8fafc;
+  border-color: #dbe4f0;
+}
+
+@media (max-width: 720px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  .app,
+  .app.sidebar-collapsed,
+  main {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .topbar {
+    min-height: 58px !important;
+    height: auto !important;
+    padding: 8px 10px 7px !important;
+    gap: 8px;
+  }
+
+  .top-left {
+    min-width: 0;
+    max-width: none !important;
+    gap: 8px;
+  }
+
+  .mobile-menu {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+  }
+
+  #title {
+    font-size: 17px !important;
+  }
+
+  .top-actions {
+    gap: 6px !important;
+  }
+
+  .quick-palette-toggle,
+  .config-toggle,
+  .session-actions-toggle {
+    min-height: 40px !important;
+    padding: 8px 10px !important;
+    border-radius: 999px !important;
+    font-weight: 700;
+  }
+
+  .theme-toggle {
+    display: none !important;
+  }
+
+  .messages {
+    flex: 1;
+    min-height: 0;
+    padding: 14px 12px calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .msg {
+    margin-bottom: 18px !important;
+    font-size: 15px !important;
+    line-height: 1.72 !important;
+  }
+
+  .msg.assistant {
+    padding: 40px 14px 14px !important;
+    border-radius: 18px !important;
+  }
+
+  .msg.user {
+    width: fit-content;
+    max-width: 86%;
+    margin-left: auto !important;
+    padding: 12px 54px 12px 15px !important;
+    border-radius: 22px !important;
+  }
+
+  .msg-actions {
+    top: 7px !important;
+    right: 7px !important;
+    opacity: 1 !important;
+  }
+
+  .msg-actions button {
+    min-height: 30px !important;
+    border-radius: 999px !important;
+    padding: 4px 10px !important;
+    font-size: 12px !important;
+  }
+
+  .reasoning {
+    margin-top: 0;
+    margin-bottom: 12px;
+    border-radius: 12px;
+  }
+
+  .composer-shell {
+    position: sticky !important;
+    bottom: 0 !important;
+    padding: 8px 12px max(10px, env(safe-area-inset-bottom, 0px)) !important;
+    background: linear-gradient(180deg, transparent, var(--gpt-main, var(--bg)) 24%, var(--gpt-main, var(--bg))) !important;
+  }
+
+  .composer {
+    min-height: 58px !important;
+    padding: 8px !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    border-radius: 28px !important;
+  }
+
+  .quick-control {
+    display: none !important;
+  }
+
+  .composer textarea {
+    flex: 1 1 auto !important;
+    min-width: 0;
+    min-height: 42px !important;
+    max-height: 30dvh !important;
+    padding: 10px 7px !important;
+    font-size: 16px !important;
+  }
+
+  #send {
+    flex: 0 0 48px !important;
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    font-size: 0 !important;
+  }
+
+  #send::before {
+    content: '↑';
+    font-size: 25px;
+    line-height: 1;
+    font-weight: 850;
+  }
+
+  .stream-control {
+    flex: 0 0 auto !important;
+    min-width: 44px !important;
+    height: 44px;
+    padding: 0 11px !important;
+  }
+
+  .composer-meta {
+    margin: 7px 6px 0 !important;
+    text-align: center !important;
+    font-size: 12px !important;
+  }
+
+  .settings {
+    padding: 18px 16px calc(22px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .settings-header {
+    align-items: center;
+  }
+
+  .settings-header h2 {
+    font-size: 22px;
+  }
+
+  .module-tabs {
+    margin-left: -2px;
+    margin-right: -2px;
+    padding-bottom: 2px;
+  }
+
+  .module-tab {
+    min-height: 42px;
+    padding: 9px 13px;
+    font-size: 14px;
+  }
+
+  .mcp-status-grid .product-card,
+  .mcp-form-card {
+    border-radius: 20px;
+    padding: 14px;
+  }
+
+  .mcp-form-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mcp-form-head-actions,
+  .mcp-form-actions,
+  .mcp-primary-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+
+  .mcp-form-head-actions button,
+  .mcp-form-actions button,
+  .mcp-primary-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .mcp-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mcp-primary-actions {
+    bottom: calc(env(safe-area-inset-bottom, 0px));
+  }
+
+  .mcp-raw-json .mcp-editor {
+    min-height: 220px;
+    font-size: 14px;
+  }
+
+  .quick-palette-backdrop {
+    align-items: flex-start !important;
+    padding: 10px !important;
+  }
+
+  .quick-palette {
+    max-height: calc(100dvh - 20px) !important;
+    border-radius: 24px !important;
+  }
+}
+
+
+.mcp-inline-warning {
+  display: grid;
+  gap: 7px;
+  padding: 10px 12px;
+  border: 1px solid rgba(245, 158, 11, .34);
+  border-radius: 14px;
+  background: rgba(245, 158, 11, .10);
+  color: var(--gpt-text, var(--text));
+}
+
+.mcp-inline-warning b {
+  font-size: 13px;
+}
+
+.mcp-inline-warning span {
+  color: var(--gpt-muted, var(--muted));
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.mcp-inline-warning button {
+  justify-self: start;
+}
+
+body.theme-light .mcp-inline-warning {
+  background: #fffbeb;
+  border-color: #f59e0b;
+}
+
+@media (max-width: 720px) {
+  .mcp-inline-warning button {
+    width: 100%;
+    min-height: 42px;
+  }
+}
+
+
+.mcp-inline-warning.ok {
+  background: rgba(16, 163, 127, .10);
+  border-color: rgba(16, 163, 127, .32);
+}
+
+.mcp-inline-warning.danger {
+  background: rgba(239, 68, 68, .10);
+  border-color: rgba(239, 68, 68, .36);
+}
+
+body.theme-light .mcp-inline-warning.ok {
+  background: #ecfdf5;
+  border-color: #10b981;
+}
+
+body.theme-light .mcp-inline-warning.danger {
+  background: #fef2f2;
+  border-color: #f87171;
+}
+

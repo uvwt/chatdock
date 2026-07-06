@@ -1,0 +1,381 @@
+/* 2026-07-05 手机端配置页补丁：首屏更短，高级区真正收起。 */
+@media (max-width: 640px) {
+  .settings-page .settings-header {
+    gap: 10px !important;
+  }
+
+  .settings-page .settings-header h2 {
+    font-size: 22px !important;
+  }
+
+  .settings-page .settings-header p {
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+  }
+
+  .settings-page .settings-header-actions {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .settings-page .settings-header-actions button {
+    width: 100% !important;
+    min-height: 34px !important;
+  }
+
+  .settings-page .module-tabs {
+    margin: 0 -2px !important;
+    padding: 6px !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .settings-page .module-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .settings-page .module-nav-group {
+    gap: 6px !important;
+  }
+
+  .settings-page .module-tab,
+  .settings-page .module-tabs button.module-tab {
+    min-height: 30px !important;
+    padding: 0 10px !important;
+    border-radius: 999px !important;
+    font-size: 12px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .settings-page .module-view.active {
+    padding: 14px !important;
+  }
+
+  .settings-page .module-view-title {
+    margin-bottom: 10px !important;
+    padding-bottom: 10px !important;
+  }
+
+  .settings-page .module-view-title span {
+    font-size: 19px !important;
+  }
+
+  .settings-page .module-view-title p {
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+  }
+
+  .settings-page .model-summary-grid,
+  .settings-page .workspace-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .settings-page .model-summary-card,
+  .settings-page .workspace-summary-card {
+    padding: 10px 11px !important;
+    border-radius: 12px !important;
+  }
+
+  .settings-page .model-summary-card b,
+  .settings-page .workspace-summary-card b {
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+  }
+
+  .settings-page .model-summary-card span,
+  .settings-page .model-summary-card small,
+  .settings-page .workspace-summary-card span {
+    font-size: 11px !important;
+  }
+
+  .settings-page .model-save-toolbar {
+    position: static !important;
+    padding: 11px !important;
+    align-items: stretch !important;
+  }
+
+  .settings-page .model-save-toolbar-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .settings-page .model-save-toolbar-actions button:first-child {
+    grid-column: 1 / -1 !important;
+  }
+
+  .settings-page .model-save-toolbar-actions button {
+    min-height: 34px !important;
+    width: 100% !important;
+  }
+
+  .settings-page [data-module-view="model"] .settings-section-head {
+    gap: 8px !important;
+  }
+
+  .settings-page [data-module-view="model"] .settings-section-head button {
+    width: 100% !important;
+  }
+
+  .settings-page .settings-disclosure:not([open]) > :not(summary) {
+    display: none !important;
+  }
+
+  .settings-page .settings-disclosure > summary {
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  .settings-page .settings-disclosure > summary b {
+    font-size: 14px !important;
+  }
+
+  .settings-page .settings-disclosure > summary p {
+    display: none !important;
+  }
+
+  .settings-page .settings-disclosure > summary::after {
+    content: '展开' !important;
+    flex: 0 0 auto !important;
+    border: 1px solid #d8dde5 !important;
+    border-radius: 999px !important;
+    padding: 4px 8px !important;
+    color: #4b5563 !important;
+    background: #f9fafb !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+  }
+
+  .settings-page .settings-disclosure[open] > summary::after {
+    content: '收起' !important;
+  }
+
+  .settings-page .settings-disclosure > summary > span {
+    display: none !important;
+  }
+
+  .settings-page .provider-actions-inline {
+    margin: 10px 0 !important;
+  }
+}
+
+/* 2026-07-05 手机端配置页强修：顶部按钮不占块，导航不截字。 */
+@media (max-width: 640px) {
+  .settings-page .settings-header,
+  .settings-page .settings-header[style] {
+    position: relative !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-rows: auto !important;
+    align-items: start !important;
+    column-gap: 10px !important;
+    row-gap: 0 !important;
+    padding: 14px !important;
+  }
+
+  .settings-page .settings-header > div:first-child {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    min-width: 0 !important;
+  }
+
+  .settings-page .settings-header h2 {
+    margin: 0 0 4px !important;
+    font-size: 21px !important;
+    line-height: 1.12 !important;
+  }
+
+  .settings-page .settings-header p {
+    max-width: none !important;
+    margin: 0 !important;
+    font-size: 12px !important;
+    line-height: 1.32 !important;
+  }
+
+  .settings-page .settings-header .settings-header-actions,
+  .settings-page .settings-header-actions {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    justify-self: end !important;
+    align-self: start !important;
+    width: auto !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+  }
+
+  .settings-page .settings-header .settings-header-actions button,
+  .settings-page .settings-header-actions button,
+  .settings-page .settings-header-actions .secondary.small {
+    width: auto !important;
+    min-width: 42px !important;
+    max-width: none !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 9px !important;
+    border-radius: 10px !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .settings-page .module-tabs,
+  .settings-page .module-tabs[style] {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 6px !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+
+  .settings-page .module-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .settings-page .module-tabs .module-nav-group,
+  .settings-page .module-nav-group {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: max-content !important;
+    gap: 6px !important;
+  }
+
+  .settings-page .module-group-label {
+    display: none !important;
+  }
+
+  .settings-page .module-tabs .module-tab,
+  .settings-page .module-tabs button.module-tab,
+  .settings-page .module-tab {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: max-content !important;
+    max-width: none !important;
+    min-height: 30px !important;
+    height: 30px !important;
+    padding: 0 12px !important;
+    border-radius: 999px !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+  }
+
+  .settings-page .module-tab-label {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+  }
+
+  .settings-page .module-tab.active::after {
+    display: none !important;
+  }
+}
+
+/* 2026-07-05 手机端配置页刷新按钮居中修正。 */
+@media (max-width: 640px) {
+  .settings-page .settings-header-actions button,
+  .settings-page .settings-header-actions .secondary.small {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    line-height: 1 !important;
+  }
+
+  .settings-page .settings-header-actions button:last-child {
+    width: 32px !important;
+    min-width: 32px !important;
+    max-width: 32px !important;
+    padding: 0 !important;
+    font-size: 0 !important;
+  }
+
+  .settings-page .settings-header-actions button:last-child::before {
+    content: '↻' !important;
+    display: block !important;
+    width: 1em !important;
+    height: 1em !important;
+    width: 18px !important;
+    height: 18px !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* 2026-07-05 手机端配置页刷新按钮最终居中：使用专用图标按钮结构。 */
+.settings-page .settings-refresh-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  line-height: 1 !important;
+}
+
+.settings-page .settings-refresh-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 18px !important;
+  height: 18px !important;
+  line-height: 1 !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  transform: none !important;
+}
+
+@media (max-width: 640px) {
+  .settings-page .settings-header-actions .settings-refresh-button,
+  .settings-page .settings-header-actions button.settings-refresh-button {
+    width: 32px !important;
+    min-width: 32px !important;
+    max-width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+  }
+
+  .settings-page .settings-header-actions button.settings-refresh-button::before,
+  .settings-page .settings-header-actions button.settings-refresh-button::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  .settings-page .settings-refresh-button .settings-refresh-text {
+    display: none !important;
+  }
+
+  .settings-page .settings-refresh-button .settings-refresh-icon {
+    margin: 0 !important;
+    flex: 0 0 auto !important;
+    width: 18px !important;
+    height: 18px !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+    transform: none !important;
+  }
+}
+
+

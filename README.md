@@ -84,7 +84,7 @@ make js-check    # 检查前端配置与 Markdown 工具脚本语法
 make check       # fmt-check + js-check + vet + test + build
 ```
 
-`make check` 会先运行前端结构守卫、生成前端 dist，并执行：`fmt-check`、`go vet ./...`、`go test ./...`、`go build`。仓库还包含 GitHub Actions 最小 CI，覆盖前端构建、Go 测试、vet、结构守卫和 `git diff --check`。如果只想调试磁盘静态目录，可以设置 `CHATDOCK_WEB=/path/to/web/dist` 覆盖内嵌资源。
+`make check` 会先运行前端结构守卫、生成前端 dist，并执行：`fmt-check`、`go vet ./...`、`go test ./...`、`go build`。前端守卫会确保 `app.css` 和 `styles/settings.css` 都只作为 import 入口，配置页数据加载保留在 `useSettingsData`。仓库还包含 GitHub Actions 最小 CI，覆盖前端构建、Go 测试、vet、结构守卫和 `git diff --check`。如果只想调试磁盘静态目录，可以设置 `CHATDOCK_WEB=/path/to/web/dist` 覆盖内嵌资源。
 
 ## 数据存储
 

@@ -10,6 +10,17 @@ const appCss = read('web/src/app.css').trim().split(/\n/).filter(Boolean);
 const nonImportLines = appCss.filter(line => !line.startsWith('@import'));
 if (nonImportLines.length) failures.push('web/src/app.css must stay import-only; move real rules into web/src/styles/*.css');
 
+const settingsCss = read('web/src/styles/settings.css').trim().split(/\n/).filter(Boolean);
+const settingsCssNonImportLines = settingsCss.filter(line => !line.startsWith('@import'));
+if (settingsCssNonImportLines.length) failures.push('web/src/styles/settings.css must stay import-only; move real rules into web/src/styles/settings/*.css');
+
+const appSource = read('web/src/App.jsx');
+const settingFetchNames = ['fetchConfig', 'fetchDataStatus', 'fetchMCPConfig', 'fetchMCPStatus', 'fetchModelProviders', 'fetchPrompts', 'fetchScheduledTasks', 'fetchSetupStatus', 'fetchSystemStatus', 'fetchWorkspaces'];
+for (const name of settingFetchNames) {
+  if (appSource.includes(name)) failures.push(`settings fetch helper should stay in useSettingsData.js, not App.jsx: ${name}`);
+}
+if (!read('web/src/hooks/useSettingsData.js').includes('export function useSettingsData')) failures.push('settings data loaders belong in web/src/hooks/useSettingsData.js');
+
 const settings = read('web/src/components/settings.jsx');
 for (const stale of ['function ReplyModule', 'function EmbeddingModule']) {
   if (settings.includes(stale)) failures.push(`stale unused component remains: ${stale}`);

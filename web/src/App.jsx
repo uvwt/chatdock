@@ -6,10 +6,11 @@ import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtDuration, 
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, guideChatJob, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
 import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessionToolEvent, fetchSessions, pinSession, renameSession, searchSessions, updateSessionModel } from './lib/sessionApi.js';
-import { createModelProvider as createModelProviderRequest, createWorkspaceRecord, deleteModelProvider as deleteModelProviderRequest, deleteScheduledTaskRecord, deleteWorkspaceRecord, fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchPrompts, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchScheduledTaskRuns, fetchScheduledTasks, fetchSetupStatus, fetchSystemStatus, fetchWorkspaces, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest, updateModelProvider as updateModelProviderRequest } from './lib/settingsApi.js';
+import { createModelProvider as createModelProviderRequest, createWorkspaceRecord, deleteModelProvider as deleteModelProviderRequest, deleteScheduledTaskRecord, deleteWorkspaceRecord, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchScheduledTaskRuns, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest, updateModelProvider as updateModelProviderRequest } from './lib/settingsApi.js';
 import { uploadFileRequest } from './lib/upload.js';
 import { appendInlineReasoningPart, appendInlineTextPart, appendToolStartEvent, mergeToolResultEvent } from './lib/toolEvents.js';
 import { compactModelName, providerChoiceID, providerKeyInputsFromRows, providerKeyRows, providerLabel, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
+import { useSettingsData } from './hooks/useSettingsData.js';
 
 function streamStatusText(stats, elapsed) {
   const labels = { connecting: '连接模型中', streaming: '流式输出中', paused: '已暂停，后台继续接收', stopping: '正在中断', done: '已完成', error: '输出失败' };
@@ -274,13 +275,9 @@ export default function App() {
   const [chatModel, setChatModel] = useState({ provider_id: '', model: '' });
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
 
-  const [setupStatus, setSetupStatus] = useState(null);
-  const [workspaces, setWorkspaces] = useState([]);
-  const [providers, setProviders] = useState([]);
   const [availableModels, setAvailableModels] = useState([]);
   const [candidateProviderID, setCandidateProviderID] = useState('');
   const [loadingModels, setLoadingModels] = useState(false);
-  const [prompts, setPrompts] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [sessionSearch, setSessionSearch] = useState('');
   const [sessionSearchResults, setSessionSearchResults] = useState([]);
@@ -296,16 +293,9 @@ export default function App() {
   const [streamPaused, setStreamPaused] = useState(false);
   const [streamStats, setStreamStats] = useState({ state: 'idle', started_at: 0, chars: 0, events: 0, tools: 0, error: '' });
   const [activeJobID, setActiveJobID] = useState('');
-  const [scheduledTasks, setScheduledTasks] = useState([]);
   const [selectedScheduledTaskID, setSelectedScheduledTaskID] = useState('');
   const [selectedScheduledTaskRuns, setSelectedScheduledTaskRuns] = useState([]);
   const [taskSearch, setTaskSearch] = useState('');
-  const [dataStatus, setDataStatus] = useState(null);
-  const [systemStatus, setSystemStatus] = useState(null);
-  const [mcpStatus, setMcpStatus] = useState([]);
-  const [promptPreview, setPromptPreview] = useState('');
-  const [mcpConfig, setMcpConfig] = useState('');
-  const [config, setConfig] = useState({ base_url: '', api_key: '', model: '', models: [], system_prompt: '', context_mode: 'auto', max_context_messages: 12, temperature: 0.7, enable_thinking: false, hide_thinking: false, has_api_key: false, embedding_base_url: '', embedding_api_key: '', embedding_model: 'BAAI/bge-m3', has_embedding_api_key: false });
 
   const abortRef = useRef(null);
   const activeJobIDRef = useRef('');
@@ -435,15 +425,38 @@ export default function App() {
 
   const api = useMemo(() => createJsonApi({ authHeaders, onUnauthorized: setAuthPage }), [authHeaders]);
 
+  const {
+    setupStatus,
+    workspaces,
+    setWorkspaces,
+    providers,
+    prompts,
+    scheduledTasks,
+    dataStatus,
+    systemStatus,
+    mcpStatus,
+    promptPreview,
+    setPromptPreview,
+    mcpConfig,
+    setMcpConfig,
+    config,
+    setConfig,
+    loadPrompts,
+    loadConfig,
+    loadMCPConfig,
+    loadSetupStatus,
+    loadWorkspaces,
+    loadModelProviders,
+    loadScheduledTasks,
+    loadDataStatus,
+    loadSystemStatus,
+    loadMCPStatus,
+  } = useSettingsData(api);
+
   const applySessionModel = useCallback((session, { fallbackToDefault = true } = {}) => {
     const next = sessionModelChoice(session);
     if (fallbackToDefault || next.provider_id || next.model) setChatModel(next);
   }, []);
-
-  const loadPrompts = useCallback(async () => {
-    const data = await fetchPrompts(api);
-    setPrompts(data.prompts || []);
-  }, [api]);
 
   const loadSessions = useCallback(async () => {
     const list = await fetchSessions(api);
@@ -473,68 +486,6 @@ export default function App() {
     return () => { stopped = true; window.clearTimeout(timer); };
   }, [api, sessionSearch]);
 
-  const loadConfig = useCallback(async () => {
-    const c = await fetchConfig(api);
-    setConfig({
-      provider_id: c.provider_id || '',
-      base_url: c.base_url || '',
-      api_key: '',
-      model: c.model || '',
-      models: Array.isArray(c.models) ? c.models : [],
-      system_prompt: c.system_prompt || '',
-      context_mode: c.context_mode || 'auto',
-      max_context_messages: c.max_context_messages || 12,
-      temperature: c.temperature ?? 0.7,
-      enable_thinking: !!c.enable_thinking,
-      hide_thinking: !!c.hide_thinking,
-      has_api_key: !!c.has_api_key,
-      embedding_base_url: c.embedding_base_url || '',
-      embedding_api_key: '',
-      embedding_model: c.embedding_model || 'BAAI/bge-m3',
-      has_embedding_api_key: !!c.has_embedding_api_key,
-    });
-  }, [api]);
-
-  const loadMCPConfig = useCallback(async () => {
-    const c = await fetchMCPConfig(api);
-    setMcpConfig(c.content || '{\n  "servers": {}\n}\n');
-  }, [api]);
-
-  const loadSetupStatus = useCallback(async () => {
-    const data = await fetchSetupStatus(api);
-    setSetupStatus(data);
-  }, [api]);
-
-  const loadWorkspaces = useCallback(async () => {
-    const data = await fetchWorkspaces(api);
-    setWorkspaces(data.workspaces || []);
-  }, [api]);
-
-  const loadModelProviders = useCallback(async () => {
-    const data = await fetchModelProviders(api);
-    setProviders(data.providers || []);
-  }, [api]);
-
-
-  const loadScheduledTasks = useCallback(async () => {
-    const data = await fetchScheduledTasks(api);
-    setScheduledTasks(data.tasks || []);
-  }, [api]);
-
-  const loadDataStatus = useCallback(async () => {
-    const data = await fetchDataStatus(api);
-    setDataStatus(data);
-  }, [api]);
-
-  const loadSystemStatus = useCallback(async () => {
-    const data = await fetchSystemStatus(api);
-    setSystemStatus(data);
-  }, [api]);
-
-  const loadMCPStatus = useCallback(async () => {
-    const data = await fetchMCPStatus(api);
-    setMcpStatus(data.servers || []);
-  }, [api]);
 
   const refreshProductState = useCallback(async () => {
     await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
