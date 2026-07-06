@@ -52,6 +52,22 @@ func NewStore(dataDir string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("migrate legacy data: %w", err)
 	}
+	if err := store.migrateScheduledJSONToTables(); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("migrate scheduled tasks: %w", err)
+	}
+	if err := store.migrateSessionJSONToTables(); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("migrate sessions: %w", err)
+	}
+	if err := store.migrateAttachmentBlobs(); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("migrate attachment blobs: %w", err)
+	}
+	if err := store.migrateToolEmbeddingBlobs(); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("migrate tool embedding blobs: %w", err)
+	}
 	if err := store.EnsureGlobalModelProviders(); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("ensure global model providers: %w", err)

@@ -43,10 +43,10 @@ func builtinToolDiscoveryTools() []mcp.MCPTool {
 			Name:        "tool_execute",
 			FullName:    builtinToolExecuteDiscovered,
 			Title:       "执行已查看工具",
-			Description: "执行已经通过 chatdock_tools_describe 查看过详情的工具。name 必须是工具 full_name，arguments 必须符合该工具 schema。",
+			Description: "执行已经通过 chatdock_tools_describe 查看过详情的工具。参数必须是顶层对象：{\"name\":\"工具 full_name\",\"arguments\":{...}}。注意 name 是 chatdock_tool_execute 的顶层字段，不是 arguments 里面的字段；arguments 才是传给目标工具的参数。",
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
-				"name":      map[string]any{"type": "string", "description": "要执行的工具 full_name"},
-				"arguments": map[string]any{"type": "object", "description": "传给目标工具的参数对象，必须符合工具详情里的 schema"},
+				"name":      map[string]any{"type": "string", "description": "必填。要执行的工具 full_name，例如 DockMini__exec_command。必须放在 chatdock_tool_execute 参数顶层。"},
+				"arguments": map[string]any{"type": "object", "description": "必填。传给目标工具的参数对象，必须符合工具详情里的 schema。不要把 name 放到这里。"},
 			}, "required": []string{"name", "arguments"}},
 		},
 	}

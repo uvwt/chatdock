@@ -22,6 +22,14 @@ func (s *Store) initSQLite() error {
 		`CREATE TABLE IF NOT EXISTS prompt_kv (prompt TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(prompt, key), FOREIGN KEY(prompt) REFERENCES prompts(name) ON DELETE CASCADE)`,
 		`CREATE TABLE IF NOT EXISTS sessions (prompt TEXT NOT NULL, id TEXT NOT NULL, json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(prompt, id), FOREIGN KEY(prompt) REFERENCES prompts(name) ON DELETE CASCADE)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_prompt_updated ON sessions(prompt, updated_at DESC)`,
+		`CREATE TABLE IF NOT EXISTS session_messages (prompt TEXT NOT NULL, session_id TEXT NOT NULL, message_index INTEGER NOT NULL, id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, reasoning TEXT NOT NULL DEFAULT '', attachments_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL, PRIMARY KEY(prompt, session_id, message_index), FOREIGN KEY(prompt, session_id) REFERENCES sessions(prompt, id) ON DELETE CASCADE)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_session_messages_id ON session_messages(prompt, session_id, id)`,
+		`CREATE INDEX IF NOT EXISTS idx_session_messages_session ON session_messages(prompt, session_id, message_index)`,
+		`CREATE TABLE IF NOT EXISTS session_message_parts (prompt TEXT NOT NULL, session_id TEXT NOT NULL, message_index INTEGER NOT NULL, part_index INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT NOT NULL DEFAULT '', call_key TEXT NOT NULL DEFAULT '', event_id TEXT NOT NULL DEFAULT '', PRIMARY KEY(prompt, session_id, message_index, part_index), FOREIGN KEY(prompt, session_id, message_index) REFERENCES session_messages(prompt, session_id, message_index) ON DELETE CASCADE)`,
+		`CREATE TABLE IF NOT EXISTS session_message_events (prompt TEXT NOT NULL, session_id TEXT NOT NULL, message_index INTEGER NOT NULL, event_index INTEGER NOT NULL, id TEXT NOT NULL, kind TEXT NOT NULL, phase TEXT NOT NULL DEFAULT '', call_key TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '', meta TEXT NOT NULL DEFAULT '', PRIMARY KEY(prompt, session_id, message_index, event_index), FOREIGN KEY(prompt, session_id, message_index) REFERENCES session_messages(prompt, session_id, message_index) ON DELETE CASCADE)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_session_message_events_id ON session_message_events(prompt, session_id, id)`,
+		`CREATE TABLE IF NOT EXISTS session_message_event_details (prompt TEXT NOT NULL, session_id TEXT NOT NULL, event_id TEXT NOT NULL, details_json TEXT NOT NULL, details_bytes INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL, PRIMARY KEY(prompt, session_id, event_id), FOREIGN KEY(prompt, session_id) REFERENCES sessions(prompt, id) ON DELETE CASCADE)`,
+		`CREATE INDEX IF NOT EXISTS idx_session_event_details_bytes ON session_message_event_details(details_bytes DESC)`,
 		`CREATE TABLE IF NOT EXISTS mcp_runs (prompt TEXT NOT NULL, id TEXT PRIMARY KEY, session_id TEXT NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL, summary TEXT NOT NULL, error TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT NOT NULL, duration_ms INTEGER NOT NULL DEFAULT 0, event_count INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL, FOREIGN KEY(prompt) REFERENCES prompts(name) ON DELETE CASCADE)`,
 		`CREATE INDEX IF NOT EXISTS idx_mcp_runs_prompt_updated ON mcp_runs(prompt, updated_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_mcp_runs_session_updated ON mcp_runs(session_id, updated_at DESC)`,
@@ -32,9 +40,18 @@ func (s *Store) initSQLite() error {
 		`CREATE INDEX IF NOT EXISTS idx_chat_jobs_prompt_session_updated ON chat_jobs(prompt, session_id, updated_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_chat_jobs_status_updated ON chat_jobs(status, updated_at DESC)`,
 		`CREATE TABLE IF NOT EXISTS chat_job_events (job_id TEXT NOT NULL, seq INTEGER NOT NULL, event TEXT NOT NULL, data_json TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(job_id, seq), FOREIGN KEY(job_id) REFERENCES chat_jobs(id) ON DELETE CASCADE)`,
+		`CREATE INDEX IF NOT EXISTS idx_chat_job_events_job_event_seq ON chat_job_events(job_id, event, seq)`,
+		`CREATE TABLE IF NOT EXISTS scheduled_tasks (prompt TEXT NOT NULL, id TEXT NOT NULL, title TEXT NOT NULL, task_prompt TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 0, running INTEGER NOT NULL DEFAULT 0, schedule_type TEXT NOT NULL, run_at TEXT NOT NULL DEFAULT '', time_of_day TEXT NOT NULL DEFAULT '', interval_minutes INTEGER NOT NULL DEFAULT 0, context_mode TEXT NOT NULL DEFAULT 'stateless', next_run_at TEXT NOT NULL DEFAULT '', last_run_at TEXT NOT NULL DEFAULT '', last_status TEXT NOT NULL DEFAULT '', last_error TEXT NOT NULL DEFAULT '', session_id TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(prompt, id), FOREIGN KEY(prompt) REFERENCES prompts(name) ON DELETE CASCADE)`,
+		`CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_due ON scheduled_tasks(enabled, running, next_run_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_prompt_updated ON scheduled_tasks(prompt, updated_at DESC)`,
+		`CREATE TABLE IF NOT EXISTS scheduled_task_runs (prompt TEXT NOT NULL, id TEXT NOT NULL, task_id TEXT NOT NULL, task_title TEXT NOT NULL, task_prompt TEXT NOT NULL, output TEXT NOT NULL DEFAULT '', status TEXT NOT NULL, error TEXT NOT NULL DEFAULT '', manual INTEGER NOT NULL DEFAULT 0, session_id TEXT NOT NULL DEFAULT '', started_at TEXT NOT NULL, finished_at TEXT NOT NULL DEFAULT '', duration_ms INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(prompt, id), FOREIGN KEY(prompt) REFERENCES prompts(name) ON DELETE CASCADE)`,
+		`CREATE INDEX IF NOT EXISTS idx_scheduled_task_runs_task_started ON scheduled_task_runs(prompt, task_id, started_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_scheduled_task_runs_started ON scheduled_task_runs(started_at DESC)`,
+		`CREATE TABLE IF NOT EXISTS attachment_blobs (sha256 TEXT PRIMARY KEY, storage_path TEXT NOT NULL, size INTEGER NOT NULL, mime_type TEXT NOT NULL, ref_count INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)`,
+		`CREATE INDEX IF NOT EXISTS idx_attachment_blobs_created ON attachment_blobs(created_at DESC)`,
 		`CREATE TABLE IF NOT EXISTS attachments (prompt TEXT NOT NULL, id TEXT PRIMARY KEY, session_id TEXT NOT NULL, message_id TEXT NOT NULL, filename TEXT NOT NULL, mime_type TEXT NOT NULL, size INTEGER NOT NULL, storage_path TEXT NOT NULL, sha256 TEXT NOT NULL, text_content TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, FOREIGN KEY(prompt) REFERENCES prompts(name) ON DELETE CASCADE)`,
 		`CREATE INDEX IF NOT EXISTS idx_attachments_prompt_session ON attachments(prompt, session_id, created_at DESC)`,
-		`CREATE TABLE IF NOT EXISTS tool_embeddings (prompt TEXT NOT NULL, full_name TEXT NOT NULL, source_hash TEXT NOT NULL, embedding_model TEXT NOT NULL, embedding_json TEXT NOT NULL, indexed_at TEXT NOT NULL, PRIMARY KEY(prompt, full_name, embedding_model), FOREIGN KEY(prompt) REFERENCES prompts(name) ON DELETE CASCADE)`,
+		`CREATE TABLE IF NOT EXISTS tool_embeddings (prompt TEXT NOT NULL, full_name TEXT NOT NULL, source_hash TEXT NOT NULL, embedding_model TEXT NOT NULL, embedding_json TEXT NOT NULL, embedding_blob BLOB NOT NULL DEFAULT x'', indexed_at TEXT NOT NULL, PRIMARY KEY(prompt, full_name, embedding_model), FOREIGN KEY(prompt) REFERENCES prompts(name) ON DELETE CASCADE)`,
 		`CREATE INDEX IF NOT EXISTS idx_tool_embeddings_prompt_model ON tool_embeddings(prompt, embedding_model)`,
 	}
 	for _, stmt := range stmts {
@@ -48,6 +65,11 @@ func (s *Store) initSQLite() error {
 func (s *Store) ensureSQLiteSchemaUpdates() error {
 	stmts := []string{
 		`ALTER TABLE chat_jobs ADD COLUMN request_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN title TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE sessions ADD COLUMN provider_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN model TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE tool_embeddings ADD COLUMN embedding_blob BLOB NOT NULL DEFAULT x''`,
 	}
 	for _, stmt := range stmts {
 		if _, err := s.db.Exec(stmt); err != nil {
@@ -140,13 +162,6 @@ func (s *Store) importPromptDir(name string, dir string) error {
 	}
 	if raw, err := os.ReadFile(filepath.Join(dir, "mcp.json")); err == nil {
 		if err := s.setPromptRawLocked(name, "mcp", string(raw)); err != nil {
-			return err
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	if raw, err := os.ReadFile(filepath.Join(dir, "skills.json")); err == nil {
-		if err := s.setPromptRawLocked(name, "skills", string(raw)); err != nil {
 			return err
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {

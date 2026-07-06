@@ -72,6 +72,17 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mimeType := llm.FirstNonEmptyString(header.Header.Get("Content-Type"), mime.TypeByExtension(strings.ToLower(filepath.Ext(name))), "application/octet-stream")
+	sha := hex.EncodeToString(hash.Sum(nil))
+	if blob, ok, err := a.store.AttachmentBlobBySHA256(sha); err == nil && ok && strings.TrimSpace(blob.StoragePath) != "" {
+		_ = os.Remove(storagePath)
+		storagePath = blob.StoragePath
+		written = blob.Size
+		mimeType = llm.FirstNonEmptyString(mimeType, blob.MIMEType)
+	} else if err != nil {
+		_ = os.Remove(storagePath)
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
 	text, status, extractErr := extractAttachmentText(storagePath, name, mimeType)
 	if extractErr != nil && strings.TrimSpace(text) == "" {
 		status = "stored"
@@ -90,7 +101,7 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 		Prompt:      prompt,
 		SessionID:   sessionID,
 		StoragePath: storagePath,
-		SHA256:      hex.EncodeToString(hash.Sum(nil)),
+		SHA256:      sha,
 		TextContent: text,
 	}
 	if err := a.store.SaveAttachment(record); err != nil {

@@ -14,41 +14,35 @@ type DueScheduledTask struct {
 }
 
 func (s *Store) DueScheduledTasksAllPrompts(now time.Time) (items []DueScheduledTask, err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
-	previous := s.activePrompt
-	// 扫描所有工作空间只是后台任务的内部动作，不能改变用户当前正在看的工作空间。
-	// 即使中途遇到 SQLite / 外置盘 I/O 错误，也必须尽量恢复，否则前端会突然只看到
-	// 某个残留工作空间的会话，看起来像“聊天记录丢了”。
-	defer func() {
-		if previous == "" || s.activePrompt == previous {
-			return
-		}
-		if restoreErr := s.loadPromptLocked(previous); restoreErr != nil && err == nil {
-			err = restoreErr
-		}
-	}()
-
-	prompts, err := s.listPromptNamesLocked()
+	rows, err := s.db.Query(`SELECT prompt, id, title, task_prompt, enabled, running, schedule_type, run_at, time_of_day, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks WHERE enabled = 1 AND running = 0 AND next_run_at != '' AND next_run_at <= ? ORDER BY next_run_at ASC`, formatScheduleDBTime(now))
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	out := make([]DueScheduledTask, 0)
-	for _, prompt := range prompts {
-		if err := s.loadPromptLocked(prompt); err != nil {
+	for rows.Next() {
+		var prompt string
+		var task model.ScheduledTask
+		var enabled, running int
+		var runAt, nextRunAt, lastRunAt, createdAt, updatedAt string
+		if err := rows.Scan(&prompt, &task.ID, &task.Title, &task.Prompt, &enabled, &running, &task.ScheduleType, &runAt, &task.TimeOfDay, &task.IntervalMinutes, &task.ContextMode, &nextRunAt, &lastRunAt, &task.LastStatus, &task.LastError, &task.SessionID, &createdAt, &updatedAt); err != nil {
 			return nil, err
 		}
-		tasks, err := s.loadScheduledTasksLocked()
-		if err != nil {
-			return nil, err
-		}
-		for _, task := range tasks {
-			if !task.Enabled || task.Running || task.NextRunAt.IsZero() || task.NextRunAt.After(now) {
-				continue
-			}
-			out = append(out, DueScheduledTask{PromptName: prompt, Task: task})
-		}
+		task.Enabled = enabled != 0
+		task.Running = running != 0
+		task.RunAt = parseOptionalDBTime(runAt)
+		task.NextRunAt = parseDBTimeZero(nextRunAt)
+		task.LastRunAt = parseOptionalDBTime(lastRunAt)
+		task.CreatedAt = parseDBTimeZero(createdAt)
+		task.UpdatedAt = parseDBTimeZero(updatedAt)
+		task.ContextMode = normalizeScheduledTaskContextMode(task.ContextMode)
+		out = append(out, DueScheduledTask{PromptName: prompt, Task: task})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return out, nil
 }
@@ -151,7 +145,6 @@ func (s *Store) prepareScheduledTaskRunLocked(id string, manual bool, now time.T
 			}
 		}
 	default:
-		// stateless: 模型请求只发送本次任务提示词；同时仍创建单次运行会话，方便用户像普通聊天一样点开查看。
 		session, err := s.createScheduledTaskRunSessionLocked(task, userMessage, now)
 		if err != nil {
 			return model.ScheduledTaskRun{}, err
@@ -166,11 +159,6 @@ func (s *Store) prepareScheduledTaskRunLocked(id string, manual bool, now time.T
 		return model.ScheduledTaskRun{}, err
 	}
 	cfg := s.modelCfg
-	skills, err := s.enabledSkillsLocked()
-	if err != nil {
-		return model.ScheduledTaskRun{}, err
-	}
-	cfg.Skills = skills
 	return model.ScheduledTaskRun{Task: task, PromptName: s.activePrompt, SessionID: sessionID, RunID: runID, Config: cfg, History: history}, nil
 }
 

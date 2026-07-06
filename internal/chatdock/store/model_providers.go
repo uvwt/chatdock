@@ -73,7 +73,7 @@ func (s *Store) ResolveChatModelConfig(base model.ModelConfig, providerID string
 		if !ok {
 			return model.ModelConfig{}, fmt.Errorf("model provider not found: %s", providerID)
 		}
-		// 供应商选择只切换连接、密钥和模型；当前会话的系统提示词、技能和上下文策略继续沿用当前工作空间。
+		// 供应商选择只切换连接、密钥和模型；当前会话的系统提示词和上下文策略继续沿用当前工作空间。
 		next.ProviderID = providerCfg.ProviderID
 		next.BaseURL = providerCfg.BaseURL
 		next.APIKey = providerCfg.APIKey

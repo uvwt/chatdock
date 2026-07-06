@@ -16,14 +16,11 @@ export function updateModelProvider(api, id, payload) {
 export function deleteModelProvider(api, id) {
   return api('/api/model-providers/' + encodeURIComponent(id), {method:'DELETE'});
 }
-export function fetchSkills(api) { return api('/api/skills'); }
 export function fetchScheduledTasks(api) { return api('/api/scheduled-tasks'); }
 export function fetchScheduledTaskRuns(api, id) { return api('/api/scheduled-tasks/' + encodeURIComponent(id) + '/runs?limit=30'); }
 export function fetchDataStatus(api) { return api('/api/data/status'); }
 export function fetchSystemStatus(api) { return api('/api/system/status'); }
 export function fetchMCPStatus(api) { return api('/api/mcp/status'); }
-export function fetchRuns(api) { return api('/api/runs?limit=80'); }
-export function fetchAgentTasks(api) { return api('/api/agent-tasks?limit=80'); }
 
 export function selectWorkspace(api, name) {
   return api('/api/workspaces/' + encodeURIComponent(name) + '/select', {method:'POST', body:'{}'});
@@ -66,14 +63,6 @@ export function testMCPServer(api, serverName = '') {
   return api('/api/mcp/test' + suffix);
 }
 
-export function saveSkillRecord(api, existing, payload) {
-  const path = existing ? '/api/skills/' + encodeURIComponent(existing.id) : '/api/skills';
-  return api(path, {method: existing ? 'PUT' : 'POST', body: JSON.stringify(payload)});
-}
-
-export function deleteSkillRecord(api, id) {
-  return api('/api/skills/' + encodeURIComponent(id), {method:'DELETE'});
-}
 
 export function saveScheduledTaskRecord(api, existing, payload) {
   const path = existing ? '/api/scheduled-tasks/' + encodeURIComponent(existing.id) : '/api/scheduled-tasks';

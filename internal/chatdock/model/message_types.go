@@ -22,6 +22,7 @@ type MessagePart struct {
 }
 
 type MessageEvent struct {
+	ID      string         `json:"id,omitempty"`
 	Kind    string         `json:"kind"`
 	Phase   string         `json:"phase,omitempty"`
 	CallKey string         `json:"callKey,omitempty"`

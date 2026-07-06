@@ -60,11 +60,6 @@ func (s *Store) AppendUserMessageWithAttachments(sessionID string, content strin
 	}
 
 	cfg := s.modelCfg
-	skills, err := s.enabledSkillsLocked()
-	if err != nil {
-		return nil, model.ModelConfig{}, nil, err
-	}
-	cfg.Skills = skills
 	history := cloneMessages(session.Messages)
 	if len(history) > 0 {
 		history[len(history)-1].Content = model.BuildUserContentForModel(content, attachments)
@@ -105,11 +100,6 @@ func (s *Store) PrepareSessionRegeneration(sessionID string) (*model.Session, mo
 	}
 
 	cfg := s.modelCfg
-	skills, err := s.enabledSkillsLocked()
-	if err != nil {
-		return nil, model.ModelConfig{}, nil, err
-	}
-	cfg.Skills = skills
 
 	history := cloneMessages(session.Messages)
 	history[lastIndex].Content = model.BuildUserContentForModel(last.Content, attachments)

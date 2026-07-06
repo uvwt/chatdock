@@ -1,8 +1,8 @@
 package store
 
 import (
-	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -12,32 +12,46 @@ import (
 )
 
 func (s *Store) loadScheduledTasksLocked() ([]model.ScheduledTask, error) {
-	raw, ok, err := s.getPromptRawLocked(s.activePrompt, "scheduled_tasks")
+	tasks, err := loadScheduledTasksForPromptLocked(s.db, s.activePrompt)
 	if err != nil {
 		return nil, err
 	}
-	if !ok || strings.TrimSpace(raw) == "" {
-		tasks := []model.ScheduledTask{}
-		return tasks, s.saveScheduledTasksLocked(tasks)
-	}
-	var tasks []model.ScheduledTask
-	if err := json.Unmarshal([]byte(raw), &tasks); err != nil {
-		return nil, fmt.Errorf("scheduled tasks config must be valid json: %w", err)
-	}
+	changed := false
+	now := time.Now()
 	for i := range tasks {
 		tasks[i].ContextMode = normalizeScheduledTaskContextMode(tasks[i].ContextMode)
 		if tasks[i].Running && time.Since(tasks[i].UpdatedAt) > 2*time.Hour {
 			tasks[i].Running = false
 			tasks[i].LastError = "上次运行异常中断，已自动恢复为可运行状态"
+			changed = true
+		}
+		if repairScheduledTaskNextRun(&tasks[i], now) {
+			changed = true
 		}
 	}
 	sortScheduledTasks(tasks)
+	if changed {
+		if err := s.saveScheduledTasksLocked(tasks); err != nil {
+			return nil, err
+		}
+	}
 	return tasks, nil
 }
 
 func (s *Store) saveScheduledTasksLocked(tasks []model.ScheduledTask) error {
 	sortScheduledTasks(tasks)
-	return s.setPromptJSONLocked(s.activePrompt, "scheduled_tasks", tasks)
+	keep := map[string]bool{}
+	for _, task := range tasks {
+		task = normalizeScheduledTaskForDB(task)
+		keep[task.ID] = true
+		if err := upsertScheduledTaskTx(s.db, s.activePrompt, task); err != nil {
+			return err
+		}
+	}
+	if err := deleteScheduledTasksExceptLocked(s.db, s.activePrompt, keep); err != nil {
+		return err
+	}
+	return s.touchPromptLocked(s.activePrompt, time.Now())
 }
 
 func sortScheduledTasks(tasks []model.ScheduledTask) {
@@ -152,18 +166,19 @@ func parseTaskTime(value string) (time.Time, error) {
 	if value == "" {
 		return time.Time{}, fmt.Errorf("run_at is empty")
 	}
+	loc := scheduleLocation()
 	layouts := []string{time.RFC3339, "2006-01-02T15:04", "2006-01-02 15:04"}
 	var lastErr error
 	for _, layout := range layouts {
 		if layout == time.RFC3339 {
 			parsed, err := time.Parse(layout, value)
 			if err == nil {
-				return parsed.Local(), nil
+				return parsed.In(loc), nil
 			}
 			lastErr = err
 			continue
 		}
-		parsed, err := time.ParseInLocation(layout, value, time.Local)
+		parsed, err := time.ParseInLocation(layout, value, loc)
 		if err == nil {
 			return parsed, nil
 		}
@@ -182,12 +197,42 @@ func normalizeTimeOfDay(value string) (string, error) {
 }
 
 func nextDailyRun(now time.Time, timeOfDay string) time.Time {
+	loc := scheduleLocation()
+	localNow := now.In(loc)
 	parsed, _ := time.Parse("15:04", timeOfDay)
-	next := time.Date(now.Year(), now.Month(), now.Day(), parsed.Hour(), parsed.Minute(), 0, 0, now.Location())
-	if !next.After(now) {
+	next := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), parsed.Hour(), parsed.Minute(), 0, 0, loc)
+	if !next.After(localNow) {
 		next = next.Add(24 * time.Hour)
 	}
 	return next
+}
+
+func scheduleLocation() *time.Location {
+	name := strings.TrimSpace(os.Getenv("CHATDOCK_TIMEZONE"))
+	if name == "" {
+		name = "Asia/Shanghai"
+	}
+	loc, err := time.LoadLocation(name)
+	if err == nil {
+		return loc
+	}
+	return time.FixedZone("CST", 8*60*60)
+}
+
+func repairScheduledTaskNextRun(task *model.ScheduledTask, now time.Time) bool {
+	if task == nil || task.ScheduleType != scheduleTypeDaily || strings.TrimSpace(task.TimeOfDay) == "" {
+		return false
+	}
+	if _, err := normalizeTimeOfDay(task.TimeOfDay); err != nil {
+		return false
+	}
+	loc := scheduleLocation()
+	localNext := task.NextRunAt.In(loc)
+	if !task.NextRunAt.IsZero() && localNext.Format("15:04") == task.TimeOfDay {
+		return false
+	}
+	task.NextRunAt = nextDailyRun(now, task.TimeOfDay)
+	return true
 }
 
 func normalizeScheduledTaskTitle(title string) (string, error) {

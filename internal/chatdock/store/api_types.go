@@ -76,26 +76,24 @@ type ModelProviderInput struct {
 }
 
 type Workspace struct {
-	ID                string    `json:"id"`
-	Name              string    `json:"name"`
-	Description       string    `json:"description,omitempty"`
-	Icon              string    `json:"icon,omitempty"`
-	ProviderID        string    `json:"provider_id"`
-	Model             string    `json:"model"`
-	Models            []string  `json:"models,omitempty"`
-	SystemPrompt      string    `json:"system_prompt"`
-	ContextLimit      int       `json:"context_limit"`
-	Temperature       float64   `json:"temperature"`
-	HideThinking      bool      `json:"hide_thinking"`
-	EnableReasoning   bool      `json:"enable_reasoning"`
-	SkillCount        int       `json:"skill_count"`
-	EnabledSkillCount int       `json:"enabled_skill_count"`
-	TaskCount         int       `json:"task_count"`
-	SessionCount      int       `json:"session_count"`
-	Active            bool      `json:"active"`
-	Archived          bool      `json:"archived"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	ID              string    `json:"id"`
+	Name            string    `json:"name"`
+	Description     string    `json:"description,omitempty"`
+	Icon            string    `json:"icon,omitempty"`
+	ProviderID      string    `json:"provider_id"`
+	Model           string    `json:"model"`
+	Models          []string  `json:"models,omitempty"`
+	SystemPrompt    string    `json:"system_prompt"`
+	ContextLimit    int       `json:"context_limit"`
+	Temperature     float64   `json:"temperature"`
+	HideThinking    bool      `json:"hide_thinking"`
+	EnableReasoning bool      `json:"enable_reasoning"`
+	TaskCount       int       `json:"task_count"`
+	SessionCount    int       `json:"session_count"`
+	Active          bool      `json:"active"`
+	Archived        bool      `json:"archived"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 type WorkspaceResponse struct {
@@ -104,10 +102,9 @@ type WorkspaceResponse struct {
 }
 
 type PromptPreviewResponse struct {
-	WorkspaceID   string   `json:"workspace_id"`
-	WorkspaceName string   `json:"workspace_name"`
-	SkillNames    []string `json:"skill_names"`
-	Content       string   `json:"content"`
+	WorkspaceID   string `json:"workspace_id"`
+	WorkspaceName string `json:"workspace_name"`
+	Content       string `json:"content"`
 }
 
 type BackupInfo struct {

@@ -111,7 +111,21 @@ func (s *Store) FinishChatJob(jobID string, status string, answer string, reason
 	if err != nil {
 		return ChatJob{}, err
 	}
+	if status != "running" {
+		if err := s.compactFinishedChatJobEventsLocked(jobID); err != nil {
+			return ChatJob{}, err
+		}
+	}
 	return s.getChatJobLocked(jobID)
+}
+
+func (s *Store) compactFinishedChatJobEventsLocked(jobID string) error {
+	jobID = strings.TrimSpace(jobID)
+	if jobID == "" {
+		return nil
+	}
+	_, err := s.db.Exec(`DELETE FROM chat_job_events WHERE job_id = ? AND event IN ('delta', 'reasoning_delta')`, jobID)
+	return err
 }
 
 func (s *Store) ListChatJobs(sessionID string, runningOnly bool, limit int) ([]ChatJob, error) {
@@ -138,6 +152,12 @@ func (s *Store) ListChatJobs(sessionID string, runningOnly bool, limit int) ([]C
 	}
 	defer rows.Close()
 	return scanChatJobs(rows)
+}
+
+func (s *Store) GetChatJob(jobID string) (ChatJob, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.getChatJobLocked(jobID)
 }
 
 func (s *Store) ChatJobEventsAfter(jobID string, after int) (ChatJob, []ChatJobEvent, error) {

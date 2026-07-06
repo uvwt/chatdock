@@ -33,7 +33,7 @@ func (c *ChatClient) CompleteWithMCPTools(ctx context.Context, cfg model.ModelCo
 	return c.CompleteWithMCPToolsEvents(ctx, cfg, history, tools, call, nil)
 }
 
-func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.ModelConfig, history []model.Message, tools []mcp.MCPTool, call func(string, map[string]any) (any, error), emit func(string, any) error) (string, error) {
+func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.ModelConfig, history []model.Message, tools []mcp.MCPTool, call func(string, map[string]any) (any, error), emit func(string, any) error, afterToolRound ...func() ([]map[string]any, error)) (string, error) {
 	messages := BuildChatMessagesAny(cfg, history)
 	messages = appendMCPToolUseHint(messages, tools)
 	openAITools := MCPToolsToOpenAITools(tools)
@@ -56,6 +56,19 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 		}
 		visibleAnswer.WriteString(resp.Content)
 		if len(resp.ToolCalls) == 0 {
+			if len(afterToolRound) > 0 && afterToolRound[0] != nil {
+				guidanceMessages, err := afterToolRound[0]()
+				if err != nil {
+					return strings.TrimSpace(visibleAnswer.String()), err
+				}
+				if len(guidanceMessages) > 0 {
+					if strings.TrimSpace(resp.Content) != "" {
+						messages = append(messages, map[string]any{"role": "assistant", "content": resp.Content})
+					}
+					messages = append(messages, guidanceMessages...)
+					continue
+				}
+			}
 			return strings.TrimSpace(visibleAnswer.String()), nil
 		}
 
@@ -81,6 +94,15 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 		}
 		messages = append(messages, toolMessages...)
 		messages = append(messages, modelMessages...)
+		if len(afterToolRound) > 0 && afterToolRound[0] != nil {
+			guidanceMessages, err := afterToolRound[0]()
+			if err != nil {
+				return strings.TrimSpace(visibleAnswer.String()), err
+			}
+			if len(guidanceMessages) > 0 {
+				messages = append(messages, guidanceMessages...)
+			}
+		}
 		// 工具结果后仍然继续带 tools 流式请求。这样复杂任务可以多轮调用工具，
 		// 普通文本也不再被“非流式工具决策 + 二次流式回答”挡住首字。
 	}

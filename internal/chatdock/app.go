@@ -24,6 +24,7 @@ type App struct {
 	server                *http.Server
 	jobMu                 sync.Mutex
 	jobCancel             map[string]context.CancelFunc
+	jobGuidance           map[string][]chatJobGuidance
 	confirmMu             sync.Mutex
 	confirmations         map[string]*MCPConfirmation
 	runningMu             sync.Mutex
@@ -47,6 +48,7 @@ func NewApp(cfg model.ServerConfig) (*App, error) {
 		client:        llm.NewChatClient(),
 		mcpClient:     mcp.NewMCPClient(),
 		jobCancel:     make(map[string]context.CancelFunc),
+		jobGuidance:   make(map[string][]chatJobGuidance),
 		confirmations: make(map[string]*MCPConfirmation),
 		running:       make(map[string]bool),
 		embeddingMemo: make(map[string][]float64),

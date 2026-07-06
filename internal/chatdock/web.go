@@ -49,6 +49,7 @@ func spaFileServer(webFS fs.FS) http.Handler {
 			stat, statErr := file.Stat()
 			_ = file.Close()
 			if statErr == nil && !stat.IsDir() {
+				setWebCacheHeader(w, name)
 				fileServer.ServeHTTP(w, r)
 				return
 			}
@@ -64,8 +65,21 @@ func spaFileServer(webFS fs.FS) http.Handler {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		setWebCacheHeader(w, "index.html")
 		http.ServeContent(w, r, "index.html", time.Time{}, bytes.NewReader(index))
 	})
+}
+
+func setWebCacheHeader(w http.ResponseWriter, name string) {
+	cleaned := strings.TrimPrefix(path.Clean("/"+name), "/")
+	switch {
+	case cleaned == "index.html" || strings.HasSuffix(cleaned, ".html"):
+		w.Header().Set("Cache-Control", "no-store")
+	case strings.HasPrefix(cleaned, "assets/"):
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	default:
+		w.Header().Set("Cache-Control", "no-cache")
+	}
 }
 
 func isBackendRoute(requestPath string) bool {

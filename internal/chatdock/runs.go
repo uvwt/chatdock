@@ -2,10 +2,7 @@ package chatdock
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -21,40 +18,7 @@ type activeToolRun struct {
 	StartedAt map[string]time.Time
 }
 
-func (a *App) handleListRuns(w http.ResponseWriter, r *http.Request) {
-	limit, _ := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get("limit")))
-	result, err := a.store.ListMCPRuns(r.URL.Query().Get("session_id"), limit)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
-	}
-	writeJSONResponse(w, http.StatusOK, result)
-}
-
-func (a *App) handleRunDetail(w http.ResponseWriter, r *http.Request) {
-	result, err := a.store.MCPRunDetail(r.PathValue("id"))
-	if err != nil {
-		status := http.StatusInternalServerError
-		if err == sql.ErrNoRows {
-			status = http.StatusNotFound
-		}
-		writeError(w, status, err)
-		return
-	}
-	writeJSONResponse(w, http.StatusOK, result)
-}
-
-func (a *App) handleListAgentTasks(w http.ResponseWriter, r *http.Request) {
-	limit, _ := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get("limit")))
-	result, err := a.store.ListAgentTasks(limit)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
-	}
-	writeJSONResponse(w, http.StatusOK, result)
-}
-
-func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message, emit func(string, any) error) (string, error) {
+func (a *App) completeWithRecordedTools(ctx context.Context, jobID string, sessionID string, cfg model.ModelConfig, history []model.Message, emit func(string, any) error) (string, error) {
 	history = a.prepareVisionAttachmentURLs(history)
 	history = a.appendAgentDockRuntimeContext(ctx, history)
 	// 真实工具全集只保存在服务端；首轮只暴露“搜索 / 查看详情 / 执行”三个轻量入口。
@@ -133,6 +97,26 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 		// 非流式 /api/chat 不需要把最终回答改成流式请求；工具仍会执行，只是不记录前端运行事件。
 		toolEmit = nil
 	}
+	consumeGuidance := func() ([]map[string]any, error) {
+		if strings.TrimSpace(jobID) == "" {
+			return nil, nil
+		}
+		items := a.drainChatJobGuidance(jobID)
+		if len(items) == 0 {
+			return nil, nil
+		}
+		messages := make([]map[string]any, 0, len(items))
+		for _, item := range items {
+			content := "用户在你生成过程中追加了引导，请在当前任务和已完成工具结果基础上调整后续回答，不要丢弃已有工具结果。\n\n" + item.Message
+			messages = append(messages, map[string]any{"role": "user", "content": content})
+			if emit != nil {
+				if err := emit("guidance_injected", item); err != nil {
+					return messages, err
+				}
+			}
+		}
+		return messages, nil
+	}
 	answer, runErr := a.client.CompleteWithMCPToolsEvents(ctx, cfg, history, visibleTools, func(name string, args map[string]any) (any, error) {
 		switch name {
 		case builtinToolSearchTools:
@@ -144,9 +128,16 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 			}
 			return result, nil
 		case builtinToolExecuteDiscovered:
+			if parseErr := stringArg(args, "_parse_error"); parseErr != "" {
+				raw := strings.TrimSpace(stringArg(args, "_raw_arguments"))
+				if raw != "" {
+					raw = truncateRunes(raw, 360)
+				}
+				return nil, fmt.Errorf("chatdock_tool_execute 参数 JSON 解析失败：%s。正确格式是 {\"name\":\"工具 full_name\",\"arguments\":{...}}，name 必须是顶层字段；不要把超长命令/脚本写坏 JSON。原始参数片段：%s", parseErr, raw)
+			}
 			target, err := requiredStringArg(args, "name")
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("chatdock_tool_execute 缺少顶层 name。正确格式是 {\"name\":\"DockMini__exec_command\",\"arguments\":{\"cmd\":\"...\"}}；name 不是目标工具 arguments 里的字段")
 			}
 			targetTool, ok := catalog.Get(target)
 			if !ok {
@@ -157,7 +148,7 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 			}
 			targetArgs, ok := args["arguments"].(map[string]any)
 			if !ok {
-				return nil, fmt.Errorf("arguments must be object")
+				return nil, fmt.Errorf("chatdock_tool_execute 缺少顶层 arguments 对象。正确格式是 {\"name\":%q,\"arguments\":{...}}", target)
 			}
 			if err := validateToolArguments(targetTool.InputSchema, targetArgs); err != nil {
 				return nil, err
@@ -171,7 +162,7 @@ func (a *App) completeWithRecordedTools(ctx context.Context, sessionID string, c
 			}
 			return runRealTool(name, args)
 		}
-	}, toolEmit)
+	}, toolEmit, consumeGuidance)
 	if recorder.Created {
 		status := "success"
 		if runErr != nil {

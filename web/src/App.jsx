@@ -4,9 +4,9 @@ import { DialogHost, LoginPage, Markdown, QuickPalette, WorkspacePicker } from '
 import { SettingsPanel } from './components/settings.jsx';
 import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtDuration, fmtTime, normalizeSettingsModule, runStatusLabel, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
 import { createJsonApi } from './lib/http.js';
-import { cancelChatJob, fetchChatJobs, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
-import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessions, pinSession, renameSession, searchSessions, updateSessionModel } from './lib/sessionApi.js';
-import { createModelProvider as createModelProviderRequest, createWorkspaceRecord, deleteModelProvider as deleteModelProviderRequest, deleteScheduledTaskRecord, deleteSkillRecord, deleteWorkspaceRecord, fetchAgentTasks, fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchPrompts, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchRuns, fetchScheduledTaskRuns, fetchScheduledTasks, fetchSetupStatus, fetchSkills, fetchSystemStatus, fetchWorkspaces, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveSkillRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest, updateModelProvider as updateModelProviderRequest } from './lib/settingsApi.js';
+import { cancelChatJob, fetchChatJobs, guideChatJob, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
+import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessionToolEvent, fetchSessions, pinSession, renameSession, searchSessions, updateSessionModel } from './lib/sessionApi.js';
+import { createModelProvider as createModelProviderRequest, createWorkspaceRecord, deleteModelProvider as deleteModelProviderRequest, deleteScheduledTaskRecord, deleteWorkspaceRecord, fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchPrompts, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchScheduledTaskRuns, fetchScheduledTasks, fetchSetupStatus, fetchSystemStatus, fetchWorkspaces, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest, updateModelProvider as updateModelProviderRequest } from './lib/settingsApi.js';
 import { uploadFileRequest } from './lib/upload.js';
 
 function streamStatusText(stats, elapsed) {
@@ -140,6 +140,7 @@ function safeJSONStringify(value) {
 
 
 function targetToolName(data) {
+  if (data?.arguments?._parse_error) return '参数 JSON 解析失败';
   return data?.arguments?.name || data?.result?.tool || data?.tool || '工具';
 }
 
@@ -277,6 +278,17 @@ function actualToolCall(details = {}, data = {}) {
   const result = details.result ?? data.result;
   if (proxyTool === 'chatdock_tool_execute') {
     const resultObject = result && typeof result === 'object' && !Array.isArray(result) ? result : {};
+    const parseError = args?._parse_error || data?._parse_error || '';
+    if (parseError) {
+      return {
+        proxyTool,
+        actualTool: '工具参数解析失败',
+        actualArguments: args,
+        actualResult: resultObject.result ?? result,
+        parseError,
+        mode: 'execute_parse_error',
+      };
+    }
     return {
       proxyTool,
       actualTool: args.name || resultObject.tool || '',
@@ -330,11 +342,13 @@ function buildToolEventDetail(event) {
   const ready = /ready|resolved|finish|done/i.test(eventName) || ok === true;
   const status = failed ? '失败' : (ready ? '完成' : '事件');
   const duration = details.duration_ms || data.duration_ms;
-  const heading = actual.mode === 'search'
-    ? (actual.candidateCount ? '找到 ' + actual.candidateCount + ' 个候选工具' : '工具搜索')
-    : (actual.mode === 'describe'
-      ? (actual.names?.length ? '查看 ' + actual.names.length + ' 个工具说明' : '工具说明')
-      : (actual.actualTool || event?.text || tool || '工具事件'));
+  const heading = actual.mode === 'execute_parse_error'
+    ? '工具参数 JSON 解析失败'
+    : (actual.mode === 'search'
+      ? (actual.candidateCount ? '找到 ' + actual.candidateCount + ' 个候选工具' : '工具搜索')
+      : (actual.mode === 'describe'
+        ? (actual.names?.length ? '查看 ' + actual.names.length + ' 个工具说明' : '工具说明')
+        : (actual.actualTool || event?.text || tool || '工具事件')));
   const subheading = [
     actual.query ? '关键词：' + actual.query : '',
     actual.proxyTool && actual.proxyTool !== actual.actualTool ? '代理：' + actual.proxyTool : '',
@@ -350,6 +364,7 @@ function buildToolEventDetail(event) {
     { label: '状态', value: status },
     actual.proxyTool ? { label: '代理工具', value: actual.proxyTool } : null,
     actual.query ? { label: '搜索关键词', value: actual.query } : null,
+    actual.parseError ? { label: '解析错误', value: actual.parseError } : null,
     { label: '服务', value: data.server || details.server },
     { label: '动作', value: data.action || details.action },
   ].filter(item => item && hasDialogValue(item.value));
@@ -360,7 +375,7 @@ function buildToolEventDetail(event) {
   if (hasDialogValue(details.error || data.error)) sections.push({ title: '错误', value: details.error || data.error, tone: 'danger' });
   const hasArgumentsSection = hasDialogValue(actual.actualArguments);
   const hasResultSection = hasDialogValue(actual.actualResult);
-  if (hasArgumentsSection) sections.push({ title: actual.mode === 'execute' ? '参数' : '请求参数', value: actual.actualArguments, emptyText: '无参数' });
+  if (hasArgumentsSection) sections.push({ title: actual.mode === 'execute_parse_error' ? '模型原始参数' : (actual.mode === 'execute' ? '参数' : '请求参数'), value: actual.actualArguments, emptyText: '无参数' });
   if (hasResultSection) sections.push({ title: actual.mode === 'execute' ? '响应' : '完整响应', value: actual.actualResult, emptyText: '无响应', collapsed: hasArgumentsSection });
   if (hasDialogValue(data) && !sections.length) sections.push({ title: '事件数据', value: data });
   sections.push({ title: '原始事件', value: details, collapsed: true, muted: true });
@@ -371,7 +386,7 @@ function buildToolEventDetail(event) {
     status,
     statusTone: failed ? 'danger' : (ready ? 'success' : ''),
     primary: actual.actualTool ? {
-      label: actual.mode === 'execute' ? '实际调用' : (actual.mode === 'search' ? '搜索结果' : '说明对象'),
+      label: actual.mode === 'execute_parse_error' ? '失败原因' : (actual.mode === 'execute' ? '实际调用' : (actual.mode === 'search' ? '搜索结果' : '说明对象')),
       name: actual.actualTool,
       hint: subheading || (actual.proxyTool ? '通过 ' + actual.proxyTool : ''),
     } : null,
@@ -461,14 +476,10 @@ export default function App() {
   const [streamPaused, setStreamPaused] = useState(false);
   const [streamStats, setStreamStats] = useState({ state: 'idle', started_at: 0, chars: 0, events: 0, tools: 0, error: '' });
   const [activeJobID, setActiveJobID] = useState('');
-  const [skills, setSkills] = useState([]);
-  const [skillSearch, setSkillSearch] = useState('');
   const [scheduledTasks, setScheduledTasks] = useState([]);
   const [selectedScheduledTaskID, setSelectedScheduledTaskID] = useState('');
   const [selectedScheduledTaskRuns, setSelectedScheduledTaskRuns] = useState([]);
   const [taskSearch, setTaskSearch] = useState('');
-  const [runs, setRuns] = useState([]);
-  const [agentTasks, setAgentTasks] = useState([]);
   const [dataStatus, setDataStatus] = useState(null);
   const [systemStatus, setSystemStatus] = useState(null);
   const [mcpStatus, setMcpStatus] = useState([]);
@@ -489,6 +500,8 @@ export default function App() {
   const forceScrollRef = useRef(false);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const sessionOpenSeqRef = useRef(0);
+  const toolEventDetailCacheRef = useRef(new Map());
 
   useEffect(() => { pausedRef.current = streamPaused; }, [streamPaused]);
   useEffect(() => { currentRef.current = current; }, [current]);
@@ -682,10 +695,6 @@ export default function App() {
     setProviders(data.providers || []);
   }, [api]);
 
-  const loadSkills = useCallback(async () => {
-    const data = await fetchSkills(api);
-    setSkills(data.skills || []);
-  }, [api]);
 
   const loadScheduledTasks = useCallback(async () => {
     const data = await fetchScheduledTasks(api);
@@ -707,30 +716,17 @@ export default function App() {
     setMcpStatus(data.servers || []);
   }, [api]);
 
-  const loadRuns = useCallback(async () => {
-    const data = await fetchRuns(api);
-    setRuns(data.runs || []);
-  }, [api]);
-
-  const loadAgentTasks = useCallback(async () => {
-    const data = await fetchAgentTasks(api);
-    setAgentTasks(data.tasks || []);
-  }, [api]);
-
   const refreshProductState = useCallback(async () => {
     await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
   }, [loadSetupStatus, loadWorkspaces, loadModelProviders, loadDataStatus, loadSystemStatus]);
 
   const refreshVisibleSettings = useCallback(async () => {
     const jobs = [loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadDataStatus(), loadSystemStatus()];
-    if (activeModule === 'skills') jobs.push(loadSkills());
     if (activeModule === 'tools') jobs.push(loadMCPStatus());
-    if (activeModule === 'runs') jobs.push(loadRuns());
-    if (activeModule === 'agent') jobs.push(loadAgentTasks());
     if (activeModule === 'automation') jobs.push(loadScheduledTasks());
     await Promise.allSettled(jobs);
     showToast('配置中心已刷新', 'success');
-  }, [activeModule, loadAgentTasks, loadDataStatus, loadMCPStatus, loadModelProviders, loadRuns, loadScheduledTasks, loadSetupStatus, loadSkills, loadSystemStatus, loadWorkspaces, showToast]);
+  }, [activeModule, loadDataStatus, loadMCPStatus, loadModelProviders, loadScheduledTasks, loadSetupStatus, loadSystemStatus, loadWorkspaces, showToast]);
 
   const loadSessionFromRoute = useCallback(async (id) => {
     if (!id) return false;
@@ -745,10 +741,10 @@ export default function App() {
   }, [api, applySessionModel, loadSessions]);
 
   const refreshAfterLogin = useCallback(async () => {
-    await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions()]);
+    await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
     const routeSession = sessionIDFromPath();
     if (routeSession) await loadSessionFromRoute(routeSession).catch(e => showToast('会话路由加载失败：' + e.message, 'error'));
-  }, [refreshProductState, loadPrompts, loadConfig, loadMCPConfig, loadSkills, loadScheduledTasks, loadSessions, loadSessionFromRoute, showToast]);
+  }, [refreshProductState, loadPrompts, loadConfig, loadMCPConfig, loadScheduledTasks, loadSessions, loadSessionFromRoute, showToast]);
 
   useEffect(() => {
     let mounted = true;
@@ -795,11 +791,9 @@ export default function App() {
   useEffect(() => {
     if (!settingsOpen) return;
     if (activeModule === 'tools') loadMCPStatus().catch(e => showToast('MCP 状态加载失败：' + e.message, 'error'));
-    if (activeModule === 'runs') loadRuns().catch(e => showToast('执行记录加载失败：' + e.message, 'error'));
-    if (activeModule === 'agent') loadAgentTasks().catch(e => showToast('Agent 任务加载失败：' + e.message, 'error'));
     if (activeModule === 'data') loadDataStatus().catch(e => showToast('数据状态加载失败：' + e.message, 'error'));
     if (activeModule === 'security') loadSystemStatus().catch(e => showToast('系统状态加载失败：' + e.message, 'error'));
-  }, [settingsOpen, activeModule, loadMCPStatus, loadRuns, loadAgentTasks, loadDataStatus, loadSystemStatus, showToast]);
+  }, [settingsOpen, activeModule, loadMCPStatus, loadDataStatus, loadSystemStatus, showToast]);
 
   const latestModelMessageElement = useCallback(() => {
     const box = messagesRef.current;
@@ -928,10 +922,10 @@ export default function App() {
     setMessages([{ role: 'empty', content: '已切换工作空间。创建或选择一个会话。' }]);
     setPendingAttachments([]);
     setChatModel({ provider_id: '', model: '' });
-    await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions()]);
+    await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
     if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
     closeSidebarOnMobile();
-  }, [api, busy, refreshProductState, loadPrompts, loadConfig, loadMCPConfig, loadSkills, loadScheduledTasks, loadSessions, closeSidebarOnMobile, showToast]);
+  }, [api, busy, refreshProductState, loadPrompts, loadConfig, loadMCPConfig, loadScheduledTasks, loadSessions, closeSidebarOnMobile, showToast]);
 
   const createPersistedSession = useCallback(async ({ refreshList = true } = {}) => {
     const s = await createSessionRecord(api);
@@ -961,19 +955,34 @@ export default function App() {
     return { id: '', title: '新会话', messages: [], draft: true };
   }, [busy, closeSidebarOnMobile, detachActiveStream]);
 
-  const openSession = useCallback(async (id) => {
+  const openSession = useCallback(async (id, summary = null) => {
+    if (!id) return;
+    const seq = sessionOpenSeqRef.current + 1;
+    sessionOpenSeqRef.current = seq;
     if (busy) detachActiveStream();
     setSessionMenuID('');
     setCurrent(id);
-    const s = await fetchSession(api, id);
-    setCurrentTitle(s.title || '新会话');
-    setMessages(s.messages || []);
+    setCurrentTitle(summary?.title || '正在加载会话…');
     setPendingAttachments([]);
-    applySessionModel(s);
-    await loadSessions();
+    stickToBottomRef.current = true;
+    forceScrollRef.current = true;
+    if (!messages.length) setMessages([{ role: 'empty', content: '正在加载会话…' }]);
     if (window.location.pathname !== sessionPath(id)) window.history.pushState({ chatdock: true }, '', sessionPath(id));
     closeSidebarOnMobile();
-  }, [api, applySessionModel, busy, detachActiveStream, loadSessions, closeSidebarOnMobile]);
+    try {
+      const s = await fetchSession(api, id);
+      if (sessionOpenSeqRef.current !== seq) return;
+      setCurrent(s.id || id);
+      setCurrentTitle(s.title || summary?.title || '新会话');
+      setMessages(s.messages || []);
+      applySessionModel(s);
+      await loadSessions();
+    } catch (e) {
+      if (sessionOpenSeqRef.current !== seq) return;
+      setMessages([{ role: 'empty', content: '会话加载失败：' + e.message }]);
+      showToast('会话加载失败：' + e.message, 'error');
+    }
+  }, [api, applySessionModel, busy, closeSidebarOnMobile, detachActiveStream, loadSessions, messages.length, showToast]);
 
   const newSession = useCallback(async () => { await createSession(); }, [createSession]);
 
@@ -1171,6 +1180,12 @@ export default function App() {
     } else if (event === 'job_cancelled') {
       setStreamStats(prev => ({ ...prev, events: prev.events + 1, state: 'stopping' }));
       appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'tool', text: '⏹️ 已请求停止生成', details: { event, data } }] }));
+    } else if (event === 'guidance_queued') {
+      setStreamStats(prev => ({ ...prev, events: prev.events + 1 }));
+      appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'guide', phase: 'running', text: '🧭 已收到引导，等待下一轮模型调用', meta: data.message || '', details: { event, data } }] }));
+    } else if (event === 'guidance_injected') {
+      setStreamStats(prev => ({ ...prev, events: prev.events + 1 }));
+      appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'guide', phase: 'done', text: '🧭 已将引导加入下一轮模型上下文', meta: data.message || '', details: { event, data } }] }));
     } else if (event === 'run_event') {
       setStreamStats(prev => ({ ...prev, events: prev.events + 1 }));
       if (data.kind !== 'tool_call' && data.kind !== 'tool_result') {
@@ -1178,8 +1193,6 @@ export default function App() {
         appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'run', text: '🧭 ' + (data.summary || data.tool || 'MCP 工具事件'), meta, details: { event, tool: data.tool || '', arguments: data.arguments, result: data.result, error: data.error || '', duration_ms: data.duration_ms, data } }] }));
       }
     } else if (event === 'run_finish') {
-      loadRuns().catch(() => { });
-      loadAgentTasks().catch(() => { });
     } else if (event === 'message_end') {
       activeJobIDRef.current = '';
       setActiveJobID('');
@@ -1198,7 +1211,7 @@ export default function App() {
       setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
       appendToActiveAssistant(m => ({ ...m, error: data, answer: m.answer || '', events: [...(m.events || []), { kind: 'error', phase: 'error', text: '⚠️ ' + message, details: { event, error: message, data } }] }));
     }
-  }, [appendAnswer, appendReasoning, appendToActiveAssistant, loadRuns, loadAgentTasks]);
+  }, [appendAnswer, appendReasoning, appendToActiveAssistant]);
 
   useEffect(() => {
     if (!current || busy) return;
@@ -1228,8 +1241,7 @@ export default function App() {
           pendingReasoningRef.current = '';
           finishActiveAssistant(finalSession);
           setCurrentTitle(finalSession.title || currentTitle || '新会话');
-          await loadSessions();
-          await Promise.allSettled([loadRuns(), loadAgentTasks()]);
+          loadSessions().catch(() => { });
         }
       } catch (e) {
         if (!abort.signal.aborted && !stopped) {
@@ -1250,7 +1262,7 @@ export default function App() {
     }
     resumeRunningJob();
     return () => { stopped = true; abort.abort(); };
-  }, [current, api, authHeaders, handleChatStreamEvent, appendToActiveAssistant, currentTitle, loadSessions, loadRuns, loadAgentTasks, finishActiveAssistant]);
+  }, [current, api, authHeaders, handleChatStreamEvent, appendToActiveAssistant, currentTitle, loadSessions, finishActiveAssistant]);
 
   const activePrompt = useMemo(() => prompts.find(p => p.active) || prompts[0] || null, [prompts]);
   const draftKey = useMemo(() => 'chatdock.draft.' + encodeURIComponent(activePrompt?.name || 'default') + '.' + encodeURIComponent(current || 'new'), [activePrompt?.name, current]);
@@ -1420,8 +1432,7 @@ export default function App() {
           finishActiveAssistant(finalSession);
           setCurrentTitle(finalSession.title || currentTitle || '新会话');
         }
-        await loadSessions();
-        await Promise.allSettled([loadRuns(), loadAgentTasks()]);
+        loadSessions().catch(() => { });
       }
     } catch (e) {
       if (abort.signal.aborted) {
@@ -1446,7 +1457,7 @@ export default function App() {
         setStreamPaused(false);
       }
     }
-  }, [authHeaders, busy, selectedModelBaseURL, selectedChatModel, selectedModelProvider, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, createPersistedSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, finishActiveAssistant, loadRuns, loadAgentTasks, openSettings, showToast]);
+  }, [authHeaders, busy, selectedModelBaseURL, selectedChatModel, selectedModelProvider, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, createPersistedSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, finishActiveAssistant, openSettings, showToast]);
 
 
   const regenerateEditedReply = useCallback(async (sessionID, baseMessages, title) => {
@@ -1485,8 +1496,7 @@ export default function App() {
           finishActiveAssistant(finalSession);
           setCurrentTitle(finalSession.title || title || '新会话');
         }
-        await loadSessions();
-        await Promise.allSettled([loadRuns(), loadAgentTasks()]);
+        loadSessions().catch(() => { });
       }
     } catch (e) {
       if (abort.signal.aborted) {
@@ -1509,7 +1519,7 @@ export default function App() {
         setStreamPaused(false);
       }
     }
-  }, [authHeaders, selectedModelProvider, selectedChatModel, handleChatStreamEvent, finishActiveAssistant, loadSessions, loadRuns, loadAgentTasks, appendReasoning, appendAnswer, appendToActiveAssistant]);
+  }, [authHeaders, selectedModelProvider, selectedChatModel, handleChatStreamEvent, finishActiveAssistant, loadSessions, appendReasoning, appendAnswer, appendToActiveAssistant]);
 
   const editUserMessage = useCallback(async ({ messageIndex, messageID, content }) => {
     if (busy) {
@@ -1536,21 +1546,26 @@ export default function App() {
     }
   }, [api, busy, current, currentTitle, loadSessions, openSettings, regenerateEditedReply, selectedChatModel, selectedModelBaseURL, showToast]);
 
-  const toggleStreamPause = useCallback(() => {
+  const guideActiveJob = useCallback(async () => {
     if (!busy) return;
-    setStreamPaused(prev => {
-      const next = !prev;
-      pausedRef.current = next;
-      setStreamStats(current => ({ ...current, state: next ? 'paused' : 'streaming' }));
-      if (!next) {
-        appendReasoning(pendingReasoningRef.current);
-        appendAnswer(pendingDeltaRef.current);
-        pendingReasoningRef.current = '';
-        pendingDeltaRef.current = '';
-      }
-      return next;
-    });
-  }, [appendAnswer, appendReasoning, busy]);
+    const text = input.trim();
+    if (!text) {
+      showToast('先输入要追加的引导内容。', 'error');
+      return;
+    }
+    const jobID = activeJobIDRef.current || activeJobID;
+    if (!jobID) {
+      showToast('当前生成还没有可引导的任务 ID。', 'error');
+      return;
+    }
+    try {
+      await guideChatJob(api, jobID, text);
+      setInput('');
+      showToast('引导已加入队列，会在下一轮模型调用前生效。', 'success');
+    } catch (e) {
+      showToast('引导失败：' + e.message, 'error');
+    }
+  }, [activeJobID, api, busy, input, showToast]);
 
   const stopStreaming = useCallback(async () => {
     if (!busy) return;
@@ -1586,13 +1601,13 @@ export default function App() {
     setCurrentTitle('未选择会话');
     setMessages([{ role: 'empty', content: '已创建并切换到新工作空间。' }]);
     setPendingAttachments([]);
-    await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions()]);
+    await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
     closeSidebarOnMobile();
     showToast('工作空间已创建', 'success');
-  }, [api, busy, closeSidebarOnMobile, config.system_prompt, loadConfig, loadMCPConfig, loadPrompts, loadScheduledTasks, loadSessions, loadSkills, refreshProductState, showDialog, showToast]);
+  }, [api, busy, closeSidebarOnMobile, config.system_prompt, loadConfig, loadMCPConfig, loadPrompts, loadScheduledTasks, loadSessions, refreshProductState, showDialog, showToast]);
 
   const deleteWorkspace = useCallback(async (id, name) => {
-    const ok = await showDialog({ title: '删除工作空间', message: '确定删除工作空间「' + (name || id) + '」？这会删除该工作空间下的配置、技能、任务和会话。若删除当前工作空间，会自动切换到默认工作空间。', confirmText: '删除', danger: true, type: 'confirm' });
+    const ok = await showDialog({ title: '删除工作空间', message: '确定删除工作空间「' + (name || id) + '」？这会删除该工作空间下的配置、任务和会话。若删除当前工作空间，会自动切换到默认工作空间。', confirmText: '删除', danger: true, type: 'confirm' });
     if (!ok) return;
     const data = await deleteWorkspaceRecord(api, id);
     setWorkspaces(data.workspaces || []);
@@ -1600,9 +1615,9 @@ export default function App() {
     setCurrentTitle('未选择会话');
     setMessages([{ role: 'empty', content: '工作空间已删除。当前工作空间：' + (data.active || 'default') }]);
     setPendingAttachments([]);
-    await Promise.allSettled([loadPrompts(), loadConfig(), loadMCPConfig(), loadSkills(), loadScheduledTasks(), loadSessions(), loadSetupStatus(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
+    await Promise.allSettled([loadPrompts(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions(), loadSetupStatus(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
     showToast('工作空间已删除', 'success');
-  }, [api, loadConfig, loadDataStatus, loadMCPConfig, loadModelProviders, loadPrompts, loadScheduledTasks, loadSessions, loadSetupStatus, loadSkills, loadSystemStatus, showDialog, showToast]);
+  }, [api, loadConfig, loadDataStatus, loadMCPConfig, loadModelProviders, loadPrompts, loadScheduledTasks, loadSessions, loadSetupStatus, loadSystemStatus, showDialog, showToast]);
 
   const saveConfig = useCallback(async () => {
     const workspaceID = (prompts.find(p => p.active) || {}).name || 'default';
@@ -1809,40 +1824,12 @@ export default function App() {
     } catch (e) { showToast('MCP 测试失败：' + e.message, 'error'); }
   }, [api, showToast]);
 
-  const editSkill = useCallback(async (id) => {
-    if (busy) return;
-    const existing = id ? skills.find(s => s.id === id) : null;
-    const values = await showDialog({
-      title: existing ? '编辑技能' : '新增技能', confirmText: existing ? '保存技能' : '新增技能', fields: [
-        { name: 'name', label: '技能名称', value: existing ? existing.name : '', required: true },
-        { name: 'description', label: '技能描述（可选）', type: 'textarea', rows: 2, value: existing ? (existing.description || '') : '' },
-        { name: 'content', label: '技能内容', type: 'textarea', rows: 8, value: existing ? (existing.content || '') : '', required: true },
-      ]
-    });
-    if (!values) return;
-    if (!values.name.trim() || !values.content.trim()) { showToast('技能名称和内容不能为空', 'error'); return; }
-    const payload = { name: values.name.trim(), description: values.description || '', content: values.content.trim(), enabled: existing ? !!existing.enabled : true };
-    const data = await saveSkillRecord(api, existing, payload);
-    setSkills(data.skills || []);
-    showToast(existing ? '技能已保存' : '技能已新增', 'success');
-  }, [api, busy, skills, showDialog, showToast]);
 
-  const toggleSkill = useCallback(async (id, enabled) => {
-    const existing = skills.find(s => s.id === id);
-    if (!existing) return;
-    const data = await saveSkillRecord(api, existing, { name: existing.name, description: existing.description || '', content: existing.content || '', enabled: !!enabled });
-    setSkills(data.skills || []);
-  }, [api, skills]);
-
-  const deleteSkill = useCallback(async (id) => {
-    const existing = skills.find(s => s.id === id);
-    if (!existing) return;
-    const ok = await showDialog({ title: '删除技能', message: '确定删除技能「' + existing.name + '」？此操作不可恢复。', confirmText: '删除', danger: true, type: 'confirm' });
-    if (!ok) return;
-    const data = await deleteSkillRecord(api, id);
-    setSkills(data.skills || []);
-    showToast('技能已删除', 'success');
-  }, [api, showDialog, showToast, skills]);
+  const fetchMCPServerTools = useCallback(async (serverName = '') => {
+    const data = await testMCPServer(api, serverName);
+    if (!data.ok) throw new Error(data.error || 'MCP 连接失败');
+    return data.tools || [];
+  }, [api]);
 
   const editScheduledTask = useCallback(async (id) => {
     if (busy) return;
@@ -1910,9 +1897,8 @@ export default function App() {
       setSelectedScheduledTaskRuns(data.runs || []);
       setSessionSearch('');
       setSessionSearchResults([]);
-      closeSidebarOnMobile();
     } catch (e) { showToast('读取任务会话失败：' + e.message, 'error'); }
-  }, [api, closeSidebarOnMobile, showToast]);
+  }, [api, showToast]);
 
   const clearScheduledTaskRunList = useCallback(() => {
     setSelectedScheduledTaskID('');
@@ -1923,25 +1909,17 @@ export default function App() {
     const existing = scheduledTasks.find(t => t.id === id);
     if (!existing) return;
     try {
+      const data = await fetchScheduledTaskRuns(api, id);
       const runs = data.runs || [];
-      const sessionRuns = runs.filter(run => run.session_id);
-      if (!runs.length) {
-        await showDialog({ title: '运行记录：' + (existing.title || '定时任务'), confirmText: '关闭', hideCancel: true, fields: [{ name: 'runs', label: '最近 30 次运行', type: 'textarea', rows: 8, value: scheduledTaskRunsText(existing, runs) }] });
-        return;
-      }
-      const values = await showDialog({
-        title: '运行记录：' + (existing.title || '定时任务'),
-        message: sessionRuns.length ? '选择一次运行并打开对应的普通聊天会话。' : '这些历史运行还没有关联会话；之后的新运行会自动生成可打开会话。',
-        confirmText: sessionRuns.length ? '打开选中会话' : '关闭',
-        hideCancel: !sessionRuns.length,
-        fields: [
-          ...(sessionRuns.length ? [{ name: 'session_id', label: '运行会话', type: 'select', value: sessionRuns[0].session_id, options: sessionRuns.map((run, index) => ({ value: run.session_id, label: (index + 1) + '. ' + runStatusLabel(run.status) + ' · ' + fmtTime(run.started_at) + ' · ' + (run.manual ? '手动' : '自动') })) }] : []),
-          { name: 'runs', label: '最近 30 次运行详情', type: 'textarea', rows: 14, value: scheduledTaskRunsText(existing, runs) },
-        ],
-      });
-      if (values?.session_id) await openScheduledTaskSession(values.session_id);
+      setSelectedScheduledTaskID(id);
+      setSelectedScheduledTaskRuns(runs);
+      setSessionSearch('');
+      setSessionSearchResults([]);
+      closeSettings();
+      showToast(runs.length ? ('已在侧边栏展示 ' + runs.length + ' 条运行会话') : '这个任务还没有运行记录', runs.length ? 'success' : 'info');
     } catch (e) { showToast('读取运行记录失败：' + e.message, 'error'); }
-  }, [api, openScheduledTaskSession, scheduledTasks, showDialog, showToast]);
+  }, [api, closeSettings, scheduledTasks, showToast]);
+
 
   const runScheduledTaskNow = useCallback(async (id) => {
     const existing = scheduledTasks.find(t => t.id === id);
@@ -1966,8 +1944,29 @@ export default function App() {
 
   const inspectToolEvent = useCallback(async (event) => {
     if (!event?.details) return;
-    await showDialog({ title: '工具事件详情', confirmText: '关闭', hideCancel: true, variant: 'tool-event-modal', toolEventDetail: buildToolEventDetail(event) });
-  }, [showDialog]);
+    let detailEvent = event;
+    const ref = event.details || {};
+    if (ref.lazy) {
+      const sessionID = ref.session_id || current;
+      const messageIndex = ref.message_index;
+      const eventID = ref.event_id || event.id || '';
+      const hasEventIndex = ref.event_index !== undefined && ref.event_index !== null;
+      const hasPartIndex = ref.part_index !== undefined && ref.part_index !== null;
+      if (!sessionID || (!eventID && (messageIndex === undefined || (!hasEventIndex && !hasPartIndex)))) return;
+      const cacheKey = eventID ? [sessionID, eventID].join(':') : [sessionID, messageIndex, hasEventIndex ? ref.event_index : '', hasPartIndex ? ref.part_index : ''].join(':');
+      try {
+        if (!toolEventDetailCacheRef.current.has(cacheKey)) {
+          const data = await fetchSessionToolEvent(api, sessionID, ref);
+          toolEventDetailCacheRef.current.set(cacheKey, data.event || event);
+        }
+        detailEvent = toolEventDetailCacheRef.current.get(cacheKey) || event;
+      } catch (e) {
+        showToast('工具事件详情加载失败：' + e.message, 'error');
+        return;
+      }
+    }
+    await showDialog({ title: '工具事件详情', confirmText: '关闭', hideCancel: true, variant: 'tool-event-modal', toolEventDetail: buildToolEventDetail(detailEvent) });
+  }, [api, current, showDialog, showToast]);
 
   const showContextPreview = useCallback(async () => {
     if (!current) return;
@@ -1978,12 +1977,6 @@ export default function App() {
       showToast('上下文预览失败：' + e.message, 'error');
     }
   }, [api, current, showDialog, showToast]);
-
-  const continueAgentTask = useCallback((task) => {
-    setInput('继续任务：' + (task.title || 'AgentDock 任务') + '\n任务 ID：' + task.id + '\n来源 Run：' + (task.source_run_id || ''));
-    closeSettings();
-    showToast('已填入继续任务指令，可直接发送。', 'success');
-  }, [closeSettings, showToast]);
 
   const logout = useCallback(() => {
     localStorage.removeItem('chatdock.authToken');
@@ -2007,13 +2000,21 @@ export default function App() {
     return (selectedScheduledTaskRuns || []).filter(run => run.session_id && !seen.has(run.session_id)).map(run => {
       seen.add(run.session_id);
       const session = byID.get(run.session_id);
-      if (session) return {...session, scheduled_run: run};
+      const runTitle = session?.title || run.task_title || selectedScheduledTask?.title || '定时任务';
+      if (session) {
+        return {
+          ...session,
+          title: runTitle,
+          preview: '',
+          scheduled_run: run,
+        };
+      }
       return {
         id: run.session_id,
-        title: (run.task_title || selectedScheduledTask?.title || '定时任务') + ' · ' + fmtTime(run.started_at),
-        preview: run.output || run.error || '',
+        title: runTitle + ' · ' + fmtTime(run.started_at),
+        preview: '',
         last_role: run.status === 'failed' ? 'error' : 'assistant',
-        count: run.status === 'failed' || run.output ? 2 : 1,
+        count: 1,
         updated_at: run.finished_at || run.started_at,
         scheduled_run: run,
       };
@@ -2044,7 +2045,7 @@ export default function App() {
     { id: 'focus-input', title: '聚焦输入框', hint: '按 / 也可以快速输入', run: () => inputRef.current?.focus() },
     { id: 'new-session', title: '新建会话', hint: '在当前工作空间开始新对话', run: createSession },
     { id: 'continue', title: '发送“继续”', hint: '让当前会话继续上一轮内容', disabled: busy, run: () => sendMsg('继续') },
-    { id: 'workspace-picker', title: '切换工作空间', hint: '加载不同模型、技能和会话', disabled: busy || !prompts.length, run: () => setWorkspacePickerOpen(true) },
+    { id: 'workspace-picker', title: '切换工作空间', hint: '加载不同模型和会话', disabled: busy || !prompts.length, run: () => setWorkspacePickerOpen(true) },
     { id: 'settings', title: '打开配置中心', hint: '工作空间、模型、工具和数据统一管理', run: () => openSettings() },
     { id: 'settings-model', title: '模型设置', hint: 'Base URL、API Key、模型和最终 Prompt', run: () => openSettings('model') },
     { id: 'settings-tools', title: '工具中心', hint: 'MCP 配置、状态检测和连接测试', run: () => openSettings('tools') },
@@ -2064,17 +2065,17 @@ export default function App() {
 
   const settingsPanel = (
     <SettingsPanel
-      activeModule={activeModule} busy={busy} closeSettings={closeSettings} config={config} continueAgentTask={continueAgentTask}
-      createWorkspace={createWorkspace} dataStatus={dataStatus} deleteScheduledTask={deleteScheduledTask} deleteSkill={deleteSkill} deleteWorkspace={deleteWorkspace}
+      activeModule={activeModule} busy={busy} closeSettings={closeSettings} config={config}
+      createWorkspace={createWorkspace} dataStatus={dataStatus} deleteScheduledTask={deleteScheduledTask} deleteWorkspace={deleteWorkspace}
       editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels}
-      editScheduledTask={editScheduledTask} editSkill={editSkill} loadAgentTasks={loadAgentTasks} loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig}
-      loadMCPStatus={loadMCPStatus} loadRuns={loadRuns} loadScheduledTasks={loadScheduledTasks} loadSkills={loadSkills} loadSystemStatus={loadSystemStatus}
+      editScheduledTask={editScheduledTask} loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig}
+      loadMCPStatus={loadMCPStatus} loadScheduledTasks={loadScheduledTasks} loadSystemStatus={loadSystemStatus}
       mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers} promptPreview={promptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
-      runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} openScheduledTaskSession={openScheduledTaskSession} runSetupWizard={runSetupWizard} runs={runs} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
+      runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} openScheduledTaskSession={openScheduledTaskSession} runSetupWizard={runSetupWizard} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
       scheduledTasks={scheduledTasks} selectWorkspace={selectWorkspace} setConfig={setConfig} setMcpConfig={setMcpConfig} setTaskSearch={setTaskSearch}
-      setupStatus={setupStatus} showPromptPreview={showPromptPreview} skillSearch={skillSearch} skills={skills} switchSettingsModule={switchSettingsModule}
-      systemStatus={systemStatus} taskSearch={taskSearch} testMCP={testMCP} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} toggleScheduledTask={toggleScheduledTask}
-      toggleSkill={toggleSkill} workspaces={workspaces} agentTasks={agentTasks} setSkillSearch={setSkillSearch} logout={logout}
+      setupStatus={setupStatus} showPromptPreview={showPromptPreview} switchSettingsModule={switchSettingsModule}
+      systemStatus={systemStatus} taskSearch={taskSearch} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} toggleScheduledTask={toggleScheduledTask}
+      workspaces={workspaces} logout={logout}
     />
   );
 
@@ -2097,19 +2098,19 @@ export default function App() {
           <button className="new" onClick={newSession} aria-label="新会话" title="新会话"><span className="new-icon" aria-hidden="true">＋</span></button>
         </div>
         {activeScheduledTasks.length ? <div className="sidebar-tasks">
-          <div className="sidebar-section-head compact"><div className="sidebar-section-title">定时任务</div></div>
-          <div className="sidebar-task-list">{activeScheduledTasks.map(task => <button key={task.id} type="button" className={'sidebar-task-item ' + (selectedScheduledTaskID === task.id ? 'active ' : '') + (task.running ? 'running ' : '')} onClick={() => openScheduledTaskRunList(task.id)}>
-            <span className="sidebar-task-name">{task.title || '未命名任务'}</span>
-            <span className="sidebar-task-meta">{task.running ? '运行中' : '已启用'} · {scheduledTaskContextLabel(task.context_mode || 'stateless')}</span>
+          <div className="sidebar-section-head compact"><div className="sidebar-section-title">定时任务</div><span className="sidebar-section-count">{activeScheduledTasks.length}</span></div>
+          <div className="sidebar-task-list session-list-like">{activeScheduledTasks.slice(0, 3).map(task => <button key={task.id} type="button" className={'sidebar-task-item session ' + (selectedScheduledTaskID === task.id ? 'active ' : '') + (task.running ? 'running ' : '')} onClick={() => openScheduledTaskRunList(task.id)}>
+            <div className="session-main"><div className="sidebar-task-name session-title">{task.title || '未命名任务'}</div></div>
           </button>)}</div>
+          {activeScheduledTasks.length > 3 ? <button type="button" className="sidebar-task-more" onClick={() => openSettings('automation')}>查看全部 {activeScheduledTasks.length} 个任务</button> : null}
         </div> : null}
         <div className="sidebar-section-head"><div className="sidebar-section-title">{selectedScheduledTask ? '任务会话' : '最近会话'}</div>{selectedScheduledTask ? <button type="button" className="secondary small sidebar-clear-task" onClick={clearScheduledTaskRunList}>全部</button> : null}</div>
         {selectedScheduledTask ? <div className="session-search-meta">{selectedScheduledTask.title || '定时任务'} · {selectedScheduledTaskSessions.length} 次会话</div> : (sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : '全文搜索 ' + filteredSessions.length + ' 条'}</div> : null)}
         <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => {
           const isActive = current === s.id;
           const menuOpen = sessionMenuID === s.id;
-          return <div key={s.id} className={'session ' + (isActive ? 'active ' : '') + (s.pinned ? 'pinned ' : '') + (menuOpen ? 'menu-open' : '')} onClick={() => openSession(s.id)}>
-            <div className="session-main"><div className="session-title">{s.pinned ? <span className="pin-mark" aria-label="置顶" title="置顶" /> : null}{s.title}</div>{s.match_snippet ? <div className="session-preview search-hit">{s.match_field ? s.match_field + '：' : ''}{s.match_snippet}</div> : (s.preview ? <div className="session-preview">{s.preview}</div> : null)}<div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div></div>
+          return <div key={s.id} className={'session ' + (s.scheduled_run ? 'scheduled-run ' : '') + (isActive ? 'active ' : '') + (s.pinned ? 'pinned ' : '') + (menuOpen ? 'menu-open' : '')} onClick={() => openSession(s.id, s)}>
+            <div className="session-main"><div className="session-title">{s.pinned ? <span className="pin-mark" aria-label="置顶" title="置顶" /> : null}{s.title}</div>{s.scheduled_run ? null : (s.match_snippet ? <div className="session-preview search-hit">{s.match_field ? s.match_field + '：' : ''}{s.match_snippet}</div> : (s.preview ? <div className="session-preview">{s.preview}</div> : null))}{s.scheduled_run ? null : <div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div>}</div>
             <button type="button" className="session-menu-trigger" disabled={busy} onClick={e => { e.stopPropagation(); setSessionMenuID(menuOpen ? '' : s.id); }} aria-label={(s.title || '会话') + ' 操作'} aria-expanded={menuOpen ? 'true' : 'false'} title="会话操作">⋯</button>
             {menuOpen ? <div className="session-row-menu" onClick={e => e.stopPropagation()}>
               <button type="button" onClick={() => pinSessionByID(s.id, !!s.pinned)}>{s.pinned ? '取消置顶' : '置顶'}</button>
@@ -2144,9 +2145,9 @@ export default function App() {
             <input ref={fileInputRef} type="file" multiple className="file-input" onChange={handleFileSelect} />
             <button className="secondary attach-control" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} title="上传文件">+</button>
             <ComposerModelPicker busy={busy} providers={providerChoices} selectedProvider={selectedModelProvider} selectedModel={selectedChatModel} open={modelPickerOpen} setOpen={setModelPickerOpen} selectModel={selectChatModel} openSettings={openSettings} />
-            {busy ? <button className="secondary stream-control" onClick={toggleStreamPause}>{streamPaused ? '继续' : '暂停'}</button> : null}
+            {busy ? <button className="secondary stream-control" onClick={guideActiveJob} disabled={!input.trim()}>引导</button> : null}
             {busy ? <button className="danger stream-control" onClick={stopStreaming}>中断</button> : null}
-            <textarea ref={inputRef} id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendMsg(); } }} placeholder="输入消息" />
+            <textarea ref={inputRef} id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); busy ? guideActiveJob() : sendMsg(); } }} placeholder={busy ? '生成中可输入引导内容，不会中断当前回答' : '输入消息'} />
             <button id="send" disabled={busy || uploadingFiles || (!input.trim() && !pendingAttachmentIDs.length) || !modelReady} onClick={() => sendMsg()} title={!modelReady ? '请先配置模型' : '发送'}>发送</button>
           </div>
           {inputStats ? <div className="composer-meta">{inputStats}</div> : null}

@@ -89,11 +89,11 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) completeWithOptionalTools(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message) (string, error) {
-	return a.completeWithRecordedTools(ctx, sessionID, cfg, history, nil)
+	return a.completeWithRecordedTools(ctx, "", sessionID, cfg, history, nil)
 }
 
 func (a *App) streamWithOptionalTools(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message, emit func(string, any) error) (string, error) {
-	return a.completeWithRecordedTools(ctx, sessionID, cfg, history, emit)
+	return a.completeWithRecordedTools(ctx, "", sessionID, cfg, history, emit)
 }
 
 func isClientCanceled(ctx context.Context, err error) bool {

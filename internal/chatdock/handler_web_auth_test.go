@@ -37,12 +37,18 @@ func TestSPAFallbackAndBackendBoundary(t *testing.T) {
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "ChatDock") {
 		t.Fatalf("spa fallback status %d: %s", w.Code, w.Body.String())
 	}
+	if got := w.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("spa fallback Cache-Control = %q, want no-store", got)
+	}
 
 	r = httptest.NewRequest(http.MethodGet, "/assets/app.js", nil)
 	w = httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "chatdock") {
 		t.Fatalf("asset status %d: %s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
+		t.Fatalf("asset Cache-Control = %q, want immutable cache", got)
 	}
 
 	for _, path := range []string{"/assets/missing.js", "/api/not-found", "/mcp"} {

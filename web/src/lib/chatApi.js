@@ -8,6 +8,10 @@ export function cancelChatJob(api, jobID) {
   return api('/api/chat/jobs/' + encodeURIComponent(jobID) + '/cancel', {method:'POST'});
 }
 
+export function guideChatJob(api, jobID, message) {
+  return api('/api/chat/jobs/' + encodeURIComponent(jobID) + '/guide', {method:'POST', body: JSON.stringify({message})});
+}
+
 export function resolveMCPConfirmation(api, id, approve) {
   return api('/api/mcp/confirmations/' + encodeURIComponent(id) + '/resolve', {method:'POST', body: JSON.stringify({approve: !!approve})});
 }

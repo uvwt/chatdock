@@ -1,9 +1,7 @@
 package store
 
 import (
-	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -24,51 +22,68 @@ func (s *Store) ListScheduledTaskRuns(taskID string, limit int) (model.Scheduled
 		limit = 100
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
-	records, err := s.loadScheduledTaskRunRecordsLocked()
+	query := `SELECT ` + scheduledTaskRunColumns() + ` FROM scheduled_task_runs WHERE prompt = ? AND task_id = ? ORDER BY started_at DESC LIMIT ?`
+	rows, err := s.db.Query(query, s.activePrompt, taskID, limit)
 	if err != nil {
 		return model.ScheduledTaskRunRecordResponse{}, err
 	}
+	defer rows.Close()
 	out := make([]model.ScheduledTaskRunRecord, 0, limit)
-	for _, record := range records {
-		if record.TaskID != taskID {
-			continue
+	for rows.Next() {
+		record, err := scanScheduledTaskRun(rows)
+		if err != nil {
+			return model.ScheduledTaskRunRecordResponse{}, err
 		}
 		out = append(out, record)
-		if len(out) >= limit {
-			break
-		}
+	}
+	if err := rows.Err(); err != nil {
+		return model.ScheduledTaskRunRecordResponse{}, err
 	}
 	return model.ScheduledTaskRunRecordResponse{Runs: out}, nil
 }
 
 func (s *Store) loadScheduledTaskRunRecordsLocked() ([]model.ScheduledTaskRunRecord, error) {
-	raw, ok, err := s.getPromptRawLocked(s.activePrompt, scheduledTaskRunsKey)
+	query := `SELECT ` + scheduledTaskRunColumns() + ` FROM scheduled_task_runs WHERE prompt = ? ORDER BY started_at DESC LIMIT 500`
+	rows, err := s.db.Query(query, s.activePrompt)
 	if err != nil {
 		return nil, err
 	}
-	if !ok || strings.TrimSpace(raw) == "" {
-		return []model.ScheduledTaskRunRecord{}, nil
+	defer rows.Close()
+	records := []model.ScheduledTaskRunRecord{}
+	for rows.Next() {
+		record, err := scanScheduledTaskRun(rows)
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, record)
 	}
-	var records []model.ScheduledTaskRunRecord
-	if err := json.Unmarshal([]byte(raw), &records); err != nil {
-		return nil, fmt.Errorf("scheduled task runs config must be valid json: %w", err)
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
-	sortScheduledTaskRunRecords(records)
 	return records, nil
 }
 
 func (s *Store) saveScheduledTaskRunRecordsLocked(records []model.ScheduledTaskRunRecord) error {
-	sortScheduledTaskRunRecords(records)
-	return s.setPromptJSONLocked(s.activePrompt, scheduledTaskRunsKey, trimScheduledTaskRunRecords(records, 100, 500))
+	for _, record := range trimScheduledTaskRunRecords(records, 100, 500) {
+		if err := upsertScheduledTaskRunTx(s.db, s.activePrompt, normalizeScheduledRunRecordForDB(record)); err != nil {
+			return err
+		}
+	}
+	return s.touchPromptLocked(s.activePrompt, time.Now())
 }
 
 func sortScheduledTaskRunRecords(records []model.ScheduledTaskRunRecord) {
-	sort.SliceStable(records, func(i, j int) bool {
-		return records[i].StartedAt.After(records[j].StartedAt)
-	})
+	// Kept for legacy tests/helpers; table queries sort in SQL.
+	for i := 0; i < len(records); i++ {
+		for j := i + 1; j < len(records); j++ {
+			if records[j].StartedAt.After(records[i].StartedAt) {
+				records[i], records[j] = records[j], records[i]
+			}
+		}
+	}
 }
 
 func trimScheduledTaskRunRecords(records []model.ScheduledTaskRunRecord, perTaskLimit int, totalLimit int) []model.ScheduledTaskRunRecord {
@@ -96,46 +111,24 @@ func trimScheduledTaskRunRecords(records []model.ScheduledTaskRunRecord, perTask
 
 func (s *Store) latestSuccessfulScheduledTaskRunLocked(taskID string) (model.ScheduledTaskRunRecord, bool, error) {
 	taskID = strings.TrimSpace(taskID)
-	records, err := s.loadScheduledTaskRunRecordsLocked()
+	query := `SELECT ` + scheduledTaskRunColumns() + ` FROM scheduled_task_runs WHERE prompt = ? AND task_id = ? AND status = 'success' AND output != '' ORDER BY started_at DESC LIMIT 1`
+	row := s.db.QueryRow(query, s.activePrompt, taskID)
+	record, err := scanScheduledTaskRun(row)
 	if err != nil {
+		if strings.Contains(err.Error(), "no rows") {
+			return model.ScheduledTaskRunRecord{}, false, nil
+		}
 		return model.ScheduledTaskRunRecord{}, false, err
 	}
-	for _, record := range records {
-		if record.TaskID == taskID && record.Status == "success" && strings.TrimSpace(record.Output) != "" {
-			return record, true, nil
-		}
-	}
-	return model.ScheduledTaskRunRecord{}, false, nil
+	return record, true, nil
 }
 
 func (s *Store) appendScheduledTaskRunRecordLocked(record model.ScheduledTaskRunRecord) (model.ScheduledTaskRunRecord, error) {
-	record.ID = strings.TrimSpace(record.ID)
-	if record.ID == "" {
-		record.ID = model.NewID()
-	}
-	record.TaskID = strings.TrimSpace(record.TaskID)
+	record = normalizeScheduledRunRecordForDB(record)
 	if record.TaskID == "" {
 		return model.ScheduledTaskRunRecord{}, fmt.Errorf("scheduled task id is empty")
 	}
-	record.Prompt = strings.TrimSpace(record.Prompt)
-	record.Output = strings.TrimSpace(record.Output)
-	record.Error = strings.TrimSpace(record.Error)
-	record.Status = strings.TrimSpace(record.Status)
-	if record.Status == "" {
-		record.Status = "success"
-	}
-	if record.StartedAt.IsZero() {
-		record.StartedAt = time.Now()
-	}
-	if record.FinishedAt != nil && record.DurationMS <= 0 {
-		record.DurationMS = record.FinishedAt.Sub(record.StartedAt).Milliseconds()
-	}
-	records, err := s.loadScheduledTaskRunRecordsLocked()
-	if err != nil {
-		return model.ScheduledTaskRunRecord{}, err
-	}
-	records = append(records, record)
-	if err := s.saveScheduledTaskRunRecordsLocked(records); err != nil {
+	if err := upsertScheduledTaskRunTx(s.db, s.activePrompt, record); err != nil {
 		return model.ScheduledTaskRunRecord{}, err
 	}
 	return record, nil

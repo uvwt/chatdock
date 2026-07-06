@@ -57,9 +57,9 @@ function ReasoningBlock({ value, streaming = false, hidden = false }) {
 function toolEventName(event) {
   const details = event?.details || {};
   const data = details.data || {};
-  // 展示真实名称，不再写“调用工具”这种泛称；执行代理工具时优先展示被执行的目标名称。
+  // 展示真实名称；历史懒加载事件可能只有 event_id，没有预加载 details，不能因此隐藏整条记录。
   return String(
-    details.arguments?.name || data.arguments?.name || data.result?.tool || details.tool || data.tool || ''
+    details.arguments?.name || data.arguments?.name || data.result?.tool || details.tool || data.tool || event?.text || event?.meta || ''
   ).trim();
 }
 
@@ -255,7 +255,7 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEd
 export function EmptyState({ createSession, openSettings, openWorkspacePicker, busy, hasWorkspaces, setInput, modelReady }) {
   const flowSteps = [
     {title:'开始', text:'先开一个干净会话，保留后续上下文。', key:'↵'},
-    {title:'调用', text:'模型、MCP、Skill 和附件统一进同一入口。', key:'⌘K'},
+    {title:'调用', text:'模型、MCP 工具和附件统一进同一入口。', key:'⌘K'},
     {title:'追踪', text:'任务、工具事件和运行记录都能复查。', key:'✓'},
   ];
   return <div className="empty-state product-empty-state">

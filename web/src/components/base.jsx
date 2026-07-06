@@ -156,7 +156,7 @@ export function WorkspacePicker({ open, prompts, busy, activeName, onClose, onSe
   return <div className="workspace-picker-backdrop show" onClick={onClose}>
     <div className="workspace-picker-sheet" role="dialog" aria-modal="true" aria-label="选择工作空间" onClick={e => e.stopPropagation()}>
       <div className="workspace-picker-head">
-        <div><b>选择工作空间</b><div className="hint">切换后会加载对应会话、模型和技能。</div></div>
+        <div><b>选择工作空间</b><div className="hint">切换后会加载对应会话和模型。</div></div>
         <button className="secondary small" type="button" onClick={onClose}>关闭</button>
       </div>
       <div className="workspace-picker-list">

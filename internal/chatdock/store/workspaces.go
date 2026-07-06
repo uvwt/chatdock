@@ -1,9 +1,7 @@
 package store
 
 import (
-	"encoding/json"
 	"fmt"
-	"strings"
 
 	"chatdock/internal/chatdock/llm"
 	"chatdock/internal/chatdock/model"
@@ -24,35 +22,26 @@ func (s *Store) ListWorkspaces() (WorkspaceResponse, error) {
 		if err != nil {
 			return WorkspaceResponse{}, err
 		}
-		skills, _ := s.skillsForPrompt(prompt.Name)
 		tasks, _ := s.scheduledTasksForPrompt(prompt.Name)
-		enabledSkills := 0
-		for _, skill := range skills {
-			if skill.Enabled {
-				enabledSkills++
-			}
-		}
 		items = append(items, Workspace{
-			ID:                prompt.Name,
-			Name:              prompt.Name,
-			Description:       workspaceDescription(prompt.Name),
-			Icon:              "message-circle",
-			ProviderID:        cfg.ProviderID,
-			Model:             cfg.Model,
-			Models:            append([]string(nil), cfg.Models...),
-			SystemPrompt:      cfg.SystemPrompt,
-			ContextLimit:      cfg.MaxContextMessages,
-			Temperature:       cfg.Temperature,
-			HideThinking:      cfg.HideThinking,
-			EnableReasoning:   cfg.EnableThinking,
-			SkillCount:        len(skills),
-			EnabledSkillCount: enabledSkills,
-			TaskCount:         len(tasks),
-			SessionCount:      prompt.Count,
-			Active:            prompt.Active,
-			Archived:          false,
-			CreatedAt:         prompt.CreatedAt,
-			UpdatedAt:         prompt.UpdatedAt,
+			ID:              prompt.Name,
+			Name:            prompt.Name,
+			Description:     workspaceDescription(prompt.Name),
+			Icon:            "message-circle",
+			ProviderID:      cfg.ProviderID,
+			Model:           cfg.Model,
+			Models:          append([]string(nil), cfg.Models...),
+			SystemPrompt:    cfg.SystemPrompt,
+			ContextLimit:    cfg.MaxContextMessages,
+			Temperature:     cfg.Temperature,
+			HideThinking:    cfg.HideThinking,
+			EnableReasoning: cfg.EnableThinking,
+			TaskCount:       len(tasks),
+			SessionCount:    prompt.Count,
+			Active:          prompt.Active,
+			Archived:        false,
+			CreatedAt:       prompt.CreatedAt,
+			UpdatedAt:       prompt.UpdatedAt,
 		})
 	}
 	return WorkspaceResponse{Active: active, Workspaces: items}, nil
@@ -117,15 +106,6 @@ func (s *Store) PromptPreview(workspaceID string) (PromptPreviewResponse, error)
 		return PromptPreviewResponse{}, err
 	}
 	cfg := s.modelCfg
-	skills, err := s.enabledSkillsLocked()
-	if err != nil {
-		return PromptPreviewResponse{}, err
-	}
-	cfg.Skills = skills
-	names := make([]string, 0, len(skills))
-	for _, skill := range skills {
-		names = append(names, skill.Name)
-	}
 	content := llm.BuildSystemPrompt(cfg)
 	if previous != workspaceID {
 		if restoreErr := s.loadPromptLocked(previous); restoreErr != nil && err == nil {
@@ -135,36 +115,16 @@ func (s *Store) PromptPreview(workspaceID string) (PromptPreviewResponse, error)
 	if err != nil {
 		return PromptPreviewResponse{}, err
 	}
-	return PromptPreviewResponse{WorkspaceID: workspaceID, WorkspaceName: workspaceID, SkillNames: names, Content: content}, nil
-}
-
-func (s *Store) skillsForPrompt(prompt string) ([]model.Skill, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	raw, ok, err := s.getPromptRawLocked(prompt, "skills")
-	if err != nil || !ok || strings.TrimSpace(raw) == "" {
-		return []model.Skill{}, err
-	}
-	var skills []model.Skill
-	if err := json.Unmarshal([]byte(raw), &skills); err != nil {
-		return nil, err
-	}
-	sortSkills(skills)
-	return cloneSkills(skills), nil
+	return PromptPreviewResponse{WorkspaceID: workspaceID, WorkspaceName: workspaceID, Content: content}, nil
 }
 
 func (s *Store) scheduledTasksForPrompt(prompt string) ([]model.ScheduledTask, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	raw, ok, err := s.getPromptRawLocked(prompt, "scheduled_tasks")
-	if err != nil || !ok || strings.TrimSpace(raw) == "" {
-		return []model.ScheduledTask{}, err
-	}
-	var tasks []model.ScheduledTask
-	if err := json.Unmarshal([]byte(raw), &tasks); err != nil {
+	tasks, err := loadScheduledTasksForPromptLocked(s.db, prompt)
+	if err != nil {
 		return nil, err
 	}
-	sortScheduledTasks(tasks)
 	return cloneScheduledTasks(tasks), nil
 }
 
@@ -172,5 +132,5 @@ func workspaceDescription(name string) string {
 	if name == defaultPromptName {
 		return "默认通用 AI 工作空间"
 	}
-	return "独立模型、提示词、技能、工具和自动化配置"
+	return "独立模型、提示词、工具和自动化配置"
 }

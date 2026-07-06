@@ -7,7 +7,6 @@ type ModelConfig struct {
 	Model              string   `json:"model"`
 	Models             []string `json:"models,omitempty"`
 	SystemPrompt       string   `json:"system_prompt"`
-	Skills             []Skill  `json:"-"`
 	ContextMode        string   `json:"context_mode,omitempty"`
 	MaxContextMessages int      `json:"max_context_messages"`
 	Temperature        float64  `json:"temperature"`

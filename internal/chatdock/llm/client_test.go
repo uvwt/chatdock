@@ -423,3 +423,60 @@ func TestBuildChatMessagesAnyAppendsUploadedImageAsUserMessage(t *testing.T) {
 		t.Fatalf("expected public image_url block, got %#v", blocks[1])
 	}
 }
+
+func TestCompleteWithMCPToolsEventsInjectsGuidanceAfterPlainStream(t *testing.T) {
+	requestCount := 0
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher := w.(http.Flusher)
+		send := func(token string) {
+			_, _ = w.Write([]byte(`data: {"choices":[{"delta":{"content":"` + token + `"}}]}` + "\n\n"))
+			flusher.Flush()
+		}
+		switch requestCount {
+		case 1:
+			send("初稿")
+		case 2:
+			messages := body["messages"].([]any)
+			last := messages[len(messages)-1].(map[string]any)
+			if last["role"] != "user" || !strings.Contains(last["content"].(string), "改成更短") {
+				t.Fatalf("second request should include guidance user message, got %#v", last)
+			}
+			send("短版")
+		default:
+			t.Fatalf("unexpected request %d", requestCount)
+		}
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+		flusher.Flush()
+	}))
+	defer modelServer.Close()
+
+	client := NewChatClient()
+	cfg := model.ModelConfig{BaseURL: modelServer.URL, Model: "fake", HideThinking: true}
+	tools := []mcp.MCPTool{{Name: "noop", FullName: "noop", Description: "noop", InputSchema: map[string]any{"type": "object"}}}
+	used := false
+	answer, err := client.CompleteWithMCPToolsEvents(context.Background(), cfg, []model.Message{{Role: "user", Content: "hi"}}, tools, func(string, map[string]any) (any, error) {
+		t.Fatal("tool should not be called")
+		return nil, nil
+	}, func(string, any) error { return nil }, func() ([]map[string]any, error) {
+		if used {
+			return nil, nil
+		}
+		used = true
+		return []map[string]any{{"role": "user", "content": "改成更短"}}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if answer != "初稿短版" {
+		t.Fatalf("unexpected answer: %q", answer)
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected guidance to trigger second model request, got %d", requestCount)
+	}
+}

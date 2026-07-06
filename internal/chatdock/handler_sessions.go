@@ -30,7 +30,11 @@ func (a *App) handleGetSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, model.ErrSessionNotFound)
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, session)
+	if r.URL.Query().Get("full") == "1" {
+		writeJSONResponse(w, http.StatusOK, session)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, compactSessionToolEventDetails(session))
 }
 
 func (a *App) handleSessionRoute(w http.ResponseWriter, r *http.Request) {
@@ -89,6 +93,17 @@ func (a *App) handleSessionRoute(w http.ResponseWriter, r *http.Request) {
 	if len(parts) == 2 && parts[1] == "export" && r.Method == http.MethodGet {
 		r.SetPathValue("id", id)
 		a.handleExportSession(w, r)
+		return
+	}
+	if len(parts) == 2 && parts[1] == "tool-event" && r.Method == http.MethodGet {
+		r.SetPathValue("id", id)
+		a.handleGetSessionToolEvent(w, r)
+		return
+	}
+	if len(parts) == 3 && parts[1] == "tool-events" && r.Method == http.MethodGet {
+		r.SetPathValue("id", id)
+		r.SetPathValue("event_id", parts[2])
+		a.handleGetSessionToolEventByID(w, r)
 		return
 	}
 	if len(parts) == 2 && parts[1] == "context-preview" && r.Method == http.MethodGet {

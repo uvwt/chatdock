@@ -20,6 +20,17 @@ export function fetchSession(api, id) {
   return api('/api/sessions/' + encodeURIComponent(id));
 }
 
+export function fetchSessionToolEvent(api, id, ref = {}) {
+  if (ref.event_id) {
+    return api('/api/sessions/' + encodeURIComponent(id) + '/tool-events/' + encodeURIComponent(ref.event_id));
+  }
+  const params = new URLSearchParams();
+  if (ref.message_index != null) params.set('message_index', String(ref.message_index));
+  if (ref.event_index != null) params.set('event_index', String(ref.event_index));
+  if (ref.part_index != null && ref.event_index == null) params.set('part_index', String(ref.part_index));
+  return api('/api/sessions/' + encodeURIComponent(id) + '/tool-event?' + params.toString());
+}
+
 export function renameSession(api, id, title) {
   return api('/api/sessions/' + encodeURIComponent(id) + '/rename', {method:'POST', body: JSON.stringify({title})});
 }

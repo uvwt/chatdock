@@ -38,11 +38,6 @@ func (s *Store) ContextPreview(sessionID string) (ContextPreviewResponse, error)
 		return ContextPreviewResponse{}, model.ErrSessionNotFound
 	}
 	cfg := s.modelCfg
-	skills, err := s.enabledSkillsLocked()
-	if err != nil {
-		return ContextPreviewResponse{}, err
-	}
-	cfg.Skills = skills
 	recent, summarize := llm.ContextPlan(cfg)
 	prepared := llm.BuildChatContextMessages(cfg, cloneMessages(session.Messages))
 	items := make([]ContextPreviewItem, 0, len(prepared))
@@ -54,7 +49,7 @@ func (s *Store) ContextPreview(sessionID string) (ContextPreviewResponse, error)
 		totalTokens += tokens
 		source := "最近消息"
 		if msg.Role == "system" && i == 0 {
-			source = "系统提示词 + 技能"
+			source = "系统提示词"
 		} else if msg.Role == "system" && strings.Contains(msg.Content, "早期会话摘要") {
 			source = "早期摘要"
 		}

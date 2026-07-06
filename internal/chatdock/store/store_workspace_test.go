@@ -20,9 +20,6 @@ func TestStoreDeleteWorkspaceCascadesPromptData(t *testing.T) {
 	if _, err := store.SaveMCPConfig(`{"servers":{}}`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.CreateSkill(model.SaveSkillRequest{Name: "研究技能", Content: "只做研究总结。", Enabled: true}); err != nil {
-		t.Fatal(err)
-	}
 	if _, err := store.CreateScheduledTask(model.ScheduledTaskRequest{Title: "研究任务", Prompt: "总结研究", Enabled: true, ScheduleType: "interval", IntervalMinutes: 30}); err != nil {
 		t.Fatal(err)
 	}

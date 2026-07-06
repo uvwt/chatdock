@@ -33,12 +33,6 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/mcp/confirmations", a.handleListMCPConfirmations)
 	mux.HandleFunc("/api/mcp/confirmations/", a.handleMCPConfirmationRoute)
 	mux.HandleFunc("POST /api/mcp/call", a.handleCallMCPTool)
-	mux.HandleFunc("GET /api/runs", a.handleListRuns)
-	mux.HandleFunc("GET /api/runs/{id}", a.handleRunDetail)
-	mux.HandleFunc("GET /api/agent-tasks", a.handleListAgentTasks)
-	mux.HandleFunc("GET /api/skills", a.handleListSkills)
-	mux.HandleFunc("POST /api/skills", a.handleCreateSkill)
-	mux.HandleFunc("/api/skills/", a.handleSkillRoute)
 	mux.HandleFunc("GET /api/scheduled-tasks", a.handleListScheduledTasks)
 	mux.HandleFunc("POST /api/scheduled-tasks", a.handleCreateScheduledTask)
 	mux.HandleFunc("/api/scheduled-tasks/", a.handleScheduledTaskRoute)
@@ -56,8 +50,9 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /api/chat/jobs", a.handleCreateChatJob)
 	mux.HandleFunc("GET /api/chat/jobs/{id}/events", a.handleChatJobEvents)
 	mux.HandleFunc("POST /api/chat/jobs/{id}/cancel", a.handleCancelChatJob)
+	mux.HandleFunc("POST /api/chat/jobs/{id}/guide", a.handleGuideChatJob)
 
 	mux.Handle("/", a.webHandler())
 
-	return logRequest(a.authMiddleware(mux))
+	return logRequest(gzipMiddleware(a.authMiddleware(mux)))
 }

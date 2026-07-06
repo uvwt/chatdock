@@ -83,6 +83,7 @@ func (a *App) cancelChatJob(jobID string) (storepkg.ChatJob, error) {
 
 func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cfg model.ModelConfig, history []model.Message) {
 	defer a.unregisterChatJobCancel(jobID)
+	defer a.clearChatJobGuidance(jobID)
 	var answer strings.Builder
 	var reasoning strings.Builder
 	var parts messagePartsRecorder
@@ -151,7 +152,7 @@ func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cf
 		return err
 	}
 
-	finalAnswer, runErr := a.completeWithRecordedTools(ctx, sessionID, cfg, history, emit)
+	finalAnswer, runErr := a.completeWithRecordedTools(ctx, jobID, sessionID, cfg, history, emit)
 	if err := flushDeltaEvent(true); err != nil && runErr == nil {
 		runErr = err
 	}
@@ -171,8 +172,6 @@ func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cf
 	if err := saveCheckpoint(true); err != nil {
 		status = "failed"
 		runErr = err
-	} else if runErr == nil {
-		_ = a.maybeGenerateSessionTitle(ctx, sessionID, cfg)
 	}
 	finishedJob, finishErr := a.store.FinishChatJob(jobID, status, answer.String(), reasoning.String(), runErr)
 	fields := logFields{"request_id": requestIDFromContext(ctx), "job_id": jobID, "session_id": sessionID, "status": status, "provider_id": cfg.ProviderID, "model": cfg.Model}
@@ -185,6 +184,11 @@ func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cf
 		logError("chat_job_failed", runErr, fields)
 	} else {
 		logInfo("chat_job_finished", fields)
+		go func() {
+			titleCtx, cancel := context.WithTimeout(withRequestID(context.Background(), requestIDFromContext(ctx)), 20*time.Second)
+			defer cancel()
+			_ = a.maybeGenerateSessionTitle(titleCtx, sessionID, cfg)
+		}()
 	}
 }
 
@@ -262,7 +266,7 @@ func streamChatJobEvents(r *http.Request, w http.ResponseWriter, flusher http.Fl
 		if job.Status != "running" {
 			endPayload := map[string]any{"status": job.Status, "job": job, "request_id": job.RequestID}
 			if session, ok := a.store.GetSession(job.SessionID); ok {
-				endPayload["session"] = session
+				endPayload["session"] = compactSessionToolEventDetails(session)
 			}
 			if job.Status == "failed" {
 				_ = writeSSE(w, flusher, "error", chatStreamErrorPayload(job, llm.FirstNonEmptyString(job.Error, "chat job failed")))

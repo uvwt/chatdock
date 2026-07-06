@@ -260,3 +260,79 @@ func TestSessionModelAPI(t *testing.T) {
 		t.Fatalf("session model should survive reload: %#v", loaded)
 	}
 }
+
+func TestSessionGetCompactsToolEventDetailsAndLazyLoadsFullEvent(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/api/sessions", bytes.NewReader([]byte(`{}`)))
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("create status %d: %s", w.Code, w.Body.String())
+	}
+	var session model.Session
+	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
+		t.Fatal(err)
+	}
+	huge := strings.Repeat("x", 20000)
+	_, err = app.store.AppendAssistantMessageWithParts(session.ID, "done", "", nil, []model.MessageEvent{{
+		Kind: "tool", Phase: "done", Text: "调用完成：chatdock_tool_execute", Details: map[string]any{
+			"event":     "tool_call_result",
+			"tool":      "chatdock_tool_execute",
+			"ok":        true,
+			"arguments": map[string]any{"name": "DockMini.exec_command", "arguments": map[string]any{"cmd": huge}},
+			"result":    map[string]any{"tool": "DockMini.exec_command", "result": huge},
+			"data":      map[string]any{"tool": "chatdock_tool_execute", "arguments": map[string]any{"name": "DockMini.exec_command"}, "result": map[string]any{"tool": "DockMini.exec_command", "result": huge}},
+		},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "/api/sessions/"+session.ID, nil)
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("get status %d: %s", w.Code, w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), huge) {
+		t.Fatalf("compact session response still contains huge detail")
+	}
+	var compact model.Session
+	if err := json.Unmarshal(w.Body.Bytes(), &compact); err != nil {
+		t.Fatal(err)
+	}
+	if len(compact.Messages) != 1 || len(compact.Messages[0].Events) != 1 {
+		t.Fatalf("unexpected compact messages: %#v", compact.Messages)
+	}
+	details := compact.Messages[0].Events[0].Details
+	eventID, _ := details["event_id"].(string)
+	if compact.Messages[0].Events[0].ID == "" || eventID == "" || compact.Messages[0].Events[0].ID != eventID || details["lazy"] != true || details["message_index"] == nil || details["event_index"] == nil {
+		t.Fatalf("expected lazy event_id ref, got event=%#v details=%#v", compact.Messages[0].Events[0], details)
+	}
+	args, _ := details["arguments"].(map[string]any)
+	if args["name"] != "DockMini.exec_command" {
+		t.Fatalf("compact event should keep display name, got %#v", details)
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "/api/sessions/"+session.ID+"/tool-events/"+eventID, nil)
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("lazy event id status %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), huge) {
+		t.Fatalf("lazy detail response should contain full original detail")
+	}
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "/api/sessions/"+session.ID+"/tool-event?message_index=0&event_index=0", nil)
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("legacy lazy event status %d: %s", w.Code, w.Body.String())
+	}
+}
