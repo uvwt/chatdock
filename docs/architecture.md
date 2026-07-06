@@ -41,7 +41,7 @@ preflight_tools.go              工具预检和 AgentDock 上下文提示
 runs.go / session_*.go          工具运行记录、会话标题、搜索和懒加载事件
 ```
 
-`internal/chatdock/store/` 负责 SQLite 生命周期、schema migration、旧 JSON 迁移、工作空间、会话、定时任务、运行记录、附件、工具向量和模型供应商。Schema 变更必须通过 `schema_migrations.go` 增加版本，不再只靠裸 `ALTER TABLE` 兜底。
+`internal/chatdock/store/` 负责 SQLite 生命周期、schema migration、旧 JSON 迁移、工作空间、会话、定时任务、运行记录、附件、工具向量和模型供应商。模型供应商存储按 CRUD 入口、持久化、公开 DTO、校验/规范化、Key 策略拆分。Schema 变更必须通过 `schema_migrations.go` 增加版本，不再只靠裸 `ALTER TABLE` 兜底。
 
 ### 后端新增代码规则
 
@@ -66,6 +66,7 @@ web/src/lib/settingsApi.js      配置中心、工作空间、模型、MCP、自
 web/src/lib/upload.js           文件上传传输层，封装 XHR 和进度回调
 web/src/lib/sse.js              SSE 流解析
 web/src/lib/toolEvents.js       工具调用事件合并、展示文案和 message parts 更新
+web/src/lib/modelProviderForm.js 模型供应商表单 Key、模型名和选择器纯函数
 web/src/lib/appUtils.js         时间、容量、状态标签、路由路径、诊断文本等纯函数
 
 web/src/components/base.jsx     通用 UI：Markdown、弹窗、登录页、快捷面板、工作空间选择
@@ -80,7 +81,7 @@ web/src/components/settings.jsx 配置中心：工作空间、模型、供应商
 3. 可复用 UI 放 `components/`；只被单一页面使用且和状态强绑定的回调可以留在 `App.jsx`，避免为了拆而拆。
 4. 上传、SSE、Markdown、工具事件协议这类传输/协议能力保持独立文件，方便后续测试和替换。
 5. 模型上下文设置对普通用户只展示自动、精简、更多历史和自定义；不要让用户必填底层 JSON 或消息数量。
-6. 前端结构守卫放在 `scripts/check-frontend.mjs`，新增重构规则时同步加入检查。
+6. 前端结构守卫放在 `scripts/check-frontend.mjs`，新增重构规则时同步加入检查；纯函数优先放入 `web/src/lib/` 并在守卫中添加最小断言。
 
 ## CSS 分层
 

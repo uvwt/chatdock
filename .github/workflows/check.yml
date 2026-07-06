@@ -1,0 +1,29 @@
+name: Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm --prefix web ci
+      - run: test -z "$(gofmt -l cmd internal web/*.go)"
+      - run: node --check web/vite.config.js
+      - run: for f in web/src/lib/*.js; do node --check "$f"; done
+      - run: node scripts/check-frontend.mjs
+      - run: npm --prefix web run build
+      - run: go vet ./...
+      - run: go test ./...
+      - run: git diff --check

@@ -9,6 +9,7 @@ import { branchSession, cloneSession, createSessionRecord, deleteSession, editSe
 import { createModelProvider as createModelProviderRequest, createWorkspaceRecord, deleteModelProvider as deleteModelProviderRequest, deleteScheduledTaskRecord, deleteWorkspaceRecord, fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchPrompts, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchScheduledTaskRuns, fetchScheduledTasks, fetchSetupStatus, fetchSystemStatus, fetchWorkspaces, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest, updateModelProvider as updateModelProviderRequest } from './lib/settingsApi.js';
 import { uploadFileRequest } from './lib/upload.js';
 import { appendInlineReasoningPart, appendInlineTextPart, appendToolStartEvent, mergeToolResultEvent } from './lib/toolEvents.js';
+import { compactModelName, providerChoiceID, providerKeyInputsFromRows, providerKeyRows, providerLabel, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
 
 function streamStatusText(stats, elapsed) {
   const labels = { connecting: '连接模型中', streaming: '流式输出中', paused: '已暂停，后台继续接收', stopping: '正在中断', done: '已完成', error: '输出失败' };
@@ -23,69 +24,6 @@ function streamStatusText(stats, elapsed) {
 
 function attachmentLooksLikeImage(item) {
   return String(item?.mime_type || item?.type || '').toLowerCase().startsWith('image/');
-}
-
-function uniqueModelNames(value) {
-  const raw = Array.isArray(value) ? value.join('\n') : String(value || '');
-  const seen = new Set();
-  return raw.split(/[\n,，]+/).map(item => item.trim()).filter(Boolean).filter(item => {
-    if (seen.has(item)) return false;
-    seen.add(item);
-    return true;
-  });
-}
-
-
-
-function providerKeyRows(provider = {}) {
-  const keys = Array.isArray(provider.api_keys) ? provider.api_keys : (Array.isArray(provider.apiKeys) ? provider.apiKeys : []);
-  if (!keys.length) return [{id: 'main', name: '主 key', api_key: '', enabled: true, priority: 1}];
-  return keys.map((key, index) => ({
-    id: String(key.id || ('key-' + (index + 1))).trim(),
-    name: String(key.name || key.id || ('Key ' + (index + 1))).trim(),
-    api_key: key.api_key || key.apiKey || key.api_key_masked || key.apiKeyMasked || (key.has_api_key ? '********' : ''),
-    enabled: key.enabled === false ? false : true,
-    priority: Number(key.priority || index + 1) || index + 1,
-    saved: !!(key.api_key || key.apiKey || key.api_key_masked || key.apiKeyMasked || key.has_api_key),
-  }));
-}
-
-function providerKeyInputsFromRows(rows, fallbackSecret = '') {
-  const values = Array.isArray(rows) ? rows : [];
-  const used = new Set();
-  const clean = [];
-  values.forEach((item, index) => {
-    const secret = String(item?.api_key || item?.apiKey || '').trim();
-    const saved = item?.saved === true || secret.includes('*');
-    if (!secret && !saved && !fallbackSecret) return;
-    let id = String(item?.id || '').trim();
-    if (!id) id = index === 0 ? 'main' : 'key-' + (index + 1);
-    while (used.has(id)) id = id + '-' + (index + 1);
-    used.add(id);
-    const name = String(item?.name || (index === 0 ? '主 key' : '备用 key ' + index)).trim();
-    clean.push({ id, name, api_key: secret || fallbackSecret || '********', enabled: item?.enabled === false ? false : true, priority: clean.length + 1 });
-  });
-  return clean.length ? clean : null;
-}
-
-function providerChoiceID(provider) {
-  return provider?.id || '';
-}
-
-function providerLabel(provider) {
-  return provider?.name || provider?.id || '供应商';
-}
-
-function compactModelName(name) {
-  name = String(name || '').trim();
-  return name.length > 22 ? name.slice(0, 21) + '…' : name;
-}
-
-function sessionModelChoice(session) {
-  return {
-    provider_id: String(session?.provider_id || '').trim(),
-    model: String(session?.model || '').trim(),
-  };
 }
 
 function ComposerModelPicker({ busy, providers, selectedProvider, selectedModel, open, setOpen, selectModel, openSettings }) {
