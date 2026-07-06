@@ -46,6 +46,15 @@ if (!read('web/src/components/modelPicker.jsx').includes('export function Compos
 if (!read('web/src/lib/chatPresentation.js').includes('export function readableChatError')) failures.push('chat presentation helpers missing');
 if (!read('web/src/lib/toolEventDetails.js').includes('export function buildToolEventDetail')) failures.push('tool event detail helpers missing');
 
+const appLineCount = app.split(/\n/).length;
+if (appLineCount > 1610) failures.push(`App.jsx line count ${appLineCount} exceeds 1610; keep shell JSX in appChrome.jsx and protocol logic in lib/`);
+const appChrome = read('web/src/components/appChrome.jsx');
+for (const name of ['Sidebar', 'Topbar', 'ComposerBar']) {
+  if (!appChrome.includes('export function ' + name)) failures.push(`app chrome component missing: ${name}`);
+  if (app.includes('function ' + name)) failures.push(`app chrome component should stay outside App.jsx: ${name}`);
+}
+if (!read('web/src/lib/quickActions.js').includes('export function buildQuickActions')) failures.push('quick action construction belongs in web/src/lib/quickActions.js');
+
 
 const cssResiduals = [
   '.task-card, .task-card',

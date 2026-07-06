@@ -27,6 +27,7 @@ jobs:
       - run: node scripts/check-commit-message.mjs --message "$(git log -1 --format=%s)"
       - run: npm --prefix web test
       - run: npm --prefix web run build
+      - run: node scripts/check-bundle-size.mjs
       - run: go vet ./...
       - run: go test ./...
       - run: git diff --check

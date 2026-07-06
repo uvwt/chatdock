@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AttachmentList, EmptyState, MessageView } from './components/chat.jsx';
+import { EmptyState, MessageView } from './components/chat.jsx';
+import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
 import { DialogHost, LoginPage, Markdown, QuickPalette, WorkspacePicker } from './components/base.jsx';
-import { ComposerModelPicker } from './components/modelPicker.jsx';
 import { SettingsPanel } from './components/settings.jsx';
 import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtDuration, fmtTime, normalizeSettingsModule, runStatusLabel, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
 import { attachmentLooksLikeImage, contextPreviewText, finalAssistantMessageFromSession, readableChatError, scheduledTaskContextLabel, scheduledTaskRunsText, streamErrorMessage, streamStatusText } from './lib/chatPresentation.js';
@@ -14,6 +14,7 @@ import { useAttachments } from './hooks/useAttachments.js';
 import { appendInlineReasoningPart, appendInlineTextPart, appendToolStartEvent, mergeToolResultEvent } from './lib/toolEvents.js';
 import { providerChoiceID, providerKeyInputsFromRows, providerKeyRows, providerLabel, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
 import { useSettingsData } from './hooks/useSettingsData.js';
+import { buildQuickActions } from './lib/quickActions.js';
 
 export default function App() {
   const [authPage, setAuthPage] = useState(null);
@@ -1518,27 +1519,12 @@ export default function App() {
   const productDiagnostics = diagnosticsText({ setupStatus, systemStatus, dataStatus, mcpStatus, providers });
   const hasVisibleChatMessages = messages.some(m => m.role !== 'empty');
 
-  const quickActions = useMemo(() => [
-    { id: 'focus-input', title: '聚焦输入框', hint: '按 / 也可以快速输入', run: () => inputRef.current?.focus() },
-    { id: 'new-session', title: '新建会话', hint: '在当前工作空间开始新对话', run: createSession },
-    { id: 'continue', title: '发送“继续”', hint: '让当前会话继续上一轮内容', disabled: busy, run: () => sendMsg('继续') },
-    { id: 'workspace-picker', title: '切换工作空间', hint: '加载不同模型和会话', disabled: busy || !prompts.length, run: () => setWorkspacePickerOpen(true) },
-    { id: 'settings', title: '打开配置中心', hint: '工作空间、模型、工具和数据统一管理', run: () => openSettings() },
-    { id: 'settings-model', title: '模型设置', hint: 'Base URL、API Key、模型和最终 Prompt', run: () => openSettings('model') },
-    { id: 'settings-tools', title: '工具中心', hint: 'MCP 配置、状态检测和连接测试', run: () => openSettings('tools') },
-    { id: 'settings-automation', title: '自动化任务', hint: '创建、运行和暂停定时任务', run: () => openSettings('automation') },
-    { id: 'settings-data', title: '数据状态', hint: '数据库、工作空间和会话数量', run: () => openSettings('data') },
-    { id: 'copy-diagnostics', title: '复制诊断信息', hint: '复制脱敏后的系统、数据库、备份和 MCP 状态', run: () => copyText(productDiagnostics) },
-    { id: 'copy-session', title: '复制当前会话全文', hint: '复制为 Markdown', disabled: !current, run: copyCurrentMarkdown },
-    { id: 'export-session', title: '导出当前会话', hint: '下载 Markdown 文件', disabled: !current, run: exportCurrent },
-    { id: 'context-preview', title: '查看上下文 / Token 预览', hint: '查看实际发送给模型的消息构成', disabled: !current, run: showContextPreview },
-    { id: 'delete-session', title: '删除当前会话', hint: '删除后不可恢复', disabled: !current || busy, run: deleteCurrent },
-    { id: 'rename-session', title: '重命名当前会话', hint: '整理侧栏会话列表', disabled: !current || busy, run: renameCurrent },
-    { id: 'clone-session', title: '复制当前会话', hint: '保留上下文开一个副本', disabled: !current || busy, run: cloneCurrent },
-    { id: 'branch-session', title: '创建分支对话', hint: '在新聊天中从当前上下文继续', disabled: !current || busy || !messages.length, run: () => branchCurrent() },
-    { id: 'pin-session', title: currentPinned ? '取消置顶当前会话' : '置顶当前会话', hint: '让重要会话固定在列表顶部', disabled: !current, run: pinCurrent },
-    { id: 'theme', title: '切换明暗主题', hint: '当前：' + (theme === 'day' ? '白天' : '夜晚'), run: () => setThemeState(theme === 'day' ? 'night' : 'day') },
-  ], [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, messages.length, openSettings, pinCurrent, productDiagnostics, prompts.length, renameCurrent, sendMsg, showContextPreview, theme]);
+  const quickActions = useMemo(() => buildQuickActions({
+    branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned,
+    deleteCurrent, exportCurrent, inputRef, messagesLength: messages.length, openSettings, pinCurrent,
+    productDiagnostics, promptsLength: prompts.length, renameCurrent, sendMsg, setThemeState, setWorkspacePickerOpen,
+    showContextPreview, theme,
+  }), [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, messages.length, openSettings, pinCurrent, productDiagnostics, prompts.length, renameCurrent, sendMsg, showContextPreview, theme]);
 
   const settingsPanel = (
     <SettingsPanel
@@ -1559,76 +1545,35 @@ export default function App() {
   return <>
     <div id="sidebarMask" className={'sidebar-mask ' + (!settingsOpen && !sidebarCollapsed ? 'show' : '')} onClick={() => setSidebarCollapsed(true)} />
     {settingsOpen ? <div id="settingsPage" className="settings-page">{settingsPanel}</div> : <div id="app" className={appClass}>
-      <aside>
-        <div className="sidebar-head">
-          <div className="brand"><div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">会话、工具、任务，一站协同</div></div></div>
-          <button id="sidebarToggle" className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}>{sidebarCollapsed ? '›' : '‹'}</button>
-        </div>
-        <div className="prompt-box">
-          <button className="workspace-picker-trigger" type="button" disabled={busy || !prompts.length} onClick={() => setWorkspacePickerOpen(true)}>
-            <span className="workspace-picker-name">{activePrompt ? (activePrompt.name === 'default' ? '默认工作区' : activePrompt.name) : '未选择'}</span>
-            <span className="workspace-picker-meta">{activePrompt ? activePrompt.count : sessions.length}</span>
-          </button>
-        </div>
-        <div className="session-search-row">
-          <label className="session-search-box"><input className="session-search" placeholder="搜索聊天记录" value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} /></label>
-          <button className="new" onClick={newSession} aria-label="新会话" title="新会话"><span className="new-icon" aria-hidden="true">＋</span></button>
-        </div>
-        {activeScheduledTasks.length ? <div className="sidebar-tasks">
-          <div className="sidebar-section-head compact"><div className="sidebar-section-title">定时任务</div><span className="sidebar-section-count">{activeScheduledTasks.length}</span></div>
-          <div className="sidebar-task-list session-list-like">{activeScheduledTasks.slice(0, 3).map(task => <button key={task.id} type="button" className={'sidebar-task-item session ' + (selectedScheduledTaskID === task.id ? 'active ' : '') + (task.running ? 'running ' : '')} onClick={() => openScheduledTaskRunList(task.id)}>
-            <div className="session-main"><div className="sidebar-task-name session-title">{task.title || '未命名任务'}</div></div>
-          </button>)}</div>
-          {activeScheduledTasks.length > 3 ? <button type="button" className="sidebar-task-more" onClick={() => openSettings('automation')}>查看全部 {activeScheduledTasks.length} 个任务</button> : null}
-        </div> : null}
-        <div className="sidebar-section-head"><div className="sidebar-section-title">{selectedScheduledTask ? '任务会话' : '最近会话'}</div>{selectedScheduledTask ? <button type="button" className="secondary small sidebar-clear-task" onClick={clearScheduledTaskRunList}>全部</button> : null}</div>
-        {selectedScheduledTask ? <div className="session-search-meta">{selectedScheduledTask.title || '定时任务'} · {selectedScheduledTaskSessions.length} 次会话</div> : (sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : '全文搜索 ' + filteredSessions.length + ' 条'}</div> : null)}
-        <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => {
-          const isActive = current === s.id;
-          const menuOpen = sessionMenuID === s.id;
-          return <div key={s.id} className={'session ' + (s.scheduled_run ? 'scheduled-run ' : '') + (isActive ? 'active ' : '') + (s.pinned ? 'pinned ' : '') + (menuOpen ? 'menu-open' : '')} onClick={() => openSession(s.id, s)}>
-            <div className="session-main"><div className="session-title">{s.pinned ? <span className="pin-mark" aria-label="置顶" title="置顶" /> : null}{s.title}</div>{s.scheduled_run ? null : (s.match_snippet ? <div className="session-preview search-hit">{s.match_field ? s.match_field + '：' : ''}{s.match_snippet}</div> : (s.preview ? <div className="session-preview">{s.preview}</div> : null))}{s.scheduled_run ? null : <div className="session-meta">{s.count} 条 · {fmtTime(s.updated_at)}</div>}</div>
-            <button type="button" className="session-menu-trigger" disabled={busy} onClick={e => { e.stopPropagation(); setSessionMenuID(menuOpen ? '' : s.id); }} aria-label={(s.title || '会话') + ' 操作'} aria-expanded={menuOpen ? 'true' : 'false'} title="会话操作">⋯</button>
-            {menuOpen ? <div className="session-row-menu" onClick={e => e.stopPropagation()}>
-              <button type="button" onClick={() => pinSessionByID(s.id, !!s.pinned)}>{s.pinned ? '取消置顶' : '置顶'}</button>
-              <button type="button" className="danger" onClick={() => { setSessionMenuID(''); deleteSessionByID(s.id, s.title); }} disabled={busy}>删除</button>
-              <button type="button" onClick={() => renameSessionByID(s.id, s.title)}>重命名标题</button>
-            </div> : null}
-          </div>;
-        }) : <div className="empty compact">{selectedScheduledTask ? '这个任务还没有可打开的运行会话' : (sessionSearch.trim() ? '没有匹配会话' : '暂无会话，开始新会话')}</div>}</div>
-      </aside>
+      <Sidebar
+        activePrompt={activePrompt} activeScheduledTasks={activeScheduledTasks} busy={busy} clearScheduledTaskRunList={clearScheduledTaskRunList}
+        current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} newSession={newSession}
+        openScheduledTaskRunList={openScheduledTaskRunList} openSession={openSession} openSettings={openSettings}
+        pinSessionByID={pinSessionByID} prompts={prompts} renameSessionByID={renameSessionByID}
+        selectedScheduledTask={selectedScheduledTask} selectedScheduledTaskID={selectedScheduledTaskID} selectedScheduledTaskSessions={selectedScheduledTaskSessions}
+        sessionMenuID={sessionMenuID} sessionSearch={sessionSearch} sessionSearchBusy={sessionSearchBusy}
+        setSessionMenuID={setSessionMenuID} setSessionSearch={setSessionSearch} setWorkspacePickerOpen={setWorkspacePickerOpen}
+        sessions={sessions} setSidebarCollapsed={setSidebarCollapsed} sidebarCollapsed={sidebarCollapsed}
+      />
       <main>
-        <div className="topbar">
-          <div className="top-left"><button className="mobile-menu" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>☰</button><b id="title">{currentTitle}</b></div>
-          <div className="top-actions">
-            <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)} title="快捷指令（⌘/Ctrl K）"><span className="action-icon" aria-hidden="true">✦</span><span className="action-label">快捷</span></button>
-            <button className="secondary config-toggle" onClick={() => openSettings()} title="配置中心"><span className="action-icon" aria-hidden="true">⚙</span><span className="action-label">配置</span></button>
-            <button className="secondary session-actions-toggle mobile-new-toggle" onClick={newSession} aria-label="新会话" title="新会话"><span className="new-icon" aria-hidden="true">＋</span></button>
-            <button className="theme-toggle" onClick={() => setThemeState(theme === 'day' ? 'night' : 'day')}><span className="action-icon" aria-hidden="true">{theme === 'day' ? '☀' : '☾'}</span><span className="action-label">{theme === 'day' ? '白天' : '夜晚'}</span></button>
-            <button className="secondary" onClick={renameCurrent} disabled={!current || busy}>重命名</button>
-            <button className="secondary" onClick={copyCurrentMarkdown} disabled={!current}>复制全文</button>
-            <button className="secondary" onClick={cloneCurrent} disabled={!current || busy}>复制会话</button>
-            <button className="secondary" onClick={pinCurrent} disabled={!current}>{currentPinned ? '取消置顶' : '置顶'}</button>
-            <button className="secondary" onClick={exportCurrent} disabled={!current}>导出</button>
-            <button className="secondary" onClick={showContextPreview} disabled={!current}>上下文</button>
-            <button className="danger" onClick={deleteCurrent} disabled={!current || busy}>删除</button>
-          </div>
-        </div>
+        <Topbar
+          busy={busy} cloneCurrent={cloneCurrent} copyCurrentMarkdown={copyCurrentMarkdown} current={current}
+          currentPinned={currentPinned} currentTitle={currentTitle} deleteCurrent={deleteCurrent} exportCurrent={exportCurrent}
+          newSession={newSession} openSettings={openSettings} pinCurrent={pinCurrent} renameCurrent={renameCurrent}
+          setQuickPaletteOpen={setQuickPaletteOpen} setSidebarCollapsed={setSidebarCollapsed} setThemeState={setThemeState}
+          showContextPreview={showContextPreview} sidebarCollapsed={sidebarCollapsed} theme={theme}
+        />
         <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
         {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息">↓</button> : null}
-        <div className="composer-shell">
-          {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} onDownload={downloadAttachment} /> : null}
-          <div className="composer">
-            <input ref={fileInputRef} type="file" multiple className="file-input" onChange={event => handleFileSelect(event, { current, createPersistedSession })} />
-            <button className="secondary attach-control" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} title="上传文件">+</button>
-            <ComposerModelPicker busy={busy} providers={providerChoices} selectedProvider={selectedModelProvider} selectedModel={selectedChatModel} open={modelPickerOpen} setOpen={setModelPickerOpen} selectModel={selectChatModel} openSettings={openSettings} />
-            {busy ? <button className="secondary stream-control" onClick={guideActiveJob} disabled={!input.trim()}>引导</button> : null}
-            {busy ? <button className="danger stream-control" onClick={stopStreaming}>中断</button> : null}
-            <textarea ref={inputRef} id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); busy ? guideActiveJob() : sendMsg(); } }} placeholder={busy ? '生成中可输入引导内容，不会中断当前回答' : '输入消息'} />
-            <button id="send" disabled={busy || uploadingFiles || (!input.trim() && !pendingAttachmentIDs.length) || !modelReady} onClick={() => sendMsg()} title={!modelReady ? '请先配置模型' : '发送'}>发送</button>
-          </div>
-          {inputStats ? <div className="composer-meta">{inputStats}</div> : null}
-        </div>
+        <ComposerBar
+          busy={busy} createPersistedSession={createPersistedSession} current={current} downloadAttachment={downloadAttachment}
+          fileInputRef={fileInputRef} guideActiveJob={guideActiveJob} handleFileSelect={handleFileSelect}
+          input={input} inputRef={inputRef} inputStats={inputStats} modelPickerOpen={modelPickerOpen} modelReady={modelReady}
+          openSettings={openSettings} pendingAttachmentIDs={pendingAttachmentIDs} pendingAttachments={pendingAttachments}
+          providerChoices={providerChoices} removePendingAttachment={removePendingAttachment} selectChatModel={selectChatModel}
+          selectedChatModel={selectedChatModel} selectedModelProvider={selectedModelProvider} sendMsg={sendMsg}
+          setInput={setInput} setModelPickerOpen={setModelPickerOpen} stopStreaming={stopStreaming} uploadingFiles={uploadingFiles}
+        />
       </main>
 
     </div>}
