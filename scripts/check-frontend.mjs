@@ -38,6 +38,15 @@ if (!tokenParser || tokenParser[1] !== '1') failures.push('JWT expiry parser mus
 const app = read('web/src/App.jsx');
 if (app.includes('function toolEventText') || app.includes('function mergeToolResultEvent')) failures.push('tool event protocol helpers belong in web/src/lib/toolEvents.js, not App.jsx');
 
+const forbiddenAppHelpers = ['ComposerModelPicker', 'readableChatError', 'buildToolEventDetail', 'streamStatusText'];
+for (const name of forbiddenAppHelpers) {
+  if (app.includes('function ' + name)) failures.push(`helper should stay outside App.jsx: ${name}`);
+}
+if (!read('web/src/components/modelPicker.jsx').includes('export function ComposerModelPicker')) failures.push('model picker component missing');
+if (!read('web/src/lib/chatPresentation.js').includes('export function readableChatError')) failures.push('chat presentation helpers missing');
+if (!read('web/src/lib/toolEventDetails.js').includes('export function buildToolEventDetail')) failures.push('tool event detail helpers missing');
+
+
 const cssResiduals = [
   '.task-card, .task-card',
   '.task-head, .task-head',

@@ -3,7 +3,7 @@ WEB_DIR := web
 DEV_COMPOSE := compose.dev.yaml
 PROD_CHATDOCK_DIR ?= /Volumes/KIOXIA/Docker/chatdock
 
-.PHONY: run build web-deps web-build web-dev js-check frontend-lint test vet fmt fmt-check check clean dev-up dev-down prod-check deploy-prod
+.PHONY: run build web-deps web-build web-dev js-check css-check frontend-test frontend-lint commit-msg-check test vet fmt fmt-check check clean dev-up dev-down prod-check deploy-prod
 
 run: web-build
 	go run ./cmd/chatdock
@@ -29,10 +29,20 @@ web-dev: web-deps
 
 js-check: web-deps
 	node --check $(WEB_DIR)/vite.config.js
-	@for f in $(WEB_DIR)/src/lib/*.js; do node --check $$f; done
+	@for f in $(WEB_DIR)/src/lib/*.js $(WEB_DIR)/src/lib/*.mjs $(WEB_DIR)/src/hooks/*.js; do [ -f $$f ] && node --check $$f; done
 
-frontend-lint: js-check
+css-check:
+	node scripts/check-css-health.mjs
+
+frontend-test: web-deps
+	npm --prefix $(WEB_DIR) test
+
+frontend-lint: js-check css-check
 	node scripts/check-frontend.mjs
+
+commit-msg-check:
+	@test -n "$(MSG)" || (echo 'usage: make commit-msg-check MSG="refactor(chatdock): 中文说明"' >&2; exit 2)
+	node scripts/check-commit-message.mjs --message "$(MSG)"
 
 test: web-build
 	go test ./...
@@ -43,7 +53,7 @@ vet: web-build
 fmt-check:
 	test -z "$$(gofmt -l cmd internal web/*.go)"
 
-check: fmt-check frontend-lint vet test build
+check: fmt-check frontend-lint frontend-test vet test build
 
 fmt:
 	gofmt -w cmd internal web/*.go
