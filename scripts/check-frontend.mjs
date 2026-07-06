@@ -21,6 +21,9 @@ for (const name of settingFetchNames) {
 }
 if (!read('web/src/hooks/useSettingsData.js').includes('export function useSettingsData')) failures.push('settings data loaders belong in web/src/hooks/useSettingsData.js');
 
+if (!read('web/src/hooks/useAttachments.js').includes('export function useAttachments')) failures.push('attachment state and file upload logic belong in web/src/hooks/useAttachments.js');
+if (appSource.includes('uploadFileRequest')) failures.push('file upload request handling should stay in useAttachments.js, not App.jsx');
+
 const settings = read('web/src/components/settings.jsx');
 for (const stale of ['function ReplyModule', 'function EmbeddingModule']) {
   if (settings.includes(stale)) failures.push(`stale unused component remains: ${stale}`);

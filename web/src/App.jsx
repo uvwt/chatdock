@@ -7,7 +7,7 @@ import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, guideChatJob, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
 import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessionToolEvent, fetchSessions, pinSession, renameSession, searchSessions, updateSessionModel } from './lib/sessionApi.js';
 import { createModelProvider as createModelProviderRequest, createWorkspaceRecord, deleteModelProvider as deleteModelProviderRequest, deleteScheduledTaskRecord, deleteWorkspaceRecord, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchScheduledTaskRuns, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest, updateModelProvider as updateModelProviderRequest } from './lib/settingsApi.js';
-import { uploadFileRequest } from './lib/upload.js';
+import { useAttachments } from './hooks/useAttachments.js';
 import { appendInlineReasoningPart, appendInlineTextPart, appendToolStartEvent, mergeToolResultEvent } from './lib/toolEvents.js';
 import { compactModelName, providerChoiceID, providerKeyInputsFromRows, providerKeyRows, providerLabel, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
 import { useSettingsData } from './hooks/useSettingsData.js';
@@ -287,8 +287,6 @@ export default function App() {
   const [currentTitle, setCurrentTitle] = useState('未选择会话');
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [pendingAttachments, setPendingAttachments] = useState([]);
-  const [uploadingFiles, setUploadingFiles] = useState(false);
   const [busy, setBusy] = useState(false);
   const [streamPaused, setStreamPaused] = useState(false);
   const [streamStats, setStreamStats] = useState({ state: 'idle', started_at: 0, chars: 0, events: 0, tools: 0, error: '' });
@@ -453,6 +451,17 @@ export default function App() {
     loadMCPStatus,
   } = useSettingsData(api);
 
+  const {
+    pendingAttachments,
+    pendingAttachmentIDs,
+    readyAttachments,
+    uploadingFiles,
+    clearAttachments,
+    downloadAttachment,
+    handleFileSelect,
+    removePendingAttachment,
+  } = useAttachments({ authHeaders, busy, setAuthPage, showToast });
+
   const applySessionModel = useCallback((session, { fallbackToDefault = true } = {}) => {
     const next = sessionModelChoice(session);
     if (fallbackToDefault || next.provider_id || next.model) setChatModel(next);
@@ -505,7 +514,7 @@ export default function App() {
     setCurrent(s.id);
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
-    setPendingAttachments([]);
+    clearAttachments();
     applySessionModel(s);
     await loadSessions();
     return true;
@@ -691,7 +700,7 @@ export default function App() {
     setCurrent(null);
     setCurrentTitle('未选择会话');
     setMessages([{ role: 'empty', content: '已切换工作空间。创建或选择一个会话。' }]);
-    setPendingAttachments([]);
+    clearAttachments();
     setChatModel({ provider_id: '', model: '' });
     await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
     if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
@@ -703,7 +712,7 @@ export default function App() {
     setCurrent(s.id);
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
-    setPendingAttachments([]);
+    clearAttachments();
     applySessionModel(s, { fallbackToDefault: false });
     if (refreshList) await loadSessions();
     if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
@@ -718,7 +727,7 @@ export default function App() {
     setCurrent(null);
     setCurrentTitle('新会话');
     setMessages([]);
-    setPendingAttachments([]);
+    clearAttachments();
     setChatModel({ provider_id: '', model: '' });
     if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
     closeSidebarOnMobile();
@@ -734,7 +743,7 @@ export default function App() {
     setSessionMenuID('');
     setCurrent(id);
     setCurrentTitle(summary?.title || '正在加载会话…');
-    setPendingAttachments([]);
+    clearAttachments();
     stickToBottomRef.current = true;
     forceScrollRef.current = true;
     if (!messages.length) setMessages([{ role: 'empty', content: '正在加载会话…' }]);
@@ -798,7 +807,7 @@ export default function App() {
       setCurrent(null);
       setCurrentTitle('未选择会话');
       setMessages([]);
-      setPendingAttachments([]);
+      clearAttachments();
       setChatModel({ provider_id: '', model: '' });
       if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
     }
@@ -856,7 +865,7 @@ export default function App() {
       setCurrent(s.id);
       setCurrentTitle(s.title || '分支对话');
       setMessages(s.messages || []);
-      setPendingAttachments([]);
+      clearAttachments();
       applySessionModel(s);
       await loadSessions();
       if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
@@ -1088,67 +1097,6 @@ export default function App() {
     else localStorage.removeItem(draftKey);
   }, [busy, draftKey, input]);
 
-  const readyAttachments = useMemo(() => pendingAttachments.filter(item => item.id && !item.uploading && !item.error && !String(item.id).startsWith('local_')), [pendingAttachments]);
-  const pendingAttachmentIDs = useMemo(() => readyAttachments.map(item => item.id), [readyAttachments]);
-
-  const removePendingAttachment = useCallback((id) => {
-    setPendingAttachments(prev => prev.filter(item => item.id !== id));
-  }, []);
-
-  const downloadAttachment = useCallback(async (item) => {
-    if (!item?.id || String(item.id).startsWith('local_')) return;
-    try {
-      const response = await fetch('/api/files/' + encodeURIComponent(item.id), { headers: authHeaders() });
-      if (!response.ok) throw new Error('HTTP ' + response.status);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = item.name || 'attachment';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (e) {
-      showToast('附件下载失败：' + e.message, 'error');
-    }
-  }, [authHeaders, showToast]);
-
-  const handleFileSelect = useCallback(async (event) => {
-    const files = Array.from(event.target.files || []);
-    event.target.value = '';
-    if (!files.length) return;
-    if (busy) {
-      showToast('当前回复还在进行中，请稍后再上传。', 'error');
-      return;
-    }
-    let sessionID = current;
-    if (!sessionID) {
-      const s = await createPersistedSession();
-      if (!s) return;
-      sessionID = s.id;
-    }
-    setUploadingFiles(true);
-    try {
-      for (const file of files) {
-        const localID = 'local_' + Date.now() + '_' + Math.random().toString(16).slice(2);
-        setPendingAttachments(prev => [...prev, { id: localID, name: file.name || 'upload', size: file.size || 0, mime_type: file.type || 'application/octet-stream', status: 'uploading', uploading: true, progress: 0 }]);
-        try {
-          const data = await uploadFileRequest(file, sessionID, authHeaders, progress => {
-            setPendingAttachments(prev => prev.map(item => item.id === localID ? { ...item, progress } : item));
-          });
-          setPendingAttachments(prev => prev.map(item => item.id === localID ? { ...data.attachment, progress: 100 } : item));
-        } catch (e) {
-          if (e.status === 401) setAuthPage(e);
-          setPendingAttachments(prev => prev.map(item => item.id === localID ? { ...item, uploading: false, error: e.message || '上传失败', status: 'failed' } : item));
-          showToast('上传失败：' + (e.message || '未知错误'), 'error');
-        }
-      }
-    } finally {
-      setUploadingFiles(false);
-    }
-  }, [authHeaders, busy, createPersistedSession, current, setAuthPage, showToast]);
-
   const sendMsg = useCallback(async (overrideText) => {
     if (busy) return;
     const text = (overrideText ?? input).trim();
@@ -1188,7 +1136,7 @@ export default function App() {
     stickToBottomRef.current = true;
     setMessages(prev => [...prev, { role: 'user', content: text, attachments: attachmentsForMessage }, { role: 'assistant-stream', answer: '', reasoning: '', events: [] }]);
     try {
-      setPendingAttachments([]);
+      clearAttachments();
       setStreamStats(prev => ({ ...prev, state: 'streaming' }));
       let finalSession = null;
       await streamChat({
@@ -1228,7 +1176,7 @@ export default function App() {
         setStreamPaused(false);
       }
     }
-  }, [authHeaders, busy, selectedModelBaseURL, selectedChatModel, selectedModelProvider, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, createPersistedSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, finishActiveAssistant, openSettings, showToast]);
+  }, [authHeaders, busy, selectedModelBaseURL, selectedChatModel, selectedModelProvider, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, clearAttachments, createPersistedSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, finishActiveAssistant, openSettings, showToast]);
 
 
   const regenerateEditedReply = useCallback(async (sessionID, baseMessages, title) => {
@@ -1371,7 +1319,7 @@ export default function App() {
     setCurrent(null);
     setCurrentTitle('未选择会话');
     setMessages([{ role: 'empty', content: '已创建并切换到新工作空间。' }]);
-    setPendingAttachments([]);
+    clearAttachments();
     await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
     closeSidebarOnMobile();
     showToast('工作空间已创建', 'success');
@@ -1385,7 +1333,7 @@ export default function App() {
     setCurrent(null);
     setCurrentTitle('未选择会话');
     setMessages([{ role: 'empty', content: '工作空间已删除。当前工作空间：' + (data.active || 'default') }]);
-    setPendingAttachments([]);
+    clearAttachments();
     await Promise.allSettled([loadPrompts(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions(), loadSetupStatus(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
     showToast('工作空间已删除', 'success');
   }, [api, loadConfig, loadDataStatus, loadMCPConfig, loadModelProviders, loadPrompts, loadScheduledTasks, loadSessions, loadSetupStatus, loadSystemStatus, showDialog, showToast]);
@@ -1913,7 +1861,7 @@ export default function App() {
         <div className="composer-shell">
           {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} onDownload={downloadAttachment} /> : null}
           <div className="composer">
-            <input ref={fileInputRef} type="file" multiple className="file-input" onChange={handleFileSelect} />
+            <input ref={fileInputRef} type="file" multiple className="file-input" onChange={event => handleFileSelect(event, { current, createPersistedSession })} />
             <button className="secondary attach-control" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} title="上传文件">+</button>
             <ComposerModelPicker busy={busy} providers={providerChoices} selectedProvider={selectedModelProvider} selectedModel={selectedChatModel} open={modelPickerOpen} setOpen={setModelPickerOpen} selectModel={selectChatModel} openSettings={openSettings} />
             {busy ? <button className="secondary stream-control" onClick={guideActiveJob} disabled={!input.trim()}>引导</button> : null}

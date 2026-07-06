@@ -68,6 +68,7 @@ web/src/lib/sse.js              SSE 流解析
 web/src/lib/toolEvents.js       工具调用事件合并、展示文案和 message parts 更新
 web/src/lib/modelProviderForm.js 模型供应商表单 Key、模型名和选择器纯函数
 web/src/hooks/useSettingsData.js 配置页数据状态和加载器 hook
+web/src/hooks/useAttachments.js  文件上传、附件列表、下载和 ready attachment 派生状态
 web/src/lib/appUtils.js         时间、容量、状态标签、路由路径、诊断文本等纯函数
 
 web/src/components/base.jsx     通用 UI：Markdown、弹窗、登录页、快捷面板、工作空间选择
@@ -78,7 +79,7 @@ web/src/components/settings.jsx 配置中心：工作空间、模型、供应商
 ### 前端新增代码规则
 
 1. 新增接口不要直接在组件深处 `fetch`，优先放到 `web/src/lib/*Api.js`。
-2. `App.jsx` 可以持有页面编排和跨域流程，但配置页数据加载放入 `useSettingsData`，不要继续塞请求细节或通用格式化函数。
+2. `App.jsx` 可以持有页面编排和跨域流程，但配置页数据加载放入 `useSettingsData`，附件上传下载放入 `useAttachments`，不要继续塞请求细节或通用格式化函数。
 3. 可复用 UI 放 `components/`；只被单一页面使用且和状态强绑定的回调可以留在 `App.jsx`，避免为了拆而拆。
 4. 上传、SSE、Markdown、工具事件协议这类传输/协议能力保持独立文件，方便后续测试和替换。
 5. 模型上下文设置对普通用户只展示自动、精简、更多历史和自定义；不要让用户必填底层 JSON 或消息数量。

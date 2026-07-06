@@ -21,7 +21,7 @@ jobs:
       - run: npm --prefix web ci
       - run: test -z "$(gofmt -l cmd internal web/*.go)"
       - run: node --check web/vite.config.js
-      - run: for f in web/src/lib/*.js; do node --check "$f"; done
+      - run: for f in web/src/lib/*.js web/src/hooks/*.js; do node --check "$f"; done
       - run: node scripts/check-frontend.mjs
       - run: npm --prefix web run build
       - run: go vet ./...
