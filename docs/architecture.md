@@ -99,10 +99,10 @@ web/src/styles/settings/*.css       配置中心子模块：基础、MCP、页�
 web/src/styles/overlays.css         登录页、弹窗、Toast、快捷面板、工作空间/会话操作浮层
 web/src/styles/mobile.css           手机端布局、触控优化、安全区和小屏覆盖规则
 web/src/styles/data.css             数据状态、备份、诊断和运行记录样式
-web/src/styles/legacy-overrides.css 历史视觉兜底层；只迁移旧规则，不再新增业务样式
+web/src/styles/legacy-overrides.css 空兼容层；不允许新增真实样式
 ```
 
-新增样式必须进入对应模块。`legacy-overrides.css` 是过渡层，后续改同一块 UI 时应把相关规则消化回模块文件，而不是继续追加 `!important`。
+新增样式必须进入对应模块。`legacy-overrides.css` 只能保持空兼容层，禁止继续追加 `!important` 或真实业务规则。
 
 ## 部署和数据规则
 

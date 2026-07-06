@@ -36,34 +36,30 @@ func (a *App) handleCreateModelProvider(w http.ResponseWriter, r *http.Request) 
 	writeJSONResponse(w, http.StatusOK, provider)
 }
 
-func (a *App) handleModelProviderRoute(w http.ResponseWriter, r *http.Request) {
-	id := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/model-providers/"), "/")
-	if id == "" {
-		writeError(w, http.StatusNotFound, fmt.Errorf("model provider route not found"))
+func modelProviderIDFromRequest(r *http.Request) string {
+	return r.PathValue("id")
+}
+
+func (a *App) handleUpdateModelProvider(w http.ResponseWriter, r *http.Request) {
+	var input store.ModelProviderInput
+	if err := readJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	switch r.Method {
-	case http.MethodPut:
-		var input store.ModelProviderInput
-		if err := readJSON(r, &input); err != nil {
-			writeError(w, http.StatusBadRequest, err)
-			return
-		}
-		provider, err := a.store.UpdateModelProvider(id, input)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, err)
-			return
-		}
-		writeJSONResponse(w, http.StatusOK, provider)
-	case http.MethodDelete:
-		if err := a.store.DeleteModelProvider(id); err != nil {
-			writeError(w, http.StatusBadRequest, err)
-			return
-		}
-		writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true})
-	default:
-		writeError(w, http.StatusMethodNotAllowed, fmt.Errorf("method not allowed"))
+	provider, err := a.store.UpdateModelProvider(modelProviderIDFromRequest(r), input)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
 	}
+	writeJSONResponse(w, http.StatusOK, provider)
+}
+
+func (a *App) handleDeleteModelProvider(w http.ResponseWriter, r *http.Request) {
+	if err := a.store.DeleteModelProvider(modelProviderIDFromRequest(r)); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (a *App) modelConfigFromRequest(r *http.Request) (model.ModelConfig, error) {

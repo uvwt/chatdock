@@ -1,0 +1,311 @@
+/* Migrated from legacy-overrides.css. Keep import order stable. */
+/* 2026-07-04 空状态页高度居中：内容在顶部栏和底部输入框之间的可视区域居中。 */
+#app.app .messages:has(.product-empty-state) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding-top: 0 !important;
+  padding-bottom: 112px !important;
+}
+
+#app.app .product-empty-state {
+  align-self: auto !important;
+  justify-content: center !important;
+  width: min(1040px, calc(100vw - var(--gpt-sidebar-width) - 120px)) !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+@media (max-width: 720px) {
+  #app.app .messages:has(.product-empty-state) {
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #app.app .product-empty-state {
+    width: 100% !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+}
+
+/* 2026-07-04 浅色主题会话气泡：用户消息不再使用高饱和蓝色。 */
+body.theme-light #app.app .msg.user {
+  border: 1px solid #dbe7f3 !important;
+  background: linear-gradient(180deg, #f8fbff, #edf6ff) !important;
+  color: #102033 !important;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, .08) !important;
+}
+
+body.theme-light #app.app .msg.user .attachment-chip {
+  background: rgba(255, 255, 255, .72) !important;
+  border-color: #dbe7f3 !important;
+  color: #102033 !important;
+}
+
+body.theme-light #app.app .msg.user .attachment-main b {
+  color: #102033 !important;
+}
+
+body.theme-light #app.app .msg.user .attachment-main span {
+  color: #64748b !important;
+}
+
+/* 2026-07-04 iOS Safari 输入聚焦防自动放大：可输入控件必须 >= 16px。 */
+@media (max-width: 720px) {
+  html,
+  body,
+  #app.app {
+    -webkit-text-size-adjust: 100% !important;
+    text-size-adjust: 100% !important;
+  }
+
+  #app.app input,
+  #app.app textarea,
+  #app.app select,
+  #app.app .composer textarea,
+  #app.app #input,
+  #app.app .session-search,
+  #app.app .quick-palette-head input {
+    font-size: 16px !important;
+  }
+
+  #app.app .composer textarea,
+  #app.app #input {
+    line-height: 22px !important;
+  }
+}
+
+/* 2026-07-04 会话列表选中态保留浅绿，列表项铺满侧栏可用宽度。 */
+body.theme-light #app.app #sessions {
+  padding-right: 0 !important;
+}
+
+body.theme-light #app.app #sessions .session {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-right: 0 !important;
+  border-radius: 8px !important;
+  box-sizing: border-box !important;
+}
+
+body.theme-light #app.app #sessions .session:hover {
+  background: #eef8f3 !important;
+  border-color: #dcefe6 !important;
+}
+
+body.theme-light #app.app #sessions .session.active {
+  background: #e8f6ef !important;
+  border-color: #cce9da !important;
+  color: #273344 !important;
+  box-shadow: none !important;
+}
+
+body.theme-light #app.app #sessions .session.active::before,
+body.theme-light #app.app #sessions .session.active::after {
+  border-color: #1fb98b !important;
+}
+
+/* 2026-07-04 用户消息悬浮操作：按钮独立成气泡下方一行，避免和气泡内容重叠。 */
+#app.app .user-message-wrap {
+  width: fit-content !important;
+  max-width: min(680px, 76%) !important;
+  margin: 0 max(18px, calc((100% - var(--gpt-chat-width)) / 2)) 26px auto !important;
+  overflow: visible !important;
+}
+
+#app.app .user-message-wrap .msg.user {
+  width: fit-content !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  overflow: visible !important;
+}
+
+#app.app .user-message-wrap .user-message-actions {
+  position: static !important;
+  display: flex !important;
+  flex-flow: row nowrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+  width: 100% !important;
+  margin: 7px 2px 0 auto !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-2px) !important;
+  transition: opacity .14s ease, transform .14s ease !important;
+}
+
+#app.app .user-message-wrap:hover .user-message-actions,
+#app.app .user-message-wrap:focus-within .user-message-actions {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: translateY(0) !important;
+}
+
+#app.app .user-message-wrap .user-message-actions button {
+  flex: 0 0 34px !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  border-radius: 10px !important;
+  background: #f1f5f9 !important;
+  color: #4b5563 !important;
+}
+
+#app.app .user-message-wrap .user-message-actions button:hover:not(:disabled) {
+  background: #e5e7eb !important;
+  color: #111827 !important;
+}
+
+@media (max-width: 720px) {
+  #app.app .user-message-wrap {
+    max-width: 78% !important;
+    margin-right: 0 !important;
+    margin-bottom: 24px !important;
+  }
+}
+
+/* 2026-07-04 删除入口最终修复：会话行常驻浅色叉，避免被历史补丁再次隐藏。 */
+#app.app #sessions .session-delete,
+#app.app #sessions .session:hover .session-delete,
+#app.app #sessions .session.active .session-delete,
+#app.app #sessions .session:focus-within .session-delete {
+  position: absolute !important;
+  right: 9px !important;
+  top: 50% !important;
+  z-index: 4 !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  transform: translateY(-50%) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  opacity: .46 !important;
+  pointer-events: auto !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #b6c0cf !important;
+  font-size: 19px !important;
+  font-weight: 300 !important;
+  line-height: 1 !important;
+}
+
+#app.app #sessions .session:hover .session-delete,
+#app.app #sessions .session.active .session-delete,
+#app.app #sessions .session:focus-within .session-delete {
+  opacity: .68 !important;
+  color: #94a3b8 !important;
+}
+
+#app.app #sessions .session-delete:hover:not(:disabled) {
+  opacity: 1 !important;
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+}
+
+#app.app #sessions .session {
+  padding-right: 42px !important;
+}
+
+#app.app #sessions .pin-mark {
+  display: inline-grid !important;
+  place-items: center !important;
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  margin-right: 6px !important;
+  padding: 0 !important;
+  border-radius: 7px !important;
+  background: #dff7ed !important;
+  color: #0f766e !important;
+  vertical-align: -3px !important;
+  font-size: 0 !important;
+  line-height: 1 !important;
+}
+
+#app.app #sessions .pin-mark::before {
+  content: "" !important;
+  width: 11px !important;
+  height: 11px !important;
+  background: currentColor !important;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M14.7 3.3 20.7 9.3 18.6 11.4 17.2 10 13.4 13.8 13.8 17.7 12.4 19.1 8.6 15.3 4.3 19.6 3 18.3 7.3 14 3.5 10.2 4.9 8.8 8.8 9.2 12.6 5.4 11.2 4 14.7 3.3Z'/%3E%3C/svg%3E") center / contain no-repeat !important;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M14.7 3.3 20.7 9.3 18.6 11.4 17.2 10 13.4 13.8 13.8 17.7 12.4 19.1 8.6 15.3 4.3 19.6 3 18.3 7.3 14 3.5 10.2 4.9 8.8 8.8 9.2 12.6 5.4 11.2 4 14.7 3.3Z'/%3E%3C/svg%3E") center / contain no-repeat !important;
+}
+
+@media (max-width: 720px) {
+  #app.app #sessions .session-delete,
+  #app.app #sessions .session:hover .session-delete,
+  #app.app #sessions .session.active .session-delete,
+  #app.app #sessions .session:focus-within .session-delete {
+    right: 10px !important;
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+    opacity: .52 !important;
+    color: #aeb8c7 !important;
+  }
+}
+
+
+/* 2026-07-04 用户消息就地编辑：编辑态复用气泡位置，保存会截断后续消息。 */
+#app.app .user-message-wrap.editing {
+  width: min(680px, 76%) !important;
+}
+
+#app.app .user-message-editor {
+  display: grid !important;
+  gap: 10px !important;
+  min-width: min(520px, 70vw) !important;
+}
+
+#app.app .user-message-editor textarea {
+  width: 100% !important;
+  min-height: 92px !important;
+  resize: vertical !important;
+  border: 0 !important;
+  outline: none !important;
+  background: transparent !important;
+  color: inherit !important;
+  font: inherit !important;
+  line-height: 1.55 !important;
+  white-space: pre-wrap !important;
+}
+
+#app.app .user-message-editor-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+}
+
+#app.app .user-message-editor-actions button {
+  min-height: 32px !important;
+  padding: 6px 12px !important;
+  border-radius: 10px !important;
+}
+
+#app.app .user-message-editor small {
+  color: #64748b !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+  text-align: right !important;
+}
+
+@media (max-width: 720px) {
+  #app.app .user-message-wrap.editing {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  #app.app .user-message-editor {
+    min-width: 0 !important;
+  }
+}

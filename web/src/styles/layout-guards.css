@@ -1,0 +1,358 @@
+/* Migrated from legacy-overrides.css. Keep import order stable. */
+/* Legacy visual overrides preserved during CSS normalization.
+   New rules should go into tokens/layout/chat/settings/overlays/mobile/data modules instead. */
+/* Final visual guards: keep chat layout stable after feature-specific CSS imports. */
+@media (min-width: 721px) {
+  #app.app,
+  #app.app.settings-open {
+    grid-template-columns: var(--gpt-sidebar-width) minmax(0, 1fr) !important;
+  }
+
+  #app.app.sidebar-collapsed,
+  #app.app.sidebar-collapsed.settings-open {
+    grid-template-columns: 72px minmax(0, 1fr) !important;
+  }
+
+  #app.app .top-actions .mobile-new-toggle {
+    display: none !important;
+  }
+}
+
+#app.app .brand::before,
+#app.app .brand-text::before {
+  content: none !important;
+  display: none !important;
+}
+
+
+#app.app .brand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-width: 0 !important;
+}
+
+#app.app .brand-logo {
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  height: 36px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  border-radius: 13px !important;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,.82), transparent 18%),
+    linear-gradient(135deg, #10a37f 0%, #3b82f6 56%, #8b5cf6 100%) !important;
+  color: #fff !important;
+  font-size: 17px !important;
+  box-shadow: 0 14px 32px rgba(16, 163, 127, .22) !important;
+}
+
+#app.app .brand-copy {
+  min-width: 0 !important;
+  display: grid !important;
+  gap: 2px !important;
+}
+
+#app.app .brand-text,
+#app.app .sub {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#app.app .session-search-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 88px !important;
+  align-items: center !important;
+  gap: 8px !important;
+  height: auto !important;
+  margin: 0 4px 12px !important;
+}
+
+#app.app .session-search-box {
+  min-width: 0 !important;
+  min-height: 42px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 0 12px !important;
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 14px !important;
+  background: rgba(255,255,255,.035) !important;
+}
+
+#app.app .session-search {
+  width: 100% !important;
+  min-height: 40px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+}
+
+#app.app .new {
+  width: auto !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+}
+
+@media (max-width: 720px) {
+  .messages {
+    scroll-padding-top: 72px;
+  }
+
+  .product-empty-state {
+    min-height: auto !important;
+    padding-top: 14px !important;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .empty-capability-strip div {
+    padding-left: 52px !important;
+  }
+
+  .starter-card-arrow {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+
+/* Mobile empty state compaction after screenshot review. */
+@media (max-width: 720px) {
+  .product-empty-state {
+    gap: 10px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .product-hero {
+    gap: 10px !important;
+  }
+
+  .hero-copy {
+    padding: 18px !important;
+    border-radius: 22px !important;
+    min-height: 0 !important;
+  }
+
+  .hero-copy h1 {
+    margin: 10px 0 8px !important;
+    font-size: 29px !important;
+    line-height: 1.08 !important;
+  }
+
+  .hero-copy p {
+    margin-bottom: 14px !important;
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+  }
+
+  .hero-actions {
+    gap: 8px !important;
+  }
+
+  .hero-actions button {
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 13px !important;
+    font-size: 13px !important;
+  }
+
+  .hero-trust-row {
+    margin-top: 13px !important;
+    gap: 6px !important;
+  }
+
+  .hero-trust-row span {
+    padding: 5px 8px !important;
+    font-size: 11px !important;
+  }
+
+  .hero-panel {
+    padding: 12px !important;
+    border-radius: 22px !important;
+    gap: 7px !important;
+  }
+
+  .hero-panel-top {
+    padding-bottom: 5px !important;
+  }
+
+  .hero-metric-row {
+    min-height: 0 !important;
+    padding: 9px 11px !important;
+    border-radius: 15px !important;
+    gap: 8px !important;
+  }
+
+  .hero-metric-row div {
+    gap: 2px !important;
+  }
+
+  .hero-metric-row b {
+    font-size: 14px !important;
+  }
+
+  .hero-metric-row span {
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+  }
+
+  .starter-grid {
+    gap: 8px !important;
+  }
+
+  .starter-card {
+    min-height: 96px !important;
+    padding: 13px !important;
+    border-radius: 18px !important;
+    gap: 6px !important;
+  }
+
+  .starter-icon {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 12px !important;
+  }
+
+  .empty-capability-strip {
+    display: none !important;
+  }
+}
+
+/* Mobile first screen: keep starter cards visible instead of spending the first screen on the flow panel. */
+@media (max-width: 720px) {
+  .hero-panel {
+    display: none !important;
+  }
+
+  .hero-trust-row {
+    display: none !important;
+  }
+
+  .hero-copy {
+    padding-bottom: 16px !important;
+  }
+}
+
+/* Final composer alignment guard: keep all controls on the same vertical center line. */
+#app.app .composer {
+  align-items: center !important;
+}
+
+#app.app .composer textarea {
+  align-self: center !important;
+  box-sizing: border-box !important;
+  line-height: 22px !important;
+}
+
+#app.app .attach-control,
+#app.app .quick-control,
+#app.app .stream-control,
+#app.app #send,
+#app.app .model-picker-trigger {
+  align-self: center !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+}
+
+#app.app .model-picker,
+#app.app .model-picker-trigger {
+  height: 42px !important;
+  min-height: 42px !important;
+}
+
+#app.app .model-picker-trigger {
+  flex-direction: column !important;
+  justify-content: center !important;
+  gap: 2px !important;
+}
+
+#app.app .attach-control {
+  height: 42px !important;
+  min-height: 42px !important;
+}
+
+#app.app #send {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+}
+
+#app.app #send::before,
+#app.app .stream-control::before {
+  display: block !important;
+  line-height: 1 !important;
+  transform: translateY(-1px) !important;
+}
+
+@media (max-width: 720px) {
+  #app.app .composer {
+    align-items: center !important;
+    min-height: 56px !important;
+    grid-template-columns: 42px minmax(76px, 96px) minmax(0, 1fr) 44px !important;
+  }
+
+  #app.app .model-picker,
+  #app.app .model-picker-trigger,
+  #app.app .attach-control {
+    height: 42px !important;
+    min-height: 42px !important;
+  }
+
+  #app.app .composer textarea {
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 10px 6px !important;
+    line-height: 22px !important;
+  }
+
+  #app.app #send,
+  #app.app .stream-control {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  #app.app #send::before,
+  #app.app .stream-control::before {
+    font-size: 26px !important;
+    transform: translateY(-1px) !important;
+  }
+}
+
+/* Mobile composer should be one clean row: + / model / input / send. */
+@media (max-width: 720px) {
+  #app.app .composer .quick-control {
+    display: none !important;
+  }
+
+  #app.app .attach-control,
+  #app.app .model-picker,
+  #app.app .composer textarea,
+  #app.app #send,
+  #app.app .stream-control {
+    grid-row: 1 !important;
+  }
+
+  #app.app .composer {
+    height: 56px !important;
+    min-height: 56px !important;
+    max-height: 56px !important;
+    overflow: visible !important;
+  }
+}

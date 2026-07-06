@@ -10,6 +10,9 @@ const appCss = read('web/src/app.css').trim().split(/\n/).filter(Boolean);
 const nonImportLines = appCss.filter(line => !line.startsWith('@import'));
 if (nonImportLines.length) failures.push('web/src/app.css must stay import-only; move real rules into web/src/styles/*.css');
 
+
+const legacyLines = read('web/src/styles/legacy-overrides.css').trim().split(/\n/).filter(Boolean);
+if (legacyLines.length > 3) failures.push('web/src/styles/legacy-overrides.css must stay an empty compatibility layer; migrate rules into semantic style files');
 const settingsCss = read('web/src/styles/settings.css').trim().split(/\n/).filter(Boolean);
 const settingsCssNonImportLines = settingsCss.filter(line => !line.startsWith('@import'));
 if (settingsCssNonImportLines.length) failures.push('web/src/styles/settings.css must stay import-only; move real rules into web/src/styles/settings/*.css');

@@ -111,13 +111,7 @@ func (a *App) handleListMCPConfirmations(w http.ResponseWriter, r *http.Request)
 	writeJSONResponse(w, http.StatusOK, map[string]any{"confirmations": a.listMCPConfirmations()})
 }
 
-func (a *App) handleMCPConfirmationRoute(w http.ResponseWriter, r *http.Request) {
-	path := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/mcp/confirmations/"), "/")
-	parts := strings.Split(path, "/")
-	if len(parts) != 2 || parts[1] != "resolve" || r.Method != http.MethodPost {
-		writeError(w, http.StatusNotFound, fmt.Errorf("mcp confirmation route not found"))
-		return
-	}
+func (a *App) handleResolveMCPConfirmation(w http.ResponseWriter, r *http.Request) {
 	var input MCPConfirmationResolveRequest
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -127,7 +121,7 @@ func (a *App) handleMCPConfirmationRoute(w http.ResponseWriter, r *http.Request)
 	if input.Approve {
 		status = "approved"
 	}
-	item, err := a.finishMCPConfirmation(parts[0], status, input.Approve)
+	item, err := a.finishMCPConfirmation(r.PathValue("id"), status, input.Approve)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err)
 		return

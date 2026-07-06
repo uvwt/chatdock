@@ -5,5 +5,11 @@
 @import './styles/overlays.css';
 @import './styles/mobile.css';
 @import './styles/data.css';
+@import './styles/layout-guards.css';
+@import './styles/message-actions.css';
+@import './styles/sidebar.css';
+@import './styles/chat-polish.css';
+@import './styles/session-menu.css';
+@import './styles/settings-header.css';
 @import './styles/legacy-overrides.css';
 @import './styles/scheduled-tasks.css';
