@@ -5774,3 +5774,68 @@ body.theme-light .mcp-inline-warning.danger {
     gap: 8px !important;
   }
 }
+
+/* 2026-07-06 MCP tool permission selected-state fix: global button rules must not hide the current policy. */
+.settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button,
+.settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.default,
+.settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.allow,
+.settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.confirm,
+.settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.deny {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  min-height: 30px !important;
+  padding: 0 11px !important;
+  border-radius: 999px !important;
+  border: 1px solid #d8e0ea !important;
+  background: #ffffff !important;
+  color: #344054 !important;
+  box-shadow: none !important;
+  font-weight: 760 !important;
+}
+
+.settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.active::before {
+  content: "✓" !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+}
+
+.settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.active.default,
+.settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.active.allow {
+  border-color: #047857 !important;
+  background: #047857 !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 0 rgba(4, 120, 87, .18), 0 0 0 2px rgba(4, 120, 87, .12) !important;
+}
+
+.settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.active.confirm {
+  border-color: #b45309 !important;
+  background: #b45309 !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 0 rgba(180, 83, 9, .18), 0 0 0 2px rgba(180, 83, 9, .12) !important;
+}
+
+.settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.active.deny {
+  border-color: #b42318 !important;
+  background: #b42318 !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 0 rgba(180, 35, 24, .18), 0 0 0 2px rgba(180, 35, 24, .12) !important;
+}
+
+@media (max-width: 720px) {
+  .settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions {
+    gap: 7px !important;
+  }
+
+  .settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button,
+  .settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.default,
+  .settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.allow,
+  .settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.confirm,
+  .settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.deny {
+    min-height: 34px !important;
+    padding: 0 12px !important;
+    font-size: 12px !important;
+  }
+}
