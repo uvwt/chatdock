@@ -1,4 +1,3 @@
-export function fetchPrompts(api) { return api('/api/prompts'); }
 export function fetchConfig(api) { return api('/api/config'); }
 export function fetchMCPConfig(api) { return api('/api/mcp-config'); }
 export function fetchSetupStatus(api) { return api('/api/setup/status'); }

@@ -37,6 +37,7 @@ type ScheduledTaskRequest struct {
 	TimeOfDay       string `json:"time_of_day"`
 	IntervalMinutes int    `json:"interval_minutes"`
 	ContextMode     string `json:"context_mode"`
+	Reschedule      bool   `json:"reschedule"`
 }
 
 type ScheduledTaskResponse struct {

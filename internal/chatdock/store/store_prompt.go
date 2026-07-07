@@ -11,7 +11,7 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-// 工作空间、模型配置和 MCP 配置是一组同生命周期的 model.PromptSpace 数据。
+// 工作空间、模型配置和 MCP 配置是一组同生命周期的 model.WorkspaceSummary 数据。
 // 这些方法只负责选择、校验和保存当前工作空间配置，不直接处理消息追加。
 
 func (s *Store) ActivePrompt() string {
@@ -20,22 +20,22 @@ func (s *Store) ActivePrompt() string {
 	return s.activePrompt
 }
 
-func (s *Store) ListPrompts() (model.PromptResponse, error) {
+func (s *Store) ListPrompts() (model.WorkspaceListResponse, error) {
 	s.mu.RLock()
 	active := s.activePrompt
 	s.mu.RUnlock()
 
 	prompts, err := s.listPrompts(active)
 	if err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
-	return model.PromptResponse{Active: active, Prompts: prompts}, nil
+	return model.WorkspaceListResponse{Active: active, Prompts: prompts}, nil
 }
 
-func (s *Store) CreatePrompt(input model.CreatePromptRequest) (model.PromptResponse, error) {
+func (s *Store) CreatePrompt(input model.CreateWorkspaceRequest) (model.WorkspaceListResponse, error) {
 	name, err := normalizePromptName(input.Name)
 	if err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
 
 	s.mu.Lock()
@@ -43,15 +43,15 @@ func (s *Store) CreatePrompt(input model.CreatePromptRequest) (model.PromptRespo
 
 	exists, err := s.promptExistsLocked(name)
 	if err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
 	if exists {
-		return model.PromptResponse{}, fmt.Errorf("prompt already exists: %s", name)
+		return model.WorkspaceListResponse{}, fmt.Errorf("prompt already exists: %s", name)
 	}
 
 	now := time.Now()
 	if err := s.insertPromptLocked(name, now); err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
 	cfg := s.modelCfg
 	if strings.TrimSpace(cfg.BaseURL) == "" {
@@ -63,47 +63,47 @@ func (s *Store) CreatePrompt(input model.CreatePromptRequest) (model.PromptRespo
 	}
 	cfg = model.NormalizeModelConfig(cfg)
 	if err := s.setPromptJSONLocked(name, "config", cfg); err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
 	if err := s.setPromptRawLocked(name, "mcp", DefaultMCPConfig()); err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
 
 	if err := s.loadPromptLocked(name); err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
 	prompts, err := s.listPromptsLocked()
 	if err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
-	return model.PromptResponse{Active: s.activePrompt, Prompts: prompts}, nil
+	return model.WorkspaceListResponse{Active: s.activePrompt, Prompts: prompts}, nil
 }
 
-func (s *Store) DeletePrompt(input model.SelectPromptRequest) (model.PromptResponse, error) {
+func (s *Store) DeletePrompt(input model.WorkspaceIDRequest) (model.WorkspaceListResponse, error) {
 	name, err := normalizePromptName(input.Name)
 	if err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if name == defaultPromptName {
-		return model.PromptResponse{}, fmt.Errorf("default workspace cannot be deleted")
+		return model.WorkspaceListResponse{}, fmt.Errorf("default workspace cannot be deleted")
 	}
 	exists, err := s.promptExistsLocked(name)
 	if err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
 	if !exists {
-		return model.PromptResponse{}, fmt.Errorf("prompt not found: %s", name)
+		return model.WorkspaceListResponse{}, fmt.Errorf("prompt not found: %s", name)
 	}
 	names, err := s.listPromptNamesLocked()
 	if err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
 	if len(names) <= 1 {
-		return model.PromptResponse{}, fmt.Errorf("last workspace cannot be deleted")
+		return model.WorkspaceListResponse{}, fmt.Errorf("last workspace cannot be deleted")
 	}
 	if name == s.activePrompt {
 		fallback := defaultPromptName
@@ -116,28 +116,28 @@ func (s *Store) DeletePrompt(input model.SelectPromptRequest) (model.PromptRespo
 			}
 		}
 		if fallback == "" {
-			return model.PromptResponse{}, fmt.Errorf("no fallback workspace available")
+			return model.WorkspaceListResponse{}, fmt.Errorf("no fallback workspace available")
 		}
 		if err := s.loadPromptLocked(fallback); err != nil {
-			return model.PromptResponse{}, err
+			return model.WorkspaceListResponse{}, err
 		}
 	}
 	// prompt_kv 和 sessions 都声明了 ON DELETE CASCADE；删除 workspace 时必须只删 prompts 主表，
 	// 让 SQLite 在同一个连接内级联清理关联数据，避免前后端各自补删造成状态不一致。
 	if _, err := s.db.Exec(`DELETE FROM prompts WHERE name = ?`, name); err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
 	prompts, err := s.listPromptsLocked()
 	if err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
-	return model.PromptResponse{Active: s.activePrompt, Prompts: prompts}, nil
+	return model.WorkspaceListResponse{Active: s.activePrompt, Prompts: prompts}, nil
 }
 
-func (s *Store) SelectPrompt(input model.SelectPromptRequest) (model.PromptResponse, error) {
+func (s *Store) SelectPrompt(input model.WorkspaceIDRequest) (model.WorkspaceListResponse, error) {
 	name, err := normalizePromptName(input.Name)
 	if err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
 
 	s.mu.Lock()
@@ -145,19 +145,19 @@ func (s *Store) SelectPrompt(input model.SelectPromptRequest) (model.PromptRespo
 
 	exists, err := s.promptExistsLocked(name)
 	if err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
 	if !exists {
-		return model.PromptResponse{}, fmt.Errorf("prompt not found: %s", name)
+		return model.WorkspaceListResponse{}, fmt.Errorf("prompt not found: %s", name)
 	}
 	if err := s.loadPromptLocked(name); err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
 	prompts, err := s.listPromptsLocked()
 	if err != nil {
-		return model.PromptResponse{}, err
+		return model.WorkspaceListResponse{}, err
 	}
-	return model.PromptResponse{Active: s.activePrompt, Prompts: prompts}, nil
+	return model.WorkspaceListResponse{Active: s.activePrompt, Prompts: prompts}, nil
 }
 
 func (s *Store) loadPromptLocked(name string) error {
@@ -197,7 +197,7 @@ func (s *Store) loadModelConfigLocked() error {
 	return nil
 }
 
-func (s *Store) listPrompts(active string) ([]model.PromptSpace, error) {
+func (s *Store) listPrompts(active string) ([]model.WorkspaceSummary, error) {
 	type promptRow struct {
 		name       string
 		createdRaw string
@@ -224,7 +224,7 @@ func (s *Store) listPrompts(active string) ([]model.PromptSpace, error) {
 		return nil, err
 	}
 
-	items := []model.PromptSpace{}
+	items := []model.WorkspaceSummary{}
 	for _, row := range promptRows {
 		item, err := s.promptSummaryFromDB(row.name, active, row.createdRaw, row.updatedRaw)
 		if err != nil {
@@ -265,22 +265,22 @@ func (s *Store) listPromptNamesLocked() ([]string, error) {
 	return names, nil
 }
 
-func (s *Store) listPromptsLocked() ([]model.PromptSpace, error) {
+func (s *Store) listPromptsLocked() ([]model.WorkspaceSummary, error) {
 	return s.listPrompts(s.activePrompt)
 }
 
-func (s *Store) promptSummaryFromDB(name string, active string, createdRaw string, updatedRaw string) (model.PromptSpace, error) {
+func (s *Store) promptSummaryFromDB(name string, active string, createdRaw string, updatedRaw string) (model.WorkspaceSummary, error) {
 	createdAt := parseDBTime(createdRaw)
 	updatedAt := parseDBTime(updatedRaw)
 	var count int
 	var latest sql.NullString
 	if err := s.db.QueryRow(`SELECT COUNT(*), MAX(updated_at) FROM sessions WHERE prompt = ?`, name).Scan(&count, &latest); err != nil {
-		return model.PromptSpace{}, err
+		return model.WorkspaceSummary{}, err
 	}
 	if latest.Valid {
 		if t := parseDBTime(latest.String); t.After(updatedAt) {
 			updatedAt = t
 		}
 	}
-	return model.PromptSpace{Name: name, Active: name == active, CreatedAt: createdAt, UpdatedAt: updatedAt, Count: count}, nil
+	return model.WorkspaceSummary{Name: name, Active: name == active, CreatedAt: createdAt, UpdatedAt: updatedAt, Count: count}, nil
 }

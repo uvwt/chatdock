@@ -11,7 +11,7 @@ func TestStoreDeleteWorkspaceCascadesPromptData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := store.CreatePrompt(model.CreatePromptRequest{Name: "research", SystemPrompt: "研究空间"}); err != nil {
+	if _, err := store.CreatePrompt(model.CreateWorkspaceRequest{Name: "research", SystemPrompt: "研究空间"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.SaveModelConfig(model.ModelConfig{BaseURL: "https://example.test/v1", Model: "demo", SystemPrompt: "研究助手"}); err != nil {
@@ -31,10 +31,10 @@ func TestStoreDeleteWorkspaceCascadesPromptData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := store.SelectPrompt(model.SelectPromptRequest{Name: "default"}); err != nil {
+	if _, err := store.SelectPrompt(model.WorkspaceIDRequest{Name: "default"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.DeletePrompt(model.SelectPromptRequest{Name: "research"}); err != nil {
+	if _, err := store.DeletePrompt(model.WorkspaceIDRequest{Name: "research"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -78,13 +78,13 @@ func TestResolveChatModelConfigUsesSelectedWorkspaceProvider(t *testing.T) {
 	if _, err := store.SaveModelConfig(model.ModelConfig{BaseURL: "https://default.test/v1", Model: "default-model", Models: []string{"default-model"}, SystemPrompt: "当前空间提示词"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.CreatePrompt(model.CreatePromptRequest{Name: "alt", SystemPrompt: "另一个空间"}); err != nil {
+	if _, err := store.CreatePrompt(model.CreateWorkspaceRequest{Name: "alt", SystemPrompt: "另一个空间"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.SaveWorkspaceConfig("alt", model.ModelConfig{BaseURL: "https://alt.test/v1", Model: "alt-a", Models: []string{"alt-a", "alt-b"}, APIKey: "alt-key", SystemPrompt: "另一个空间提示词"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.SelectPrompt(model.SelectPromptRequest{Name: "default"}); err != nil {
+	if _, err := store.SelectPrompt(model.WorkspaceIDRequest{Name: "default"}); err != nil {
 		t.Fatal(err)
 	}
 	base := store.GetModelConfig()

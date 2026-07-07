@@ -19,7 +19,7 @@ func TestRemovedSettingsRunAndAgentRoutes(t *testing.T) {
 		t.Fatal(err)
 	}
 	routes := app.routes()
-	for _, path := range []string{"/api/runs", "/api/runs/test", "/api/agent-tasks"} {
+	for _, path := range []string{"/api/runs", "/api/runs/test", "/api/agent-tasks", "/api/prompts", "/api/prompts/select"} {
 		r := httptest.NewRequest(http.MethodGet, path, nil)
 		w := httptest.NewRecorder()
 		routes.ServeHTTP(w, r)

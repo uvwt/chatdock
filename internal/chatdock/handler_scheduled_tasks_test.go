@@ -49,6 +49,66 @@ func TestScheduledTasksAPI(t *testing.T) {
 	}
 }
 
+func TestScheduledTaskRescheduleSemantics(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	created, err := app.store.CreateScheduledTask(model.ScheduledTaskRequest{Title: "间隔任务", Prompt: "总结今天", Enabled: true, ScheduleType: "interval", IntervalMinutes: 60, ContextMode: model.ScheduledTaskContextStateless})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(created.Tasks) != 1 {
+		t.Fatalf("unexpected created tasks: %#v", created.Tasks)
+	}
+	task := created.Tasks[0]
+	originalNextRun := task.NextRunAt
+	if originalNextRun.IsZero() {
+		t.Fatalf("created task should have next_run_at: %#v", task)
+	}
+
+	updated, err := app.store.UpdateScheduledTask(task.ID, model.ScheduledTaskRequest{Title: "间隔任务重命名", Prompt: "改一下内容", Enabled: true, ScheduleType: "interval", IntervalMinutes: 60, ContextMode: model.ScheduledTaskContextSession})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := updated.Tasks[0].NextRunAt; !got.Equal(originalNextRun) {
+		t.Fatalf("content-only save should preserve next_run_at, got %s want %s", got, originalNextRun)
+	}
+
+	changedPlan, err := app.store.UpdateScheduledTask(task.ID, model.ScheduledTaskRequest{Title: "间隔任务重命名", Prompt: "改一下内容", Enabled: true, ScheduleType: "interval", IntervalMinutes: 90, ContextMode: model.ScheduledTaskContextSession})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := changedPlan.Tasks[0].NextRunAt; got.Equal(originalNextRun) {
+		t.Fatalf("schedule change should recalculate next_run_at, still %s", got)
+	}
+	planNextRun := changedPlan.Tasks[0].NextRunAt
+
+	rescheduled, err := app.store.UpdateScheduledTask(task.ID, model.ScheduledTaskRequest{Title: "间隔任务重命名", Prompt: "改一下内容", Enabled: true, ScheduleType: "interval", IntervalMinutes: 90, ContextMode: model.ScheduledTaskContextSession, Reschedule: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := rescheduled.Tasks[0].NextRunAt; got.Equal(planNextRun) {
+		t.Fatalf("explicit reschedule should recalculate next_run_at, still %s", got)
+	}
+}
+
+func TestOnceScheduledTaskRescheduleRequiresRunAt(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := app.store.CreateScheduledTask(model.ScheduledTaskRequest{Title: "一次任务", Prompt: "执行一次", Enabled: true, ScheduleType: "once", RunAt: "2099-01-01T10:00"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = app.store.UpdateScheduledTask(created.Tasks[0].ID, model.ScheduledTaskRequest{Title: "一次任务", Prompt: "执行一次", Enabled: true, ScheduleType: "once", Reschedule: true})
+	if err == nil {
+		t.Fatal("once reschedule without a legal run_at should fail")
+	}
+}
+
 func TestScheduledTaskRunWritesConversationDetails(t *testing.T) {
 	var requestCount atomic.Int32
 	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

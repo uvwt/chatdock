@@ -1314,7 +1314,7 @@ export default function App() {
     if (busy) return;
     const existing = id ? scheduledTasks.find(t => t.id === id) : null;
     const values = await showDialog({
-      title: existing ? '编辑自动化任务' : '新增自动化任务', message: '选择调度类型后，只需要填写对应的时间字段。', confirmText: existing ? '保存任务' : '新增任务', fields: [
+      title: existing ? '编辑自动化任务' : '新增自动化任务', message: existing ? '普通保存会保留下一次运行时间；需要从现在重新计算时勾选“保存后重新计时”。' : '选择调度类型后，只需要填写对应的时间字段。', confirmText: existing ? '保存任务' : '新增任务', fields: [
         { name: 'title', label: '任务标题', value: existing ? existing.title : '', required: true },
         { name: 'prompt', label: '任务提示词', type: 'textarea', rows: 6, value: existing ? (existing.prompt || '') : '', required: true },
         { name: 'schedule_type', label: '调度类型', type: 'select', value: existing ? existing.schedule_type : 'once', options: [{ value: 'once', label: '一次性' }, { value: 'daily', label: '每天固定时间' }, { value: 'interval', label: '按分钟间隔' }] },
@@ -1322,6 +1322,7 @@ export default function App() {
         { name: 'time_of_day', label: '每天运行时间', type: 'time', value: existing ? (existing.time_of_day || '09:00') : '09:00', showWhen: { schedule_type: 'daily' } },
         { name: 'interval_minutes', label: '间隔分钟数', type: 'number', min: 1, step: 1, value: existing && existing.interval_minutes ? String(existing.interval_minutes) : '60', showWhen: { schedule_type: 'interval' }, hint: '当前本地调度器最低按分钟执行；过短间隔会更频繁占用模型额度。' },
         { name: 'context_mode', label: '上下文模式', type: 'select', value: existing ? (existing.context_mode || 'stateless') : 'stateless', options: [{ value: 'stateless', label: '每次独立执行，最省 token' }, { value: 'last_result', label: '带上次运行结果' }, { value: 'session', label: '连续会话，保留完整上下文' }], hint: '默认独立执行：只使用本次任务提示词；需要长期上下文时再选择连续会话。' },
+        ...(existing ? [{ name: 'reschedule', label: '保存后重新计时', type: 'checkbox', value: false, hint: '关闭时仅保存内容；开启时 interval 从当前时间重新计算下一次运行。' }] : []),
       ]
     });
     if (!values) return;
@@ -1331,13 +1332,15 @@ export default function App() {
     if (!titleValue || !promptValue) { showToast('任务标题和提示词不能为空', 'error'); return; }
     if (!['once', 'daily', 'interval'].includes(typeValue)) { showToast('调度类型只能是 once、daily 或 interval', 'error'); return; }
     const contextMode = ['stateless', 'last_result', 'session'].includes(values.context_mode) ? values.context_mode : 'stateless';
-    const payload = { title: titleValue, prompt: promptValue, enabled: existing ? !!existing.enabled : true, schedule_type: typeValue, context_mode: contextMode };
+    const payload = { title: titleValue, prompt: promptValue, enabled: existing ? !!existing.enabled : true, schedule_type: typeValue, context_mode: contextMode, reschedule: !!values.reschedule };
     if (typeValue === 'once') payload.run_at = values.run_at || '';
     if (typeValue === 'daily') payload.time_of_day = values.time_of_day || '';
     if (typeValue === 'interval') payload.interval_minutes = Math.floor(Number(values.interval_minutes || 0));
     const data = await saveScheduledTaskRecord(api, existing, payload);
     setScheduledTasks(data.tasks || []);
-    showToast(existing ? '任务已保存' : '任务已新增', 'success');
+    const savedTask = (data.tasks || []).find(task => task.id === (existing?.id || '')) || (data.tasks || [])[0];
+    const nextRunText = savedTask?.next_run_at ? '，下次运行：' + fmtTime(savedTask.next_run_at) : '';
+    showToast((existing ? '任务已保存' : '任务已新增') + nextRunText, 'success');
   }, [api, busy, scheduledTasks, showDialog, showToast]);
 
   const toggleScheduledTask = useCallback(async (id, enabled) => {

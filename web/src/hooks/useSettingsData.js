@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchPrompts, fetchScheduledTasks, fetchSetupStatus, fetchSystemStatus, fetchWorkspaces } from '../lib/settingsApi.js';
+import { fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchScheduledTasks, fetchSetupStatus, fetchSystemStatus, fetchWorkspaces } from '../lib/settingsApi.js';
 
 const defaultConfig = {
   base_url: '',
@@ -54,8 +54,18 @@ export function useSettingsData(api) {
   const [config, setConfig] = useState(defaultConfig);
 
   const loadPrompts = useCallback(async () => {
-    const data = await fetchPrompts(api);
-    setPrompts(data.prompts || []);
+    const data = await fetchWorkspaces(api);
+    const workspaceRows = data.workspaces || [];
+    setWorkspaces(workspaceRows);
+    // 前端仍有一批通用组件使用 prompts 变量名；这里统一由 Workspace API 派生，
+    // 避免再暴露 /api/prompts 双轨入口，同时不把重命名噪音扩散到聊天主流程。
+    setPrompts(workspaceRows.map(ws => ({
+      name: ws.name || ws.id,
+      active: !!ws.active,
+      created_at: ws.created_at,
+      updated_at: ws.updated_at,
+      count: ws.session_count || 0,
+    })));
   }, [api]);
 
   const loadConfig = useCallback(async () => {

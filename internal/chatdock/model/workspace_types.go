@@ -2,7 +2,7 @@ package model
 
 import "time"
 
-type PromptSpace struct {
+type WorkspaceSummary struct {
 	Name      string    `json:"name"`
 	Active    bool      `json:"active"`
 	CreatedAt time.Time `json:"created_at"`
@@ -10,16 +10,16 @@ type PromptSpace struct {
 	Count     int       `json:"count"`
 }
 
-type CreatePromptRequest struct {
+type CreateWorkspaceRequest struct {
 	Name         string `json:"name"`
 	SystemPrompt string `json:"system_prompt"`
 }
 
-type SelectPromptRequest struct {
+type WorkspaceIDRequest struct {
 	Name string `json:"name"`
 }
 
-type PromptResponse struct {
-	Active  string        `json:"active"`
-	Prompts []PromptSpace `json:"prompts"`
+type WorkspaceListResponse struct {
+	Active  string             `json:"active"`
+	Prompts []WorkspaceSummary `json:"prompts"`
 }

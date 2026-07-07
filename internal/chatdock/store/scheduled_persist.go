@@ -114,14 +114,19 @@ func normalizeScheduledTaskInput(input model.ScheduledTaskRequest, previous *mod
 	default:
 		return model.ScheduledTask{}, fmt.Errorf("unsupported schedule_type: %s", scheduleType)
 	}
-	if previous != nil && sameScheduledTaskPlan(task, *previous) && !previous.NextRunAt.IsZero() {
+	if previous != nil && !input.Reschedule && shouldPreserveScheduledTaskNextRun(task, *previous) {
 		task.NextRunAt = previous.NextRunAt
 	}
 	return task, nil
 }
 
-func sameScheduledTaskPlan(next model.ScheduledTask, previous model.ScheduledTask) bool {
-	if next.ScheduleType != previous.ScheduleType || next.Prompt != previous.Prompt || next.Title != previous.Title || next.ContextMode != previous.ContextMode {
+func shouldPreserveScheduledTaskNextRun(next model.ScheduledTask, previous model.ScheduledTask) bool {
+	if previous.NextRunAt.IsZero() {
+		return false
+	}
+	// 保存内容和重新排期是两个动作：标题、提示词、启用状态、上下文模式变化都不应偷偷重置计时。
+	// 只有调度计划本身变化，或调用方显式 reschedule=true，才重新计算 NextRunAt。
+	if next.ScheduleType != previous.ScheduleType {
 		return false
 	}
 	if next.IntervalMinutes != previous.IntervalMinutes || next.TimeOfDay != previous.TimeOfDay {
