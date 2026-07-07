@@ -32,7 +32,7 @@ func (s *Store) PrepareScheduledTaskRun(id string, manual bool, now time.Time) (
 	return s.prepareScheduledTaskRunLocked(id, manual, now)
 }
 
-func (s *Store) FinishScheduledTaskRun(promptName string, taskID string, runID string, sessionID string, answer string, startedAt time.Time, manual bool, runErr error) (model.ScheduledTaskRunResponse, error) {
+func (s *Store) FinishScheduledTaskRun(promptName string, taskID string, runID string, sessionID string, answer string, startedAt time.Time, manual bool, runErr error, assistantAlreadySaved bool) (model.ScheduledTaskRunResponse, error) {
 	promptName = strings.TrimSpace(promptName)
 	if promptName == "" {
 		return model.ScheduledTaskRunResponse{}, fmt.Errorf("prompt name is empty")
@@ -51,16 +51,18 @@ func (s *Store) FinishScheduledTaskRun(promptName string, taskID string, runID s
 			if !ok {
 				return model.ErrSessionNotFound
 			}
-			assistantContent := answer
-			if runErr != nil {
-				assistantContent = "运行失败：" + strings.TrimSpace(runErr.Error())
-			} else if assistantContent == "" {
-				assistantContent = "模型没有返回内容。"
-			}
-			session.Messages = append(session.Messages, model.Message{ID: model.NewID(), Role: "assistant", Content: assistantContent, CreatedAt: finishedAt})
-			session.UpdatedAt = finishedAt
-			if err := s.saveSessionLocked(session); err != nil {
-				return err
+			if !assistantAlreadySaved {
+				assistantContent := answer
+				if runErr != nil {
+					assistantContent = "运行失败：" + strings.TrimSpace(runErr.Error())
+				} else if assistantContent == "" {
+					assistantContent = "模型没有返回内容。"
+				}
+				session.Messages = append(session.Messages, model.Message{ID: model.NewID(), Role: "assistant", Content: assistantContent, CreatedAt: finishedAt})
+				session.UpdatedAt = finishedAt
+				if err := s.saveSessionLocked(session); err != nil {
+					return err
+				}
 			}
 			result.Session = cloneSession(session)
 		}

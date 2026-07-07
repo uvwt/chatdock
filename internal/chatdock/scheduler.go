@@ -64,8 +64,8 @@ func (a *App) executeScheduledTask(ctx context.Context, promptName string, id st
 	if err != nil {
 		return model.ScheduledTaskRunResponse{}, err
 	}
-	answer, runErr := a.completeWithOptionalTools(ctx, run.SessionID, run.Config, run.History)
-	result, finishErr := a.store.FinishScheduledTaskRun(run.PromptName, run.Task.ID, run.RunID, run.SessionID, answer, startedAt, manual, runErr)
+	completion, runErr := a.completeScheduledSessionWithRecordedEvents(ctx, run.SessionID, run.Config, run.History)
+	result, finishErr := a.store.FinishScheduledTaskRun(run.PromptName, run.Task.ID, run.RunID, run.SessionID, completion.Answer, startedAt, manual, runErr, completion.AssistantSaved)
 	if finishErr != nil {
 		return model.ScheduledTaskRunResponse{}, finishErr
 	}
