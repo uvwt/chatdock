@@ -3,6 +3,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { fmtBytes } from '../lib/appUtils.js';
 import { Markdown } from './base.jsx';
 
+const EMPTY_ATTACHMENTS = [];
+const emptyStateFlowSteps = [
+  {title:'开始', text:'先开一个干净会话，保留后续上下文。', key:'↵'},
+  {title:'调用', text:'模型、MCP 工具和附件统一进同一入口。', key:'⌘K'},
+  {title:'追踪', text:'任务、工具事件和运行记录都能复查。', key:'✓'},
+];
+
 function MessageActions({ text, onCopy, onBranch, onEdit, user = false }) {
   return <div className={'msg-actions ' + (user ? 'user-message-actions' : '')}>
     <button type="button" className="secondary small msg-action-copy" onClick={() => onCopy(text)} aria-label={user ? '复制当前消息' : '复制当前回复'} title={user ? '复制当前消息' : '复制当前回复'}><svg className="msg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8.5h8.5v8.5H9z" /><path d="M6.5 15.5h-1a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" /></svg></button>
@@ -21,13 +28,20 @@ function attachmentStatusLabel(item) {
   return item.status || '已上传';
 }
 
-export function AttachmentList({ attachments, removable = false, onRemove, onDownload }) {
+export function AttachmentList({ attachments = EMPTY_ATTACHMENTS, removable = false, onRemove, onDownload }) {
   if (!attachments?.length) return null;
   return <div className="attachment-list">
     {attachments.map(item => {
       const canDownload = !!onDownload && item.id && !item.uploading && !item.error && !String(item.id).startsWith('local_');
-      const download = () => canDownload ? onDownload(item) : null;
-      return <div key={item.id || item.name} className={'attachment-chip ' + (item.error ? 'error ' : '') + (canDownload ? 'downloadable' : '')} onClick={download} role={canDownload ? 'button' : undefined} tabIndex={canDownload ? 0 : undefined} onKeyDown={e => { if (canDownload && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); download(); } }} title={canDownload ? '点击下载附件' : undefined}>
+      const download = () => onDownload(item);
+      const downloadProps = canDownload ? {
+        onClick: download,
+        role: 'button',
+        tabIndex: 0,
+        onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); download(); } },
+        title: '点击下载附件',
+      } : {};
+      return <div {...downloadProps} key={item.id || item.name} className={'attachment-chip ' + (item.error ? 'error ' : '') + (canDownload ? 'downloadable' : '')}>
         <span className="attachment-icon">📎</span>
         <span className="attachment-main"><b>{item.name || '附件'}</b><span>{fmtBytes(item.size)} · {attachmentStatusLabel(item)}</span></span>
         {removable ? <button className="attachment-remove" type="button" onClick={e => { e.stopPropagation(); onRemove?.(item.id); }} title="移除附件">×</button> : null}
@@ -38,14 +52,15 @@ export function AttachmentList({ attachments, removable = false, onRemove, onDow
 
 function ReasoningBlock({ value, streaming = false, hidden = false }) {
   // 流式输出时实时展开；流式结束后自动收起，保留手动再次展开查看。
-  const [open, setOpen] = useState(!!streaming);
-  useEffect(() => {
-    setOpen(!!streaming);
-  }, [streaming]);
+  const [openState, setOpenState] = useState(() => ({ streaming, open: !!streaming }));
+  if (openState.streaming !== streaming) {
+    setOpenState({ streaming, open: !!streaming });
+  }
   if (hidden || !value) return null;
+  const open = openState.open;
   const title = '思考过程';
   return <section className={'reasoning ' + (open ? 'show' : 'collapsed')}>
-    <button type="button" className="reasoning-toggle" onClick={() => setOpen(v => !v)} aria-expanded={open}>
+    <button type="button" className="reasoning-toggle" onClick={() => setOpenState(state => ({ ...state, open: !state.open }))} aria-expanded={open}>
       <span><b>{title}</b></span>
       <span className="reasoning-chevron">{open ? '⌃' : '⌄'}</span>
     </button>
@@ -118,10 +133,17 @@ function ToolEvents({ events = [], onResolveConfirmation, onInspectToolEvent }) 
         <span className="tool-steps-count">{normalEvents.length} 次</span>
       </div>
       <div className="tool-steps-list">
-        {normalEvents.map((event, i) => <ToolEventRow key={i} event={event} onInspectToolEvent={onInspectToolEvent} />)}
+        {normalEvents.map(event => <ToolEventRow key={event.id || event.details?.event_id || event.text || event.meta || toolEventName(event)} event={event} onInspectToolEvent={onInspectToolEvent} />)}
       </div>
     </section> : null}
-    {confirmations.map((event, i) => <div key={'confirm-' + i} className={'tool-event ' + (event.details ? 'has-details' : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} role={event.details ? 'button' : undefined} tabIndex={event.details ? 0 : undefined} onKeyDown={e => { if (event.details && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onInspectToolEvent?.(event); } }}>
+    {confirmations.map(event => {
+      const inspectProps = event.details ? {
+        onClick: () => onInspectToolEvent?.(event),
+        role: 'button',
+        tabIndex: 0,
+        onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onInspectToolEvent?.(event); } },
+      } : {};
+      return <div {...inspectProps} key={event.id || event.confirmation?.id || event.text || 'confirm'} className={'tool-event ' + (event.details ? 'has-details' : '')}>
       <div className="tool-event-main">
         <div>{event.text}</div>
         {event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}
@@ -130,7 +152,8 @@ function ToolEvents({ events = [], onResolveConfirmation, onInspectToolEvent }) 
         <button className="secondary small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, true)}>允许一次</button>
         <button className="danger small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, false)}>拒绝</button>
       </div>
-    </div>)}
+    </div>;
+    })}
   </>;
 }
 
@@ -190,14 +213,6 @@ function UserMessageView({ message, messageIndex, onCopy, onEditUserMessage, onD
   const [saving, setSaving] = useState(false);
   const editRef = useRef(null);
 
-  useEffect(() => {
-    if (!editing) setDraft(text);
-  }, [editing, text]);
-
-  useEffect(() => {
-    if (editing) requestAnimationFrame(() => editRef.current?.focus());
-  }, [editing]);
-
   async function saveEdit() {
     const value = draft.trim();
     if (!value || saving) return;
@@ -213,15 +228,15 @@ function UserMessageView({ message, messageIndex, onCopy, onEditUserMessage, onD
   return <div className={'user-message-wrap ' + (editing ? 'editing' : '')}>
     <div className="msg user">
       {editing ? <div className="user-message-editor">
-        <textarea ref={editRef} value={draft} disabled={saving} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); saveEdit(); } if (e.key === 'Escape') { e.preventDefault(); setDraft(text); setEditing(false); } }} />
+        <textarea ref={editRef} aria-label="编辑当前消息" value={draft} disabled={saving} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); saveEdit(); } if (e.key === 'Escape') { e.preventDefault(); setDraft(text); setEditing(false); } }} />
         <div className="user-message-editor-actions">
           <button type="button" className="secondary small" disabled={saving} onClick={() => { setDraft(text); setEditing(false); }}>取消</button>
           <button type="button" className="primary small" disabled={saving || !draft.trim()} onClick={saveEdit}>{saving ? '保存中' : '保存'}</button>
         </div>
         <small>保存后会替换这条消息，并删除它下面的所有消息。</small>
-      </div> : <>{text ? <div>{text}</div> : null}<AttachmentList attachments={message.attachments || []} onDownload={onDownloadAttachment} /></>}
+      </div> : <>{text ? <div>{text}</div> : null}<AttachmentList attachments={message.attachments || EMPTY_ATTACHMENTS} onDownload={onDownloadAttachment} /></>}
     </div>
-    {!editing ? <MessageActions text={text} onCopy={onCopy} onEdit={() => setEditing(true)} user /> : null}
+    {!editing ? <MessageActions text={text} onCopy={onCopy} onEdit={() => { setDraft(text); setEditing(true); requestAnimationFrame(() => editRef.current?.focus()); }} user /> : null}
   </div>;
 }
 
@@ -248,16 +263,11 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEd
     return <UserMessageView message={message} messageIndex={messageIndex} onCopy={onCopy} onEditUserMessage={onEditUserMessage} onDownloadAttachment={onDownloadAttachment} />;
   }
   const text = message.content || '';
-  return <div className={'msg ' + role}>{text ? <div>{text}</div> : null}<AttachmentList attachments={message.attachments || []} onDownload={onDownloadAttachment} /></div>;
+  return <div className={'msg ' + role}>{text ? <div>{text}</div> : null}<AttachmentList attachments={message.attachments || EMPTY_ATTACHMENTS} onDownload={onDownloadAttachment} /></div>;
 }
 
 
 export function EmptyState({ createSession, openSettings, openWorkspacePicker, busy, hasWorkspaces, setInput, modelReady }) {
-  const flowSteps = [
-    {title:'开始', text:'先开一个干净会话，保留后续上下文。', key:'↵'},
-    {title:'调用', text:'模型、MCP 工具和附件统一进同一入口。', key:'⌘K'},
-    {title:'追踪', text:'任务、工具事件和运行记录都能复查。', key:'✓'},
-  ];
   return <div className="empty-state product-empty-state">
     <section className="product-hero">
       <div className="hero-copy">
@@ -265,9 +275,9 @@ export function EmptyState({ createSession, openSettings, openWorkspacePicker, b
         <h1>今天想完成什么？</h1>
         <p>从一个会话开始，把模型配置、工具调用、任务记录和数据状态收在同一个工作流里。</p>
         <div className="empty-state-actions hero-actions">
-          <button disabled={busy || !modelReady} onClick={createSession}>{modelReady ? '开始新会话' : '先配置模型'}</button>
-          <button className="secondary" onClick={() => openSettings('model')}>{modelReady ? '检查模型' : '配置模型'}</button>
-          <button className="secondary" disabled={!hasWorkspaces || busy} onClick={openWorkspacePicker}>切换工作空间</button>
+          <button type="button" disabled={busy || !modelReady} onClick={createSession}>{modelReady ? '开始新会话' : '先配置模型'}</button>
+          <button type="button" className="secondary" onClick={() => openSettings('model')}>{modelReady ? '检查模型' : '配置模型'}</button>
+          <button type="button" className="secondary" disabled={!hasWorkspaces || busy} onClick={openWorkspacePicker}>切换工作空间</button>
         </div>
         <div className="hero-trust-row">
           <span>本地数据优先</span><span>工作空间隔离</span><span>快捷指令 ⌘K</span>
@@ -275,7 +285,7 @@ export function EmptyState({ createSession, openSettings, openWorkspacePicker, b
       </div>
       <div className="hero-panel" aria-label="ChatDock 工作台能力概览">
         <div className="hero-panel-top"><span>当前流程</span><b>Ready</b></div>
-        {flowSteps.map((step, index) => <div key={step.title} className="hero-metric-row">
+        {emptyStateFlowSteps.map((step, index) => <div key={step.title} className="hero-metric-row">
           <div><small>{String(index + 1).padStart(2, '0')}</small><b>{step.title}</b><span>{step.text}</span></div><strong>{step.key}</strong>
         </div>)}
       </div>

@@ -1,11 +1,14 @@
 export function uniqueModelNames(value) {
   const raw = Array.isArray(value) ? value.join('\n') : String(value || '');
   const seen = new Set();
-  return raw.split(/[\n,，]+/).map(item => item.trim()).filter(Boolean).filter(item => {
-    if (seen.has(item)) return false;
+  const names = [];
+  for (const part of raw.split(/[\n,，]+/)) {
+    const item = part.trim();
+    if (!item || seen.has(item)) continue;
     seen.add(item);
-    return true;
-  });
+    names.push(item);
+  }
+  return names;
 }
 
 
