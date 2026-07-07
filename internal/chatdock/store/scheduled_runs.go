@@ -32,17 +32,17 @@ func (s *Store) PrepareScheduledTaskRun(id string, manual bool, now time.Time) (
 	return s.prepareScheduledTaskRunLocked(id, manual, now)
 }
 
-func (s *Store) FinishScheduledTaskRun(promptName string, taskID string, runID string, sessionID string, answer string, startedAt time.Time, manual bool, runErr error, assistantAlreadySaved bool) (model.ScheduledTaskRunResponse, error) {
-	promptName = strings.TrimSpace(promptName)
-	if promptName == "" {
-		return model.ScheduledTaskRunResponse{}, fmt.Errorf("prompt name is empty")
+func (s *Store) FinishScheduledTaskRun(workspaceID string, taskID string, runID string, sessionID string, answer string, startedAt time.Time, manual bool, runErr error, assistantAlreadySaved bool) (model.ScheduledTaskRunResponse, error) {
+	workspaceID = strings.TrimSpace(workspaceID)
+	if workspaceID == "" {
+		return model.ScheduledTaskRunResponse{}, fmt.Errorf("workspace id is empty")
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	var result model.ScheduledTaskRunResponse
-	err := s.withPromptLocked(promptName, func() error {
+	err := s.withWorkspaceLocked(workspaceID, func() error {
 		finishedAt := time.Now()
 		answer = strings.TrimSpace(answer)
 		sessionID = strings.TrimSpace(sessionID)
@@ -132,20 +132,20 @@ func (s *Store) FinishScheduledTaskRun(promptName string, taskID string, runID s
 	return result, nil
 }
 
-func (s *Store) withPromptLocked(name string, fn func() error) error {
-	name, err := normalizePromptName(name)
+func (s *Store) withWorkspaceLocked(name string, fn func() error) error {
+	name, err := normalizeWorkspaceID(name)
 	if err != nil {
 		return err
 	}
-	previous := s.activePrompt
+	previous := s.activeWorkspace
 	if previous != name {
-		if err := s.loadPromptLocked(name); err != nil {
+		if err := s.loadWorkspaceLocked(name); err != nil {
 			return err
 		}
 	}
 	err = fn()
 	if previous != name {
-		if restoreErr := s.loadPromptLocked(previous); err == nil {
+		if restoreErr := s.loadWorkspaceLocked(previous); err == nil {
 			err = restoreErr
 		}
 	}

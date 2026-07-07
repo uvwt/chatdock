@@ -40,7 +40,7 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 	name := cleanUploadName(header.Filename)
 	id := model.NewID()
 	sessionID := strings.TrimSpace(r.FormValue("session_id"))
-	prompt := a.store.ActivePrompt()
+	prompt := a.store.ActiveWorkspace()
 	uploadDir := filepath.Join(a.cfg.DataDir, "uploads", safeFileComponent(prompt))
 	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
 		writeError(w, http.StatusInternalServerError, err)

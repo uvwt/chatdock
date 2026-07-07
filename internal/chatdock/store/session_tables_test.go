@@ -25,7 +25,7 @@ func TestSessionJSONMigratesToTablesAndPersistsCompactLegacyRow(t *testing.T) {
 	now := time.Date(2026, 7, 6, 9, 30, 0, 0, time.UTC)
 	legacy := model.Session{ID: "session-legacy", Title: "旧会话", CreatedAt: now, UpdatedAt: now, Messages: []model.Message{{ID: "m1", Role: "assistant", Content: "answer", CreatedAt: now, Events: []model.MessageEvent{{Kind: "tool", Phase: "done", Text: "tool done", Details: map[string]any{"result": map[string]any{"value": "large detail"}}}}, Parts: []model.MessagePart{{Kind: "event", Text: "tool done", Event: &model.MessageEvent{Kind: "tool", Phase: "done", Text: "tool done", Details: map[string]any{"result": map[string]any{"value": "large detail"}}}}}}}}
 	raw, _ := json.Marshal(legacy)
-	if _, err := st.db.Exec(`INSERT INTO sessions(prompt, id, json, created_at, updated_at) VALUES(?, ?, ?, ?, ?) ON CONFLICT(prompt, id) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at`, defaultPromptName, legacy.ID, string(raw), formatScheduleDBTime(now), formatScheduleDBTime(now)); err != nil {
+	if _, err := st.db.Exec(`INSERT INTO sessions(workspace_id, id, json, created_at, updated_at) VALUES(?, ?, ?, ?, ?) ON CONFLICT(workspace_id, id) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at`, defaultWorkspaceID, legacy.ID, string(raw), formatScheduleDBTime(now), formatScheduleDBTime(now)); err != nil {
 		st.mu.Unlock()
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestSessionJSONMigratesToTablesAndPersistsCompactLegacyRow(t *testing.T) {
 		t.Fatalf("migrated rows msg=%d events=%d details=%d", msgRows, eventRows, detailRows)
 	}
 
-	if err := st.loadPromptLocked(defaultPromptName); err != nil {
+	if err := st.loadWorkspaceLocked(defaultWorkspaceID); err != nil {
 		t.Fatal(err)
 	}
 	session, ok := st.GetSession(legacy.ID)

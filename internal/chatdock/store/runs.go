@@ -16,10 +16,10 @@ func (s *Store) StartMCPRun(sessionID string, title string) (MCPRun, error) {
 	if title == "" {
 		title = "MCP tool run"
 	}
-	run := MCPRun{ID: model.NewID(), Workspace: s.ActivePrompt(), SessionID: strings.TrimSpace(sessionID), Title: title, Status: "running", StartedAt: now, UpdatedAt: now}
+	run := MCPRun{ID: model.NewID(), Workspace: s.ActiveWorkspace(), SessionID: strings.TrimSpace(sessionID), Title: title, Status: "running", StartedAt: now, UpdatedAt: now}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, err := s.db.Exec(`INSERT INTO mcp_runs(prompt, id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, run.Workspace, run.ID, run.SessionID, run.Title, run.Status, run.Summary, run.Error, formatDBTime(run.StartedAt), "", run.DurationMS, run.EventCount, formatDBTime(run.UpdatedAt))
+	_, err := s.db.Exec(`INSERT INTO mcp_runs(workspace_id, id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, run.Workspace, run.ID, run.SessionID, run.Title, run.Status, run.Summary, run.Error, formatDBTime(run.StartedAt), "", run.DurationMS, run.EventCount, formatDBTime(run.UpdatedAt))
 	return run, err
 }
 
@@ -102,11 +102,11 @@ func (s *Store) ListMCPRuns(sessionID string, limit int) (MCPRunResponse, error)
 	if limit > 200 {
 		limit = 200
 	}
-	prompt := s.ActivePrompt()
+	prompt := s.ActiveWorkspace()
 	sessionID = strings.TrimSpace(sessionID)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	query := `SELECT prompt, id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at FROM mcp_runs WHERE prompt = ?`
+	query := `SELECT workspace_id, id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at FROM mcp_runs WHERE workspace_id = ?`
 	args := []any{prompt}
 	if sessionID != "" {
 		query += ` AND session_id = ?`

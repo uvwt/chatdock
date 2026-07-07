@@ -12,16 +12,16 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const defaultPromptName = "default"
+const defaultWorkspaceID = "default"
 
 type Store struct {
-	mu           sync.RWMutex
-	dataDir      string
-	dbPath       string
-	db           *sql.DB
-	activePrompt string
-	modelCfg     model.ModelConfig
-	sessions     map[string]*model.Session
+	mu              sync.RWMutex
+	dataDir         string
+	dbPath          string
+	db              *sql.DB
+	activeWorkspace string
+	modelCfg        model.ModelConfig
+	sessions        map[string]*model.Session
 }
 
 func NewStore(dataDir string) (*Store, error) {
@@ -38,11 +38,11 @@ func NewStore(dataDir string) (*Store, error) {
 	}
 	db.SetMaxOpenConns(1)
 	store := &Store{
-		dataDir:      dataDir,
-		dbPath:       dbPath,
-		db:           db,
-		activePrompt: defaultPromptName,
-		sessions:     make(map[string]*model.Session),
+		dataDir:         dataDir,
+		dbPath:          dbPath,
+		db:              db,
+		activeWorkspace: defaultWorkspaceID,
+		sessions:        make(map[string]*model.Session),
 	}
 	if err := store.initSQLite(); err != nil {
 		_ = db.Close()
@@ -76,7 +76,7 @@ func NewStore(dataDir string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("mark running chat jobs interrupted: %w", err)
 	}
-	if err := store.loadPromptLocked(defaultPromptName); err != nil {
+	if err := store.loadWorkspaceLocked(defaultWorkspaceID); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("load default workspace: %w", err)
 	}

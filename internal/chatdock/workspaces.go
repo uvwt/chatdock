@@ -21,7 +21,7 @@ func (a *App) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	if _, err := a.store.CreatePrompt(input); err != nil {
+	if _, err := a.store.CreateWorkspace(input); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
@@ -39,7 +39,7 @@ func workspaceIDFromRequest(r *http.Request) string {
 
 func (a *App) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := workspaceIDFromRequest(r)
-	if _, err := a.store.DeletePrompt(model.WorkspaceIDRequest{Name: workspaceID}); err != nil {
+	if _, err := a.store.DeleteWorkspace(model.WorkspaceIDRequest{Name: workspaceID}); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
@@ -53,7 +53,7 @@ func (a *App) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleSelectWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := workspaceIDFromRequest(r)
-	if _, err := a.store.SelectPrompt(model.WorkspaceIDRequest{Name: workspaceID}); err != nil {
+	if _, err := a.store.SelectWorkspace(model.WorkspaceIDRequest{Name: workspaceID}); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}

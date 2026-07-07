@@ -46,11 +46,11 @@ func (s *Store) AppendUserMessageWithAttachments(sessionID string, content strin
 	if len(attachments) > 0 {
 		ids := uniqueAttachmentIDs(attachmentIDs)
 		placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
-		args := []any{sessionID, messageID, s.activePrompt}
+		args := []any{sessionID, messageID, s.activeWorkspace}
 		for _, id := range ids {
 			args = append(args, id)
 		}
-		if _, err := s.db.Exec(`UPDATE attachments SET session_id = ?, message_id = ? WHERE prompt = ? AND id IN (`+placeholders+`)`, args...); err != nil {
+		if _, err := s.db.Exec(`UPDATE attachments SET session_id = ?, message_id = ? WHERE workspace_id = ? AND id IN (`+placeholders+`)`, args...); err != nil {
 			return nil, model.ModelConfig{}, nil, err
 		}
 	}

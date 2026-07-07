@@ -21,7 +21,7 @@ func (s *Store) migrateScheduledJSONToTables() error {
 	if migrated == "1" {
 		return nil
 	}
-	rows, err := s.db.Query(`SELECT prompt, key, value FROM prompt_kv WHERE key IN ('scheduled_tasks', 'scheduled_task_runs')`)
+	rows, err := s.db.Query(`SELECT workspace_id, key, value FROM workspace_kv WHERE key IN ('scheduled_tasks', 'scheduled_task_runs')`)
 	if err != nil {
 		return err
 	}
@@ -134,10 +134,10 @@ func upsertScheduledTaskTx(tx interface {
 }, prompt string, task model.ScheduledTask) error {
 	prompt = strings.TrimSpace(prompt)
 	if prompt == "" {
-		prompt = defaultPromptName
+		prompt = defaultWorkspaceID
 	}
-	_, err := tx.Exec(`INSERT INTO scheduled_tasks(prompt, id, title, task_prompt, enabled, running, schedule_type, run_at, time_of_day, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(prompt, id) DO UPDATE SET title = excluded.title, task_prompt = excluded.task_prompt, enabled = excluded.enabled, running = excluded.running, schedule_type = excluded.schedule_type, run_at = excluded.run_at, time_of_day = excluded.time_of_day, interval_minutes = excluded.interval_minutes, context_mode = excluded.context_mode, next_run_at = excluded.next_run_at, last_run_at = excluded.last_run_at, last_status = excluded.last_status, last_error = excluded.last_error, session_id = excluded.session_id, created_at = excluded.created_at, updated_at = excluded.updated_at`,
+	_, err := tx.Exec(`INSERT INTO scheduled_tasks(workspace_id, id, title, task_prompt, enabled, running, schedule_type, run_at, time_of_day, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(workspace_id, id) DO UPDATE SET title = excluded.title, task_prompt = excluded.task_prompt, enabled = excluded.enabled, running = excluded.running, schedule_type = excluded.schedule_type, run_at = excluded.run_at, time_of_day = excluded.time_of_day, interval_minutes = excluded.interval_minutes, context_mode = excluded.context_mode, next_run_at = excluded.next_run_at, last_run_at = excluded.last_run_at, last_status = excluded.last_status, last_error = excluded.last_error, session_id = excluded.session_id, created_at = excluded.created_at, updated_at = excluded.updated_at`,
 		prompt, task.ID, task.Title, task.Prompt, boolInt(task.Enabled), boolInt(task.Running), task.ScheduleType, formatOptionalTime(task.RunAt), task.TimeOfDay, task.IntervalMinutes, task.ContextMode, formatScheduleDBTime(task.NextRunAt), formatOptionalTime(task.LastRunAt), task.LastStatus, task.LastError, task.SessionID, formatScheduleDBTime(task.CreatedAt), formatScheduleDBTime(task.UpdatedAt))
 	return err
 }
@@ -147,16 +147,16 @@ func upsertScheduledTaskRunTx(tx interface {
 }, prompt string, record model.ScheduledTaskRunRecord) error {
 	prompt = strings.TrimSpace(prompt)
 	if prompt == "" {
-		prompt = defaultPromptName
+		prompt = defaultWorkspaceID
 	}
-	_, err := tx.Exec(`INSERT INTO scheduled_task_runs(prompt, id, task_id, task_title, task_prompt, output, status, error, manual, session_id, started_at, finished_at, duration_ms) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(prompt, id) DO UPDATE SET task_id = excluded.task_id, task_title = excluded.task_title, task_prompt = excluded.task_prompt, output = excluded.output, status = excluded.status, error = excluded.error, manual = excluded.manual, session_id = excluded.session_id, started_at = excluded.started_at, finished_at = excluded.finished_at, duration_ms = excluded.duration_ms`,
+	_, err := tx.Exec(`INSERT INTO scheduled_task_runs(workspace_id, id, task_id, task_title, task_prompt, output, status, error, manual, session_id, started_at, finished_at, duration_ms) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(workspace_id, id) DO UPDATE SET task_id = excluded.task_id, task_title = excluded.task_title, task_prompt = excluded.task_prompt, output = excluded.output, status = excluded.status, error = excluded.error, manual = excluded.manual, session_id = excluded.session_id, started_at = excluded.started_at, finished_at = excluded.finished_at, duration_ms = excluded.duration_ms`,
 		prompt, record.ID, record.TaskID, record.TaskTitle, record.Prompt, record.Output, record.Status, record.Error, boolInt(record.Manual), record.SessionID, formatScheduleDBTime(record.StartedAt), formatOptionalTime(record.FinishedAt), record.DurationMS)
 	return err
 }
 
-func loadScheduledTasksForPromptLocked(db *sql.DB, prompt string) ([]model.ScheduledTask, error) {
-	rows, err := db.Query(`SELECT id, title, task_prompt, enabled, running, schedule_type, run_at, time_of_day, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks WHERE prompt = ?`, prompt)
+func loadScheduledTasksForWorkspaceLocked(db *sql.DB, prompt string) ([]model.ScheduledTask, error) {
+	rows, err := db.Query(`SELECT id, title, task_prompt, enabled, running, schedule_type, run_at, time_of_day, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks WHERE workspace_id = ?`, prompt)
 	if err != nil {
 		return nil, err
 	}
@@ -255,8 +255,8 @@ func boolInt(value bool) int {
 	return 0
 }
 
-func deleteScheduledTasksExceptLocked(db *sql.DB, prompt string, keep map[string]bool) error {
-	rows, err := db.Query(`SELECT id FROM scheduled_tasks WHERE prompt = ?`, prompt)
+func deleteScheduledTasksExceptWorkspaceLocked(db *sql.DB, prompt string, keep map[string]bool) error {
+	rows, err := db.Query(`SELECT id FROM scheduled_tasks WHERE workspace_id = ?`, prompt)
 	if err != nil {
 		return err
 	}
@@ -279,16 +279,16 @@ func deleteScheduledTasksExceptLocked(db *sql.DB, prompt string, keep map[string
 		if keep[id] {
 			continue
 		}
-		if _, err := db.Exec(`DELETE FROM scheduled_tasks WHERE prompt = ? AND id = ?`, prompt, id); err != nil {
+		if _, err := db.Exec(`DELETE FROM scheduled_tasks WHERE workspace_id = ? AND id = ?`, prompt, id); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func scheduledTaskExistsLocked(db *sql.DB, prompt string, id string) (bool, error) {
+func scheduledTaskExistsInWorkspaceLocked(db *sql.DB, prompt string, id string) (bool, error) {
 	var got string
-	err := db.QueryRow(`SELECT id FROM scheduled_tasks WHERE prompt = ? AND id = ?`, prompt, id).Scan(&got)
+	err := db.QueryRow(`SELECT id FROM scheduled_tasks WHERE workspace_id = ? AND id = ?`, prompt, id).Scan(&got)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}

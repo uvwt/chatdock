@@ -12,10 +12,10 @@ func (s *Store) DataStatus() (DataStatus, error) {
 	s.mu.RLock()
 	dataDir := s.dataDir
 	dbPath := s.dbPath
-	active := s.activePrompt
+	active := s.activeWorkspace
 	s.mu.RUnlock()
 
-	prompts, err := s.listPrompts(active)
+	prompts, err := s.listWorkspaceSummaries(active)
 	if err != nil {
 		return DataStatus{}, err
 	}

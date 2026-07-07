@@ -8,14 +8,14 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func (s *Store) modelConfigForPrompt(prompt string) (model.ModelConfig, error) {
+func (s *Store) modelConfigForWorkspace(prompt string) (model.ModelConfig, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.modelConfigForPromptLocked(prompt)
+	return s.modelConfigForWorkspaceLocked(prompt)
 }
 
-func (s *Store) modelConfigForPromptLocked(prompt string) (model.ModelConfig, error) {
-	raw, ok, err := s.getPromptRawLocked(prompt, "config")
+func (s *Store) modelConfigForWorkspaceLocked(prompt string) (model.ModelConfig, error) {
+	raw, ok, err := s.getWorkspaceRawLocked(prompt, "config")
 	if err != nil {
 		return model.ModelConfig{}, err
 	}

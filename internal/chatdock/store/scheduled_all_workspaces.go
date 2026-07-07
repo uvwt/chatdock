@@ -9,15 +9,15 @@ import (
 )
 
 type DueScheduledTask struct {
-	PromptName string
-	Task       model.ScheduledTask
+	WorkspaceID string
+	Task        model.ScheduledTask
 }
 
-func (s *Store) DueScheduledTasksAllPrompts(now time.Time) (items []DueScheduledTask, err error) {
+func (s *Store) DueScheduledTasksAllWorkspaces(now time.Time) (items []DueScheduledTask, err error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	rows, err := s.db.Query(`SELECT prompt, id, title, task_prompt, enabled, running, schedule_type, run_at, time_of_day, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks WHERE enabled = 1 AND running = 0 AND next_run_at != '' AND next_run_at <= ? ORDER BY next_run_at ASC`, formatScheduleDBTime(now))
+	rows, err := s.db.Query(`SELECT workspace_id, id, title, task_prompt, enabled, running, schedule_type, run_at, time_of_day, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks WHERE enabled = 1 AND running = 0 AND next_run_at != '' AND next_run_at <= ? ORDER BY next_run_at ASC`, formatScheduleDBTime(now))
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (s *Store) DueScheduledTasksAllPrompts(now time.Time) (items []DueScheduled
 		task.CreatedAt = parseDBTimeZero(createdAt)
 		task.UpdatedAt = parseDBTimeZero(updatedAt)
 		task.ContextMode = normalizeScheduledTaskContextMode(task.ContextMode)
-		out = append(out, DueScheduledTask{PromptName: prompt, Task: task})
+		out = append(out, DueScheduledTask{WorkspaceID: prompt, Task: task})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -47,8 +47,8 @@ func (s *Store) DueScheduledTasksAllPrompts(now time.Time) (items []DueScheduled
 	return out, nil
 }
 
-func (s *Store) PrepareScheduledTaskRunInPrompt(promptName string, id string, manual bool, now time.Time) (model.ScheduledTaskRun, error) {
-	promptName, err := normalizePromptName(promptName)
+func (s *Store) PrepareScheduledTaskRunInWorkspace(workspaceID string, id string, manual bool, now time.Time) (model.ScheduledTaskRun, error) {
+	workspaceID, err := normalizeWorkspaceID(workspaceID)
 	if err != nil {
 		return model.ScheduledTaskRun{}, err
 	}
@@ -56,7 +56,7 @@ func (s *Store) PrepareScheduledTaskRunInPrompt(promptName string, id string, ma
 	defer s.mu.Unlock()
 
 	var run model.ScheduledTaskRun
-	err = s.withPromptLocked(promptName, func() error {
+	err = s.withWorkspaceLocked(workspaceID, func() error {
 		prepared, err := s.prepareScheduledTaskRunLocked(id, manual, now)
 		if err != nil {
 			return err
@@ -159,7 +159,7 @@ func (s *Store) prepareScheduledTaskRunLocked(id string, manual bool, now time.T
 		return model.ScheduledTaskRun{}, err
 	}
 	cfg := s.modelCfg
-	return model.ScheduledTaskRun{Task: task, PromptName: s.activePrompt, SessionID: sessionID, RunID: runID, Config: cfg, History: history}, nil
+	return model.ScheduledTaskRun{Task: task, WorkspaceID: s.activeWorkspace, SessionID: sessionID, RunID: runID, Config: cfg, History: history}, nil
 }
 
 func (s *Store) createScheduledTaskRunSessionLocked(task model.ScheduledTask, userMessage model.Message, now time.Time) (*model.Session, error) {

@@ -36,7 +36,7 @@ func mcpToolNeedsConfirmation(cfg mcp.MCPConfig, fullName string) bool {
 func (a *App) requestMCPConfirmation(ctx context.Context, sessionID string, tool string, args map[string]any, emit func(string, any) error) error {
 	confirmation := &MCPConfirmation{
 		ID:          model.NewID(),
-		Workspace:   a.store.ActivePrompt(),
+		Workspace:   a.store.ActiveWorkspace(),
 		SessionID:   strings.TrimSpace(sessionID),
 		Tool:        strings.TrimSpace(tool),
 		Arguments:   args,
@@ -95,7 +95,7 @@ func (a *App) finishMCPConfirmation(id string, status string, approved bool) (MC
 }
 
 func (a *App) listMCPConfirmations() []MCPConfirmation {
-	workspace := a.store.ActivePrompt()
+	workspace := a.store.ActiveWorkspace()
 	a.confirmMu.Lock()
 	defer a.confirmMu.Unlock()
 	items := make([]MCPConfirmation, 0, len(a.confirmations))

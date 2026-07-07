@@ -214,8 +214,8 @@ func (s *Store) DeleteSession(id string) bool {
 		return false
 	}
 	delete(s.sessions, id)
-	_, _ = s.db.Exec(`DELETE FROM sessions WHERE prompt = ? AND id = ?`, s.activePrompt, id)
-	_ = s.touchPromptLocked(s.activePrompt, time.Now())
+	_, _ = s.db.Exec(`DELETE FROM sessions WHERE workspace_id = ? AND id = ?`, s.activeWorkspace, id)
+	_ = s.touchWorkspaceLocked(s.activeWorkspace, time.Now())
 	return true
 }
 

@@ -390,7 +390,7 @@ func (a *App) setWorkspaceModelProvider(providerID string, modelName string) (ma
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"ok": true, "workspace": a.store.ActivePrompt(), "provider_id": saved.ProviderID, "model": saved.Model}, nil
+	return map[string]any{"ok": true, "workspace": a.store.ActiveWorkspace(), "provider_id": saved.ProviderID, "model": saved.Model}, nil
 }
 
 func modelProviderInputFromArgs(args map[string]any, previous *store.ModelProvider) (store.ModelProviderInput, error) {

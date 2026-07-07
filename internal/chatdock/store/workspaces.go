@@ -9,20 +9,20 @@ import (
 
 func (s *Store) ListWorkspaces() (WorkspaceResponse, error) {
 	s.mu.RLock()
-	active := s.activePrompt
+	active := s.activeWorkspace
 	s.mu.RUnlock()
 
-	prompts, err := s.listPrompts(active)
+	prompts, err := s.listWorkspaceSummaries(active)
 	if err != nil {
 		return WorkspaceResponse{}, err
 	}
 	items := make([]Workspace, 0, len(prompts))
 	for _, prompt := range prompts {
-		cfg, err := s.modelConfigForPrompt(prompt.Name)
+		cfg, err := s.modelConfigForWorkspace(prompt.Name)
 		if err != nil {
 			return WorkspaceResponse{}, err
 		}
-		tasks, _ := s.scheduledTasksForPrompt(prompt.Name)
+		tasks, _ := s.scheduledTasksForWorkspace(prompt.Name)
 		items = append(items, Workspace{
 			ID:              prompt.Name,
 			Name:            prompt.Name,
@@ -48,18 +48,18 @@ func (s *Store) ListWorkspaces() (WorkspaceResponse, error) {
 }
 
 func (s *Store) WorkspaceConfig(workspaceID string) (model.PublicModelConfig, error) {
-	workspaceID, err := normalizePromptName(workspaceID)
+	workspaceID, err := normalizeWorkspaceID(workspaceID)
 	if err != nil {
 		return model.PublicModelConfig{}, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	if exists, err := s.promptExistsLocked(workspaceID); err != nil {
+	if exists, err := s.workspaceExistsLocked(workspaceID); err != nil {
 		return model.PublicModelConfig{}, err
 	} else if !exists {
 		return model.PublicModelConfig{}, fmt.Errorf("workspace not found: %s", workspaceID)
 	}
-	cfg, err := s.modelConfigForPromptLocked(workspaceID)
+	cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
 	if err != nil {
 		return model.PublicModelConfig{}, err
 	}
@@ -67,7 +67,7 @@ func (s *Store) WorkspaceConfig(workspaceID string) (model.PublicModelConfig, er
 }
 
 func (s *Store) SaveWorkspaceConfig(workspaceID string, next model.ModelConfig) (model.PublicModelConfig, error) {
-	workspaceID, err := normalizePromptName(workspaceID)
+	workspaceID, err := normalizeWorkspaceID(workspaceID)
 	if err != nil {
 		return model.PublicModelConfig{}, err
 	}
@@ -75,7 +75,7 @@ func (s *Store) SaveWorkspaceConfig(workspaceID string, next model.ModelConfig) 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	exists, err := s.promptExistsLocked(workspaceID)
+	exists, err := s.workspaceExistsLocked(workspaceID)
 	if err != nil {
 		return model.PublicModelConfig{}, err
 	}
@@ -87,28 +87,28 @@ func (s *Store) SaveWorkspaceConfig(workspaceID string, next model.ModelConfig) 
 		return model.PublicModelConfig{}, err
 	}
 	// 工作空间配置可以在不切换当前会话空间的情况下保存；如果保存的是当前空间，同步内存态，避免后续聊天继续用旧配置。
-	if workspaceID == s.activePrompt {
+	if workspaceID == s.activeWorkspace {
 		s.modelCfg = saved
 	}
 	return model.ToPublicModelConfig(saved), nil
 }
 
 func (s *Store) PromptPreview(workspaceID string) (PromptPreviewResponse, error) {
-	workspaceID, err := normalizePromptName(workspaceID)
+	workspaceID, err := normalizeWorkspaceID(workspaceID)
 	if err != nil {
 		return PromptPreviewResponse{}, err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	previous := s.activePrompt
-	if err := s.loadPromptLocked(workspaceID); err != nil {
+	previous := s.activeWorkspace
+	if err := s.loadWorkspaceLocked(workspaceID); err != nil {
 		return PromptPreviewResponse{}, err
 	}
 	cfg := s.modelCfg
 	content := llm.BuildSystemPrompt(cfg)
 	if previous != workspaceID {
-		if restoreErr := s.loadPromptLocked(previous); restoreErr != nil && err == nil {
+		if restoreErr := s.loadWorkspaceLocked(previous); restoreErr != nil && err == nil {
 			err = restoreErr
 		}
 	}
@@ -118,10 +118,10 @@ func (s *Store) PromptPreview(workspaceID string) (PromptPreviewResponse, error)
 	return PromptPreviewResponse{WorkspaceID: workspaceID, WorkspaceName: workspaceID, Content: content}, nil
 }
 
-func (s *Store) scheduledTasksForPrompt(prompt string) ([]model.ScheduledTask, error) {
+func (s *Store) scheduledTasksForWorkspace(prompt string) ([]model.ScheduledTask, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	tasks, err := loadScheduledTasksForPromptLocked(s.db, prompt)
+	tasks, err := loadScheduledTasksForWorkspaceLocked(s.db, prompt)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,7 @@ func (s *Store) scheduledTasksForPrompt(prompt string) ([]model.ScheduledTask, e
 }
 
 func workspaceDescription(name string) string {
-	if name == defaultPromptName {
+	if name == defaultWorkspaceID {
 		return "默认通用 AI 工作空间"
 	}
 	return "独立模型、提示词、工具和自动化配置"

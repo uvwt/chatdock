@@ -76,7 +76,7 @@ func (s *Store) SearchSessions(query string, limit int) ([]SessionSearchResult, 
 }
 
 func (s *Store) matchAttachmentTextLocked(sessionID string, needle string, original string) (int, string, string) {
-	rows, err := s.db.Query(`SELECT filename, text_content FROM attachments WHERE prompt = ? AND session_id = ?`, s.activePrompt, sessionID)
+	rows, err := s.db.Query(`SELECT filename, text_content FROM attachments WHERE workspace_id = ? AND session_id = ?`, s.activeWorkspace, sessionID)
 	if err != nil {
 		return 0, "", ""
 	}

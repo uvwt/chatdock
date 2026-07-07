@@ -23,14 +23,14 @@ func TestScheduledJSONMigratesToTables(t *testing.T) {
 	next := time.Date(2026, 7, 6, 12, 30, 0, 0, time.FixedZone("CST", 8*3600))
 	legacyTasks := []model.ScheduledTask{{ID: "task-legacy", Title: "旧任务", Prompt: "执行旧任务", Enabled: true, ScheduleType: "daily", TimeOfDay: "12:30", ContextMode: model.ScheduledTaskContextStateless, NextRunAt: next, CreatedAt: next.Add(-time.Hour), UpdatedAt: next.Add(-time.Minute)}}
 	rawTasks, _ := json.Marshal(legacyTasks)
-	if err := st.setPromptRawLocked(defaultPromptName, "scheduled_tasks", string(rawTasks)); err != nil {
+	if err := st.setWorkspaceRawLocked(defaultWorkspaceID, "scheduled_tasks", string(rawTasks)); err != nil {
 		st.mu.Unlock()
 		t.Fatal(err)
 	}
 	finished := next.Add(2 * time.Minute)
 	legacyRuns := []model.ScheduledTaskRunRecord{{ID: "run-legacy", TaskID: "task-legacy", TaskTitle: "旧任务", Prompt: "执行旧任务", Output: "完成", Status: "success", StartedAt: next, FinishedAt: &finished, DurationMS: 120000}}
 	rawRuns, _ := json.Marshal(legacyRuns)
-	if err := st.setPromptRawLocked(defaultPromptName, scheduledTaskRunsKey, string(rawRuns)); err != nil {
+	if err := st.setWorkspaceRawLocked(defaultWorkspaceID, scheduledTaskRunsKey, string(rawRuns)); err != nil {
 		st.mu.Unlock()
 		t.Fatal(err)
 	}

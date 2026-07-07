@@ -49,8 +49,8 @@ func (s *Store) CreateChatJob(sessionID string, requestID string) (ChatJob, erro
 		return ChatJob{}, fmt.Errorf("session id is empty")
 	}
 	now := time.Now()
-	job := ChatJob{Workspace: s.activePrompt, ID: model.NewID(), SessionID: strings.TrimSpace(sessionID), RequestID: strings.TrimSpace(requestID), Status: "running", StartedAt: now, UpdatedAt: now}
-	_, err := s.db.Exec(`INSERT INTO chat_jobs(prompt, id, session_id, request_id, status, answer, reasoning, error, started_at, finished_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, job.Workspace, job.ID, job.SessionID, job.RequestID, job.Status, "", "", "", formatDBTime(job.StartedAt), "", formatDBTime(job.UpdatedAt))
+	job := ChatJob{Workspace: s.activeWorkspace, ID: model.NewID(), SessionID: strings.TrimSpace(sessionID), RequestID: strings.TrimSpace(requestID), Status: "running", StartedAt: now, UpdatedAt: now}
+	_, err := s.db.Exec(`INSERT INTO chat_jobs(workspace_id, id, session_id, request_id, status, answer, reasoning, error, started_at, finished_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, job.Workspace, job.ID, job.SessionID, job.RequestID, job.Status, "", "", "", formatDBTime(job.StartedAt), "", formatDBTime(job.UpdatedAt))
 	if err != nil {
 		return ChatJob{}, err
 	}
@@ -135,8 +135,8 @@ func (s *Store) ListChatJobs(sessionID string, runningOnly bool, limit int) ([]C
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
-	query := `SELECT prompt, id, session_id, request_id, status, answer, reasoning, error, started_at, finished_at, updated_at FROM chat_jobs WHERE prompt = ?`
-	args := []any{s.activePrompt}
+	query := `SELECT workspace_id, id, session_id, request_id, status, answer, reasoning, error, started_at, finished_at, updated_at FROM chat_jobs WHERE workspace_id = ?`
+	args := []any{s.activeWorkspace}
 	if strings.TrimSpace(sessionID) != "" {
 		query += ` AND session_id = ?`
 		args = append(args, strings.TrimSpace(sessionID))
@@ -210,7 +210,7 @@ func (s *Store) MarkRunningChatJobsInterrupted() error {
 }
 
 func (s *Store) getChatJobLocked(jobID string) (ChatJob, error) {
-	row := s.db.QueryRow(`SELECT prompt, id, session_id, request_id, status, answer, reasoning, error, started_at, finished_at, updated_at FROM chat_jobs WHERE id = ?`, strings.TrimSpace(jobID))
+	row := s.db.QueryRow(`SELECT workspace_id, id, session_id, request_id, status, answer, reasoning, error, started_at, finished_at, updated_at FROM chat_jobs WHERE id = ?`, strings.TrimSpace(jobID))
 	jobs, err := scanChatJobs(rowRows{row: row})
 	if err != nil {
 		return ChatJob{}, err

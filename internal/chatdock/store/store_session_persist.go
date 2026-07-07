@@ -9,7 +9,7 @@ import (
 )
 
 func (s *Store) loadSessionsLocked() error {
-	sessions, err := loadSessionsFromTablesLocked(s.db, s.activePrompt)
+	sessions, err := loadSessionsFromTablesLocked(s.db, s.activeWorkspace)
 	if err != nil {
 		return err
 	}
@@ -22,10 +22,10 @@ func (s *Store) loadSessionsLocked() error {
 }
 
 func (s *Store) saveSessionLocked(session *model.Session) error {
-	return s.saveSessionForPromptLocked(s.activePrompt, session)
+	return s.saveSessionForWorkspaceLocked(s.activeWorkspace, session)
 }
 
-func (s *Store) saveSessionForPromptLocked(prompt string, session *model.Session) error {
+func (s *Store) saveSessionForWorkspaceLocked(prompt string, session *model.Session) error {
 	if session == nil || strings.TrimSpace(session.ID) == "" {
 		return fmt.Errorf("session id is empty")
 	}
@@ -35,7 +35,7 @@ func (s *Store) saveSessionForPromptLocked(prompt string, session *model.Session
 	if session.UpdatedAt.IsZero() {
 		session.UpdatedAt = session.CreatedAt
 	}
-	if err := s.ensurePromptLocked(prompt); err != nil {
+	if err := s.ensureWorkspaceLocked(prompt); err != nil {
 		return err
 	}
 	tx, err := s.db.Begin()
@@ -49,5 +49,5 @@ func (s *Store) saveSessionForPromptLocked(prompt string, session *model.Session
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	return s.touchPromptLocked(prompt, time.Now())
+	return s.touchWorkspaceLocked(prompt, time.Now())
 }

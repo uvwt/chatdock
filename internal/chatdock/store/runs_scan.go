@@ -11,7 +11,7 @@ import (
 )
 
 func (s *Store) getMCPRunLocked(runID string) (MCPRun, error) {
-	row := s.db.QueryRow(`SELECT prompt, id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at FROM mcp_runs WHERE id = ?`, strings.TrimSpace(runID))
+	row := s.db.QueryRow(`SELECT workspace_id, id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at FROM mcp_runs WHERE id = ?`, strings.TrimSpace(runID))
 	rows := &singleRow{scan: row.Scan}
 	runs, err := scanMCPRuns(rows)
 	if err != nil {

@@ -66,16 +66,16 @@ func (s *Store) ensureGlobalModelProvidersLocked() error {
 		return nil
 	}
 
-	names, err := s.listPromptNamesLocked()
+	names, err := s.listWorkspaceIDsLocked()
 	if err != nil {
 		return err
 	}
 	if len(names) == 0 {
-		names = []string{defaultPromptName}
+		names = []string{defaultWorkspaceID}
 	}
 	now := time.Now()
 	for _, workspaceID := range names {
-		cfg, err := s.modelConfigForPromptLocked(workspaceID)
+		cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
 		if err != nil {
 			return err
 		}
@@ -96,7 +96,7 @@ func (s *Store) ensureGlobalModelProvidersLocked() error {
 		record = normalizeModelProviderRecord(record)
 		records = append(records, record)
 		cfg.ProviderID = id
-		if err := s.setPromptJSONLocked(workspaceID, "config", cfg); err != nil {
+		if err := s.setWorkspaceJSONLocked(workspaceID, "config", cfg); err != nil {
 			return err
 		}
 	}
@@ -307,12 +307,12 @@ func (s *Store) DeleteModelProvider(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	names, err := s.listPromptNamesLocked()
+	names, err := s.listWorkspaceIDsLocked()
 	if err != nil {
 		return err
 	}
 	for _, workspaceID := range names {
-		cfg, err := s.modelConfigForPromptLocked(workspaceID)
+		cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
 		if err != nil {
 			return err
 		}

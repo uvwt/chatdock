@@ -60,7 +60,7 @@ func TestStoreEffectiveMCPConfigFallsBackToDefaultWorkspace(t *testing.T) {
 	if _, err := store.SaveMCPConfig(defaultConfig); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.CreatePrompt(model.CreateWorkspaceRequest{Name: "model", SystemPrompt: "model workspace"}); err != nil {
+	if _, err := store.CreateWorkspace(model.CreateWorkspaceRequest{Name: "model", SystemPrompt: "model workspace"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.SaveMCPConfig(`{"servers":{}}`); err != nil {

@@ -45,12 +45,12 @@ type ScheduledTaskResponse struct {
 }
 
 type ScheduledTaskRun struct {
-	Task       ScheduledTask
-	PromptName string
-	SessionID  string
-	RunID      string
-	Config     ModelConfig
-	History    []Message
+	Task        ScheduledTask
+	WorkspaceID string
+	SessionID   string
+	RunID       string
+	Config      ModelConfig
+	History     []Message
 }
 
 type ScheduledTaskRunResponse struct {

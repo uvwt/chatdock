@@ -51,7 +51,7 @@ func publicModelProvider(record modelProviderRecord) ModelProvider {
 func providerIDFromWorkspace(workspace string) string {
 	id := normalizeProviderID(workspace)
 	if id == "" {
-		return defaultPromptName
+		return defaultWorkspaceID
 	}
 	return id
 }

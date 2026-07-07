@@ -20,7 +20,7 @@ func (s *Store) migrateSessionJSONToTables() error {
 	if migrated == "1" {
 		return nil
 	}
-	rows, err := s.db.Query(`SELECT prompt, id, json, created_at, updated_at FROM sessions ORDER BY updated_at DESC`)
+	rows, err := s.db.Query(`SELECT workspace_id, id, json, created_at, updated_at FROM sessions ORDER BY updated_at DESC`)
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (s *Store) migrateSessionJSONToTables() error {
 }
 
 func loadSessionsFromTablesLocked(db *sql.DB, prompt string) (map[string]*model.Session, error) {
-	rows, err := db.Query(`SELECT id, title, pinned, provider_id, model, created_at, updated_at FROM sessions WHERE prompt = ? ORDER BY updated_at DESC`, prompt)
+	rows, err := db.Query(`SELECT id, title, pinned, provider_id, model, created_at, updated_at FROM sessions WHERE workspace_id = ? ORDER BY updated_at DESC`, prompt)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func loadSessionsFromTablesLocked(db *sql.DB, prompt string) (map[string]*model.
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	msgRows, err := db.Query(`SELECT session_id, message_index, id, role, content, reasoning, attachments_json, created_at FROM session_messages WHERE prompt = ? ORDER BY session_id, message_index`, prompt)
+	msgRows, err := db.Query(`SELECT session_id, message_index, id, role, content, reasoning, attachments_json, created_at FROM session_messages WHERE workspace_id = ? ORDER BY session_id, message_index`, prompt)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func loadSessionsFromTablesLocked(db *sql.DB, prompt string) (map[string]*model.
 }
 
 func loadSessionEventsFromTables(db *sql.DB, prompt string, sessions map[string]*model.Session) error {
-	rows, err := db.Query(`SELECT session_id, message_index, event_index, id, kind, phase, call_key, text, meta FROM session_message_events WHERE prompt = ? ORDER BY session_id, message_index, event_index`, prompt)
+	rows, err := db.Query(`SELECT session_id, message_index, event_index, id, kind, phase, call_key, text, meta FROM session_message_events WHERE workspace_id = ? ORDER BY session_id, message_index, event_index`, prompt)
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func loadSessionEventsFromTables(db *sql.DB, prompt string, sessions map[string]
 }
 
 func loadSessionPartsFromTables(db *sql.DB, prompt string, sessions map[string]*model.Session) error {
-	rows, err := db.Query(`SELECT prompt, session_id, message_index, part_index, kind, text, call_key, event_id FROM session_message_parts WHERE prompt = ? ORDER BY session_id, message_index, part_index`, prompt)
+	rows, err := db.Query(`SELECT workspace_id, session_id, message_index, part_index, kind, text, call_key, event_id FROM session_message_parts WHERE workspace_id = ? ORDER BY session_id, message_index, part_index`, prompt)
 	if err != nil {
 		return err
 	}
@@ -206,7 +206,7 @@ func upsertSessionTablesTx(tx interface {
 	}
 	prompt = strings.TrimSpace(prompt)
 	if prompt == "" {
-		prompt = defaultPromptName
+		prompt = defaultWorkspaceID
 	}
 	now := time.Now()
 	if session.CreatedAt.IsZero() {
@@ -219,11 +219,11 @@ func upsertSessionTablesTx(tx interface {
 		session.Title = "新会话"
 	}
 	compactRaw, _ := json.MarshalIndent(compactSessionForLegacyRow(session), "", "  ")
-	if _, err := tx.Exec(`INSERT INTO sessions(prompt, id, title, pinned, provider_id, model, json, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(prompt, id) DO UPDATE SET title = excluded.title, pinned = excluded.pinned, provider_id = excluded.provider_id, model = excluded.model, json = excluded.json, created_at = excluded.created_at, updated_at = excluded.updated_at`, prompt, session.ID, session.Title, boolInt(session.Pinned), session.ProviderID, session.Model, string(compactRaw)+"\n", formatScheduleDBTime(session.CreatedAt), formatScheduleDBTime(session.UpdatedAt)); err != nil {
+	if _, err := tx.Exec(`INSERT INTO sessions(workspace_id, id, title, pinned, provider_id, model, json, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(workspace_id, id) DO UPDATE SET title = excluded.title, pinned = excluded.pinned, provider_id = excluded.provider_id, model = excluded.model, json = excluded.json, created_at = excluded.created_at, updated_at = excluded.updated_at`, prompt, session.ID, session.Title, boolInt(session.Pinned), session.ProviderID, session.Model, string(compactRaw)+"\n", formatScheduleDBTime(session.CreatedAt), formatScheduleDBTime(session.UpdatedAt)); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(`DELETE FROM session_messages WHERE prompt = ? AND session_id = ?`, prompt, session.ID); err != nil {
+	if _, err := tx.Exec(`DELETE FROM session_messages WHERE workspace_id = ? AND session_id = ?`, prompt, session.ID); err != nil {
 		return err
 	}
 	for messageIndex := range session.Messages {
@@ -235,7 +235,7 @@ ON CONFLICT(prompt, id) DO UPDATE SET title = excluded.title, pinned = excluded.
 			msg.CreatedAt = session.UpdatedAt
 		}
 		attachmentsRaw, _ := json.Marshal(msg.Attachments)
-		if _, err := tx.Exec(`INSERT INTO session_messages(prompt, session_id, message_index, id, role, content, reasoning, attachments_json, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`, prompt, session.ID, messageIndex, msg.ID, msg.Role, msg.Content, msg.Reasoning, string(attachmentsRaw), formatScheduleDBTime(msg.CreatedAt)); err != nil {
+		if _, err := tx.Exec(`INSERT INTO session_messages(workspace_id, session_id, message_index, id, role, content, reasoning, attachments_json, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`, prompt, session.ID, messageIndex, msg.ID, msg.Role, msg.Content, msg.Reasoning, string(attachmentsRaw), formatScheduleDBTime(msg.CreatedAt)); err != nil {
 			return err
 		}
 		eventIDs := map[int]string{}
@@ -262,7 +262,7 @@ ON CONFLICT(prompt, id) DO UPDATE SET title = excluded.title, pinned = excluded.
 					}
 				}
 			}
-			if _, err := tx.Exec(`INSERT INTO session_message_parts(prompt, session_id, message_index, part_index, kind, text, call_key, event_id) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`, prompt, session.ID, messageIndex, partIndex, part.Kind, part.Text, part.CallKey, eventID); err != nil {
+			if _, err := tx.Exec(`INSERT INTO session_message_parts(workspace_id, session_id, message_index, part_index, kind, text, call_key, event_id) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`, prompt, session.ID, messageIndex, partIndex, part.Kind, part.Text, part.CallKey, eventID); err != nil {
 				return err
 			}
 		}
@@ -276,12 +276,12 @@ func insertSessionMessageEventTx(tx interface {
 	if strings.TrimSpace(event.ID) == "" {
 		event.ID = model.NewID()
 	}
-	if _, err := tx.Exec(`INSERT INTO session_message_events(prompt, session_id, message_index, event_index, id, kind, phase, call_key, text, meta) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, prompt, sessionID, messageIndex, eventIndex, event.ID, event.Kind, event.Phase, event.CallKey, event.Text, event.Meta); err != nil {
+	if _, err := tx.Exec(`INSERT INTO session_message_events(workspace_id, session_id, message_index, event_index, id, kind, phase, call_key, text, meta) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, prompt, sessionID, messageIndex, eventIndex, event.ID, event.Kind, event.Phase, event.CallKey, event.Text, event.Meta); err != nil {
 		return err
 	}
 	if len(event.Details) > 0 {
 		detailsRaw, _ := json.Marshal(event.Details)
-		if _, err := tx.Exec(`INSERT INTO session_message_event_details(prompt, session_id, event_id, details_json, details_bytes, updated_at) VALUES(?, ?, ?, ?, ?, ?) ON CONFLICT(prompt, session_id, event_id) DO UPDATE SET details_json = excluded.details_json, details_bytes = excluded.details_bytes, updated_at = excluded.updated_at`, prompt, sessionID, event.ID, string(detailsRaw), len(detailsRaw), formatScheduleDBTime(time.Now())); err != nil {
+		if _, err := tx.Exec(`INSERT INTO session_message_event_details(workspace_id, session_id, event_id, details_json, details_bytes, updated_at) VALUES(?, ?, ?, ?, ?, ?) ON CONFLICT(workspace_id, session_id, event_id) DO UPDATE SET details_json = excluded.details_json, details_bytes = excluded.details_bytes, updated_at = excluded.updated_at`, prompt, sessionID, event.ID, string(detailsRaw), len(detailsRaw), formatScheduleDBTime(time.Now())); err != nil {
 			return err
 		}
 	}
@@ -343,7 +343,7 @@ func (s *Store) SessionMessageEventByID(sessionID string, eventID string) (model
 	if sessionID == "" || eventID == "" {
 		return model.MessageEvent{}, fmt.Errorf("session id and event id are required")
 	}
-	row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.prompt = e.prompt AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.prompt = ? AND e.session_id = ? AND e.id = ?`, s.activePrompt, sessionID, eventID)
+	row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.workspace_id = ? AND e.session_id = ? AND e.id = ?`, s.activeWorkspace, sessionID, eventID)
 	var event model.MessageEvent
 	var detailsRaw string
 	if err := row.Scan(&event.ID, &event.Kind, &event.Phase, &event.CallKey, &event.Text, &event.Meta, &detailsRaw); err != nil {
@@ -364,11 +364,11 @@ func (s *Store) SessionMessageEventByIndex(sessionID string, messageIndex int, e
 	}
 	if eventIndex < 0 && partIndex >= 0 {
 		var eventID string
-		if err := s.db.QueryRow(`SELECT event_id FROM session_message_parts WHERE prompt = ? AND session_id = ? AND message_index = ? AND part_index = ?`, s.activePrompt, sessionID, messageIndex, partIndex).Scan(&eventID); err != nil {
+		if err := s.db.QueryRow(`SELECT event_id FROM session_message_parts WHERE workspace_id = ? AND session_id = ? AND message_index = ? AND part_index = ?`, s.activeWorkspace, sessionID, messageIndex, partIndex).Scan(&eventID); err != nil {
 			return model.MessageEvent{}, err
 		}
 		eventIndex = -1
-		row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.prompt = e.prompt AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.prompt = ? AND e.session_id = ? AND e.id = ?`, s.activePrompt, sessionID, eventID)
+		row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.workspace_id = ? AND e.session_id = ? AND e.id = ?`, s.activeWorkspace, sessionID, eventID)
 		var event model.MessageEvent
 		var detailsRaw string
 		if err := row.Scan(&event.ID, &event.Kind, &event.Phase, &event.CallKey, &event.Text, &event.Meta, &detailsRaw); err != nil {
@@ -382,7 +382,7 @@ func (s *Store) SessionMessageEventByIndex(sessionID string, messageIndex int, e
 	if eventIndex < 0 {
 		return model.MessageEvent{}, fmt.Errorf("invalid event index")
 	}
-	row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.prompt = e.prompt AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.prompt = ? AND e.session_id = ? AND e.message_index = ? AND e.event_index = ?`, s.activePrompt, sessionID, messageIndex, eventIndex)
+	row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.workspace_id = ? AND e.session_id = ? AND e.message_index = ? AND e.event_index = ?`, s.activeWorkspace, sessionID, messageIndex, eventIndex)
 	var event model.MessageEvent
 	var detailsRaw string
 	if err := row.Scan(&event.ID, &event.Kind, &event.Phase, &event.CallKey, &event.Text, &event.Meta, &detailsRaw); err != nil {

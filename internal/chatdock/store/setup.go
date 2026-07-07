@@ -9,12 +9,12 @@ import (
 
 func (s *Store) SetupStatus() (SetupStatus, error) {
 	s.mu.RLock()
-	active := s.activePrompt
+	active := s.activeWorkspace
 	cfg := s.modelCfg
 	dataDir := s.dataDir
 	s.mu.RUnlock()
 
-	prompts, err := s.listPrompts(active)
+	prompts, err := s.listWorkspaceSummaries(active)
 	if err != nil {
 		return SetupStatus{}, err
 	}
@@ -36,24 +36,24 @@ func (s *Store) SetupStatus() (SetupStatus, error) {
 func (s *Store) InitializeSetup(input SetupInitRequest) (SetupStatus, error) {
 	name := strings.TrimSpace(input.WorkspaceName)
 	if name == "" {
-		name = defaultPromptName
+		name = defaultWorkspaceID
 	}
-	name, err := normalizePromptName(name)
+	name, err := normalizeWorkspaceID(name)
 	if err != nil {
 		return SetupStatus{}, err
 	}
 
 	s.mu.Lock()
-	if exists, err := s.promptExistsLocked(name); err != nil {
+	if exists, err := s.workspaceExistsLocked(name); err != nil {
 		s.mu.Unlock()
 		return SetupStatus{}, err
 	} else if !exists {
-		if err := s.insertPromptLocked(name, time.Now()); err != nil {
+		if err := s.insertWorkspaceLocked(name, time.Now()); err != nil {
 			s.mu.Unlock()
 			return SetupStatus{}, err
 		}
 	}
-	if err := s.loadPromptLocked(name); err != nil {
+	if err := s.loadWorkspaceLocked(name); err != nil {
 		s.mu.Unlock()
 		return SetupStatus{}, err
 	}
@@ -67,11 +67,11 @@ func (s *Store) InitializeSetup(input SetupInitRequest) (SetupStatus, error) {
 		cfg.SystemPrompt = model.DefaultModelConfig().SystemPrompt
 	}
 	s.modelCfg = model.NormalizeModelConfig(cfg)
-	if err := s.upsertProviderFromConfigLocked(s.activePrompt, s.modelCfg); err != nil {
+	if err := s.upsertProviderFromConfigLocked(s.activeWorkspace, s.modelCfg); err != nil {
 		s.mu.Unlock()
 		return SetupStatus{}, err
 	}
-	err = s.setPromptJSONLocked(s.activePrompt, "config", s.modelCfg)
+	err = s.setWorkspaceJSONLocked(s.activeWorkspace, "config", s.modelCfg)
 	s.mu.Unlock()
 	if err != nil {
 		return SetupStatus{}, err

@@ -150,7 +150,7 @@ func TestScheduledTaskRunWritesConversationDetails(t *testing.T) {
 		t.Fatalf("unexpected created tasks: %#v", created.Tasks)
 	}
 
-	result, err := app.executeScheduledTask(context.Background(), app.store.ActivePrompt(), created.Tasks[0].ID, true)
+	result, err := app.executeScheduledTask(context.Background(), app.store.ActiveWorkspace(), created.Tasks[0].ID, true)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -17,7 +17,7 @@ func (s *Store) SaveModelConfig(next model.ModelConfig) (model.ModelConfig, erro
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	cfg, err := s.saveModelConfigForWorkspaceLocked(s.activePrompt, next)
+	cfg, err := s.saveModelConfigForWorkspaceLocked(s.activeWorkspace, next)
 	if err != nil {
 		return model.ModelConfig{}, err
 	}
@@ -26,7 +26,7 @@ func (s *Store) SaveModelConfig(next model.ModelConfig) (model.ModelConfig, erro
 }
 
 func (s *Store) saveModelConfigForWorkspaceLocked(workspaceID string, next model.ModelConfig) (model.ModelConfig, error) {
-	current, err := s.modelConfigForPromptLocked(workspaceID)
+	current, err := s.modelConfigForWorkspaceLocked(workspaceID)
 	if err != nil {
 		return model.ModelConfig{}, err
 	}
@@ -55,7 +55,7 @@ func (s *Store) saveModelConfigForWorkspaceLocked(workspaceID string, next model
 		next.EmbeddingAPIKey = current.EmbeddingAPIKey
 	}
 	if strings.TrimSpace(next.EmbeddingBaseURL) != current.EmbeddingBaseURL || strings.TrimSpace(next.EmbeddingModel) != current.EmbeddingModel {
-		if err := s.deleteToolEmbeddingsForPromptLocked(workspaceID); err != nil {
+		if err := s.deleteToolEmbeddingsForWorkspaceLocked(workspaceID); err != nil {
 			return model.ModelConfig{}, err
 		}
 	}
@@ -72,7 +72,7 @@ func (s *Store) saveModelConfigForWorkspaceLocked(workspaceID string, next model
 	if err != nil {
 		return model.ModelConfig{}, err
 	}
-	if err := s.setPromptJSONLocked(workspaceID, "config", merged); err != nil {
+	if err := s.setWorkspaceJSONLocked(workspaceID, "config", merged); err != nil {
 		return model.ModelConfig{}, err
 	}
 	return merged, nil

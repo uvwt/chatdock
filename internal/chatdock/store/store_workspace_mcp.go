@@ -12,13 +12,13 @@ func (s *Store) GetMCPConfig() (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	content, ok, err := s.getPromptRawLocked(s.activePrompt, "mcp")
+	content, ok, err := s.getWorkspaceRawLocked(s.activeWorkspace, "mcp")
 	if err != nil {
 		return "", err
 	}
 	if !ok || strings.TrimSpace(content) == "" {
 		content = DefaultMCPConfig()
-		return content, s.setPromptRawLocked(s.activePrompt, "mcp", content)
+		return content, s.setWorkspaceRawLocked(s.activeWorkspace, "mcp", content)
 	}
 	return content, nil
 }
@@ -27,21 +27,21 @@ func (s *Store) GetEffectiveMCPConfig() (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	content, ok, err := s.getPromptRawLocked(s.activePrompt, "mcp")
+	content, ok, err := s.getWorkspaceRawLocked(s.activeWorkspace, "mcp")
 	if err != nil {
 		return "", err
 	}
 	if !ok || strings.TrimSpace(content) == "" {
 		content = DefaultMCPConfig()
-		if err := s.setPromptRawLocked(s.activePrompt, "mcp", content); err != nil {
+		if err := s.setWorkspaceRawLocked(s.activeWorkspace, "mcp", content); err != nil {
 			return "", err
 		}
 	}
-	if mcpConfigHasServers(content) || s.activePrompt == defaultPromptName {
+	if mcpConfigHasServers(content) || s.activeWorkspace == defaultWorkspaceID {
 		return content, nil
 	}
 
-	fallback, ok, err := s.getPromptRawLocked(defaultPromptName, "mcp")
+	fallback, ok, err := s.getWorkspaceRawLocked(defaultWorkspaceID, "mcp")
 	if err != nil {
 		return "", err
 	}
@@ -72,7 +72,7 @@ func (s *Store) SaveMCPConfig(content string) (string, error) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return pretty, s.setPromptRawLocked(s.activePrompt, "mcp", pretty)
+	return pretty, s.setWorkspaceRawLocked(s.activeWorkspace, "mcp", pretty)
 }
 
 func DefaultMCPConfig() string {

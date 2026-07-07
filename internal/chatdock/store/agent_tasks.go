@@ -13,12 +13,12 @@ func (s *Store) ListAgentTasks(limit int) (AgentTaskResponse, error) {
 	if limit > 100 {
 		limit = 100
 	}
-	prompt := s.ActivePrompt()
+	prompt := s.ActiveWorkspace()
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	rows, err := s.db.Query(`SELECT r.prompt, r.session_id, e.run_id, e.server, e.tool, e.action, e.status, e.summary, e.arguments_json, e.result_json, e.error, e.created_at
+	rows, err := s.db.Query(`SELECT r.workspace_id, r.session_id, e.run_id, e.server, e.tool, e.action, e.status, e.summary, e.arguments_json, e.result_json, e.error, e.created_at
 FROM mcp_run_events e JOIN mcp_runs r ON r.id = e.run_id
-WHERE r.prompt = ? AND e.tool = 'task_manage'
+WHERE r.workspace_id = ? AND e.tool = 'task_manage'
 ORDER BY e.created_at DESC LIMIT ?`, prompt, limit*4)
 	if err != nil {
 		return AgentTaskResponse{}, err

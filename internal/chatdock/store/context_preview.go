@@ -55,7 +55,7 @@ func (s *Store) ContextPreview(sessionID string) (ContextPreviewResponse, error)
 		}
 		items = append(items, ContextPreviewItem{Role: msg.Role, Source: source, Chars: chars, EstimatedTokens: tokens, ContentPreview: llm.CompactContextText(msg.Content, 360)})
 	}
-	return ContextPreviewResponse{SessionID: session.ID, Workspace: s.activePrompt, ContextMode: cfg.ContextMode, RecentMessages: recent, SummarizeOld: summarize, MessageCount: len(session.Messages), ContextCount: len(items), TotalChars: totalChars, EstimatedTokens: totalTokens, Items: items}, nil
+	return ContextPreviewResponse{SessionID: session.ID, Workspace: s.activeWorkspace, ContextMode: cfg.ContextMode, RecentMessages: recent, SummarizeOld: summarize, MessageCount: len(session.Messages), ContextCount: len(items), TotalChars: totalChars, EstimatedTokens: totalTokens, Items: items}, nil
 }
 
 func estimateTokens(content string) int {

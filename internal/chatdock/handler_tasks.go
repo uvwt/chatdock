@@ -61,7 +61,7 @@ func (a *App) handleDeleteScheduledTask(w http.ResponseWriter, r *http.Request) 
 
 func (a *App) handleRunScheduledTask(w http.ResponseWriter, r *http.Request) {
 	id := scheduledTaskIDFromRequest(r)
-	result, err := a.executeScheduledTask(r.Context(), a.store.ActivePrompt(), id, true)
+	result, err := a.executeScheduledTask(r.Context(), a.store.ActiveWorkspace(), id, true)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err)
 		return

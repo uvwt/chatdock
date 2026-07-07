@@ -11,7 +11,7 @@ func TestStoreDeleteWorkspaceCascadesPromptData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := store.CreatePrompt(model.CreateWorkspaceRequest{Name: "research", SystemPrompt: "研究空间"}); err != nil {
+	if _, err := store.CreateWorkspace(model.CreateWorkspaceRequest{Name: "research", SystemPrompt: "研究空间"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.SaveModelConfig(model.ModelConfig{BaseURL: "https://example.test/v1", Model: "demo", SystemPrompt: "研究助手"}); err != nil {
@@ -31,10 +31,10 @@ func TestStoreDeleteWorkspaceCascadesPromptData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := store.SelectPrompt(model.WorkspaceIDRequest{Name: "default"}); err != nil {
+	if _, err := store.SelectWorkspace(model.WorkspaceIDRequest{Name: "default"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.DeletePrompt(model.WorkspaceIDRequest{Name: "research"}); err != nil {
+	if _, err := store.DeleteWorkspace(model.WorkspaceIDRequest{Name: "research"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -43,26 +43,26 @@ func TestStoreDeleteWorkspaceCascadesPromptData(t *testing.T) {
 	if _, err := store.WorkspaceConfig("research"); err == nil {
 		t.Fatal("deleted workspace config should fail")
 	}
-	if store.ActivePrompt() != "default" {
-		t.Fatalf("active prompt changed after deleting inactive workspace: %s", store.ActivePrompt())
+	if store.ActiveWorkspace() != "default" {
+		t.Fatalf("active prompt changed after deleting inactive workspace: %s", store.ActiveWorkspace())
 	}
 }
 
 func assertResearchPromptKVDeleted(t *testing.T, store *Store) {
 	t.Helper()
 	var got int
-	if err := store.db.QueryRow("SELECT COUNT(*) FROM prompt_kv WHERE prompt = ?", "research").Scan(&got); err != nil {
+	if err := store.db.QueryRow("SELECT COUNT(*) FROM workspace_kv WHERE workspace_id = ?", "research").Scan(&got); err != nil {
 		t.Fatal(err)
 	}
 	if got != 0 {
-		t.Fatalf("prompt_kv rows for deleted workspace = %d, want 0", got)
+		t.Fatalf("workspace_kv rows for deleted workspace = %d, want 0", got)
 	}
 }
 
 func assertResearchSessionsDeleted(t *testing.T, store *Store) {
 	t.Helper()
 	var got int
-	if err := store.db.QueryRow("SELECT COUNT(*) FROM sessions WHERE prompt = ?", "research").Scan(&got); err != nil {
+	if err := store.db.QueryRow("SELECT COUNT(*) FROM sessions WHERE workspace_id = ?", "research").Scan(&got); err != nil {
 		t.Fatal(err)
 	}
 	if got != 0 {
@@ -78,13 +78,13 @@ func TestResolveChatModelConfigUsesSelectedWorkspaceProvider(t *testing.T) {
 	if _, err := store.SaveModelConfig(model.ModelConfig{BaseURL: "https://default.test/v1", Model: "default-model", Models: []string{"default-model"}, SystemPrompt: "当前空间提示词"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.CreatePrompt(model.CreateWorkspaceRequest{Name: "alt", SystemPrompt: "另一个空间"}); err != nil {
+	if _, err := store.CreateWorkspace(model.CreateWorkspaceRequest{Name: "alt", SystemPrompt: "另一个空间"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.SaveWorkspaceConfig("alt", model.ModelConfig{BaseURL: "https://alt.test/v1", Model: "alt-a", Models: []string{"alt-a", "alt-b"}, APIKey: "alt-key", SystemPrompt: "另一个空间提示词"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.SelectPrompt(model.WorkspaceIDRequest{Name: "default"}); err != nil {
+	if _, err := store.SelectWorkspace(model.WorkspaceIDRequest{Name: "default"}); err != nil {
 		t.Fatal(err)
 	}
 	base := store.GetModelConfig()
