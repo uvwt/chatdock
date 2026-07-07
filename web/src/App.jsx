@@ -17,16 +17,6 @@ import { useSettingsData } from './hooks/useSettingsData.js';
 import { buildQuickActions } from './lib/quickActions.js';
 import { scheduledTaskSessionRows, visibleSessionRows } from './lib/sessionPresentation.js';
 
-function useLazyRef(createValue) {
-  const ref = useRef(null);
-  if (ref.current === null) ref.current = createValue();
-  return ref;
-}
-
-function messageKey(message, index) {
-  return message?.id || message?.message_id || message?.created_at || [message?.role || 'message', String(message?.content || message?.answer || '').slice(0, 80), index].join(':');
-}
-
 export default function App() {
   const [authPage, setAuthPage] = useState(null);
   const [theme, setThemeState] = useState(() => localStorage.getItem('chatdock.theme') === 'day' ? 'day' : 'night');
@@ -58,8 +48,9 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-
+  const [streamPaused, setStreamPaused] = useState(false);
   const [streamStats, setStreamStats] = useState({ state: 'idle', started_at: 0, chars: 0, events: 0, tools: 0, error: '' });
+  const [activeJobID, setActiveJobID] = useState('');
   const [selectedScheduledTaskID, setSelectedScheduledTaskID] = useState('');
   const [selectedScheduledTaskRuns, setSelectedScheduledTaskRuns] = useState([]);
   const [taskSearch, setTaskSearch] = useState('');
@@ -67,7 +58,7 @@ export default function App() {
   const abortRef = useRef(null);
   const activeJobIDRef = useRef('');
   const activeJobSessionRef = useRef('');
-  const detachedControllersRef = useLazyRef(() => new WeakSet());
+  const detachedControllersRef = useRef(new WeakSet());
   const currentRef = useRef(null);
   const pausedRef = useRef(false);
   const pendingDeltaRef = useRef('');
@@ -78,8 +69,9 @@ export default function App() {
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const sessionOpenSeqRef = useRef(0);
-  const toolEventDetailCacheRef = useLazyRef(() => new Map());
+  const toolEventDetailCacheRef = useRef(new Map());
 
+  useEffect(() => { pausedRef.current = streamPaused; }, [streamPaused]);
   useEffect(() => { currentRef.current = current; }, [current]);
   useEffect(() => {
     if (!sessionMenuID) return;
@@ -104,10 +96,11 @@ export default function App() {
     abortRef.current = null;
     activeJobIDRef.current = '';
     activeJobSessionRef.current = '';
+    setActiveJobID('');
     setBusy(false);
-    pausedRef.current = false;
+    setStreamPaused(false);
     setStreamStats({ state: 'idle', started_at: 0, chars: 0, events: 0, tools: 0, error: '' });
-  }, [detachedControllersRef]);
+  }, []);
 
   useEffect(() => {
     if (busy && current && activeJobSessionRef.current && activeJobSessionRef.current !== current) {
@@ -285,7 +278,7 @@ export default function App() {
     applySessionModel(s);
     await loadSessions();
     return true;
-  }, [api, applySessionModel, clearAttachments, loadSessions]);
+  }, [api, applySessionModel, loadSessions]);
 
   const refreshAfterLogin = useCallback(async () => {
     await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
@@ -472,7 +465,7 @@ export default function App() {
     await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
     if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
     closeSidebarOnMobile();
-  }, [api, busy, clearAttachments, refreshProductState, loadPrompts, loadConfig, loadMCPConfig, loadScheduledTasks, loadSessions, closeSidebarOnMobile, showToast]);
+  }, [api, busy, refreshProductState, loadPrompts, loadConfig, loadMCPConfig, loadScheduledTasks, loadSessions, closeSidebarOnMobile, showToast]);
 
   const createPersistedSession = useCallback(async ({ refreshList = true } = {}) => {
     const s = await createSessionRecord(api);
@@ -484,7 +477,7 @@ export default function App() {
     if (refreshList) await loadSessions();
     if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
     return s;
-  }, [api, applySessionModel, clearAttachments, loadSessions]);
+  }, [api, applySessionModel, loadSessions]);
 
   const createSession = useCallback(() => {
     if (busy) detachActiveStream();
@@ -500,7 +493,7 @@ export default function App() {
     closeSidebarOnMobile();
     window.setTimeout(() => inputRef.current?.focus(), 0);
     return { id: '', title: '新会话', messages: [], draft: true };
-  }, [busy, clearAttachments, closeSidebarOnMobile, detachActiveStream]);
+  }, [busy, closeSidebarOnMobile, detachActiveStream]);
 
   const openSession = useCallback(async (id, summary = null) => {
     if (!id) return;
@@ -529,7 +522,7 @@ export default function App() {
       setMessages([{ role: 'empty', content: '会话加载失败：' + e.message }]);
       showToast('会话加载失败：' + e.message, 'error');
     }
-  }, [api, applySessionModel, busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, loadSessions, messages.length, showToast]);
+  }, [api, applySessionModel, busy, closeSidebarOnMobile, detachActiveStream, loadSessions, messages.length, showToast]);
 
   const newSession = useCallback(async () => { await createSession(); }, [createSession]);
 
@@ -556,7 +549,7 @@ export default function App() {
     }
     await loadSessions();
     showToast('会话标题已保存', 'success');
-  }, [api, busy, clearAttachments, current, loadSessions, showDialog, showToast]);
+  }, [api, busy, current, loadSessions, showDialog, showToast]);
 
   const deleteSessionByID = useCallback(async (id, title = '当前会话') => {
     if (!id || busy) return;
@@ -580,7 +573,7 @@ export default function App() {
     }
     await loadSessions();
     showToast('会话已删除', 'success');
-  }, [api, busy, clearAttachments, current, loadSessions, showDialog, showToast]);
+  }, [api, busy, current, loadSessions, showDialog, showToast]);
 
   const deleteCurrent = useCallback(async () => {
     if (!current) return;
@@ -641,7 +634,7 @@ export default function App() {
     } catch (e) {
       showToast('创建分支对话失败：' + e.message, 'error');
     }
-  }, [api, applySessionModel, busy, clearAttachments, closeSidebarOnMobile, current, loadSessions, messages.length, showToast]);
+  }, [api, applySessionModel, busy, closeSidebarOnMobile, current, loadSessions, messages.length, showToast]);
 
   const pinCurrent = useCallback(async () => {
     if (!current) return;
@@ -694,6 +687,7 @@ export default function App() {
   const handleChatStreamEvent = useCallback((event, data, setFinalSession) => {
     if (event === 'job_started') {
       activeJobIDRef.current = data.id || '';
+      setActiveJobID(data.id || '');
     } else if (event === 'delta') {
       const reasoning = data.reasoning_content || '';
       const content = data.content || '';
@@ -741,6 +735,7 @@ export default function App() {
     } else if (event === 'run_finish') {
     } else if (event === 'message_end') {
       activeJobIDRef.current = '';
+      setActiveJobID('');
       if (data.status === 'failed') {
         setStreamStats(prev => ({ ...prev, state: 'error' }));
       } else if (data.status === 'interrupted') {
@@ -749,6 +744,7 @@ export default function App() {
     } else if (event === 'done') {
       setFinalSession(data.session);
       activeJobIDRef.current = '';
+      setActiveJobID('');
       setStreamStats(prev => ({ ...prev, state: 'done' }));
     } else if (event === 'error') {
       const message = streamErrorMessage(data);
@@ -770,6 +766,8 @@ export default function App() {
         setBusy(true);
         activeJobIDRef.current = job.id || '';
         activeJobSessionRef.current = current;
+        setActiveJobID(job.id || '');
+        setStreamPaused(false);
         pausedRef.current = false;
         pendingDeltaRef.current = '';
         pendingReasoningRef.current = '';
@@ -797,7 +795,8 @@ export default function App() {
           abortRef.current = null;
           activeJobIDRef.current = '';
           activeJobSessionRef.current = '';
-          pausedRef.current = false;
+          setActiveJobID('');
+          setStreamPaused(false);
         }
       }
     }
@@ -809,15 +808,11 @@ export default function App() {
   const draftKey = useMemo(() => 'chatdock.draft.' + encodeURIComponent(activePrompt?.name || 'default') + '.' + encodeURIComponent(current || 'new'), [activePrompt?.name, current]);
 
 
-  const providerChoices = useMemo(() => {
-    const choices = [];
-    for (const provider of providers) {
-      const id = providerChoiceID(provider);
-      const models = uniqueModelNames([...(provider.models || []), provider.default_model].filter(Boolean));
-      if (id && (provider.enabled || models.length)) choices.push({ ...provider, choice_id: id, models });
-    }
-    return choices;
-  }, [providers]);
+  const providerChoices = useMemo(() => providers.map(provider => {
+    const id = providerChoiceID(provider);
+    const models = uniqueModelNames([...(provider.models || []), provider.default_model].filter(Boolean));
+    return { ...provider, choice_id: id, models };
+  }).filter(provider => provider.choice_id && (provider.enabled || provider.models.length)), [providers]);
   const selectedModelProvider = useMemo(() => {
     const activeID = config.provider_id || '';
     return providerChoices.find(provider => provider.choice_id === chatModel.provider_id)
@@ -889,8 +884,9 @@ export default function App() {
     localStorage.removeItem(draftKey);
     setInput('');
     setBusy(true);
-    pausedRef.current = false;
+    setStreamPaused(false);
     setStreamStats({ state: 'connecting', started_at: Date.now(), chars: 0, events: 0, tools: 0, error: '' });
+    pausedRef.current = false;
     pendingDeltaRef.current = '';
     pendingReasoningRef.current = '';
     const abort = new AbortController();
@@ -936,16 +932,18 @@ export default function App() {
         if (abortRef.current === abort) abortRef.current = null;
         activeJobIDRef.current = '';
         activeJobSessionRef.current = '';
-        pausedRef.current = false;
+        setActiveJobID('');
+        setStreamPaused(false);
       }
     }
-  }, [authHeaders, busy, detachedControllersRef, selectedModelBaseURL, selectedChatModel, selectedModelProvider, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, clearAttachments, createPersistedSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, finishActiveAssistant, openSettings, showToast]);
+  }, [authHeaders, busy, selectedModelBaseURL, selectedChatModel, selectedModelProvider, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, clearAttachments, createPersistedSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, finishActiveAssistant, openSettings, showToast]);
 
 
   const regenerateEditedReply = useCallback(async (sessionID, baseMessages, title) => {
     setBusy(true);
-    pausedRef.current = false;
+    setStreamPaused(false);
     setStreamStats({ state: 'connecting', started_at: Date.now(), chars: 0, events: 0, tools: 0, error: '' });
+    pausedRef.current = false;
     pendingDeltaRef.current = '';
     pendingReasoningRef.current = '';
     const abort = new AbortController();
@@ -996,7 +994,8 @@ export default function App() {
         if (abortRef.current === abort) abortRef.current = null;
         activeJobIDRef.current = '';
         activeJobSessionRef.current = '';
-        pausedRef.current = false;
+        setActiveJobID('');
+        setStreamPaused(false);
       }
     }
   }, [authHeaders, selectedModelProvider, selectedChatModel, handleChatStreamEvent, finishActiveAssistant, loadSessions, appendReasoning, appendAnswer, appendToActiveAssistant]);
@@ -1033,7 +1032,7 @@ export default function App() {
       showToast('先输入要追加的引导内容。', 'error');
       return;
     }
-    const jobID = activeJobIDRef.current;
+    const jobID = activeJobIDRef.current || activeJobID;
     if (!jobID) {
       showToast('当前生成还没有可引导的任务 ID。', 'error');
       return;
@@ -1045,17 +1044,17 @@ export default function App() {
     } catch (e) {
       showToast('引导失败：' + e.message, 'error');
     }
-  }, [api, busy, input, showToast]);
+  }, [activeJobID, api, busy, input, showToast]);
 
   const stopStreaming = useCallback(async () => {
     if (!busy) return;
     setStreamStats(prev => ({ ...prev, state: 'stopping' }));
-    const jobID = activeJobIDRef.current;
+    const jobID = activeJobIDRef.current || activeJobID;
     if (jobID) {
       try { await cancelChatJob(api, jobID); } catch (e) { showToast('停止生成失败：' + e.message, 'error'); }
     }
     if (abortRef.current) abortRef.current.abort();
-  }, [api, busy, showToast]);
+  }, [activeJobID, api, busy, showToast]);
 
   const resolveToolConfirmation = useCallback(async (id, approve) => {
     try {
@@ -1408,14 +1407,13 @@ export default function App() {
     if (!ok) return;
     try {
       const result = await runScheduledTask(api, id);
-      const runsPromise = selectedScheduledTaskID === id ? fetchScheduledTaskRuns(api, id).catch(() => null) : Promise.resolve(null);
-      const [runsData] = await Promise.all([
-        runsPromise,
-        loadScheduledTasks(),
-        loadSessions(),
-        refreshProductState(),
-      ]);
-      if (runsData) setSelectedScheduledTaskRuns(runsData.runs || []);
+      await loadScheduledTasks();
+      await loadSessions();
+      if (selectedScheduledTaskID === id) {
+        const runsData = await fetchScheduledTaskRuns(api, id).catch(() => null);
+        if (runsData) setSelectedScheduledTaskRuns(runsData.runs || []);
+      }
+      await refreshProductState();
       if (result.session && result.session.id) {
         await openScheduledTaskSession(result.session.id);
       }
@@ -1447,7 +1445,7 @@ export default function App() {
       }
     }
     await showDialog({ title: '工具事件详情', confirmText: '关闭', hideCancel: true, variant: 'tool-event-modal', toolEventDetail: buildToolEventDetail(detailEvent) });
-  }, [api, current, showDialog, showToast, toolEventDetailCacheRef]);
+  }, [api, current, showDialog, showToast]);
 
   const showContextPreview = useCallback(async () => {
     if (!current) return;
@@ -1457,7 +1455,7 @@ export default function App() {
     } catch (e) {
       showToast('上下文预览失败：' + e.message, 'error');
     }
-  }, [api, current, showDialog, showToast, toolEventDetailCacheRef]);
+  }, [api, current, showDialog, showToast]);
 
   const logout = useCallback(() => {
     localStorage.removeItem('chatdock.authToken');
@@ -1519,7 +1517,7 @@ export default function App() {
   );
 
   return <>
-    <div id="sidebarMask" className={'sidebar-mask ' + (!settingsOpen && !sidebarCollapsed ? 'show' : '')} role="presentation" onClick={() => setSidebarCollapsed(true)} />
+    <div id="sidebarMask" className={'sidebar-mask ' + (!settingsOpen && !sidebarCollapsed ? 'show' : '')} onClick={() => setSidebarCollapsed(true)} />
     {settingsOpen ? <div id="settingsPage" className="settings-page">{settingsPanel}</div> : <div id="app" className={appClass}>
       <Sidebar
         activePrompt={activePrompt} activeScheduledTasks={activeScheduledTasks} busy={busy} clearScheduledTaskRunList={clearScheduledTaskRunList}
@@ -1539,7 +1537,7 @@ export default function App() {
           setQuickPaletteOpen={setQuickPaletteOpen} setSidebarCollapsed={setSidebarCollapsed} setThemeState={setThemeState}
           showContextPreview={showContextPreview} sidebarCollapsed={sidebarCollapsed} theme={theme}
         />
-        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={messageKey(m, i)} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
+        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
         {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息">↓</button> : null}
         <ComposerBar
           busy={busy} createPersistedSession={createPersistedSession} current={current} downloadAttachment={downloadAttachment}

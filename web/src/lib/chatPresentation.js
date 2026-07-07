@@ -15,7 +15,7 @@ export function attachmentLooksLikeImage(item) {
   return String(item?.mime_type || item?.type || '').toLowerCase().startsWith('image/');
 }
 
-function appendRequestID(message, requestID) {
+export function appendRequestID(message, requestID) {
   requestID = String(requestID || '').trim();
   return requestID ? message + '\n请求 ID：' + requestID : message;
 }

@@ -51,21 +51,20 @@ export function useAttachments({ authHeaders, busy, setAuthPage, showToast }) {
     }
     setUploadingFiles(true);
     try {
-      const jobs = [];
       for (const file of files) {
         const localID = 'local_' + Date.now() + '_' + Math.random().toString(16).slice(2);
         setPendingAttachments(prev => [...prev, { id: localID, name: file.name || 'upload', size: file.size || 0, mime_type: file.type || 'application/octet-stream', status: 'uploading', uploading: true, progress: 0 }]);
-        jobs.push(uploadFileRequest(file, sessionID, authHeaders, progress => {
-          setPendingAttachments(prev => prev.map(item => item.id === localID ? { ...item, progress } : item));
-        }).then(data => {
+        try {
+          const data = await uploadFileRequest(file, sessionID, authHeaders, progress => {
+            setPendingAttachments(prev => prev.map(item => item.id === localID ? { ...item, progress } : item));
+          });
           setPendingAttachments(prev => prev.map(item => item.id === localID ? { ...data.attachment, progress: 100 } : item));
-        }).catch(e => {
+        } catch (e) {
           if (e.status === 401) setAuthPage(e);
           setPendingAttachments(prev => prev.map(item => item.id === localID ? { ...item, uploading: false, error: e.message || '上传失败', status: 'failed' } : item));
           showToast('上传失败：' + (e.message || '未知错误'), 'error');
-        }));
+        }
       }
-      await Promise.all(jobs);
     } finally {
       setUploadingFiles(false);
     }

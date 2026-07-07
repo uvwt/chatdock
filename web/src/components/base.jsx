@@ -28,11 +28,12 @@ function highlightCode(code) {
   const tokenRE = /(\/\/[^\n]*|#[^\n]*|\/\*.*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][\w$-]*\b|[{}()[\].,;:+\-*/%=<>!&|]+)/gs;
   const nodes = [];
   let cursor = 0;
+  let index = 0;
   for (const match of code.matchAll(tokenRE)) {
     if (match.index > cursor) nodes.push(code.slice(cursor, match.index));
     const token = match[0];
     const cls = codeTokenClass(token);
-    nodes.push(cls ? <span key={`token-${match.index}`} className={cls}>{token}</span> : token);
+    nodes.push(cls ? <span key={index++} className={cls}>{token}</span> : token);
     cursor = match.index + token.length;
   }
   if (cursor < code.length) nodes.push(code.slice(cursor));
@@ -111,13 +112,18 @@ export function TextCard({ title, hint, badge, badgeClass = '', active, children
   </div>;
 }
 
-function QuickPalettePanel({ actions, onClose }) {
+export function QuickPalette({ open, actions, onClose }) {
   const [query, setQuery] = useState('');
   const inputRef = useRef(null);
   useEffect(() => {
+    if (!open) {
+      setQuery('');
+      return;
+    }
     const id = requestAnimationFrame(() => inputRef.current?.focus());
     return () => cancelAnimationFrame(id);
-  }, []);
+  }, [open]);
+  if (!open) return null;
   const q = query.trim().toLowerCase();
   const filtered = actions.filter(action => !q || [action.title, action.hint, action.id].some(v => String(v || '').toLowerCase().includes(q)));
   function runAction(action) {
@@ -125,14 +131,14 @@ function QuickPalettePanel({ actions, onClose }) {
     onClose();
     action.run?.();
   }
-  return <div className="quick-palette-backdrop show" role="presentation" onClick={onClose}>
+  return <div className="quick-palette-backdrop show" onClick={onClose}>
     <div className="quick-palette" role="dialog" aria-modal="true" aria-label="快捷指令" onClick={e => e.stopPropagation()}>
       <div className="quick-palette-head">
         <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => {
           if (e.key === 'Escape') onClose();
           if (e.key === 'Enter') runAction(filtered.find(a => !a.disabled));
-        }} placeholder="搜索快捷指令，例如：模型、导出、工作空间" aria-label="搜索快捷指令" />
-        <button type="button" className="secondary small quick-palette-close" onClick={onClose} aria-label="关闭快捷指令">×</button>
+        }} placeholder="搜索快捷指令，例如：模型、导出、工作空间" />
+        <button className="secondary small quick-palette-close" onClick={onClose} aria-label="关闭快捷指令">×</button>
       </div>
       <div className="quick-palette-list">
         {filtered.length ? filtered.map(action => <button key={action.id} type="button" className="quick-palette-item" disabled={!!action.disabled} onClick={() => runAction(action)}>
@@ -145,13 +151,9 @@ function QuickPalettePanel({ actions, onClose }) {
   </div>;
 }
 
-export function QuickPalette({ open, actions, onClose }) {
-  return open ? <QuickPalettePanel actions={actions} onClose={onClose} /> : null;
-}
-
 export function WorkspacePicker({ open, prompts, busy, activeName, onClose, onSelect }) {
   if (!open) return null;
-  return <div className="workspace-picker-backdrop show" role="presentation" onClick={onClose}>
+  return <div className="workspace-picker-backdrop show" onClick={onClose}>
     <div className="workspace-picker-sheet" role="dialog" aria-modal="true" aria-label="选择工作空间" onClick={e => e.stopPropagation()}>
       <div className="workspace-picker-head">
         <div><b>选择工作空间</b><div className="hint">切换后会加载对应会话和模型。</div></div>
@@ -213,8 +215,8 @@ export function LoginPage({ api, error, refreshAfterLogin, setAuthPage }) {
           <span>私有访问</span>
         </div>
         <div className="hint">{message}</div>
-        <label htmlFor="login-username">账号</label><input id="login-username" autoComplete="username" placeholder="输入账号" value={username} onChange={e => setUsername(e.target.value)} />
-        <label htmlFor="login-password">密码</label><input id="login-password" type="password" autoComplete="current-password" placeholder="输入密码" value={credential} onChange={e => setCredential(e.target.value)} />
+        <label>账号</label><input autoComplete="username" placeholder="输入账号" value={username} onChange={e => setUsername(e.target.value)} autoFocus />
+        <label>密码</label><input type="password" autoComplete="current-password" placeholder="输入密码" value={credential} onChange={e => setCredential(e.target.value)} />
         <div className="task-error" role="alert">{loginError}</div>
         <button type="submit" className="login-submit" disabled={!canSubmit}>登录并进入</button>
         <div className="login-footnote">访问凭证只保存在当前浏览器本地。</div>
@@ -223,19 +225,13 @@ export function LoginPage({ api, error, refreshAfterLogin, setAuthPage }) {
   </div>;
 }
 
-function initialDialogValues(dialog) {
-  const next = {};
-  (dialog?.fields || []).forEach(field => { next[field.name] = field.value ?? ''; });
-  return next;
-}
-
 export function DialogHost({ dialog, closeDialog }) {
-  const [stateDialog, setStateDialog] = useState(dialog);
-  const [values, setValues] = useState(() => initialDialogValues(dialog));
-  if (dialog !== stateDialog) {
-    setStateDialog(dialog);
-    setValues(initialDialogValues(dialog));
-  }
+  const [values, setValues] = useState({});
+  useEffect(() => {
+    const next = {};
+    (dialog?.fields || []).forEach(f => { next[f.name] = f.value ?? ''; });
+    setValues(next);
+  }, [dialog]);
   if (!dialog) return null;
   const visibleFields = (dialog.fields || []).filter(field => {
     if (!field.showWhen) return true;
@@ -249,9 +245,9 @@ export function DialogHost({ dialog, closeDialog }) {
     if (dialog.type === 'confirm') closeDialog(true);
     else closeDialog(values);
   }
-  return <div className="app-modal-backdrop show" role="presentation" onClick={e => { if (e.target === e.currentTarget) closeDialog(null); }}>
-    <div className={'app-modal-card ' + (dialog.variant || '')} role="dialog" aria-modal="true" aria-labelledby="app-modal-title"><form className="app-modal-form" onSubmit={submit}>
-      <div id="app-modal-title" className="app-modal-title">{dialog.title || '确认'}</div>
+  return <div className="app-modal-backdrop show" onClick={e => { if (e.target === e.currentTarget) closeDialog(null); }}>
+    <div className={'app-modal-card ' + (dialog.variant || '')} role="dialog" aria-modal="true"><form className="app-modal-form" onSubmit={submit}>
+      <div className="app-modal-title">{dialog.title || '确认'}</div>
       {dialog.message ? <div className="app-modal-message">{dialog.message}</div> : null}
       {dialog.toolEventDetail ? <ToolEventDetail detail={dialog.toolEventDetail} /> : null}
       <div className="app-modal-fields">{visibleFields.map(field => field.type === 'hidden' ? renderDialogField(field, values[field.name] ?? '', value => setValues(v => ({...v, [field.name]: value})), values, setValues) : <label key={field.name} className={'app-modal-field ' + (field.type === 'provider_keys' ? 'provider-keys-field' : '')}><span>{field.label || field.name}</span>{renderDialogField(field, values[field.name] ?? '', value => setValues(v => ({...v, [field.name]: value})), values, setValues)}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</label>)}</div>
@@ -328,11 +324,11 @@ function ProviderKeysEditor({ value, setValue, values, setValues }) {
   };
   return <div className="provider-keys-editor simplified">
     <div className="provider-keys-list">{rows.map((row, index) => <div className="provider-key-row" key={row.id || index}>
-      <label className="provider-key-current" title="设为当前 Key"><input type="radio" aria-label={"设为当前 Key：" + (row.name || row.id || index + 1)} name="provider-current-key" checked={(selectedID || rows[0]?.id) === row.id} onChange={() => setSelected(row.id)} /><span>当前</span></label>
-      <input aria-label={(row.name || row.id || "Key") + " 名称"} value={row.name || ''} placeholder={index === 0 ? '主 key' : '备用 key'} onChange={e => updateRow(index, {name: e.target.value})} />
-      <input type="text" aria-label={(row.name || row.id || "Key") + " 内容"} className="provider-key-secret" value={row.api_key || ''} placeholder="粘贴 Key；已保存 Key 只隐藏中间" onChange={e => updateRow(index, {api_key: e.target.value})} />
-      <label className="provider-key-enabled"><input type="checkbox" aria-label={(row.name || row.id || "Key") + " 启用状态"} checked={row.enabled !== false} onChange={e => updateRow(index, {enabled: e.target.checked})} /><span>{row.enabled === false ? '停用' : '启用'}</span></label>
-      <button type="button" className="secondary small" onClick={() => removeRow(index)} disabled={rows.length <= 1} aria-label={(row.name || row.id || "Key") + " 删除"}>删除</button>
+      <label className="provider-key-current" title="设为当前 Key"><input type="radio" name="provider-current-key" checked={(selectedID || rows[0]?.id) === row.id} onChange={() => setSelected(row.id)} /><span>当前</span></label>
+      <input value={row.name || ''} placeholder={index === 0 ? '主 key' : '备用 key'} onChange={e => updateRow(index, {name: e.target.value})} />
+      <input type="text" className="provider-key-secret" value={row.api_key || ''} placeholder="粘贴 Key；已保存 Key 只隐藏中间" onChange={e => updateRow(index, {api_key: e.target.value})} />
+      <label className="provider-key-enabled"><input type="checkbox" checked={row.enabled !== false} onChange={e => updateRow(index, {enabled: e.target.checked})} /><span>{row.enabled === false ? '停用' : '启用'}</span></label>
+      <button type="button" className="secondary small" onClick={() => removeRow(index)} disabled={rows.length <= 1}>删除</button>
     </div>)}</div>
     <button type="button" className="secondary small provider-key-add" onClick={addRow}>+ 添加备用 Key</button>
   </div>;
@@ -341,7 +337,7 @@ function ProviderKeysEditor({ value, setValue, values, setValues }) {
 function renderDialogField(field, value, setValue, values = {}, setValues = null) {
   if (field.type === 'hidden') return <input key={field.name} type="hidden" value={value || ''} readOnly />;
   if (field.type === 'provider_keys') return <ProviderKeysEditor value={value} setValue={setValue} values={values} setValues={setValues} />;
-  if (field.type === 'textarea') return <textarea aria-label={field.label || field.name} rows={field.rows || 5} value={value} placeholder={field.placeholder || ''} required={!!field.required} onChange={e => setValue(e.target.value)} />;
-  if (field.type === 'select') return <select aria-label={field.label || field.name} value={value} required={!!field.required} onChange={e => { const next = e.target.value; setValue(next); if (field.fillByValue && setValues) { const fill = field.fillByValue[next] || {}; setValues(current => ({...current, ...Object.fromEntries(Object.entries(fill).filter(([, v]) => v))})); } }}>{(field.options || []).map(opt => typeof opt === 'string' ? <option key={opt} value={opt}>{opt}</option> : <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select>;
-  return <input aria-label={field.label || field.name} type={field.type || 'text'} min={field.min} max={field.max} step={field.step} value={value} placeholder={field.placeholder || ''} required={!!field.required} onChange={e => setValue(e.target.value)} />;
+  if (field.type === 'textarea') return <textarea rows={field.rows || 5} value={value} placeholder={field.placeholder || ''} required={!!field.required} onChange={e => setValue(e.target.value)} />;
+  if (field.type === 'select') return <select value={value} required={!!field.required} onChange={e => { const next = e.target.value; setValue(next); if (field.fillByValue && setValues) { const fill = field.fillByValue[next] || {}; setValues(current => ({...current, ...Object.fromEntries(Object.entries(fill).filter(([, v]) => v))})); } }}>{(field.options || []).map(opt => typeof opt === 'string' ? <option key={opt} value={opt}>{opt}</option> : <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select>;
+  return <input type={field.type || 'text'} min={field.min} max={field.max} step={field.step} value={value} placeholder={field.placeholder || ''} required={!!field.required} onChange={e => setValue(e.target.value)} />;
 }

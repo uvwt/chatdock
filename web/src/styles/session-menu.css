@@ -184,19 +184,3 @@
 #app.app #sessions .session-row-menu button + button {
   margin-top: 2px !important;
 }
-.session-open-target {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  color: inherit;
-  cursor: pointer;
-  display: block;
-  flex: 1;
-  min-width: 0;
-  padding: 0;
-  text-align: left;
-}
-.session-open-target:focus-visible {
-  outline: 2px solid var(--accent, #6aa6ff);
-  outline-offset: 2px;
-}

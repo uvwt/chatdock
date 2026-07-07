@@ -24,16 +24,11 @@ export function actualToolCall(details = {}, data = {}) {
     return { proxyTool, actualTool: args.name || resultObject.tool || '', actualArguments: args.arguments ?? {}, actualResult: resultObject.result ?? result, mode: 'execute' };
   }
   if (proxyTool === 'chatdock_tools_describe') {
-    const names = [];
-    for (const item of arrayValue(args.names || result?.tools?.map?.(tool => tool?.name))) if (item) names.push(item);
+    const names = arrayValue(args.names || result?.tools?.map?.(item => item?.name)).filter(Boolean);
     return { proxyTool, actualTool: names.length === 1 ? names[0] : (names.length ? names.length + ' 个工具说明' : ''), actualArguments: { names }, actualResult: result, names, mode: 'describe' };
   }
   if (proxyTool === 'chatdock_tools_search') {
-    const candidates = [];
-    for (const item of arrayValue(result?.tools)) {
-      const candidate = item?.name || item?.full_name || item;
-      if (candidate) candidates.push(candidate);
-    }
+    const candidates = arrayValue(result?.tools).map(item => item?.name || item?.full_name || item).filter(Boolean);
     const count = Number(data.count ?? result?.count ?? candidates.length) || candidates.length;
     return { proxyTool, actualTool: count ? count + ' 个候选工具' : '工具搜索', actualArguments: args, actualResult: result, candidates, candidateCount: count, query: args.query || result?.query || data.query || '', mode: 'search' };
   }
