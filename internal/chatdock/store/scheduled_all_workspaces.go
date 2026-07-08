@@ -56,7 +56,7 @@ func (s *Store) PrepareScheduledTaskRunInWorkspace(workspaceID string, id string
 	defer s.mu.Unlock()
 
 	var run model.ScheduledTaskRun
-	err = s.withWorkspaceLocked(workspaceID, func() error {
+	err = s.withWorkspaceCacheLocked(workspaceID, func() error {
 		prepared, err := s.prepareScheduledTaskRunLocked(id, manual, now)
 		if err != nil {
 			return err
@@ -159,7 +159,7 @@ func (s *Store) prepareScheduledTaskRunLocked(id string, manual bool, now time.T
 		return model.ScheduledTaskRun{}, err
 	}
 	cfg := s.modelCfg
-	return model.ScheduledTaskRun{Task: task, WorkspaceID: s.activeWorkspace, SessionID: sessionID, RunID: runID, Config: cfg, History: history}, nil
+	return model.ScheduledTaskRun{Task: task, WorkspaceID: s.workspaceCacheID, SessionID: sessionID, RunID: runID, Config: cfg, History: history}, nil
 }
 
 func (s *Store) createScheduledTaskRunSessionLocked(task model.ScheduledTask, userMessage model.Message, now time.Time) (*model.Session, error) {

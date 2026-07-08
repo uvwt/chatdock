@@ -9,7 +9,7 @@ import { buildToolEventDetail } from './lib/toolEventDetails.js';
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, guideChatJob, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
 import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessionToolEvent, fetchSessions, pinSession, renameSession, searchSessions, updateSessionModel } from './lib/sessionApi.js';
-import { createModelProvider as createModelProviderRequest, createWorkspaceRecord, deleteModelProvider as deleteModelProviderRequest, deleteScheduledTaskRecord, deleteWorkspaceRecord, fetchProviderModels as fetchProviderModelsRequest, fetchPromptPreview, fetchScheduledTaskRuns, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest, updateModelProvider as updateModelProviderRequest } from './lib/settingsApi.js';
+import { createModelProvider as createModelProviderRequest, createWorkspaceRecord, deleteModelProvider as deleteModelProviderRequest, deleteScheduledTaskRecord, deleteWorkspaceRecord, fetchProviderModels as fetchProviderModelsRequest, fetchWorkspacePromptPreview, fetchScheduledTaskRuns, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest, updateModelProvider as updateModelProviderRequest } from './lib/settingsApi.js';
 import { useAttachments } from './hooks/useAttachments.js';
 import { appendInlineReasoningPart, appendInlineTextPart, appendToolStartEvent, mergeToolResultEvent } from './lib/toolEvents.js';
 import { providerChoiceID, providerKeyInputsFromRows, providerKeyRows, providerLabel, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
@@ -30,6 +30,7 @@ export default function App() {
   const toastTimerRef = useRef(null);
   const [dialog, setDialog] = useState(null);
   const [workspacePickerOpen, setWorkspacePickerOpen] = useState(false);
+  const [selectedWorkspaceID, setSelectedWorkspaceID] = useState(() => localStorage.getItem('chatdock.workspaceID') || 'default');
   const [quickPaletteOpen, setQuickPaletteOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [chatModel, setChatModel] = useState({ provider_id: '', model: '' });
@@ -178,8 +179,9 @@ export default function App() {
 
   const authHeaders = useCallback((extra = {}) => {
     const token = localStorage.getItem('chatdock.authToken') || '';
-    return token ? { 'Authorization': 'Bearer ' + token, ...extra } : extra;
-  }, []);
+    const scoped = { 'X-Workspace-ID': selectedWorkspaceID || 'default', ...extra };
+    return token ? { 'Authorization': 'Bearer ' + token, ...scoped } : scoped;
+  }, [selectedWorkspaceID]);
 
   const api = useMemo(() => createJsonApi({ authHeaders, onUnauthorized: setAuthPage }), [authHeaders]);
 
@@ -188,18 +190,18 @@ export default function App() {
     workspaces,
     setWorkspaces,
     providers,
-    prompts,
+    workspaceSummaries,
     scheduledTasks,
     dataStatus,
     systemStatus,
     mcpStatus,
-    promptPreview,
-    setPromptPreview,
+    workspacePromptPreview,
+    setWorkspacePromptPreview,
     mcpConfig,
     setMcpConfig,
     config,
     setConfig,
-    loadPrompts,
+    loadWorkspaceSummaries,
     loadConfig,
     loadMCPConfig,
     loadSetupStatus,
@@ -281,10 +283,10 @@ export default function App() {
   }, [api, applySessionModel, loadSessions]);
 
   const refreshAfterLogin = useCallback(async () => {
-    await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
+    await Promise.allSettled([refreshProductState(), loadWorkspaceSummaries(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
     const routeSession = sessionIDFromPath();
     if (routeSession) await loadSessionFromRoute(routeSession).catch(e => showToast('会话路由加载失败：' + e.message, 'error'));
-  }, [refreshProductState, loadPrompts, loadConfig, loadMCPConfig, loadScheduledTasks, loadSessions, loadSessionFromRoute, showToast]);
+  }, [refreshProductState, loadWorkspaceSummaries, loadConfig, loadMCPConfig, loadScheduledTasks, loadSessions, loadSessionFromRoute, showToast]);
 
   useEffect(() => {
     let mounted = true;
@@ -456,16 +458,18 @@ export default function App() {
     if (busy) { showToast('当前回复还在进行中，请先暂停或中断后再切换工作空间。', 'error'); return; }
     if (!name) return;
     setWorkspacePickerOpen(false);
+    setSelectedWorkspaceID(name);
+    localStorage.setItem('chatdock.workspaceID', name);
     await selectWorkspaceRequest(api, name);
     setCurrent(null);
     setCurrentTitle('未选择会话');
     setMessages([{ role: 'empty', content: '已切换工作空间。创建或选择一个会话。' }]);
     clearAttachments();
     setChatModel({ provider_id: '', model: '' });
-    await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
+    await Promise.allSettled([refreshProductState(), loadWorkspaceSummaries(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
     if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
     closeSidebarOnMobile();
-  }, [api, busy, refreshProductState, loadPrompts, loadConfig, loadMCPConfig, loadScheduledTasks, loadSessions, closeSidebarOnMobile, showToast]);
+  }, [api, busy, refreshProductState, loadWorkspaceSummaries, loadConfig, loadMCPConfig, loadScheduledTasks, loadSessions, closeSidebarOnMobile, showToast]);
 
   const createPersistedSession = useCallback(async ({ refreshList = true } = {}) => {
     const s = await createSessionRecord(api);
@@ -804,8 +808,13 @@ export default function App() {
     return () => { stopped = true; abort.abort(); };
   }, [current, api, authHeaders, handleChatStreamEvent, appendToActiveAssistant, currentTitle, loadSessions, finishActiveAssistant]);
 
-  const activePrompt = useMemo(() => prompts.find(p => p.active) || prompts[0] || null, [prompts]);
-  const draftKey = useMemo(() => 'chatdock.draft.' + encodeURIComponent(activePrompt?.name || 'default') + '.' + encodeURIComponent(current || 'new'), [activePrompt?.name, current]);
+  const activeWorkspace = useMemo(() => workspaceSummaries.find(w => w.name === selectedWorkspaceID) || workspaceSummaries.find(w => w.active) || workspaceSummaries[0] || null, [selectedWorkspaceID, workspaceSummaries]);
+  useEffect(() => {
+    if (!activeWorkspace?.name || activeWorkspace.name === selectedWorkspaceID) return;
+    setSelectedWorkspaceID(activeWorkspace.name);
+    localStorage.setItem('chatdock.workspaceID', activeWorkspace.name);
+  }, [activeWorkspace?.name, selectedWorkspaceID]);
+  const draftKey = useMemo(() => 'chatdock.draft.' + encodeURIComponent(activeWorkspace?.name || 'default') + '.' + encodeURIComponent(current || 'new'), [activeWorkspace?.name, current]);
 
 
   const providerChoices = useMemo(() => providers.map(provider => {
@@ -1075,31 +1084,36 @@ export default function App() {
       ]
     });
     if (!values || !values.name.trim()) return;
-    await createWorkspaceRecord(api, { name: values.name.trim(), system_prompt: values.system_prompt || '' });
+    const nextWorkspaceID = values.name.trim();
+    setSelectedWorkspaceID(nextWorkspaceID);
+    localStorage.setItem('chatdock.workspaceID', nextWorkspaceID);
+    await createWorkspaceRecord(api, { name: nextWorkspaceID, system_prompt: values.system_prompt || '' });
     setCurrent(null);
     setCurrentTitle('未选择会话');
     setMessages([{ role: 'empty', content: '已创建并切换到新工作空间。' }]);
     clearAttachments();
-    await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
+    await Promise.allSettled([refreshProductState(), loadWorkspaceSummaries(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
     closeSidebarOnMobile();
     showToast('工作空间已创建', 'success');
-  }, [api, busy, closeSidebarOnMobile, config.system_prompt, loadConfig, loadMCPConfig, loadPrompts, loadScheduledTasks, loadSessions, refreshProductState, showDialog, showToast]);
+  }, [api, busy, closeSidebarOnMobile, config.system_prompt, loadConfig, loadMCPConfig, loadWorkspaceSummaries, loadScheduledTasks, loadSessions, refreshProductState, showDialog, showToast]);
 
   const deleteWorkspace = useCallback(async (id, name) => {
     const ok = await showDialog({ title: '删除工作空间', message: '确定删除工作空间「' + (name || id) + '」？这会删除该工作空间下的配置、任务和会话。若删除当前工作空间，会自动切换到默认工作空间。', confirmText: '删除', danger: true, type: 'confirm' });
     if (!ok) return;
     const data = await deleteWorkspaceRecord(api, id);
     setWorkspaces(data.workspaces || []);
+    setSelectedWorkspaceID(data.active || 'default');
+    localStorage.setItem('chatdock.workspaceID', data.active || 'default');
     setCurrent(null);
     setCurrentTitle('未选择会话');
     setMessages([{ role: 'empty', content: '工作空间已删除。当前工作空间：' + (data.active || 'default') }]);
     clearAttachments();
-    await Promise.allSettled([loadPrompts(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions(), loadSetupStatus(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
+    await Promise.allSettled([loadWorkspaceSummaries(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions(), loadSetupStatus(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
     showToast('工作空间已删除', 'success');
-  }, [api, loadConfig, loadDataStatus, loadMCPConfig, loadModelProviders, loadPrompts, loadScheduledTasks, loadSessions, loadSetupStatus, loadSystemStatus, showDialog, showToast]);
+  }, [api, loadConfig, loadDataStatus, loadMCPConfig, loadModelProviders, loadWorkspaceSummaries, loadScheduledTasks, loadSessions, loadSetupStatus, loadSystemStatus, showDialog, showToast]);
 
   const saveConfig = useCallback(async () => {
-    const workspaceID = (prompts.find(p => p.active) || {}).name || 'default';
+    const workspaceID = activeWorkspace?.name || selectedWorkspaceID || 'default';
     await saveWorkspaceConfig(api, workspaceID, {
       provider_id: config.provider_id,
       model: config.model,
@@ -1117,13 +1131,13 @@ export default function App() {
     await loadConfig();
     await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadSystemStatus()]);
     showToast('已保存到工作空间：' + workspaceID, 'success');
-  }, [api, config, loadConfig, loadModelProviders, loadSetupStatus, loadSystemStatus, loadWorkspaces, prompts, showToast]);
+  }, [activeWorkspace?.name, api, config, loadConfig, loadModelProviders, loadSetupStatus, loadSystemStatus, loadWorkspaces, selectedWorkspaceID, showToast]);
 
-  const showPromptPreview = useCallback(async () => {
-    const workspaceID = (prompts.find(p => p.active) || {}).name || 'default';
-    const data = await fetchPromptPreview(api, workspaceID);
-    setPromptPreview(data.content || '(空)');
-  }, [api, prompts]);
+  const showWorkspacePromptPreview = useCallback(async () => {
+    const workspaceID = activeWorkspace?.name || selectedWorkspaceID || 'default';
+    const data = await fetchWorkspacePromptPreview(api, workspaceID);
+    setWorkspacePromptPreview(data.content || '(空)');
+  }, [activeWorkspace?.name, api, selectedWorkspaceID]);
 
   const runSetupWizard = useCallback(async () => {
     const values = await showDialog({
@@ -1137,9 +1151,9 @@ export default function App() {
     });
     if (!values) return;
     await initializeSetup(api, values);
-    await Promise.allSettled([refreshProductState(), loadPrompts(), loadConfig()]);
+    await Promise.allSettled([refreshProductState(), loadWorkspaceSummaries(), loadConfig()]);
     showToast('初始化完成', 'success');
-  }, [api, config, loadConfig, loadPrompts, refreshProductState, showDialog, showToast]);
+  }, [api, config, loadConfig, loadWorkspaceSummaries, refreshProductState, showDialog, showToast]);
 
   const testModelProvider = useCallback(async () => {
     try {
@@ -1499,9 +1513,9 @@ export default function App() {
   const quickActions = useMemo(() => buildQuickActions({
     branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned,
     deleteCurrent, exportCurrent, inputRef, messagesLength: messages.length, openSettings, pinCurrent,
-    productDiagnostics, promptsLength: prompts.length, renameCurrent, sendMsg, setThemeState, setWorkspacePickerOpen,
+    productDiagnostics, workspaceSummaryCount: workspaceSummaries.length, renameCurrent, sendMsg, setThemeState, setWorkspacePickerOpen,
     showContextPreview, theme,
-  }), [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, messages.length, openSettings, pinCurrent, productDiagnostics, prompts.length, renameCurrent, sendMsg, showContextPreview, theme]);
+  }), [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, messages.length, openSettings, pinCurrent, productDiagnostics, workspaceSummaries.length, renameCurrent, sendMsg, showContextPreview, theme]);
 
   const settingsPanel = (
     <SettingsPanel
@@ -1510,10 +1524,10 @@ export default function App() {
       editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels}
       editScheduledTask={editScheduledTask} loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig}
       loadMCPStatus={loadMCPStatus} loadScheduledTasks={loadScheduledTasks} loadSystemStatus={loadSystemStatus}
-      mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers} promptPreview={promptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
+      mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers} workspacePromptPreview={workspacePromptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
       runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} openScheduledTaskSession={openScheduledTaskSession} runSetupWizard={runSetupWizard} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
       scheduledTasks={scheduledTasks} selectWorkspace={selectWorkspace} setConfig={setConfig} setMcpConfig={setMcpConfig} setTaskSearch={setTaskSearch}
-      setupStatus={setupStatus} showPromptPreview={showPromptPreview} switchSettingsModule={switchSettingsModule}
+      setupStatus={setupStatus} showWorkspacePromptPreview={showWorkspacePromptPreview} switchSettingsModule={switchSettingsModule}
       systemStatus={systemStatus} taskSearch={taskSearch} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} toggleScheduledTask={toggleScheduledTask}
       workspaces={workspaces} logout={logout}
     />
@@ -1523,10 +1537,10 @@ export default function App() {
     <div id="sidebarMask" className={'sidebar-mask ' + (!settingsOpen && !sidebarCollapsed ? 'show' : '')} onClick={() => setSidebarCollapsed(true)} />
     {settingsOpen ? <div id="settingsPage" className="settings-page">{settingsPanel}</div> : <div id="app" className={appClass}>
       <Sidebar
-        activePrompt={activePrompt} activeScheduledTasks={activeScheduledTasks} busy={busy} clearScheduledTaskRunList={clearScheduledTaskRunList}
+        activeWorkspace={activeWorkspace} activeScheduledTasks={activeScheduledTasks} busy={busy} clearScheduledTaskRunList={clearScheduledTaskRunList}
         current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} newSession={newSession}
         openScheduledTaskRunList={openScheduledTaskRunList} openSession={openSession} openSettings={openSettings}
-        pinSessionByID={pinSessionByID} prompts={prompts} renameSessionByID={renameSessionByID}
+        pinSessionByID={pinSessionByID} workspaceSummaries={workspaceSummaries} renameSessionByID={renameSessionByID}
         selectedScheduledTask={selectedScheduledTask} selectedScheduledTaskID={selectedScheduledTaskID} selectedScheduledTaskSessions={selectedScheduledTaskSessions}
         sessionMenuID={sessionMenuID} sessionSearch={sessionSearch} sessionSearchBusy={sessionSearchBusy}
         setSessionMenuID={setSessionMenuID} setSessionSearch={setSessionSearch} setWorkspacePickerOpen={setWorkspacePickerOpen}
@@ -1540,7 +1554,7 @@ export default function App() {
           setQuickPaletteOpen={setQuickPaletteOpen} setSidebarCollapsed={setSidebarCollapsed} setThemeState={setThemeState}
           showContextPreview={showContextPreview} sidebarCollapsed={sidebarCollapsed} theme={theme}
         />
-        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!prompts.length} setInput={setInput} modelReady={modelReady} />}</div>
+        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!workspaceSummaries.length} setInput={setInput} modelReady={modelReady} />}</div>
         {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息">↓</button> : null}
         <ComposerBar
           busy={busy} createPersistedSession={createPersistedSession} current={current} downloadAttachment={downloadAttachment}
@@ -1554,7 +1568,7 @@ export default function App() {
       </main>
 
     </div>}
-    <WorkspacePicker open={workspacePickerOpen} prompts={prompts} busy={busy} activeName={activePrompt?.name || ''} onClose={() => setWorkspacePickerOpen(false)} onSelect={selectWorkspace} />
+    <WorkspacePicker open={workspacePickerOpen} workspaceSummaries={workspaceSummaries} busy={busy} activeName={activeWorkspace?.name || ''} onClose={() => setWorkspacePickerOpen(false)} onSelect={selectWorkspace} />
     <QuickPalette open={quickPaletteOpen} actions={quickActions} onClose={() => setQuickPaletteOpen(false)} />
     {authPage ? <LoginPage api={api} error={authPage} refreshAfterLogin={refreshAfterLogin} setAuthPage={setAuthPage} /> : null}
     <DialogHost dialog={dialog} closeDialog={closeDialog} />

@@ -1,10 +1,10 @@
 export function buildQuickActions(opts) {
-  const { branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, inputRef, messagesLength, openSettings, pinCurrent, productDiagnostics, promptsLength, renameCurrent, sendMsg, setThemeState, setWorkspacePickerOpen, showContextPreview, theme } = opts;
+  const { branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, inputRef, messagesLength, openSettings, pinCurrent, productDiagnostics, workspaceSummaryCount, renameCurrent, sendMsg, setThemeState, setWorkspacePickerOpen, showContextPreview, theme } = opts;
   return [
     { id: 'focus-input', title: '聚焦输入框', hint: '按 / 也可以快速输入', run: () => inputRef.current?.focus() },
     { id: 'new-session', title: '新建会话', hint: '在当前工作空间开始新对话', run: createSession },
     { id: 'continue', title: '发送“继续”', hint: '让当前会话继续上一轮内容', disabled: busy, run: () => sendMsg('继续') },
-    { id: 'workspace-picker', title: '切换工作空间', hint: '加载不同模型和会话', disabled: busy || !promptsLength, run: () => setWorkspacePickerOpen(true) },
+    { id: 'workspace-picker', title: '切换工作空间', hint: '加载不同模型和会话', disabled: busy || !workspaceSummaryCount, run: () => setWorkspacePickerOpen(true) },
     { id: 'settings', title: '打开配置中心', hint: '工作空间、模型、工具和数据统一管理', run: () => openSettings() },
     { id: 'settings-model', title: '模型设置', hint: 'Base URL、API Key、模型和最终 Prompt', run: () => openSettings('model') },
     { id: 'settings-tools', title: '工具中心', hint: 'MCP 配置、状态检测和连接测试', run: () => openSettings('tools') },

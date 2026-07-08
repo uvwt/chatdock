@@ -214,8 +214,8 @@ func (s *Store) DeleteSession(id string) bool {
 		return false
 	}
 	delete(s.sessions, id)
-	_, _ = s.db.Exec(`DELETE FROM sessions WHERE workspace_id = ? AND id = ?`, s.activeWorkspace, id)
-	_ = s.touchWorkspaceLocked(s.activeWorkspace, time.Now())
+	_, _ = s.db.Exec(`DELETE FROM sessions WHERE workspace_id = ? AND id = ?`, s.workspaceCacheID, id)
+	_ = s.touchWorkspaceLocked(s.workspaceCacheID, time.Now())
 	return true
 }
 
@@ -260,4 +260,22 @@ func (s *Store) RenameSession(id string, title string) (*model.Session, error) {
 		return nil, err
 	}
 	return cloneSession(session), nil
+}
+
+func (s *Store) SessionWorkspace(id string) (string, bool, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return "", false, nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var workspaceID string
+	err := s.db.QueryRow(`SELECT workspace_id FROM sessions WHERE id = ? ORDER BY updated_at DESC LIMIT 1`, id).Scan(&workspaceID)
+	if err != nil {
+		if strings.Contains(err.Error(), "no rows") {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+	return workspaceID, true, nil
 }

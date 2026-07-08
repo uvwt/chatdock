@@ -9,7 +9,7 @@ import (
 )
 
 func (s *Store) loadSessionsLocked() error {
-	sessions, err := loadSessionsFromTablesLocked(s.db, s.activeWorkspace)
+	sessions, err := loadSessionsFromTablesLocked(s.db, s.workspaceCacheID)
 	if err != nil {
 		return err
 	}
@@ -22,7 +22,7 @@ func (s *Store) loadSessionsLocked() error {
 }
 
 func (s *Store) saveSessionLocked(session *model.Session) error {
-	return s.saveSessionForWorkspaceLocked(s.activeWorkspace, session)
+	return s.saveSessionForWorkspaceLocked(s.workspaceCacheID, session)
 }
 
 func (s *Store) saveSessionForWorkspaceLocked(prompt string, session *model.Session) error {

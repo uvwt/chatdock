@@ -31,7 +31,7 @@ func TestStoreDeleteWorkspaceCascadesPromptData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := store.SelectWorkspace(model.WorkspaceIDRequest{Name: "default"}); err != nil {
+	if _, err := store.LoadWorkspaceCache(model.WorkspaceIDRequest{Name: "default"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.DeleteWorkspace(model.WorkspaceIDRequest{Name: "research"}); err != nil {
@@ -43,8 +43,8 @@ func TestStoreDeleteWorkspaceCascadesPromptData(t *testing.T) {
 	if _, err := store.WorkspaceConfig("research"); err == nil {
 		t.Fatal("deleted workspace config should fail")
 	}
-	if store.ActiveWorkspace() != "default" {
-		t.Fatalf("active prompt changed after deleting inactive workspace: %s", store.ActiveWorkspace())
+	if store.WorkspaceCacheID() != "default" {
+		t.Fatalf("active prompt changed after deleting inactive workspace: %s", store.WorkspaceCacheID())
 	}
 }
 
@@ -84,7 +84,7 @@ func TestResolveChatModelConfigUsesSelectedWorkspaceProvider(t *testing.T) {
 	if _, err := store.SaveWorkspaceConfig("alt", model.ModelConfig{BaseURL: "https://alt.test/v1", Model: "alt-a", Models: []string{"alt-a", "alt-b"}, APIKey: "alt-key", SystemPrompt: "另一个空间提示词"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.SelectWorkspace(model.WorkspaceIDRequest{Name: "default"}); err != nil {
+	if _, err := store.LoadWorkspaceCache(model.WorkspaceIDRequest{Name: "default"}); err != nil {
 		t.Fatal(err)
 	}
 	base := store.GetModelConfig()

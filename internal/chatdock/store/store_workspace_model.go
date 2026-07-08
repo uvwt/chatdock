@@ -17,7 +17,7 @@ func (s *Store) SaveModelConfig(next model.ModelConfig) (model.ModelConfig, erro
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	cfg, err := s.saveModelConfigForWorkspaceLocked(s.activeWorkspace, next)
+	cfg, err := s.saveModelConfigForWorkspaceLocked(s.workspaceCacheID, next)
 	if err != nil {
 		return model.ModelConfig{}, err
 	}

@@ -28,7 +28,7 @@ func (s *Store) SaveAttachment(record model.AttachmentRecord) error {
 		record.CreatedAt = time.Now()
 	}
 	if strings.TrimSpace(record.Prompt) == "" {
-		record.Prompt = s.activeWorkspace
+		record.Prompt = s.workspaceCacheID
 	}
 	if strings.TrimSpace(record.SHA256) != "" {
 		_, _ = s.db.Exec(`INSERT INTO attachment_blobs(sha256, storage_path, size, mime_type, ref_count, created_at) VALUES(?, ?, ?, ?, 0, ?) ON CONFLICT(sha256) DO UPDATE SET ref_count = attachment_blobs.ref_count`, record.SHA256, record.StoragePath, record.Size, record.MIMEType, formatDBTime(record.CreatedAt))
@@ -118,7 +118,7 @@ func (s *Store) attachmentRecordsByIDsLocked(ids []string) ([]model.AttachmentRe
 	}
 	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
 	args := make([]any, 0, len(ids)+1)
-	args = append(args, s.activeWorkspace)
+	args = append(args, s.workspaceCacheID)
 	for _, id := range ids {
 		args = append(args, id)
 	}
@@ -156,7 +156,7 @@ func (s *Store) AttachmentRecordByID(id string) (model.AttachmentRecord, error) 
 	if id == "" {
 		return model.AttachmentRecord{}, fmt.Errorf("attachment id is empty")
 	}
-	row := s.db.QueryRow(`SELECT workspace_id, id, session_id, message_id, filename, mime_type, size, storage_path, sha256, text_content, status, created_at FROM attachments WHERE workspace_id = ? AND id = ?`, s.activeWorkspace, id)
+	row := s.db.QueryRow(`SELECT workspace_id, id, session_id, message_id, filename, mime_type, size, storage_path, sha256, text_content, status, created_at FROM attachments WHERE workspace_id = ? AND id = ?`, s.workspaceCacheID, id)
 	record, err := scanAttachmentRecord(row)
 	if err != nil {
 		if err == sql.ErrNoRows {

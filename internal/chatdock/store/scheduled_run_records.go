@@ -26,7 +26,7 @@ func (s *Store) ListScheduledTaskRuns(taskID string, limit int) (model.Scheduled
 	defer s.mu.RUnlock()
 
 	query := `SELECT ` + scheduledTaskRunColumns() + ` FROM scheduled_task_runs WHERE workspace_id = ? AND task_id = ? ORDER BY started_at DESC LIMIT ?`
-	rows, err := s.db.Query(query, s.activeWorkspace, taskID, limit)
+	rows, err := s.db.Query(query, s.workspaceCacheID, taskID, limit)
 	if err != nil {
 		return model.ScheduledTaskRunRecordResponse{}, err
 	}
@@ -47,7 +47,7 @@ func (s *Store) ListScheduledTaskRuns(taskID string, limit int) (model.Scheduled
 
 func (s *Store) loadScheduledTaskRunRecordsLocked() ([]model.ScheduledTaskRunRecord, error) {
 	query := `SELECT ` + scheduledTaskRunColumns() + ` FROM scheduled_task_runs WHERE workspace_id = ? ORDER BY started_at DESC LIMIT 500`
-	rows, err := s.db.Query(query, s.activeWorkspace)
+	rows, err := s.db.Query(query, s.workspaceCacheID)
 	if err != nil {
 		return nil, err
 	}
@@ -68,11 +68,11 @@ func (s *Store) loadScheduledTaskRunRecordsLocked() ([]model.ScheduledTaskRunRec
 
 func (s *Store) saveScheduledTaskRunRecordsLocked(records []model.ScheduledTaskRunRecord) error {
 	for _, record := range trimScheduledTaskRunRecords(records, 100, 500) {
-		if err := upsertScheduledTaskRunTx(s.db, s.activeWorkspace, normalizeScheduledRunRecordForDB(record)); err != nil {
+		if err := upsertScheduledTaskRunTx(s.db, s.workspaceCacheID, normalizeScheduledRunRecordForDB(record)); err != nil {
 			return err
 		}
 	}
-	return s.touchWorkspaceLocked(s.activeWorkspace, time.Now())
+	return s.touchWorkspaceLocked(s.workspaceCacheID, time.Now())
 }
 
 func sortScheduledTaskRunRecords(records []model.ScheduledTaskRunRecord) {
@@ -112,7 +112,7 @@ func trimScheduledTaskRunRecords(records []model.ScheduledTaskRunRecord, perTask
 func (s *Store) latestSuccessfulScheduledTaskRunLocked(taskID string) (model.ScheduledTaskRunRecord, bool, error) {
 	taskID = strings.TrimSpace(taskID)
 	query := `SELECT ` + scheduledTaskRunColumns() + ` FROM scheduled_task_runs WHERE workspace_id = ? AND task_id = ? AND status = 'success' AND output != '' ORDER BY started_at DESC LIMIT 1`
-	row := s.db.QueryRow(query, s.activeWorkspace, taskID)
+	row := s.db.QueryRow(query, s.workspaceCacheID, taskID)
 	record, err := scanScheduledTaskRun(row)
 	if err != nil {
 		if strings.Contains(err.Error(), "no rows") {
@@ -128,7 +128,7 @@ func (s *Store) appendScheduledTaskRunRecordLocked(record model.ScheduledTaskRun
 	if record.TaskID == "" {
 		return model.ScheduledTaskRunRecord{}, fmt.Errorf("scheduled task id is empty")
 	}
-	if err := upsertScheduledTaskRunTx(s.db, s.activeWorkspace, record); err != nil {
+	if err := upsertScheduledTaskRunTx(s.db, s.workspaceCacheID, record); err != nil {
 		return model.ScheduledTaskRunRecord{}, err
 	}
 	return record, nil

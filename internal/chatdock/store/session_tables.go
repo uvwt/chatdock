@@ -343,7 +343,7 @@ func (s *Store) SessionMessageEventByID(sessionID string, eventID string) (model
 	if sessionID == "" || eventID == "" {
 		return model.MessageEvent{}, fmt.Errorf("session id and event id are required")
 	}
-	row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.workspace_id = ? AND e.session_id = ? AND e.id = ?`, s.activeWorkspace, sessionID, eventID)
+	row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.workspace_id = ? AND e.session_id = ? AND e.id = ?`, s.workspaceCacheID, sessionID, eventID)
 	var event model.MessageEvent
 	var detailsRaw string
 	if err := row.Scan(&event.ID, &event.Kind, &event.Phase, &event.CallKey, &event.Text, &event.Meta, &detailsRaw); err != nil {
@@ -364,11 +364,11 @@ func (s *Store) SessionMessageEventByIndex(sessionID string, messageIndex int, e
 	}
 	if eventIndex < 0 && partIndex >= 0 {
 		var eventID string
-		if err := s.db.QueryRow(`SELECT event_id FROM session_message_parts WHERE workspace_id = ? AND session_id = ? AND message_index = ? AND part_index = ?`, s.activeWorkspace, sessionID, messageIndex, partIndex).Scan(&eventID); err != nil {
+		if err := s.db.QueryRow(`SELECT event_id FROM session_message_parts WHERE workspace_id = ? AND session_id = ? AND message_index = ? AND part_index = ?`, s.workspaceCacheID, sessionID, messageIndex, partIndex).Scan(&eventID); err != nil {
 			return model.MessageEvent{}, err
 		}
 		eventIndex = -1
-		row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.workspace_id = ? AND e.session_id = ? AND e.id = ?`, s.activeWorkspace, sessionID, eventID)
+		row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.workspace_id = ? AND e.session_id = ? AND e.id = ?`, s.workspaceCacheID, sessionID, eventID)
 		var event model.MessageEvent
 		var detailsRaw string
 		if err := row.Scan(&event.ID, &event.Kind, &event.Phase, &event.CallKey, &event.Text, &event.Meta, &detailsRaw); err != nil {
@@ -382,7 +382,7 @@ func (s *Store) SessionMessageEventByIndex(sessionID string, messageIndex int, e
 	if eventIndex < 0 {
 		return model.MessageEvent{}, fmt.Errorf("invalid event index")
 	}
-	row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.workspace_id = ? AND e.session_id = ? AND e.message_index = ? AND e.event_index = ?`, s.activeWorkspace, sessionID, messageIndex, eventIndex)
+	row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.workspace_id = ? AND e.session_id = ? AND e.message_index = ? AND e.event_index = ?`, s.workspaceCacheID, sessionID, messageIndex, eventIndex)
 	var event model.MessageEvent
 	var detailsRaw string
 	if err := row.Scan(&event.ID, &event.Kind, &event.Phase, &event.CallKey, &event.Text, &event.Meta, &detailsRaw); err != nil {

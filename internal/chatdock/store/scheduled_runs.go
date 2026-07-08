@@ -42,7 +42,7 @@ func (s *Store) FinishScheduledTaskRun(workspaceID string, taskID string, runID 
 	defer s.mu.Unlock()
 
 	var result model.ScheduledTaskRunResponse
-	err := s.withWorkspaceLocked(workspaceID, func() error {
+	err := s.withWorkspaceCacheLocked(workspaceID, func() error {
 		finishedAt := time.Now()
 		answer = strings.TrimSpace(answer)
 		sessionID = strings.TrimSpace(sessionID)
@@ -132,12 +132,12 @@ func (s *Store) FinishScheduledTaskRun(workspaceID string, taskID string, runID 
 	return result, nil
 }
 
-func (s *Store) withWorkspaceLocked(name string, fn func() error) error {
+func (s *Store) withWorkspaceCacheLocked(name string, fn func() error) error {
 	name, err := normalizeWorkspaceID(name)
 	if err != nil {
 		return err
 	}
-	previous := s.activeWorkspace
+	previous := s.workspaceCacheID
 	if previous != name {
 		if err := s.loadWorkspaceLocked(name); err != nil {
 			return err

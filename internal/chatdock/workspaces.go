@@ -53,7 +53,7 @@ func (a *App) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleSelectWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := workspaceIDFromRequest(r)
-	if _, err := a.store.SelectWorkspace(model.WorkspaceIDRequest{Name: workspaceID}); err != nil {
+	if _, err := a.store.LoadWorkspaceCache(model.WorkspaceIDRequest{Name: workspaceID}); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
@@ -63,6 +63,15 @@ func (a *App) handleSelectWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSONResponse(w, http.StatusOK, result)
+}
+
+func (a *App) handleWorkspaceReadiness(w http.ResponseWriter, r *http.Request) {
+	readiness, err := a.store.WorkspaceReadiness(workspaceIDFromRequest(r))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, readiness)
 }
 
 func (a *App) handleGetWorkspaceConfig(w http.ResponseWriter, r *http.Request) {

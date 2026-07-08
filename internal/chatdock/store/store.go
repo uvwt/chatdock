@@ -15,13 +15,13 @@ import (
 const defaultWorkspaceID = "default"
 
 type Store struct {
-	mu              sync.RWMutex
-	dataDir         string
-	dbPath          string
-	db              *sql.DB
-	activeWorkspace string
-	modelCfg        model.ModelConfig
-	sessions        map[string]*model.Session
+	mu               sync.RWMutex
+	dataDir          string
+	dbPath           string
+	db               *sql.DB
+	workspaceCacheID string
+	modelCfg         model.ModelConfig
+	sessions         map[string]*model.Session
 }
 
 func NewStore(dataDir string) (*Store, error) {
@@ -38,11 +38,11 @@ func NewStore(dataDir string) (*Store, error) {
 	}
 	db.SetMaxOpenConns(1)
 	store := &Store{
-		dataDir:         dataDir,
-		dbPath:          dbPath,
-		db:              db,
-		activeWorkspace: defaultWorkspaceID,
-		sessions:        make(map[string]*model.Session),
+		dataDir:          dataDir,
+		dbPath:           dbPath,
+		db:               db,
+		workspaceCacheID: defaultWorkspaceID,
+		sessions:         make(map[string]*model.Session),
 	}
 	if err := store.initSQLite(); err != nil {
 		_ = db.Close()

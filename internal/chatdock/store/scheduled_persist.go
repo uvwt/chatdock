@@ -12,7 +12,7 @@ import (
 )
 
 func (s *Store) loadScheduledTasksLocked() ([]model.ScheduledTask, error) {
-	tasks, err := loadScheduledTasksForWorkspaceLocked(s.db, s.activeWorkspace)
+	tasks, err := loadScheduledTasksForWorkspaceLocked(s.db, s.workspaceCacheID)
 	if err != nil {
 		return nil, err
 	}
@@ -44,14 +44,14 @@ func (s *Store) saveScheduledTasksLocked(tasks []model.ScheduledTask) error {
 	for _, task := range tasks {
 		task = normalizeScheduledTaskForDB(task)
 		keep[task.ID] = true
-		if err := upsertScheduledTaskTx(s.db, s.activeWorkspace, task); err != nil {
+		if err := upsertScheduledTaskTx(s.db, s.workspaceCacheID, task); err != nil {
 			return err
 		}
 	}
-	if err := deleteScheduledTasksExceptWorkspaceLocked(s.db, s.activeWorkspace, keep); err != nil {
+	if err := deleteScheduledTasksExceptWorkspaceLocked(s.db, s.workspaceCacheID, keep); err != nil {
 		return err
 	}
-	return s.touchWorkspaceLocked(s.activeWorkspace, time.Now())
+	return s.touchWorkspaceLocked(s.workspaceCacheID, time.Now())
 }
 
 func sortScheduledTasks(tasks []model.ScheduledTask) {

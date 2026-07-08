@@ -12,16 +12,16 @@ func (s *Store) DataStatus() (DataStatus, error) {
 	s.mu.RLock()
 	dataDir := s.dataDir
 	dbPath := s.dbPath
-	active := s.activeWorkspace
+	active := s.workspaceCacheID
 	s.mu.RUnlock()
 
-	prompts, err := s.listWorkspaceSummaries(active)
+	workspaceSummaries, err := s.listWorkspaceSummaries(active)
 	if err != nil {
 		return DataStatus{}, err
 	}
 	var sessionCount int
-	for _, prompt := range prompts {
-		sessionCount += prompt.Count
+	for _, workspace := range workspaceSummaries {
+		sessionCount += workspace.Count
 	}
 	info, err := os.Stat(dbPath)
 	if err != nil && !os.IsNotExist(err) {
@@ -30,14 +30,14 @@ func (s *Store) DataStatus() (DataStatus, error) {
 	_, walErr := os.Stat(dbPath + "-wal")
 	_, shmErr := os.Stat(dbPath + "-shm")
 	status := DataStatus{
-		DataDir:         dataDir,
-		DatabasePath:    dbPath,
-		DatabaseExists:  info != nil,
-		WALEnabled:      walErr == nil,
-		SHMExists:       shmErr == nil,
-		ActiveWorkspace: active,
-		WorkspaceCount:  len(prompts),
-		SessionCount:    sessionCount,
+		DataDir:          dataDir,
+		DatabasePath:     dbPath,
+		DatabaseExists:   info != nil,
+		WALEnabled:       walErr == nil,
+		SHMExists:        shmErr == nil,
+		WorkspaceCacheID: active,
+		WorkspaceCount:   len(workspaceSummaries),
+		SessionCount:     sessionCount,
 	}
 	if info != nil {
 		status.DatabaseSizeBytes = info.Size()

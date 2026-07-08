@@ -44,22 +44,21 @@ export function useSettingsData(api) {
   const [setupStatus, setSetupStatus] = useState(null);
   const [workspaces, setWorkspaces] = useState([]);
   const [providers, setProviders] = useState([]);
-  const [prompts, setPrompts] = useState([]);
+  const [workspaceSummaries, setWorkspaceSummaries] = useState([]);
   const [scheduledTasks, setScheduledTasks] = useState([]);
   const [dataStatus, setDataStatus] = useState(null);
   const [systemStatus, setSystemStatus] = useState(null);
   const [mcpStatus, setMcpStatus] = useState([]);
-  const [promptPreview, setPromptPreview] = useState('');
+  const [workspacePromptPreview, setWorkspacePromptPreview] = useState('');
   const [mcpConfig, setMcpConfig] = useState('');
   const [config, setConfig] = useState(defaultConfig);
 
-  const loadPrompts = useCallback(async () => {
+  const loadWorkspaceSummaries = useCallback(async () => {
     const data = await fetchWorkspaces(api);
     const workspaceRows = data.workspaces || [];
     setWorkspaces(workspaceRows);
-    // 前端仍有一批通用组件使用 prompts 变量名；这里统一由 Workspace API 派生，
-    // 避免再暴露 /api/prompts 双轨入口，同时不把重命名噪音扩散到聊天主流程。
-    setPrompts(workspaceRows.map(ws => ({
+    // 侧栏只需要轻量工作空间摘要；这里统一由 Workspace API 派生，避免再出现 prompts 双轨概念。
+    setWorkspaceSummaries(workspaceRows.map(ws => ({
       name: ws.name || ws.id,
       active: !!ws.active,
       created_at: ws.created_at,
@@ -120,8 +119,8 @@ export function useSettingsData(api) {
     setWorkspaces,
     providers,
     setProviders,
-    prompts,
-    setPrompts,
+    workspaceSummaries,
+    setWorkspaceSummaries,
     scheduledTasks,
     setScheduledTasks,
     dataStatus,
@@ -130,13 +129,13 @@ export function useSettingsData(api) {
     setSystemStatus,
     mcpStatus,
     setMcpStatus,
-    promptPreview,
-    setPromptPreview,
+    workspacePromptPreview,
+    setWorkspacePromptPreview,
     mcpConfig,
     setMcpConfig,
     config,
     setConfig,
-    loadPrompts,
+    loadWorkspaceSummaries,
     loadConfig,
     loadMCPConfig,
     loadSetupStatus,

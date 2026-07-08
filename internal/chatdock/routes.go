@@ -20,6 +20,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /api/workspaces", a.handleCreateWorkspace)
 	mux.HandleFunc("DELETE /api/workspaces/{id}", a.handleDeleteWorkspace)
 	mux.HandleFunc("POST /api/workspaces/{id}/select", a.handleSelectWorkspace)
+	mux.HandleFunc("GET /api/workspaces/{id}/readiness", a.handleWorkspaceReadiness)
 	mux.HandleFunc("GET /api/workspaces/{id}/config", a.handleGetWorkspaceConfig)
 	mux.HandleFunc("POST /api/workspaces/{id}/config", a.handleSaveWorkspaceConfig)
 	mux.HandleFunc("GET /api/workspaces/{id}/prompt-preview", a.handleWorkspacePromptPreview)
@@ -70,5 +71,5 @@ func (a *App) routes() http.Handler {
 
 	mux.Handle("/", a.webHandler())
 
-	return logRequest(gzipMiddleware(a.authMiddleware(mux)))
+	return logRequest(gzipMiddleware(a.authMiddleware(a.workspaceScopeMiddleware(mux))))
 }

@@ -20,6 +20,6 @@ type WorkspaceIDRequest struct {
 }
 
 type WorkspaceListResponse struct {
-	Active  string             `json:"active"`
-	Prompts []WorkspaceSummary `json:"prompts"`
+	Active     string             `json:"active"`
+	Workspaces []WorkspaceSummary `json:"workspaces"`
 }

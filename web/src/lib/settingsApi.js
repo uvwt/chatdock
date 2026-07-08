@@ -37,7 +37,7 @@ export function saveWorkspaceConfig(api, workspaceID, config) {
   return api('/api/workspaces/' + encodeURIComponent(workspaceID) + '/config', {method:'POST', body: JSON.stringify(config)});
 }
 
-export function fetchPromptPreview(api, workspaceID) {
+export function fetchWorkspacePromptPreview(api, workspaceID) {
   return api('/api/workspaces/' + encodeURIComponent(workspaceID) + '/prompt-preview');
 }
 

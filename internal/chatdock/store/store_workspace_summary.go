@@ -14,22 +14,22 @@ import (
 // 工作空间、模型配置和 MCP 配置是一组同生命周期的 model.WorkspaceSummary 数据。
 // 这些方法只负责选择、校验和保存当前工作空间配置，不直接处理消息追加。
 
-func (s *Store) ActiveWorkspace() string {
+func (s *Store) WorkspaceCacheID() string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.activeWorkspace
+	return s.workspaceCacheID
 }
 
 func (s *Store) ListWorkspaceSummaries() (model.WorkspaceListResponse, error) {
 	s.mu.RLock()
-	active := s.activeWorkspace
+	active := s.workspaceCacheID
 	s.mu.RUnlock()
 
-	prompts, err := s.listWorkspaceSummaries(active)
+	workspaces, err := s.listWorkspaceSummaries(active)
 	if err != nil {
 		return model.WorkspaceListResponse{}, err
 	}
-	return model.WorkspaceListResponse{Active: active, Prompts: prompts}, nil
+	return model.WorkspaceListResponse{Active: active, Workspaces: workspaces}, nil
 }
 
 func (s *Store) CreateWorkspace(input model.CreateWorkspaceRequest) (model.WorkspaceListResponse, error) {
@@ -72,11 +72,11 @@ func (s *Store) CreateWorkspace(input model.CreateWorkspaceRequest) (model.Works
 	if err := s.loadWorkspaceLocked(name); err != nil {
 		return model.WorkspaceListResponse{}, err
 	}
-	prompts, err := s.listWorkspaceSummariesLocked()
+	workspaces, err := s.listWorkspaceSummariesLocked()
 	if err != nil {
 		return model.WorkspaceListResponse{}, err
 	}
-	return model.WorkspaceListResponse{Active: s.activeWorkspace, Prompts: prompts}, nil
+	return model.WorkspaceListResponse{Active: s.workspaceCacheID, Workspaces: workspaces}, nil
 }
 
 func (s *Store) DeleteWorkspace(input model.WorkspaceIDRequest) (model.WorkspaceListResponse, error) {
@@ -105,7 +105,7 @@ func (s *Store) DeleteWorkspace(input model.WorkspaceIDRequest) (model.Workspace
 	if len(names) <= 1 {
 		return model.WorkspaceListResponse{}, fmt.Errorf("last workspace cannot be deleted")
 	}
-	if name == s.activeWorkspace {
+	if name == s.workspaceCacheID {
 		fallback := defaultWorkspaceID
 		if fallback == name {
 			fallback = ""
@@ -127,14 +127,14 @@ func (s *Store) DeleteWorkspace(input model.WorkspaceIDRequest) (model.Workspace
 	if _, err := s.db.Exec(`DELETE FROM workspaces WHERE name = ?`, name); err != nil {
 		return model.WorkspaceListResponse{}, err
 	}
-	prompts, err := s.listWorkspaceSummariesLocked()
+	workspaces, err := s.listWorkspaceSummariesLocked()
 	if err != nil {
 		return model.WorkspaceListResponse{}, err
 	}
-	return model.WorkspaceListResponse{Active: s.activeWorkspace, Prompts: prompts}, nil
+	return model.WorkspaceListResponse{Active: s.workspaceCacheID, Workspaces: workspaces}, nil
 }
 
-func (s *Store) SelectWorkspace(input model.WorkspaceIDRequest) (model.WorkspaceListResponse, error) {
+func (s *Store) LoadWorkspaceCache(input model.WorkspaceIDRequest) (model.WorkspaceListResponse, error) {
 	name, err := normalizeWorkspaceID(input.Name)
 	if err != nil {
 		return model.WorkspaceListResponse{}, err
@@ -153,11 +153,11 @@ func (s *Store) SelectWorkspace(input model.WorkspaceIDRequest) (model.Workspace
 	if err := s.loadWorkspaceLocked(name); err != nil {
 		return model.WorkspaceListResponse{}, err
 	}
-	prompts, err := s.listWorkspaceSummariesLocked()
+	workspaces, err := s.listWorkspaceSummariesLocked()
 	if err != nil {
 		return model.WorkspaceListResponse{}, err
 	}
-	return model.WorkspaceListResponse{Active: s.activeWorkspace, Prompts: prompts}, nil
+	return model.WorkspaceListResponse{Active: s.workspaceCacheID, Workspaces: workspaces}, nil
 }
 
 func (s *Store) loadWorkspaceLocked(name string) error {
@@ -168,7 +168,7 @@ func (s *Store) loadWorkspaceLocked(name string) error {
 	if err := s.ensureWorkspaceLocked(name); err != nil {
 		return err
 	}
-	s.activeWorkspace = name
+	s.workspaceCacheID = name
 	s.sessions = make(map[string]*model.Session)
 	if err := s.loadModelConfigLocked(); err != nil {
 		return err
@@ -177,13 +177,13 @@ func (s *Store) loadWorkspaceLocked(name string) error {
 }
 
 func (s *Store) loadModelConfigLocked() error {
-	raw, ok, err := s.getWorkspaceRawLocked(s.activeWorkspace, "config")
+	raw, ok, err := s.getWorkspaceRawLocked(s.workspaceCacheID, "config")
 	if err != nil {
 		return err
 	}
 	if !ok || strings.TrimSpace(raw) == "" {
 		s.modelCfg = model.DefaultModelConfig()
-		return s.setWorkspaceJSONLocked(s.activeWorkspace, "config", s.modelCfg)
+		return s.setWorkspaceJSONLocked(s.workspaceCacheID, "config", s.modelCfg)
 	}
 	if err := json.Unmarshal([]byte(raw), &s.modelCfg); err != nil {
 		return err
@@ -198,7 +198,7 @@ func (s *Store) loadModelConfigLocked() error {
 }
 
 func (s *Store) listWorkspaceSummaries(active string) ([]model.WorkspaceSummary, error) {
-	type promptRow struct {
+	type workspaceRow struct {
 		name       string
 		createdRaw string
 		updatedRaw string
@@ -207,14 +207,14 @@ func (s *Store) listWorkspaceSummaries(active string) ([]model.WorkspaceSummary,
 	if err != nil {
 		return nil, err
 	}
-	promptRows := []promptRow{}
+	workspaceRows := []workspaceRow{}
 	for rows.Next() {
-		var row promptRow
+		var row workspaceRow
 		if err := rows.Scan(&row.name, &row.createdRaw, &row.updatedRaw); err != nil {
 			_ = rows.Close()
 			return nil, err
 		}
-		promptRows = append(promptRows, row)
+		workspaceRows = append(workspaceRows, row)
 	}
 	if err := rows.Err(); err != nil {
 		_ = rows.Close()
@@ -225,7 +225,7 @@ func (s *Store) listWorkspaceSummaries(active string) ([]model.WorkspaceSummary,
 	}
 
 	items := []model.WorkspaceSummary{}
-	for _, row := range promptRows {
+	for _, row := range workspaceRows {
 		item, err := s.workspaceSummaryFromDB(row.name, active, row.createdRaw, row.updatedRaw)
 		if err != nil {
 			return nil, err
@@ -266,7 +266,7 @@ func (s *Store) listWorkspaceIDsLocked() ([]string, error) {
 }
 
 func (s *Store) listWorkspaceSummariesLocked() ([]model.WorkspaceSummary, error) {
-	return s.listWorkspaceSummaries(s.activeWorkspace)
+	return s.listWorkspaceSummaries(s.workspaceCacheID)
 }
 
 func (s *Store) workspaceSummaryFromDB(name string, active string, createdRaw string, updatedRaw string) (model.WorkspaceSummary, error) {

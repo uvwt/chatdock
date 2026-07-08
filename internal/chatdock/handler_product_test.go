@@ -182,7 +182,7 @@ func TestSetupInitPersistsAcrossRestart(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil {
 		t.Fatal(err)
 	}
-	if status.NeedsSetup || status.ActiveWorkspace != "daily" || !status.HasAPIKey {
+	if status.NeedsSetup || status.WorkspaceCacheID != "daily" || !status.HasAPIKey {
 		t.Fatalf("setup state did not persist: %#v", status)
 	}
 }

@@ -151,7 +151,7 @@ export function QuickPalette({ open, actions, onClose }) {
   </div>;
 }
 
-export function WorkspacePicker({ open, prompts, busy, activeName, onClose, onSelect }) {
+export function WorkspacePicker({ open, workspaceSummaries, busy, activeName, onClose, onSelect }) {
   if (!open) return null;
   return <div className="workspace-picker-backdrop show" onClick={onClose}>
     <div className="workspace-picker-sheet" role="dialog" aria-modal="true" aria-label="选择工作空间" onClick={e => e.stopPropagation()}>
@@ -160,7 +160,7 @@ export function WorkspacePicker({ open, prompts, busy, activeName, onClose, onSe
         <button className="secondary small" type="button" onClick={onClose}>关闭</button>
       </div>
       <div className="workspace-picker-list">
-        {prompts.length ? prompts.map(item => <button
+        {workspaceSummaries.length ? workspaceSummaries.map(item => <button
           key={item.name}
           type="button"
           disabled={busy}

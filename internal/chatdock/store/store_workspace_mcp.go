@@ -12,13 +12,13 @@ func (s *Store) GetMCPConfig() (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	content, ok, err := s.getWorkspaceRawLocked(s.activeWorkspace, "mcp")
+	content, ok, err := s.getWorkspaceRawLocked(s.workspaceCacheID, "mcp")
 	if err != nil {
 		return "", err
 	}
 	if !ok || strings.TrimSpace(content) == "" {
 		content = DefaultMCPConfig()
-		return content, s.setWorkspaceRawLocked(s.activeWorkspace, "mcp", content)
+		return content, s.setWorkspaceRawLocked(s.workspaceCacheID, "mcp", content)
 	}
 	return content, nil
 }
@@ -27,17 +27,17 @@ func (s *Store) GetEffectiveMCPConfig() (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	content, ok, err := s.getWorkspaceRawLocked(s.activeWorkspace, "mcp")
+	content, ok, err := s.getWorkspaceRawLocked(s.workspaceCacheID, "mcp")
 	if err != nil {
 		return "", err
 	}
 	if !ok || strings.TrimSpace(content) == "" {
 		content = DefaultMCPConfig()
-		if err := s.setWorkspaceRawLocked(s.activeWorkspace, "mcp", content); err != nil {
+		if err := s.setWorkspaceRawLocked(s.workspaceCacheID, "mcp", content); err != nil {
 			return "", err
 		}
 	}
-	if mcpConfigHasServers(content) || s.activeWorkspace == defaultWorkspaceID {
+	if mcpConfigHasServers(content) || s.workspaceCacheID == defaultWorkspaceID {
 		return content, nil
 	}
 
@@ -72,7 +72,7 @@ func (s *Store) SaveMCPConfig(content string) (string, error) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return pretty, s.setWorkspaceRawLocked(s.activeWorkspace, "mcp", pretty)
+	return pretty, s.setWorkspaceRawLocked(s.workspaceCacheID, "mcp", pretty)
 }
 
 func DefaultMCPConfig() string {

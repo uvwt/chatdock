@@ -46,7 +46,7 @@ func (s *Store) AppendUserMessageWithAttachments(sessionID string, content strin
 	if len(attachments) > 0 {
 		ids := uniqueAttachmentIDs(attachmentIDs)
 		placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
-		args := []any{sessionID, messageID, s.activeWorkspace}
+		args := []any{sessionID, messageID, s.workspaceCacheID}
 		for _, id := range ids {
 			args = append(args, id)
 		}

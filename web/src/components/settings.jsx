@@ -22,9 +22,9 @@ export function SettingsPanel(props) {
   const {
     activeModule, busy, closeSettings, config, createWorkspace, dataStatus, deleteScheduledTask, deleteWorkspace, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
     editScheduledTask, loadDataStatus, loadMCPConfig, loadMCPStatus, loadScheduledTasks,
-    loadSystemStatus, logout, mcpConfig, mcpStatus, onCopy, providers, promptPreview, refreshProductState, refreshVisibleSettings, runScheduledTaskNow, viewScheduledTaskRuns, openScheduledTaskSession, runSetupWizard,
+    loadSystemStatus, logout, mcpConfig, mcpStatus, onCopy, providers, workspacePromptPreview, refreshProductState, refreshVisibleSettings, runScheduledTaskNow, viewScheduledTaskRuns, openScheduledTaskSession, runSetupWizard,
     saveConfig, saveMCPConfig, scheduledTasks, selectWorkspace, setConfig, setMcpConfig, setTaskSearch, setupStatus,
-    showPromptPreview, switchSettingsModule, systemStatus, taskSearch, testMCP, fetchMCPServerTools, testModelProvider, fetchProviderModels, availableModels, candidateProviderID, addCandidateModelToProvider, loadingModels, toggleScheduledTask,
+    showWorkspacePromptPreview, switchSettingsModule, systemStatus, taskSearch, testMCP, fetchMCPServerTools, testModelProvider, fetchProviderModels, availableModels, candidateProviderID, addCandidateModelToProvider, loadingModels, toggleScheduledTask,
     workspaces,
   } = props;
   const filteredTasks = useMemo(() => {
@@ -35,7 +35,7 @@ export function SettingsPanel(props) {
     <div className="settings-header"><div><h2>配置中心</h2><p>常用入口靠前，高级配置收进折叠区。</p></div><div className="settings-header-actions"><button className="secondary small" onClick={() => closeSettings()}>返回</button><button className="secondary small settings-refresh-button" onClick={() => (refreshVisibleSettings || refreshProductState)?.()} aria-label="刷新" title="刷新"><svg className="settings-refresh-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.76-4.24L13 11h8V3z" fill="currentColor" /></svg><span className="settings-refresh-text">刷新</span></button></div></div>
     <nav className="module-tabs" aria-label="配置模块">{settingsModuleGroups.map(group => <div className="module-nav-group" key={group.title}><div className="module-group-label">{group.title}</div>{group.modules.filter(m => settingsModules.includes(m)).map(m => <button key={m} className={'module-tab ' + (activeModule === m ? 'active' : '')} onClick={() => switchSettingsModule(m)}><span className="module-tab-label">{moduleLabel(m)}</span></button>)}</div>)}</nav>
     <ModuleView name="workspace" activeModule={activeModule}><WorkspaceModule setupStatus={setupStatus} workspaces={workspaces} createWorkspace={createWorkspace} selectWorkspace={selectWorkspace} deleteWorkspace={deleteWorkspace} runSetupWizard={runSetupWizard} /></ModuleView>
-    <ModuleView name="model" activeModule={activeModule}><ModelModule config={config} setConfig={setConfig} saveConfig={saveConfig} showPromptPreview={showPromptPreview} promptPreview={promptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>
+    <ModuleView name="model" activeModule={activeModule}><ModelModule config={config} setConfig={setConfig} saveConfig={saveConfig} showWorkspacePromptPreview={showWorkspacePromptPreview} workspacePromptPreview={workspacePromptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>
     <ModuleView name="providers" activeModule={activeModule}><ProvidersModule config={config} setConfig={setConfig} providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} /></ModuleView>
     <ModuleView name="tools" activeModule={activeModule}><ToolsModule mcpStatus={mcpStatus} mcpConfig={mcpConfig} setMcpConfig={setMcpConfig} saveMCPConfig={saveMCPConfig} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} /></ModuleView>
     <ModuleView name="automation" activeModule={activeModule}><div className="settings-block-head"><label>自动化任务（当前工作空间）</label><button className="secondary small" onClick={() => editScheduledTask()}>新增任务</button></div><input className="session-search" placeholder="搜索任务" value={taskSearch} onChange={e => setTaskSearch(e.target.value)} /><div className="tasks-list">{filteredTasks.length ? filteredTasks.map(t => <TaskCard key={t.id} task={t} editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} toggleScheduledTask={toggleScheduledTask} runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} openScheduledTaskSession={openScheduledTaskSession} />) : <div className="hint">暂无定时任务。默认每次独立执行，运行结果写入任务记录；需要连续上下文时可在编辑中开启。</div>}</div><div className="settings-actions"><button className="secondary" onClick={() => loadScheduledTasks?.()}>刷新任务</button></div></ModuleView>
@@ -92,7 +92,7 @@ function WorkspaceModule({ setupStatus, workspaces, createWorkspace, selectWorks
   </>;
 }
 
-function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptPreview, testModelProvider, providers }) {
+function ModelModule({ config, setConfig, saveConfig, showWorkspacePromptPreview, workspacePromptPreview, testModelProvider, providers }) {
   const update = (key, value) => setConfig(c => ({...c, [key]: value}));
   const providerModels = (provider) => normalizeModelNames([...(provider?.models || []), provider?.default_model].filter(Boolean));
   const activeProvider = providers.find(p => p.id === config.provider_id) || providers[0] || null;
@@ -110,7 +110,7 @@ function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptP
   const contextMode = config.context_mode || 'auto';
   return <>
     <section className="model-quick-panel model-page-single">
-      <div className="model-quick-head"><div><b>默认模型</b><span>{activeProvider?.name || '未选择供应商'} · {config.model || activeProvider?.default_model || '未选择模型'}</span></div><div className="model-quick-actions"><button onClick={() => saveConfig?.()}>保存</button><button className="secondary" onClick={() => testModelProvider?.()}>测试</button><button className="secondary" onClick={() => showPromptPreview?.()}>Prompt</button></div></div>
+      <div className="model-quick-head"><div><b>默认模型</b><span>{activeProvider?.name || '未选择供应商'} · {config.model || activeProvider?.default_model || '未选择模型'}</span></div><div className="model-quick-actions"><button onClick={() => saveConfig?.()}>保存</button><button className="secondary" onClick={() => testModelProvider?.()}>测试</button><button className="secondary" onClick={() => showWorkspacePromptPreview?.()}>Prompt</button></div></div>
       <div className="model-quick-grid">
         <label>供应商<select value={activeProvider?.id || ''} onChange={e => chooseProvider(e.target.value)}>{providers.length ? providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>) : <option value="">未配置供应商</option>}</select></label>
         <label>模型<input value={config.model || ''} onChange={e => chooseModel(e.target.value)} placeholder={activeProvider?.default_model || 'gpt-4o-mini'} /></label>
@@ -124,7 +124,7 @@ function ModelModule({ config, setConfig, saveConfig, showPromptPreview, promptP
         {contextMode === 'custom' ? <label>最近消息数<input type="number" min="1" value={config.max_context_messages} onChange={e => update('max_context_messages', e.target.value)} /></label> : null}
         <details className="model-mini-details"><summary>System Prompt</summary><textarea className="system-prompt-editor compact" value={config.system_prompt} onChange={e => update('system_prompt', e.target.value)} /></details>
         <div className="thinking-options compact"><label className="check-row"><input type="checkbox" checked={!!config.enable_thinking} onChange={e => update('enable_thinking', e.target.checked)} /> 思考</label><label className="check-row"><input type="checkbox" checked={!!config.hide_thinking} onChange={e => update('hide_thinking', e.target.checked)} /> 隐藏思考</label></div>
-        {promptPreview ? <pre className="code-preview compact">{promptPreview}</pre> : null}
+        {workspacePromptPreview ? <pre className="code-preview compact">{workspacePromptPreview}</pre> : null}
       </section>
       <section className="settings-section model-inline-card embedding-inline-card">
         <div className="settings-section-head"><div><b>向量</b></div></div>

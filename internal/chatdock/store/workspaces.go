@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"strings"
 
 	"chatdock/internal/chatdock/llm"
 	"chatdock/internal/chatdock/model"
@@ -9,24 +10,25 @@ import (
 
 func (s *Store) ListWorkspaces() (WorkspaceResponse, error) {
 	s.mu.RLock()
-	active := s.activeWorkspace
+	active := s.workspaceCacheID
 	s.mu.RUnlock()
 
-	prompts, err := s.listWorkspaceSummaries(active)
+	workspaceSummaries, err := s.listWorkspaceSummaries(active)
 	if err != nil {
 		return WorkspaceResponse{}, err
 	}
-	items := make([]Workspace, 0, len(prompts))
-	for _, prompt := range prompts {
-		cfg, err := s.modelConfigForWorkspace(prompt.Name)
+	items := make([]Workspace, 0, len(workspaceSummaries))
+	for _, workspace := range workspaceSummaries {
+		cfg, err := s.modelConfigForWorkspace(workspace.Name)
 		if err != nil {
 			return WorkspaceResponse{}, err
 		}
-		tasks, _ := s.scheduledTasksForWorkspace(prompt.Name)
+		tasks, _ := s.scheduledTasksForWorkspace(workspace.Name)
+		ready := workspaceReadinessFromConfig(workspace.Name, cfg)
 		items = append(items, Workspace{
-			ID:              prompt.Name,
-			Name:            prompt.Name,
-			Description:     workspaceDescription(prompt.Name),
+			ID:              workspace.Name,
+			Name:            workspace.Name,
+			Description:     workspaceDescription(workspace.Name),
 			Icon:            "message-circle",
 			ProviderID:      cfg.ProviderID,
 			Model:           cfg.Model,
@@ -36,12 +38,14 @@ func (s *Store) ListWorkspaces() (WorkspaceResponse, error) {
 			Temperature:     cfg.Temperature,
 			HideThinking:    cfg.HideThinking,
 			EnableReasoning: cfg.EnableThinking,
+			Ready:           ready.Ready,
+			ReadinessReason: ready.Reason,
 			TaskCount:       len(tasks),
-			SessionCount:    prompt.Count,
-			Active:          prompt.Active,
+			SessionCount:    workspace.Count,
+			Active:          workspace.Active,
 			Archived:        false,
-			CreatedAt:       prompt.CreatedAt,
-			UpdatedAt:       prompt.UpdatedAt,
+			CreatedAt:       workspace.CreatedAt,
+			UpdatedAt:       workspace.UpdatedAt,
 		})
 	}
 	return WorkspaceResponse{Active: active, Workspaces: items}, nil
@@ -87,7 +91,7 @@ func (s *Store) SaveWorkspaceConfig(workspaceID string, next model.ModelConfig) 
 		return model.PublicModelConfig{}, err
 	}
 	// 工作空间配置可以在不切换当前会话空间的情况下保存；如果保存的是当前空间，同步内存态，避免后续聊天继续用旧配置。
-	if workspaceID == s.activeWorkspace {
+	if workspaceID == s.workspaceCacheID {
 		s.modelCfg = saved
 	}
 	return model.ToPublicModelConfig(saved), nil
@@ -101,7 +105,7 @@ func (s *Store) PromptPreview(workspaceID string) (PromptPreviewResponse, error)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	previous := s.activeWorkspace
+	previous := s.workspaceCacheID
 	if err := s.loadWorkspaceLocked(workspaceID); err != nil {
 		return PromptPreviewResponse{}, err
 	}
@@ -126,6 +130,39 @@ func (s *Store) scheduledTasksForWorkspace(prompt string) ([]model.ScheduledTask
 		return nil, err
 	}
 	return cloneScheduledTasks(tasks), nil
+}
+
+func (s *Store) WorkspaceReadiness(workspaceID string) (WorkspaceReadiness, error) {
+	workspaceID, err := normalizeWorkspaceID(workspaceID)
+	if err != nil {
+		return WorkspaceReadiness{}, err
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if exists, err := s.workspaceExistsLocked(workspaceID); err != nil {
+		return WorkspaceReadiness{}, err
+	} else if !exists {
+		return WorkspaceReadiness{}, fmt.Errorf("workspace not found: %s", workspaceID)
+	}
+	cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
+	if err != nil {
+		return WorkspaceReadiness{}, err
+	}
+	return workspaceReadinessFromConfig(workspaceID, cfg), nil
+}
+
+func workspaceReadinessFromConfig(workspaceID string, cfg model.ModelConfig) WorkspaceReadiness {
+	providerID := strings.TrimSpace(cfg.ProviderID)
+	modelName := strings.TrimSpace(cfg.Model)
+	hasProvider := strings.TrimSpace(cfg.BaseURL) != "" && modelName != ""
+	hasKey := strings.TrimSpace(cfg.APIKey) != ""
+	reason := ""
+	if !hasProvider {
+		reason = "模型供应商或模型未配置"
+	} else if !hasKey {
+		reason = "API Key 未配置"
+	}
+	return WorkspaceReadiness{WorkspaceID: workspaceID, Ready: hasProvider && hasKey, HasModelProvider: hasProvider, HasAPIKey: hasKey, Model: modelName, ProviderID: providerID, Reason: reason}
 }
 
 func workspaceDescription(name string) string {

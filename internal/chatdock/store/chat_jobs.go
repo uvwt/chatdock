@@ -49,7 +49,7 @@ func (s *Store) CreateChatJob(sessionID string, requestID string) (ChatJob, erro
 		return ChatJob{}, fmt.Errorf("session id is empty")
 	}
 	now := time.Now()
-	job := ChatJob{Workspace: s.activeWorkspace, ID: model.NewID(), SessionID: strings.TrimSpace(sessionID), RequestID: strings.TrimSpace(requestID), Status: "running", StartedAt: now, UpdatedAt: now}
+	job := ChatJob{Workspace: s.workspaceCacheID, ID: model.NewID(), SessionID: strings.TrimSpace(sessionID), RequestID: strings.TrimSpace(requestID), Status: "running", StartedAt: now, UpdatedAt: now}
 	_, err := s.db.Exec(`INSERT INTO chat_jobs(workspace_id, id, session_id, request_id, status, answer, reasoning, error, started_at, finished_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, job.Workspace, job.ID, job.SessionID, job.RequestID, job.Status, "", "", "", formatDBTime(job.StartedAt), "", formatDBTime(job.UpdatedAt))
 	if err != nil {
 		return ChatJob{}, err
@@ -136,7 +136,7 @@ func (s *Store) ListChatJobs(sessionID string, runningOnly bool, limit int) ([]C
 		limit = 20
 	}
 	query := `SELECT workspace_id, id, session_id, request_id, status, answer, reasoning, error, started_at, finished_at, updated_at FROM chat_jobs WHERE workspace_id = ?`
-	args := []any{s.activeWorkspace}
+	args := []any{s.workspaceCacheID}
 	if strings.TrimSpace(sessionID) != "" {
 		query += ` AND session_id = ?`
 		args = append(args, strings.TrimSpace(sessionID))

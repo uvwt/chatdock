@@ -9,26 +9,42 @@ import (
 
 func (s *Store) SetupStatus() (SetupStatus, error) {
 	s.mu.RLock()
-	active := s.activeWorkspace
-	cfg := s.modelCfg
+	active := s.workspaceCacheID
 	dataDir := s.dataDir
+	providers, providerErr := s.loadModelProviderRecordsLocked()
 	s.mu.RUnlock()
+	if providerErr != nil {
+		return SetupStatus{}, providerErr
+	}
 
-	prompts, err := s.listWorkspaceSummaries(active)
+	workspaces, err := s.listWorkspaceSummaries(active)
 	if err != nil {
 		return SetupStatus{}, err
 	}
-	defaultCfg := model.DefaultModelConfig()
-	hasProvider := strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != ""
-	hasKey := strings.TrimSpace(cfg.APIKey) != ""
-	looksDefaultWithoutKey := !hasKey && cfg.BaseURL == defaultCfg.BaseURL && cfg.Model == defaultCfg.Model
+	hasProvider := false
+	hasKey := false
+	for _, provider := range providers {
+		if strings.TrimSpace(provider.BaseURL) != "" && strings.TrimSpace(provider.DefaultModel) != "" && provider.Enabled {
+			hasProvider = true
+		}
+		if strings.TrimSpace(provider.APIKey) != "" {
+			hasKey = true
+		}
+		for _, key := range provider.APIKeys {
+			if strings.TrimSpace(key.APIKey) != "" && key.Enabled {
+				hasKey = true
+			}
+		}
+	}
+	// setup 只表达系统是否完成基础初始化；单个工作空间能否聊天由 workspace readiness 判断，
+	// 避免当前工作空间缺 key 时把整个系统误判为“未初始化”。
 	return SetupStatus{
-		NeedsSetup:       !hasProvider || len(prompts) == 0 || looksDefaultWithoutKey,
+		NeedsSetup:       len(workspaces) == 0 || !hasProvider,
 		HasModelProvider: hasProvider,
 		HasAPIKey:        hasKey,
-		HasWorkspace:     len(prompts) > 0,
-		ActiveWorkspace:  active,
-		WorkspaceCount:   len(prompts),
+		HasWorkspace:     len(workspaces) > 0,
+		WorkspaceCacheID: active,
+		WorkspaceCount:   len(workspaces),
 		DataDir:          dataDir,
 	}, nil
 }
@@ -67,11 +83,11 @@ func (s *Store) InitializeSetup(input SetupInitRequest) (SetupStatus, error) {
 		cfg.SystemPrompt = model.DefaultModelConfig().SystemPrompt
 	}
 	s.modelCfg = model.NormalizeModelConfig(cfg)
-	if err := s.upsertProviderFromConfigLocked(s.activeWorkspace, s.modelCfg); err != nil {
+	if err := s.upsertProviderFromConfigLocked(s.workspaceCacheID, s.modelCfg); err != nil {
 		s.mu.Unlock()
 		return SetupStatus{}, err
 	}
-	err = s.setWorkspaceJSONLocked(s.activeWorkspace, "config", s.modelCfg)
+	err = s.setWorkspaceJSONLocked(s.workspaceCacheID, "config", s.modelCfg)
 	s.mu.Unlock()
 	if err != nil {
 		return SetupStatus{}, err

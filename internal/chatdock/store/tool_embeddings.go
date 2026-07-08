@@ -19,7 +19,7 @@ type ToolEmbeddingRecord struct {
 func (s *Store) ToolEmbeddings(model string) (map[string]ToolEmbeddingRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	rows, err := s.db.Query(`SELECT full_name, source_hash, embedding_model, embedding_json, embedding_blob FROM tool_embeddings WHERE workspace_id = ? AND embedding_model = ?`, s.activeWorkspace, model)
+	rows, err := s.db.Query(`SELECT full_name, source_hash, embedding_model, embedding_json, embedding_blob FROM tool_embeddings WHERE workspace_id = ? AND embedding_model = ?`, s.workspaceCacheID, model)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (s *Store) SaveToolEmbedding(item ToolEmbeddingRecord) error {
 	blob := encodeEmbeddingBlob(item.Embedding)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, err = s.db.Exec(`INSERT INTO tool_embeddings(workspace_id, full_name, source_hash, embedding_model, embedding_json, embedding_blob, indexed_at) VALUES(?, ?, ?, ?, ?, ?, ?) ON CONFLICT(workspace_id, full_name, embedding_model) DO UPDATE SET source_hash = excluded.source_hash, embedding_json = excluded.embedding_json, embedding_blob = excluded.embedding_blob, indexed_at = excluded.indexed_at`, s.activeWorkspace, item.FullName, item.SourceHash, item.EmbeddingModel, string(raw), blob, formatDBTime(time.Now()))
+	_, err = s.db.Exec(`INSERT INTO tool_embeddings(workspace_id, full_name, source_hash, embedding_model, embedding_json, embedding_blob, indexed_at) VALUES(?, ?, ?, ?, ?, ?, ?) ON CONFLICT(workspace_id, full_name, embedding_model) DO UPDATE SET source_hash = excluded.source_hash, embedding_json = excluded.embedding_json, embedding_blob = excluded.embedding_blob, indexed_at = excluded.indexed_at`, s.workspaceCacheID, item.FullName, item.SourceHash, item.EmbeddingModel, string(raw), blob, formatDBTime(time.Now()))
 	return err
 }
 

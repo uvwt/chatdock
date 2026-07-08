@@ -13,7 +13,7 @@ func (s *Store) ListAgentTasks(limit int) (AgentTaskResponse, error) {
 	if limit > 100 {
 		limit = 100
 	}
-	prompt := s.ActiveWorkspace()
+	prompt := s.WorkspaceCacheID()
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	rows, err := s.db.Query(`SELECT r.workspace_id, r.session_id, e.run_id, e.server, e.tool, e.action, e.status, e.summary, e.arguments_json, e.result_json, e.error, e.created_at

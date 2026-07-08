@@ -7,7 +7,7 @@ type SetupStatus struct {
 	HasModelProvider bool   `json:"has_model_provider"`
 	HasAPIKey        bool   `json:"has_api_key"`
 	HasWorkspace     bool   `json:"has_workspace"`
-	ActiveWorkspace  string `json:"active_workspace"`
+	WorkspaceCacheID string `json:"active_workspace"`
 	WorkspaceCount   int    `json:"workspace_count"`
 	DataDir          string `json:"data_dir"`
 }
@@ -18,6 +18,28 @@ type SetupInitRequest struct {
 	APIKey        string `json:"api_key"`
 	Model         string `json:"model"`
 	SystemPrompt  string `json:"system_prompt"`
+}
+
+type WorkspaceReadiness struct {
+	WorkspaceID      string `json:"workspace_id"`
+	Ready            bool   `json:"ready"`
+	HasModelProvider bool   `json:"has_model_provider"`
+	HasAPIKey        bool   `json:"has_api_key"`
+	Model            string `json:"model"`
+	ProviderID       string `json:"provider_id"`
+	Reason           string `json:"reason,omitempty"`
+}
+
+type MCPConfirmationRecord struct {
+	ID          string         `json:"id"`
+	WorkspaceID string         `json:"workspace_id"`
+	SessionID   string         `json:"session_id,omitempty"`
+	Tool        string         `json:"tool"`
+	Arguments   map[string]any `json:"arguments,omitempty"`
+	Status      string         `json:"status"`
+	RequestedAt time.Time      `json:"requested_at"`
+	ResolvedAt  *time.Time     `json:"resolved_at,omitempty"`
+	Message     string         `json:"message,omitempty"`
 }
 
 type ModelProviderAPIKey struct {
@@ -88,6 +110,8 @@ type Workspace struct {
 	Temperature     float64   `json:"temperature"`
 	HideThinking    bool      `json:"hide_thinking"`
 	EnableReasoning bool      `json:"enable_reasoning"`
+	Ready           bool      `json:"ready"`
+	ReadinessReason string    `json:"readiness_reason,omitempty"`
 	TaskCount       int       `json:"task_count"`
 	SessionCount    int       `json:"session_count"`
 	Active          bool      `json:"active"`
@@ -135,7 +159,7 @@ type DataStatus struct {
 	LatestBackupAt         time.Time    `json:"latest_backup_at,omitempty"`
 	LatestBackupAgeSeconds int64        `json:"latest_backup_age_seconds,omitempty"`
 	Backups                []BackupInfo `json:"backups,omitempty"`
-	ActiveWorkspace        string       `json:"active_workspace"`
+	WorkspaceCacheID       string       `json:"active_workspace"`
 	WorkspaceCount         int          `json:"workspace_count"`
 	SessionCount           int          `json:"session_count"`
 }
