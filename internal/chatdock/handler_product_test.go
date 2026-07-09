@@ -58,7 +58,7 @@ func TestWorkspaceResourceAPIs(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &spaces); err != nil {
 		t.Fatal(err)
 	}
-	if spaces.Active != "research" || len(spaces.Workspaces) != 2 {
+	if spaces.Active != "default" || len(spaces.Workspaces) != 2 {
 		t.Fatalf("unexpected workspace response: %#v", spaces)
 	}
 
@@ -184,7 +184,7 @@ func TestSetupInitPersistsAcrossRestart(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil {
 		t.Fatal(err)
 	}
-	if status.NeedsSetup || status.WorkspaceCacheID != "daily" || !status.HasAPIKey {
+	if status.NeedsSetup || status.ActiveWorkspace != "default" || !status.HasAPIKey {
 		t.Fatalf("setup state did not persist: %#v", status)
 	}
 }
@@ -209,7 +209,7 @@ func TestWorkspaceScopeMiddlewareLoadsDefaultAndRejectsInvalidWorkspace(t *testi
 		t.Fatalf("save research config status %d: %s", w.Code, w.Body.String())
 	}
 
-	// 创建 research 后 Store 缓存停在 research；显式 default 请求必须切回 default，不能沿用上一次缓存。
+	// 显式 default 请求必须只读取 default，不能受到上一条 research 配置写入影响。
 	r = httptest.NewRequest(http.MethodGet, "/api/config", nil)
 	r.Header.Set("X-Workspace-ID", "default")
 	w = httptest.NewRecorder()
@@ -221,8 +221,8 @@ func TestWorkspaceScopeMiddlewareLoadsDefaultAndRejectsInvalidWorkspace(t *testi
 	if err := json.Unmarshal(w.Body.Bytes(), &cfg); err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Model == "research-model" || app.store.WorkspaceCacheID() != "default" {
-		t.Fatalf("default scoped request used stale workspace cache, cfg=%#v cache=%s", cfg, app.store.WorkspaceCacheID())
+	if cfg.Model == "research-model" {
+		t.Fatalf("default scoped request used research workspace config: %#v", cfg)
 	}
 
 	r = httptest.NewRequest(http.MethodGet, "/api/config", nil)

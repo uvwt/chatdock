@@ -7,7 +7,7 @@ import (
 )
 
 func (a *App) handleListWorkspaces(w http.ResponseWriter, r *http.Request) {
-	result, err := a.store.ListWorkspaces()
+	result, err := a.store.ListWorkspaces(a.workspaceIDFromRequest(r))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -25,7 +25,7 @@ func (a *App) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result, err := a.store.ListWorkspaces()
+	result, err := a.store.ListWorkspaces(a.workspaceIDFromRequest(r))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -33,17 +33,17 @@ func (a *App) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, result)
 }
 
-func workspaceIDFromRequest(r *http.Request) string {
+func workspacePathIDFromRequest(r *http.Request) string {
 	return r.PathValue("id")
 }
 
 func (a *App) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) {
-	workspaceID := workspaceIDFromRequest(r)
+	workspaceID := workspacePathIDFromRequest(r)
 	if _, err := a.store.DeleteWorkspace(model.WorkspaceIDRequest{Name: workspaceID}); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result, err := a.store.ListWorkspaces()
+	result, err := a.store.ListWorkspaces(a.workspaceIDFromRequest(r))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -52,12 +52,12 @@ func (a *App) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleSelectWorkspace(w http.ResponseWriter, r *http.Request) {
-	workspaceID := workspaceIDFromRequest(r)
-	if _, err := a.store.LoadWorkspaceCache(model.WorkspaceIDRequest{Name: workspaceID}); err != nil {
+	workspaceID := workspacePathIDFromRequest(r)
+	if err := a.store.RequireWorkspace(workspaceID); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result, err := a.store.ListWorkspaces()
+	result, err := a.store.ListWorkspaces(workspaceID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -66,7 +66,7 @@ func (a *App) handleSelectWorkspace(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleWorkspaceReadiness(w http.ResponseWriter, r *http.Request) {
-	readiness, err := a.store.WorkspaceReadiness(workspaceIDFromRequest(r))
+	readiness, err := a.store.WorkspaceReadiness(workspacePathIDFromRequest(r))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -75,7 +75,7 @@ func (a *App) handleWorkspaceReadiness(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleGetWorkspaceConfig(w http.ResponseWriter, r *http.Request) {
-	cfg, err := a.store.WorkspaceConfig(workspaceIDFromRequest(r))
+	cfg, err := a.store.WorkspaceConfig(workspacePathIDFromRequest(r))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -89,7 +89,7 @@ func (a *App) handleSaveWorkspaceConfig(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	cfg, err := a.store.SaveWorkspaceConfig(workspaceIDFromRequest(r), input)
+	cfg, err := a.store.SaveWorkspaceConfig(workspacePathIDFromRequest(r), input)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -99,7 +99,7 @@ func (a *App) handleSaveWorkspaceConfig(w http.ResponseWriter, r *http.Request) 
 }
 
 func (a *App) handleWorkspacePromptPreview(w http.ResponseWriter, r *http.Request) {
-	preview, err := a.store.PromptPreview(workspaceIDFromRequest(r))
+	preview, err := a.store.PromptPreview(workspacePathIDFromRequest(r))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

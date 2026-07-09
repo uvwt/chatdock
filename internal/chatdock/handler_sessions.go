@@ -12,11 +12,16 @@ import (
 )
 
 func (a *App) handleListSessions(w http.ResponseWriter, r *http.Request) {
-	writeJSONResponse(w, http.StatusOK, a.store.ListSessions())
+	items, err := a.store.ListSessions(a.workspaceIDFromRequest(r))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, items)
 }
 
 func (a *App) handleCreateSession(w http.ResponseWriter, r *http.Request) {
-	session, err := a.store.CreateSession()
+	session, err := a.store.CreateSession(a.workspaceIDFromRequest(r))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -25,7 +30,11 @@ func (a *App) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleGetSession(w http.ResponseWriter, r *http.Request) {
-	session, ok := a.store.GetSession(r.PathValue("id"))
+	session, ok, err := a.store.GetSession(a.workspaceIDFromRequest(r), r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
 	if !ok {
 		writeError(w, http.StatusNotFound, model.ErrSessionNotFound)
 		return
@@ -43,7 +52,7 @@ func (a *App) handlePinSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	session, err := a.store.PinSession(r.PathValue("id"), input.Pinned)
+	session, err := a.store.PinSession(a.workspaceIDFromRequest(r), r.PathValue("id"), input.Pinned)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -61,7 +70,7 @@ func (a *App) handleUpdateSessionModel(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	session, err := a.store.UpdateSessionModel(r.PathValue("id"), input.ProviderID, input.Model)
+	session, err := a.store.UpdateSessionModel(a.workspaceIDFromRequest(r), r.PathValue("id"), input.ProviderID, input.Model)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -79,7 +88,7 @@ func (a *App) handleRenameSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	session, err := a.store.RenameSession(r.PathValue("id"), input.Title)
+	session, err := a.store.RenameSession(a.workspaceIDFromRequest(r), r.PathValue("id"), input.Title)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -92,7 +101,7 @@ func (a *App) handleRenameSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleCloneSession(w http.ResponseWriter, r *http.Request) {
-	session, err := a.store.CloneSession(r.PathValue("id"))
+	session, err := a.store.CloneSession(a.workspaceIDFromRequest(r), r.PathValue("id"))
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -110,7 +119,7 @@ func (a *App) handleBranchSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	session, err := a.store.BranchSession(r.PathValue("id"), input.MessageIndex)
+	session, err := a.store.BranchSession(a.workspaceIDFromRequest(r), r.PathValue("id"), input.MessageIndex)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -128,7 +137,7 @@ func (a *App) handleEditMessage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	session, err := a.store.EditUserMessageAndTruncate(r.PathValue("id"), input.MessageID, input.MessageIndex, input.Content)
+	session, err := a.store.EditUserMessageAndTruncate(a.workspaceIDFromRequest(r), r.PathValue("id"), input.MessageID, input.MessageIndex, input.Content)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -141,7 +150,11 @@ func (a *App) handleEditMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleExportSession(w http.ResponseWriter, r *http.Request) {
-	session, ok := a.store.GetSession(r.PathValue("id"))
+	session, ok, err := a.store.GetSession(a.workspaceIDFromRequest(r), r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
 	if !ok {
 		writeError(w, http.StatusNotFound, model.ErrSessionNotFound)
 		return
@@ -164,7 +177,12 @@ func (a *App) handleExportSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
-	if ok := a.store.DeleteSession(r.PathValue("id")); !ok {
+	ok, err := a.store.DeleteSession(a.workspaceIDFromRequest(r), r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if !ok {
 		writeError(w, http.StatusNotFound, model.ErrSessionNotFound)
 		return
 	}

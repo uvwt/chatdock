@@ -15,19 +15,19 @@ import (
 	storepkg "chatdock/internal/chatdock/store"
 )
 
-func (a *App) startChatJob(ctx context.Context, input model.ChatRequest) (storepkg.ChatJob, *model.Session, error) {
+func (a *App) startChatJob(ctx context.Context, workspaceID string, input model.ChatRequest) (storepkg.ChatJob, *model.Session, error) {
 	var session *model.Session
 	var cfg model.ModelConfig
 	var history []model.Message
 	var err error
 	if input.Regenerate {
-		session, cfg, history, err = a.store.PrepareSessionRegeneration(input.SessionID)
+		session, cfg, history, err = a.store.PrepareSessionRegeneration(workspaceID, input.SessionID)
 	} else {
 		input.Message = strings.TrimSpace(input.Message)
 		if input.Message == "" && len(input.AttachmentIDs) == 0 {
 			return storepkg.ChatJob{}, nil, fmt.Errorf("message is empty")
 		}
-		session, cfg, history, err = a.store.AppendUserMessageWithAttachments(input.SessionID, input.Message, input.AttachmentIDs)
+		session, cfg, history, err = a.store.AppendUserMessageWithAttachments(workspaceID, input.SessionID, input.Message, input.AttachmentIDs)
 	}
 	if err != nil {
 		return storepkg.ChatJob{}, nil, err
@@ -36,21 +36,21 @@ func (a *App) startChatJob(ctx context.Context, input model.ChatRequest) (storep
 	if err != nil {
 		return storepkg.ChatJob{}, nil, err
 	}
-	if _, err := a.store.UpdateSessionModel(input.SessionID, cfg.ProviderID, cfg.Model); err != nil {
+	if _, err := a.store.UpdateSessionModel(workspaceID, input.SessionID, cfg.ProviderID, cfg.Model); err != nil {
 		return storepkg.ChatJob{}, nil, err
 	}
 	requestID := requestIDFromContext(ctx)
 	if requestID == "" {
 		requestID = newRequestID()
 	}
-	job, err := a.store.CreateChatJob(input.SessionID, requestID)
+	job, err := a.store.CreateChatJob(workspaceID, input.SessionID, requestID)
 	if err != nil {
 		return storepkg.ChatJob{}, nil, err
 	}
 	jobCtx, cancel := context.WithCancel(withRequestID(context.Background(), requestID))
 	a.registerChatJobCancel(job.ID, cancel)
 	logInfo("chat_job_started", logFields{"request_id": requestID, "job_id": job.ID, "session_id": input.SessionID, "provider_id": cfg.ProviderID, "model": cfg.Model})
-	go a.runChatJob(jobCtx, job.ID, input.SessionID, cfg, history)
+	go a.runChatJob(jobCtx, workspaceID, job.ID, input.SessionID, cfg, history)
 	return job, session, nil
 }
 
@@ -81,7 +81,7 @@ func (a *App) cancelChatJob(workspaceID string, jobID string) (storepkg.ChatJob,
 	return job, err
 }
 
-func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cfg model.ModelConfig, history []model.Message) {
+func (a *App) runChatJob(ctx context.Context, workspaceID string, jobID string, sessionID string, cfg model.ModelConfig, history []model.Message) {
 	defer a.unregisterChatJobCancel(jobID)
 	defer a.clearChatJobGuidance(jobID)
 	var answer strings.Builder
@@ -116,7 +116,7 @@ func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cf
 		if strings.TrimSpace(currentAnswer) == "" && strings.TrimSpace(currentReasoning) == "" && len(parts.parts) == 0 && len(parts.events) == 0 {
 			return nil
 		}
-		_, messageID, err := a.store.UpsertAssistantMessageCheckpoint(sessionID, checkpointMessageID, currentAnswer, currentReasoning, parts.parts, parts.events)
+		_, messageID, err := a.store.UpsertAssistantMessageCheckpoint(workspaceID, sessionID, checkpointMessageID, currentAnswer, currentReasoning, parts.parts, parts.events)
 		if err != nil {
 			return err
 		}
@@ -152,7 +152,7 @@ func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cf
 		return err
 	}
 
-	finalAnswer, runErr := a.completeWithRecordedTools(ctx, jobID, sessionID, cfg, history, emit)
+	finalAnswer, runErr := a.completeWithRecordedTools(ctx, workspaceID, jobID, sessionID, cfg, history, emit)
 	if err := flushDeltaEvent(true); err != nil && runErr == nil {
 		runErr = err
 	}
@@ -187,7 +187,7 @@ func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cf
 		go func() {
 			titleCtx, cancel := context.WithTimeout(withRequestID(context.Background(), requestIDFromContext(ctx)), 20*time.Second)
 			defer cancel()
-			_ = a.maybeGenerateSessionTitle(titleCtx, sessionID, cfg)
+			_ = a.maybeGenerateSessionTitle(titleCtx, workspaceID, sessionID, cfg)
 		}()
 	}
 }
@@ -198,7 +198,7 @@ func (a *App) handleCreateChatJob(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	job, session, err := a.startChatJob(r.Context(), input)
+	job, session, err := a.startChatJob(r.Context(), a.workspaceIDFromRequest(r), input)
 	if err != nil {
 		status := http.StatusBadGateway
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -212,7 +212,7 @@ func (a *App) handleCreateChatJob(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleListChatJobs(w http.ResponseWriter, r *http.Request) {
 	runningOnly := r.URL.Query().Get("running") != "0"
-	jobs, err := a.store.ListChatJobs(r.URL.Query().Get("session_id"), runningOnly, 20)
+	jobs, err := a.store.ListChatJobs(a.workspaceIDFromRequest(r), r.URL.Query().Get("session_id"), runningOnly, 20)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -265,7 +265,7 @@ func streamChatJobEvents(r *http.Request, w http.ResponseWriter, flusher http.Fl
 		}
 		if job.Status != "running" {
 			endPayload := map[string]any{"status": job.Status, "job": job, "request_id": job.RequestID}
-			if session, ok := a.store.GetSession(job.SessionID); ok {
+			if session, ok, err := a.store.GetSession(workspaceID, job.SessionID); err == nil && ok {
 				endPayload["session"] = compactSessionToolEventDetails(session)
 			}
 			if job.Status == "failed" {

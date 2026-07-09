@@ -2,7 +2,6 @@ package store
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -11,20 +10,61 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-// 工作空间、模型配置和 MCP 配置是一组同生命周期的 model.WorkspaceSummary 数据。
-// 这些方法只负责选择、校验和保存当前工作空间配置，不直接处理消息追加。
+// 工作空间本身只作为显式请求边界存在。Store 不再保存“当前工作空间”，
+// 每个读写入口都必须由请求层传入 workspaceID，避免并发请求靠全局缓存互相串扰。
 
-func (s *Store) WorkspaceCacheID() string {
+func (s *Store) RequireWorkspace(workspaceID string) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.workspaceCacheID
+	_, err := s.requireWorkspaceLocked(workspaceID)
+	return err
 }
 
-func (s *Store) ListWorkspaceSummaries() (model.WorkspaceListResponse, error) {
-	s.mu.RLock()
-	active := s.workspaceCacheID
-	s.mu.RUnlock()
+func (s *Store) requireWorkspaceLocked(workspaceID string) (string, error) {
+	name, err := normalizeWorkspaceID(workspaceID)
+	if err != nil {
+		return "", err
+	}
+	exists, err := s.workspaceExistsLocked(name)
+	if err != nil {
+		return "", err
+	}
+	if !exists {
+		return "", fmt.Errorf("workspace not found: %s", name)
+	}
+	return name, nil
+}
 
+func (s *Store) ensureWorkspaceDefaultsLocked(name string) error {
+	name, err := normalizeWorkspaceID(name)
+	if err != nil {
+		return err
+	}
+	if err := s.ensureWorkspaceLocked(name); err != nil {
+		return err
+	}
+	if raw, ok, err := s.getWorkspaceRawLocked(name, "config"); err != nil {
+		return err
+	} else if !ok || strings.TrimSpace(raw) == "" {
+		if err := s.setWorkspaceJSONLocked(name, "config", model.DefaultModelConfig()); err != nil {
+			return err
+		}
+	}
+	if raw, ok, err := s.getWorkspaceRawLocked(name, "mcp"); err != nil {
+		return err
+	} else if !ok || strings.TrimSpace(raw) == "" {
+		if err := s.setWorkspaceRawLocked(name, "mcp", DefaultMCPConfig()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Store) ListWorkspaceSummaries(active string) (model.WorkspaceListResponse, error) {
+	active = strings.TrimSpace(active)
+	if active == "" {
+		active = defaultWorkspaceID
+	}
 	workspaces, err := s.listWorkspaceSummaries(active)
 	if err != nil {
 		return model.WorkspaceListResponse{}, err
@@ -53,8 +93,8 @@ func (s *Store) CreateWorkspace(input model.CreateWorkspaceRequest) (model.Works
 	if err := s.insertWorkspaceLocked(name, now); err != nil {
 		return model.WorkspaceListResponse{}, err
 	}
-	cfg := s.modelCfg
-	if strings.TrimSpace(cfg.BaseURL) == "" {
+	cfg, err := s.modelConfigForWorkspaceLocked(defaultWorkspaceID)
+	if err != nil {
 		cfg = model.DefaultModelConfig()
 	}
 	cfg.SystemPrompt = strings.TrimSpace(input.SystemPrompt)
@@ -68,15 +108,11 @@ func (s *Store) CreateWorkspace(input model.CreateWorkspaceRequest) (model.Works
 	if err := s.setWorkspaceRawLocked(name, "mcp", DefaultMCPConfig()); err != nil {
 		return model.WorkspaceListResponse{}, err
 	}
-
-	if err := s.loadWorkspaceLocked(name); err != nil {
-		return model.WorkspaceListResponse{}, err
-	}
-	workspaces, err := s.listWorkspaceSummariesLocked()
+	workspaces, err := s.listWorkspaceSummaries(name)
 	if err != nil {
 		return model.WorkspaceListResponse{}, err
 	}
-	return model.WorkspaceListResponse{Active: s.workspaceCacheID, Workspaces: workspaces}, nil
+	return model.WorkspaceListResponse{Active: name, Workspaces: workspaces}, nil
 }
 
 func (s *Store) DeleteWorkspace(input model.WorkspaceIDRequest) (model.WorkspaceListResponse, error) {
@@ -105,100 +141,17 @@ func (s *Store) DeleteWorkspace(input model.WorkspaceIDRequest) (model.Workspace
 	if len(names) <= 1 {
 		return model.WorkspaceListResponse{}, fmt.Errorf("last workspace cannot be deleted")
 	}
-	if name == s.workspaceCacheID {
-		fallback := defaultWorkspaceID
-		if fallback == name {
-			fallback = ""
-		}
-		for _, candidate := range names {
-			if candidate != name && (fallback == "" || candidate == defaultWorkspaceID) {
-				fallback = candidate
-			}
-		}
-		if fallback == "" {
-			return model.WorkspaceListResponse{}, fmt.Errorf("no fallback workspace available")
-		}
-		if err := s.loadWorkspaceLocked(fallback); err != nil {
-			return model.WorkspaceListResponse{}, err
-		}
-	}
-	// workspace_kv 和 sessions 都声明了 ON DELETE CASCADE；删除 workspace 时必须只删 workspaces 主表，
-	// 让 SQLite 在同一个连接内级联清理关联数据，避免前后端各自补删造成状态不一致。
+	// workspace_kv 和各业务表都声明了 ON DELETE CASCADE；删除 workspace 时只删主表，
+	// 让 SQLite 在同一连接内级联清理，避免前后端各自补删造成状态不一致。
 	if _, err := s.db.Exec(`DELETE FROM workspaces WHERE name = ?`, name); err != nil {
 		return model.WorkspaceListResponse{}, err
 	}
-	workspaces, err := s.listWorkspaceSummariesLocked()
+	active := defaultWorkspaceID
+	workspaces, err := s.listWorkspaceSummaries(active)
 	if err != nil {
 		return model.WorkspaceListResponse{}, err
 	}
-	return model.WorkspaceListResponse{Active: s.workspaceCacheID, Workspaces: workspaces}, nil
-}
-
-func (s *Store) LoadWorkspaceCache(input model.WorkspaceIDRequest) (model.WorkspaceListResponse, error) {
-	name, err := normalizeWorkspaceID(input.Name)
-	if err != nil {
-		return model.WorkspaceListResponse{}, err
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	exists, err := s.workspaceExistsLocked(name)
-	if err != nil {
-		return model.WorkspaceListResponse{}, err
-	}
-	if !exists {
-		return model.WorkspaceListResponse{}, fmt.Errorf("workspace not found: %s", name)
-	}
-	// 请求级 workspace 同步只负责确保缓存指向目标工作空间；目标已经一致时不要重载，
-	// 避免把当前请求刚写入的内存态会话细节无意义地从表结构重建一遍。
-	if name != s.workspaceCacheID {
-		if err := s.loadWorkspaceLocked(name); err != nil {
-			return model.WorkspaceListResponse{}, err
-		}
-	}
-	workspaces, err := s.listWorkspaceSummariesLocked()
-	if err != nil {
-		return model.WorkspaceListResponse{}, err
-	}
-	return model.WorkspaceListResponse{Active: s.workspaceCacheID, Workspaces: workspaces}, nil
-}
-
-func (s *Store) loadWorkspaceLocked(name string) error {
-	name, err := normalizeWorkspaceID(name)
-	if err != nil {
-		return err
-	}
-	if err := s.ensureWorkspaceLocked(name); err != nil {
-		return err
-	}
-	s.workspaceCacheID = name
-	s.sessions = make(map[string]*model.Session)
-	if err := s.loadModelConfigLocked(); err != nil {
-		return err
-	}
-	return s.loadSessionsLocked()
-}
-
-func (s *Store) loadModelConfigLocked() error {
-	raw, ok, err := s.getWorkspaceRawLocked(s.workspaceCacheID, "config")
-	if err != nil {
-		return err
-	}
-	if !ok || strings.TrimSpace(raw) == "" {
-		s.modelCfg = model.DefaultModelConfig()
-		return s.setWorkspaceJSONLocked(s.workspaceCacheID, "config", s.modelCfg)
-	}
-	if err := json.Unmarshal([]byte(raw), &s.modelCfg); err != nil {
-		return err
-	}
-	s.modelCfg = model.NormalizeModelConfig(s.modelCfg)
-	merged, err := s.applyProviderToConfigLocked(s.modelCfg)
-	if err != nil {
-		return err
-	}
-	s.modelCfg = merged
-	return nil
+	return model.WorkspaceListResponse{Active: active, Workspaces: workspaces}, nil
 }
 
 func (s *Store) listWorkspaceSummaries(active string) ([]model.WorkspaceSummary, error) {
@@ -267,10 +220,6 @@ func (s *Store) listWorkspaceIDsLocked() ([]string, error) {
 	}
 	sort.Strings(names)
 	return names, nil
-}
-
-func (s *Store) listWorkspaceSummariesLocked() ([]model.WorkspaceSummary, error) {
-	return s.listWorkspaceSummaries(s.workspaceCacheID)
 }
 
 func (s *Store) workspaceSummaryFromDB(name string, active string, createdRaw string, updatedRaw string) (model.WorkspaceSummary, error) {

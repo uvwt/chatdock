@@ -39,14 +39,14 @@ func TestScheduledJSONMigratesToTables(t *testing.T) {
 	if err := st.migrateScheduledJSONToTables(); err != nil {
 		t.Fatal(err)
 	}
-	tasks, err := st.ListScheduledTasks()
+	tasks, err := st.ListScheduledTasks("default")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(tasks.Tasks) != 1 || tasks.Tasks[0].ID != "task-legacy" || tasks.Tasks[0].Title != "旧任务" {
 		t.Fatalf("unexpected migrated tasks: %#v", tasks.Tasks)
 	}
-	runs, err := st.ListScheduledTaskRuns("task-legacy", 10)
+	runs, err := st.ListScheduledTaskRuns("default", "task-legacy", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestScheduledTaskCRUDUsesTables(t *testing.T) {
 	}
 	defer st.Close()
 
-	created, err := st.CreateScheduledTask(model.ScheduledTaskRequest{Title: "表任务", Prompt: "执行", Enabled: true, ScheduleType: "interval", IntervalMinutes: 15})
+	created, err := st.CreateScheduledTask("default", model.ScheduledTaskRequest{Title: "表任务", Prompt: "执行", Enabled: true, ScheduleType: "interval", IntervalMinutes: 15})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestScheduledTaskCRUDUsesTables(t *testing.T) {
 	if rows != 1 {
 		t.Fatalf("scheduled_tasks rows = %d, want 1", rows)
 	}
-	listed, err := st.ListScheduledTasks()
+	listed, err := st.ListScheduledTasks("default")
 	if err != nil {
 		t.Fatal(err)
 	}

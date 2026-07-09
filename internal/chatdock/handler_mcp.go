@@ -9,7 +9,7 @@ import (
 )
 
 func (a *App) handleGetMCPConfig(w http.ResponseWriter, r *http.Request) {
-	content, err := a.store.GetMCPConfig()
+	content, err := a.store.GetMCPConfig(a.workspaceIDFromRequest(r))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -23,7 +23,7 @@ func (a *App) handleSaveMCPConfig(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	content, err := a.store.SaveMCPConfig(input.Content)
+	content, err := a.store.SaveMCPConfig(a.workspaceIDFromRequest(r), input.Content)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -31,8 +31,8 @@ func (a *App) handleSaveMCPConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, model.MCPConfigResponse{Content: content})
 }
 
-func (a *App) activeMCPConfig() (mcp.MCPConfig, error) {
-	content, err := a.store.GetEffectiveMCPConfig()
+func (a *App) activeMCPConfig(workspaceID string) (mcp.MCPConfig, error) {
+	content, err := a.store.GetEffectiveMCPConfig(workspaceID)
 	if err != nil {
 		return mcp.MCPConfig{}, err
 	}
@@ -40,7 +40,7 @@ func (a *App) activeMCPConfig() (mcp.MCPConfig, error) {
 }
 
 func (a *App) handleListMCPTools(w http.ResponseWriter, r *http.Request) {
-	cfg, err := a.activeMCPConfig()
+	cfg, err := a.activeMCPConfig(a.workspaceIDFromRequest(r))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -54,7 +54,7 @@ func (a *App) handleListMCPTools(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleTestMCPServer(w http.ResponseWriter, r *http.Request) {
-	cfg, err := a.activeMCPConfig()
+	cfg, err := a.activeMCPConfig(a.workspaceIDFromRequest(r))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -81,7 +81,7 @@ func (a *App) handleCallMCPTool(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, fmt.Errorf("tool name is empty"))
 		return
 	}
-	cfg, err := a.activeMCPConfig()
+	cfg, err := a.activeMCPConfig(a.workspaceIDFromRequest(r))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

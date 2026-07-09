@@ -23,14 +23,14 @@ type hybridToolMatch struct {
 	pinned      bool
 }
 
-func (a *App) searchToolCatalog(ctx context.Context, catalog toolCatalog, args map[string]any) map[string]any {
-	return searchToolCatalogWithApp(ctx, a, catalog, args)
+func (a *App) searchToolCatalog(ctx context.Context, workspaceID string, catalog toolCatalog, args map[string]any) map[string]any {
+	return searchToolCatalogWithApp(ctx, a, workspaceID, catalog, args)
 }
 
-func searchToolCatalogWithApp(ctx context.Context, app *App, catalog toolCatalog, args map[string]any) map[string]any {
+func searchToolCatalogWithApp(ctx context.Context, app *App, workspaceID string, catalog toolCatalog, args map[string]any) map[string]any {
 	query := strings.TrimSpace(stringArg(args, "query"))
 	limit := intArgWithDefault(args, "limit", 8, 1, 20)
-	matches := hybridToolMatches(ctx, app, catalog, query, limit)
+	matches := hybridToolMatches(ctx, app, workspaceID, catalog, query, limit)
 	items := make([]map[string]any, 0, len(matches))
 	for _, match := range matches {
 		item := map[string]any{"name": match.tool.FullName, "server": match.tool.Server, "title": firstNonEmpty(match.tool.Title, match.tool.Name), "description": compactToolDescription(match.tool.Description)}
@@ -45,12 +45,12 @@ func searchToolCatalogWithApp(ctx context.Context, app *App, catalog toolCatalog
 		}
 		items = append(items, item)
 	}
-	return map[string]any{"query": query, "count": len(items), "tools": items, "search_mode": app.toolSearchMode(), "next": "调用 chatdock_tools_describe，传入候选工具的 name，获取参数 schema；然后用 chatdock_tool_execute 执行。"}
+	return map[string]any{"query": query, "count": len(items), "tools": items, "search_mode": app.toolSearchMode(workspaceID), "next": "调用 chatdock_tools_describe，传入候选工具的 name，获取参数 schema；然后用 chatdock_tool_execute 执行。"}
 }
 
-func hybridToolMatches(ctx context.Context, app *App, catalog toolCatalog, query string, limit int) []hybridToolMatch {
+func hybridToolMatches(ctx context.Context, app *App, workspaceID string, catalog toolCatalog, query string, limit int) []hybridToolMatch {
 	keyword := keywordToolScores(catalog, query)
-	semantic := app.semanticToolScores(ctx, catalog, query)
+	semantic := app.semanticToolScores(ctx, workspaceID, catalog, query)
 	matches := make([]hybridToolMatch, 0, len(catalog.tools))
 	for _, tool := range catalog.tools {
 		match := hybridToolMatch{tool: tool, keyword: keyword[tool.FullName]}
@@ -141,15 +141,15 @@ func keywordToolScores(catalog toolCatalog, query string) map[string]int {
 	return scores
 }
 
-func (a *App) semanticToolScores(ctx context.Context, catalog toolCatalog, query string) map[string]float64 {
+func (a *App) semanticToolScores(ctx context.Context, workspaceID string, catalog toolCatalog, query string) map[string]float64 {
 	if a == nil || a.store == nil || a.client == nil {
 		return nil
 	}
-	cfg := a.embeddingConfig()
+	cfg := a.embeddingConfig(workspaceID)
 	if strings.TrimSpace(query) == "" || strings.TrimSpace(cfg.EmbeddingBaseURL) == "" {
 		return nil
 	}
-	records, err := a.availableToolEmbeddingIndex(catalog, cfg.EmbeddingModel)
+	records, err := a.availableToolEmbeddingIndex(workspaceID, catalog, cfg.EmbeddingModel)
 	if err != nil || len(records) == 0 {
 		return nil
 	}
@@ -202,24 +202,24 @@ func (a *App) clearQueryEmbeddingCache() {
 	a.embeddingMu.Unlock()
 }
 
-func (a *App) ensureToolEmbeddingIndex(ctx context.Context, catalog toolCatalog, model string) (map[string]storepkg.ToolEmbeddingRecord, error) {
+func (a *App) ensureToolEmbeddingIndex(ctx context.Context, workspaceID string, catalog toolCatalog, model string) (map[string]storepkg.ToolEmbeddingRecord, error) {
 	model = strings.TrimSpace(model)
 	if model == "" {
 		model = "BAAI/bge-m3"
 	}
-	existing, err := a.store.ToolEmbeddings(model)
+	existing, err := a.store.ToolEmbeddings(workspaceID, model)
 	if err != nil {
 		return nil, err
 	}
-	return a.saveMissingToolEmbeddings(ctx, model, existing, catalog)
+	return a.saveMissingToolEmbeddings(ctx, workspaceID, model, existing, catalog)
 }
 
-func (a *App) availableToolEmbeddingIndex(catalog toolCatalog, model string) (map[string]storepkg.ToolEmbeddingRecord, error) {
+func (a *App) availableToolEmbeddingIndex(workspaceID string, catalog toolCatalog, model string) (map[string]storepkg.ToolEmbeddingRecord, error) {
 	model = strings.TrimSpace(model)
 	if model == "" {
 		model = "BAAI/bge-m3"
 	}
-	existing, err := a.store.ToolEmbeddings(model)
+	existing, err := a.store.ToolEmbeddings(workspaceID, model)
 	if err != nil {
 		return nil, err
 	}
@@ -234,8 +234,8 @@ func (a *App) availableToolEmbeddingIndex(catalog toolCatalog, model string) (ma
 	return records, nil
 }
 
-func (a *App) saveMissingToolEmbeddings(ctx context.Context, model string, existing map[string]storepkg.ToolEmbeddingRecord, catalog toolCatalog) (map[string]storepkg.ToolEmbeddingRecord, error) {
-	cfg := a.embeddingConfig()
+func (a *App) saveMissingToolEmbeddings(ctx context.Context, workspaceID string, model string, existing map[string]storepkg.ToolEmbeddingRecord, catalog toolCatalog) (map[string]storepkg.ToolEmbeddingRecord, error) {
+	cfg := a.embeddingConfig(workspaceID)
 	inputs := make([]string, 0)
 	tools := make([]mcp.MCPTool, 0)
 	for _, tool := range catalog.tools {
@@ -257,7 +257,7 @@ func (a *App) saveMissingToolEmbeddings(ctx context.Context, model string, exist
 		for i, vector := range vectors {
 			tool := tools[start+i]
 			record := storepkg.ToolEmbeddingRecord{FullName: tool.FullName, SourceHash: toolSourceHash(tool), EmbeddingModel: model, Embedding: vector}
-			if err := a.store.SaveToolEmbedding(record); err != nil {
+			if err := a.store.SaveToolEmbedding(workspaceID, record); err != nil {
 				return existing, err
 			}
 			existing[tool.FullName] = record
@@ -305,14 +305,14 @@ func cosineSimilarity(a []float64, b []float64) float64 {
 	return dot / (math.Sqrt(left) * math.Sqrt(right))
 }
 
-func (a *App) toolSearchMode() string {
-	if a == nil || strings.TrimSpace(a.embeddingConfig().EmbeddingBaseURL) == "" {
+func (a *App) toolSearchMode(workspaceID string) string {
+	if a == nil || strings.TrimSpace(a.embeddingConfig(workspaceID).EmbeddingBaseURL) == "" {
 		return "keyword"
 	}
 	return "hybrid_m3"
 }
 
-func (a *App) embeddingConfig() model.ModelConfig {
+func (a *App) embeddingConfig(workspaceID string) model.ModelConfig {
 	if a == nil || a.store == nil {
 		cfg := model.ModelConfig{}
 		if a != nil {
@@ -322,7 +322,7 @@ func (a *App) embeddingConfig() model.ModelConfig {
 		}
 		return model.NormalizeModelConfig(cfg)
 	}
-	cfg := a.store.GetModelConfig()
+	cfg := a.store.GetModelConfig(workspaceID)
 	if strings.TrimSpace(cfg.EmbeddingBaseURL) == "" && strings.TrimSpace(a.cfg.EmbeddingBaseURL) != "" {
 		cfg.EmbeddingBaseURL = a.cfg.EmbeddingBaseURL
 		cfg.EmbeddingAPIKey = a.cfg.EmbeddingAPIKey

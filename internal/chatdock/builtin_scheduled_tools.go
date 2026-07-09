@@ -85,23 +85,23 @@ func isBuiltinScheduledTaskTool(name string) bool {
 	}
 }
 
-func (a *App) callBuiltinScheduledTaskTool(ctx context.Context, name string, args map[string]any) (any, error) {
+func (a *App) callBuiltinScheduledTaskTool(ctx context.Context, workspaceID string, name string, args map[string]any) (any, error) {
 	// 内置工具只操作“当前工作空间”的定时任务，避免模型跨工作空间误删或误改用户数据。
 	switch name {
 	case builtinToolListScheduledTasks:
-		return a.builtinListScheduledTasks(args)
+		return a.builtinListScheduledTasks(workspaceID, args)
 	case builtinToolCreateScheduledTask:
 		input, err := scheduledTaskRequestFromArgs(args, nil)
 		if err != nil {
 			return nil, err
 		}
-		return a.store.CreateScheduledTask(input)
+		return a.store.CreateScheduledTask(workspaceID, input)
 	case builtinToolUpdateScheduledTask:
 		id, err := requiredStringArg(args, "id")
 		if err != nil {
 			return nil, err
 		}
-		previous, err := a.findScheduledTask(id)
+		previous, err := a.findScheduledTask(workspaceID, id)
 		if err != nil {
 			return nil, err
 		}
@@ -109,20 +109,20 @@ func (a *App) callBuiltinScheduledTaskTool(ctx context.Context, name string, arg
 		if err != nil {
 			return nil, err
 		}
-		return a.store.UpdateScheduledTask(id, input)
+		return a.store.UpdateScheduledTask(workspaceID, id, input)
 	case builtinToolDeleteScheduledTask:
 		id, err := requiredStringArg(args, "id")
 		if err != nil {
 			return nil, err
 		}
-		return a.store.DeleteScheduledTask(id)
+		return a.store.DeleteScheduledTask(workspaceID, id)
 	default:
 		return nil, fmt.Errorf("unknown builtin tool: %s", name)
 	}
 }
 
-func (a *App) builtinListScheduledTasks(args map[string]any) (model.ScheduledTaskResponse, error) {
-	result, err := a.store.ListScheduledTasks()
+func (a *App) builtinListScheduledTasks(workspaceID string, args map[string]any) (model.ScheduledTaskResponse, error) {
+	result, err := a.store.ListScheduledTasks(workspaceID)
 	if err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
@@ -144,12 +144,12 @@ func (a *App) builtinListScheduledTasks(args map[string]any) (model.ScheduledTas
 	return model.ScheduledTaskResponse{Tasks: filtered}, nil
 }
 
-func (a *App) findScheduledTask(id string) (model.ScheduledTask, error) {
+func (a *App) findScheduledTask(workspaceID string, id string) (model.ScheduledTask, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return model.ScheduledTask{}, fmt.Errorf("scheduled task id is empty")
 	}
-	result, err := a.store.ListScheduledTasks()
+	result, err := a.store.ListScheduledTasks(workspaceID)
 	if err != nil {
 		return model.ScheduledTask{}, err
 	}

@@ -69,7 +69,7 @@ func TestModelProviderTestKeepsSavedAPIKeyWhenMasked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "saved-secret"}); err != nil {
+	if _, err := app.store.SaveModelConfig("default", model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "saved-secret"}); err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
@@ -101,7 +101,7 @@ func TestModelProviderRequestProviderIDDoesNotReuseCurrentWorkspaceKey(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "current-workspace-secret"}); err != nil {
+	if _, err := app.store.SaveModelConfig("default", model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "current-workspace-secret"}); err != nil {
 		t.Fatal(err)
 	}
 	provider, err := app.store.CreateModelProvider(store.ModelProviderInput{Name: "Provider No Key", BaseURL: modelServer.URL, DefaultModel: "provider-model", Enabled: true})
@@ -246,7 +246,7 @@ func TestModelProviderModelsKeepsSavedAPIKeyWhenMasked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "saved-secret"}); err != nil {
+	if _, err := app.store.SaveModelConfig("default", model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "saved-secret"}); err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()

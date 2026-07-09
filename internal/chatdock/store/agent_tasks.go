@@ -6,20 +6,23 @@ import (
 	"chatdock/internal/chatdock/llm"
 )
 
-func (s *Store) ListAgentTasks(limit int) (AgentTaskResponse, error) {
+func (s *Store) ListAgentTasks(workspaceID string, limit int) (AgentTaskResponse, error) {
 	if limit <= 0 {
 		limit = 30
 	}
 	if limit > 100 {
 		limit = 100
 	}
-	prompt := s.WorkspaceCacheID()
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return AgentTaskResponse{}, err
+	}
 	rows, err := s.db.Query(`SELECT r.workspace_id, r.session_id, e.run_id, e.server, e.tool, e.action, e.status, e.summary, e.arguments_json, e.result_json, e.error, e.created_at
 FROM mcp_run_events e JOIN mcp_runs r ON r.id = e.run_id
 WHERE r.workspace_id = ? AND e.tool = 'task_manage'
-ORDER BY e.created_at DESC LIMIT ?`, prompt, limit*4)
+ORDER BY e.created_at DESC LIMIT ?`, workspaceID, limit*4)
 	if err != nil {
 		return AgentTaskResponse{}, err
 	}

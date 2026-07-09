@@ -8,24 +8,24 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func (s *Store) loadSessionsLocked() error {
-	sessions, err := loadSessionsFromTablesLocked(s.db, s.workspaceCacheID)
+func (s *Store) sessionForWorkspaceLocked(workspaceID string, sessionID string) (*model.Session, bool, error) {
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return nil, false, err
+	}
+	sessions, err := loadSessionsFromTablesLocked(s.db, workspaceID)
+	if err != nil {
+		return nil, false, err
+	}
+	session, ok := sessions[strings.TrimSpace(sessionID)]
+	return session, ok, nil
+}
+
+func (s *Store) saveSessionForWorkspaceLocked(workspaceID string, session *model.Session) error {
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
 	if err != nil {
 		return err
 	}
-	for id, session := range sessions {
-		if session != nil && strings.TrimSpace(id) != "" {
-			s.sessions[id] = session
-		}
-	}
-	return nil
-}
-
-func (s *Store) saveSessionLocked(session *model.Session) error {
-	return s.saveSessionForWorkspaceLocked(s.workspaceCacheID, session)
-}
-
-func (s *Store) saveSessionForWorkspaceLocked(prompt string, session *model.Session) error {
 	if session == nil || strings.TrimSpace(session.ID) == "" {
 		return fmt.Errorf("session id is empty")
 	}
@@ -35,19 +35,16 @@ func (s *Store) saveSessionForWorkspaceLocked(prompt string, session *model.Sess
 	if session.UpdatedAt.IsZero() {
 		session.UpdatedAt = session.CreatedAt
 	}
-	if err := s.ensureWorkspaceLocked(prompt); err != nil {
-		return err
-	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err := upsertSessionTablesTx(tx, prompt, session); err != nil {
+	if err := upsertSessionTablesTx(tx, workspaceID, session); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	return s.touchWorkspaceLocked(prompt, time.Now())
+	return s.touchWorkspaceLocked(workspaceID, time.Now())
 }

@@ -18,13 +18,13 @@ type activeToolRun struct {
 	StartedAt map[string]time.Time
 }
 
-func (a *App) completeWithRecordedTools(ctx context.Context, jobID string, sessionID string, cfg model.ModelConfig, history []model.Message, emit func(string, any) error) (string, error) {
+func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string, jobID string, sessionID string, cfg model.ModelConfig, history []model.Message, emit func(string, any) error) (string, error) {
 	history = a.prepareVisionAttachmentURLs(history)
 	history = a.appendAgentDockRuntimeContext(ctx, history)
 	// 真实工具全集只保存在服务端；首轮只暴露“搜索 / 查看详情 / 执行”三个轻量入口。
 	// 这样模型仍能按需发现和调用工具，但普通请求不再每轮携带几十个完整 schema。
 	allTools := builtinChatDockTools()
-	mcpCfg, mcpErr := a.activeMCPConfig()
+	mcpCfg, mcpErr := a.activeMCPConfig(workspaceID)
 	mcpReady := mcpErr == nil && len(mcpCfg.Servers) > 0
 	if mcpReady {
 		mcpTools, err := a.mcpClient.ListTools(ctx, mcpCfg)
@@ -56,7 +56,7 @@ func (a *App) completeWithRecordedTools(ctx context.Context, jobID string, sessi
 	recorder := &activeToolRun{LastArgs: map[string]any{}, StartedAt: map[string]time.Time{}}
 	recordingEmit := func(event string, value any) error {
 		if event == "tool_call_start" || event == "tool_call_result" {
-			if err := a.recordToolRunEvent(sessionID, recorder, event, value, emit); err != nil {
+			if err := a.recordToolRunEvent(workspaceID, sessionID, recorder, event, value, emit); err != nil {
 				return err
 			}
 		}
@@ -67,13 +67,13 @@ func (a *App) completeWithRecordedTools(ctx context.Context, jobID string, sessi
 	}
 	runRealTool := func(name string, args map[string]any) (any, error) {
 		if isBuiltinScheduledTaskTool(name) {
-			return a.callBuiltinScheduledTaskTool(ctx, name, args)
+			return a.callBuiltinScheduledTaskTool(ctx, workspaceID, name, args)
 		}
 		if isBuiltinImageTool(name) {
 			return a.callBuiltinImageTool(ctx, name, args)
 		}
 		if isBuiltinModelProviderTool(name) {
-			return a.callBuiltinModelProviderTool(ctx, name, args)
+			return a.callBuiltinModelProviderTool(ctx, workspaceID, name, args)
 		}
 		if !mcpReady {
 			return nil, fmt.Errorf("MCP tool is not available: %s", name)
@@ -120,7 +120,7 @@ func (a *App) completeWithRecordedTools(ctx context.Context, jobID string, sessi
 	answer, runErr := a.client.CompleteWithMCPToolsEvents(ctx, cfg, history, visibleTools, func(name string, args map[string]any) (any, error) {
 		switch name {
 		case builtinToolSearchTools:
-			return a.searchToolCatalog(ctx, catalog, args), nil
+			return a.searchToolCatalog(ctx, workspaceID, catalog, args), nil
 		case builtinToolDescribeTools:
 			result, names := catalog.Describe(args)
 			for _, toolName := range names {
@@ -176,11 +176,11 @@ func (a *App) completeWithRecordedTools(ctx context.Context, jobID string, sessi
 	return answer, runErr
 }
 
-func (a *App) recordToolRunEvent(sessionID string, recorder *activeToolRun, event string, value any, emit func(string, any) error) error {
+func (a *App) recordToolRunEvent(workspaceID string, sessionID string, recorder *activeToolRun, event string, value any, emit func(string, any) error) error {
 	data, _ := value.(map[string]any)
 	toolName, _ := data["tool"].(string)
 	if !recorder.Created {
-		run, err := a.store.StartMCPRun(sessionID, "chat tool run")
+		run, err := a.store.StartMCPRun(workspaceID, sessionID, "chat tool run")
 		if err != nil {
 			return err
 		}

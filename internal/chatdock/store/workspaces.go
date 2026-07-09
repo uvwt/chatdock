@@ -1,18 +1,16 @@
 package store
 
 import (
-	"fmt"
 	"strings"
 
 	"chatdock/internal/chatdock/llm"
 	"chatdock/internal/chatdock/model"
 )
 
-func (s *Store) ListWorkspaces() (WorkspaceResponse, error) {
-	s.mu.RLock()
-	active := s.workspaceCacheID
-	s.mu.RUnlock()
-
+func (s *Store) ListWorkspaces(active string) (WorkspaceResponse, error) {
+	if strings.TrimSpace(active) == "" {
+		active = defaultWorkspaceID
+	}
 	workspaceSummaries, err := s.listWorkspaceSummaries(active)
 	if err != nil {
 		return WorkspaceResponse{}, err
@@ -25,28 +23,7 @@ func (s *Store) ListWorkspaces() (WorkspaceResponse, error) {
 		}
 		tasks, _ := s.scheduledTasksForWorkspace(workspace.Name)
 		ready := workspaceReadinessFromConfig(workspace.Name, cfg)
-		items = append(items, Workspace{
-			ID:              workspace.Name,
-			Name:            workspace.Name,
-			Description:     workspaceDescription(workspace.Name),
-			Icon:            "message-circle",
-			ProviderID:      cfg.ProviderID,
-			Model:           cfg.Model,
-			Models:          append([]string(nil), cfg.Models...),
-			SystemPrompt:    cfg.SystemPrompt,
-			ContextLimit:    cfg.MaxContextMessages,
-			Temperature:     cfg.Temperature,
-			HideThinking:    cfg.HideThinking,
-			EnableReasoning: cfg.EnableThinking,
-			Ready:           ready.Ready,
-			ReadinessReason: ready.Reason,
-			TaskCount:       len(tasks),
-			SessionCount:    workspace.Count,
-			Active:          workspace.Active,
-			Archived:        false,
-			CreatedAt:       workspace.CreatedAt,
-			UpdatedAt:       workspace.UpdatedAt,
-		})
+		items = append(items, Workspace{ID: workspace.Name, Name: workspace.Name, Description: workspaceDescription(workspace.Name), Icon: "message-circle", ProviderID: cfg.ProviderID, Model: cfg.Model, Models: append([]string(nil), cfg.Models...), SystemPrompt: cfg.SystemPrompt, ContextLimit: cfg.MaxContextMessages, Temperature: cfg.Temperature, HideThinking: cfg.HideThinking, EnableReasoning: cfg.EnableThinking, Ready: ready.Ready, ReadinessReason: ready.Reason, TaskCount: len(tasks), SessionCount: workspace.Count, Active: workspace.Active, Archived: false, CreatedAt: workspace.CreatedAt, UpdatedAt: workspace.UpdatedAt})
 	}
 	return WorkspaceResponse{Active: active, Workspaces: items}, nil
 }
@@ -58,10 +35,8 @@ func (s *Store) WorkspaceConfig(workspaceID string) (model.PublicModelConfig, er
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	if exists, err := s.workspaceExistsLocked(workspaceID); err != nil {
+	if _, err := s.requireWorkspaceLocked(workspaceID); err != nil {
 		return model.PublicModelConfig{}, err
-	} else if !exists {
-		return model.PublicModelConfig{}, fmt.Errorf("workspace not found: %s", workspaceID)
 	}
 	cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
 	if err != nil {
@@ -75,24 +50,14 @@ func (s *Store) SaveWorkspaceConfig(workspaceID string, next model.ModelConfig) 
 	if err != nil {
 		return model.PublicModelConfig{}, err
 	}
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	exists, err := s.workspaceExistsLocked(workspaceID)
-	if err != nil {
+	if _, err := s.requireWorkspaceLocked(workspaceID); err != nil {
 		return model.PublicModelConfig{}, err
-	}
-	if !exists {
-		return model.PublicModelConfig{}, fmt.Errorf("workspace not found: %s", workspaceID)
 	}
 	saved, err := s.saveModelConfigForWorkspaceLocked(workspaceID, next)
 	if err != nil {
 		return model.PublicModelConfig{}, err
-	}
-	// 工作空间配置可以在不切换当前会话空间的情况下保存；如果保存的是当前空间，同步内存态，避免后续聊天继续用旧配置。
-	if workspaceID == s.workspaceCacheID {
-		s.modelCfg = saved
 	}
 	return model.ToPublicModelConfig(saved), nil
 }
@@ -102,30 +67,22 @@ func (s *Store) PromptPreview(workspaceID string) (PromptPreviewResponse, error)
 	if err != nil {
 		return PromptPreviewResponse{}, err
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	previous := s.workspaceCacheID
-	if err := s.loadWorkspaceLocked(workspaceID); err != nil {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if _, err := s.requireWorkspaceLocked(workspaceID); err != nil {
 		return PromptPreviewResponse{}, err
 	}
-	cfg := s.modelCfg
-	content := llm.BuildSystemPrompt(cfg)
-	if previous != workspaceID {
-		if restoreErr := s.loadWorkspaceLocked(previous); restoreErr != nil && err == nil {
-			err = restoreErr
-		}
-	}
+	cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
 	if err != nil {
 		return PromptPreviewResponse{}, err
 	}
-	return PromptPreviewResponse{WorkspaceID: workspaceID, WorkspaceName: workspaceID, Content: content}, nil
+	return PromptPreviewResponse{WorkspaceID: workspaceID, WorkspaceName: workspaceID, Content: llm.BuildSystemPrompt(cfg)}, nil
 }
 
-func (s *Store) scheduledTasksForWorkspace(prompt string) ([]model.ScheduledTask, error) {
+func (s *Store) scheduledTasksForWorkspace(workspaceID string) ([]model.ScheduledTask, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	tasks, err := loadScheduledTasksForWorkspaceLocked(s.db, prompt)
+	tasks, err := loadScheduledTasksForWorkspaceLocked(s.db, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -139,10 +96,8 @@ func (s *Store) WorkspaceReadiness(workspaceID string) (WorkspaceReadiness, erro
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	if exists, err := s.workspaceExistsLocked(workspaceID); err != nil {
+	if _, err := s.requireWorkspaceLocked(workspaceID); err != nil {
 		return WorkspaceReadiness{}, err
-	} else if !exists {
-		return WorkspaceReadiness{}, fmt.Errorf("workspace not found: %s", workspaceID)
 	}
 	cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
 	if err != nil {

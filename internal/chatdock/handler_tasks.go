@@ -12,7 +12,7 @@ func scheduledTaskIDFromRequest(r *http.Request) string {
 }
 
 func (a *App) handleListScheduledTasks(w http.ResponseWriter, r *http.Request) {
-	result, err := a.store.ListScheduledTasks()
+	result, err := a.store.ListScheduledTasks(a.workspaceIDFromRequest(r))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -26,7 +26,7 @@ func (a *App) handleCreateScheduledTask(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result, err := a.store.CreateScheduledTask(input)
+	result, err := a.store.CreateScheduledTask(a.workspaceIDFromRequest(r), input)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -41,7 +41,7 @@ func (a *App) handleUpdateScheduledTask(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result, err := a.store.UpdateScheduledTask(id, input)
+	result, err := a.store.UpdateScheduledTask(a.workspaceIDFromRequest(r), id, input)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -51,7 +51,7 @@ func (a *App) handleUpdateScheduledTask(w http.ResponseWriter, r *http.Request) 
 
 func (a *App) handleDeleteScheduledTask(w http.ResponseWriter, r *http.Request) {
 	id := scheduledTaskIDFromRequest(r)
-	result, err := a.store.DeleteScheduledTask(id)
+	result, err := a.store.DeleteScheduledTask(a.workspaceIDFromRequest(r), id)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -61,7 +61,7 @@ func (a *App) handleDeleteScheduledTask(w http.ResponseWriter, r *http.Request) 
 
 func (a *App) handleRunScheduledTask(w http.ResponseWriter, r *http.Request) {
 	id := scheduledTaskIDFromRequest(r)
-	result, err := a.executeScheduledTask(r.Context(), a.store.WorkspaceCacheID(), id, true)
+	result, err := a.executeScheduledTask(r.Context(), a.workspaceIDFromRequest(r), id, true)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err)
 		return
@@ -72,7 +72,7 @@ func (a *App) handleRunScheduledTask(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleListScheduledTaskRuns(w http.ResponseWriter, r *http.Request) {
 	id := scheduledTaskIDFromRequest(r)
 	limit, _ := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get("limit")))
-	result, err := a.store.ListScheduledTaskRuns(id, limit)
+	result, err := a.store.ListScheduledTaskRuns(a.workspaceIDFromRequest(r), id, limit)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

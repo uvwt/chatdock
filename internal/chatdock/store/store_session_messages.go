@@ -8,20 +8,25 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func (s *Store) AppendUserMessage(sessionID string, content string) (*model.Session, model.ModelConfig, []model.Message, error) {
-	return s.AppendUserMessageWithAttachments(sessionID, content, nil)
+func (s *Store) AppendUserMessage(workspaceID string, sessionID string, content string) (*model.Session, model.ModelConfig, []model.Message, error) {
+	return s.AppendUserMessageWithAttachments(workspaceID, sessionID, content, nil)
 }
 
-func (s *Store) AppendUserMessageWithAttachments(sessionID string, content string, attachmentIDs []string) (*model.Session, model.ModelConfig, []model.Message, error) {
+func (s *Store) AppendUserMessageWithAttachments(workspaceID string, sessionID string, content string, attachmentIDs []string) (*model.Session, model.ModelConfig, []model.Message, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	session, ok := s.sessions[sessionID]
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return nil, model.ModelConfig{}, nil, err
+	}
+	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, sessionID)
+	if err != nil {
+		return nil, model.ModelConfig{}, nil, err
+	}
 	if !ok {
 		return nil, model.ModelConfig{}, nil, model.ErrSessionNotFound
 	}
-
-	attachments, err := s.attachmentRecordsByIDsLocked(attachmentIDs)
+	attachments, err := s.attachmentRecordsByIDsLocked(workspaceID, attachmentIDs)
 	if err != nil {
 		return nil, model.ModelConfig{}, nil, err
 	}
@@ -29,7 +34,6 @@ func (s *Store) AppendUserMessageWithAttachments(sessionID string, content strin
 	if content == "" && len(attachments) == 0 {
 		return nil, model.ModelConfig{}, nil, fmt.Errorf("message is empty")
 	}
-
 	titleSource := content
 	if titleSource == "" && len(attachments) > 0 {
 		titleSource = "分析附件：" + attachments[0].Name
@@ -37,16 +41,14 @@ func (s *Store) AppendUserMessageWithAttachments(sessionID string, content strin
 	if session.Title == "新会话" || strings.TrimSpace(session.Title) == "" {
 		session.Title = makeTitle(titleSource)
 	}
-
 	now := time.Now()
 	messageID := model.NewID()
 	session.Messages = append(session.Messages, model.Message{ID: messageID, Role: "user", Content: content, Attachments: publicAttachments(attachments), CreatedAt: now})
 	session.UpdatedAt = now
-
 	if len(attachments) > 0 {
 		ids := uniqueAttachmentIDs(attachmentIDs)
 		placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
-		args := []any{sessionID, messageID, s.workspaceCacheID}
+		args := []any{sessionID, messageID, workspaceID}
 		for _, id := range ids {
 			args = append(args, id)
 		}
@@ -54,12 +56,13 @@ func (s *Store) AppendUserMessageWithAttachments(sessionID string, content strin
 			return nil, model.ModelConfig{}, nil, err
 		}
 	}
-
-	if err := s.saveSessionLocked(session); err != nil {
+	if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
 		return nil, model.ModelConfig{}, nil, err
 	}
-
-	cfg := s.modelCfg
+	cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
+	if err != nil {
+		return nil, model.ModelConfig{}, nil, err
+	}
 	history := cloneMessages(session.Messages)
 	if len(history) > 0 {
 		history[len(history)-1].Content = model.BuildUserContentForModel(content, attachments)
@@ -69,18 +72,23 @@ func (s *Store) AppendUserMessageWithAttachments(sessionID string, content strin
 	return cloneSession(session), cfg, history, nil
 }
 
-func (s *Store) PrepareSessionRegeneration(sessionID string) (*model.Session, model.ModelConfig, []model.Message, error) {
+func (s *Store) PrepareSessionRegeneration(workspaceID string, sessionID string) (*model.Session, model.ModelConfig, []model.Message, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	session, ok := s.sessions[sessionID]
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return nil, model.ModelConfig{}, nil, err
+	}
+	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, sessionID)
+	if err != nil {
+		return nil, model.ModelConfig{}, nil, err
+	}
 	if !ok {
 		return nil, model.ModelConfig{}, nil, model.ErrSessionNotFound
 	}
 	if len(session.Messages) == 0 {
 		return nil, model.ModelConfig{}, nil, fmt.Errorf("session has no messages")
 	}
-
 	lastIndex := len(session.Messages) - 1
 	last := session.Messages[lastIndex]
 	if strings.TrimSpace(last.Role) != "user" {
@@ -89,18 +97,18 @@ func (s *Store) PrepareSessionRegeneration(sessionID string) (*model.Session, mo
 	if strings.TrimSpace(last.Content) == "" && len(last.Attachments) == 0 {
 		return nil, model.ModelConfig{}, nil, fmt.Errorf("message is empty")
 	}
-
 	attachmentIDs := make([]string, 0, len(last.Attachments))
 	for _, item := range last.Attachments {
 		attachmentIDs = append(attachmentIDs, item.ID)
 	}
-	attachments, err := s.attachmentRecordsByIDsLocked(attachmentIDs)
+	attachments, err := s.attachmentRecordsByIDsLocked(workspaceID, attachmentIDs)
 	if err != nil {
 		return nil, model.ModelConfig{}, nil, err
 	}
-
-	cfg := s.modelCfg
-
+	cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
+	if err != nil {
+		return nil, model.ModelConfig{}, nil, err
+	}
 	history := cloneMessages(session.Messages)
 	history[lastIndex].Content = model.BuildUserContentForModel(last.Content, attachments)
 	history[lastIndex].ModelAttachments = attachments
@@ -108,42 +116,43 @@ func (s *Store) PrepareSessionRegeneration(sessionID string) (*model.Session, mo
 	return cloneSession(session), cfg, history, nil
 }
 
-func (s *Store) AppendAssistantMessage(sessionID string, content string) (*model.Session, error) {
-	return s.AppendAssistantMessageWithReasoning(sessionID, content, "")
+func (s *Store) AppendAssistantMessage(workspaceID string, sessionID string, content string) (*model.Session, error) {
+	return s.AppendAssistantMessageWithReasoning(workspaceID, sessionID, content, "")
 }
 
-func (s *Store) AppendAssistantMessageWithReasoning(sessionID string, content string, reasoning string) (*model.Session, error) {
-	return s.AppendAssistantMessageWithParts(sessionID, content, reasoning, nil, nil)
+func (s *Store) AppendAssistantMessageWithReasoning(workspaceID string, sessionID string, content string, reasoning string) (*model.Session, error) {
+	return s.AppendAssistantMessageWithParts(workspaceID, sessionID, content, reasoning, nil, nil)
 }
 
-func (s *Store) AppendAssistantMessageWithParts(sessionID string, content string, reasoning string, parts []model.MessagePart, events []model.MessageEvent) (*model.Session, error) {
+func (s *Store) AppendAssistantMessageWithParts(workspaceID string, sessionID string, content string, reasoning string, parts []model.MessagePart, events []model.MessageEvent) (*model.Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	session, ok := s.sessions[sessionID]
+	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, sessionID)
+	if err != nil {
+		return nil, err
+	}
 	if !ok {
 		return nil, model.ErrSessionNotFound
 	}
-
 	now := time.Now()
 	session.Messages = append(session.Messages, model.Message{ID: model.NewID(), Role: "assistant", Content: content, Reasoning: strings.TrimSpace(reasoning), Parts: cloneMessageParts(parts), Events: cloneMessageEvents(events), CreatedAt: now})
 	session.UpdatedAt = now
-
-	if err := s.saveSessionLocked(session); err != nil {
+	if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
 		return nil, err
 	}
 	return cloneSession(session), nil
 }
 
-func (s *Store) UpsertAssistantMessageCheckpoint(sessionID string, messageID string, content string, reasoning string, parts []model.MessagePart, events []model.MessageEvent) (*model.Session, string, error) {
+func (s *Store) UpsertAssistantMessageCheckpoint(workspaceID string, sessionID string, messageID string, content string, reasoning string, parts []model.MessagePart, events []model.MessageEvent) (*model.Session, string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	session, ok := s.sessions[sessionID]
+	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, sessionID)
+	if err != nil {
+		return nil, "", err
+	}
 	if !ok {
 		return nil, "", model.ErrSessionNotFound
 	}
-
 	now := time.Now()
 	messageID = strings.TrimSpace(messageID)
 	if messageID == "" {
@@ -172,8 +181,7 @@ func (s *Store) UpsertAssistantMessageCheckpoint(sessionID string, messageID str
 	}
 	session.Messages[index] = message
 	session.UpdatedAt = now
-
-	if err := s.saveSessionLocked(session); err != nil {
+	if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
 		return nil, "", err
 	}
 	return cloneSession(session), messageID, nil

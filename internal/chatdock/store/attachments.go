@@ -18,23 +18,24 @@ type AttachmentBlob struct {
 	CreatedAt   time.Time
 }
 
-func (s *Store) SaveAttachment(record model.AttachmentRecord) error {
+func (s *Store) SaveAttachment(workspaceID string, record model.AttachmentRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return err
+	}
 	if strings.TrimSpace(record.ID) == "" {
 		record.ID = model.NewID()
 	}
 	if record.CreatedAt.IsZero() {
 		record.CreatedAt = time.Now()
 	}
-	if strings.TrimSpace(record.Prompt) == "" {
-		record.Prompt = s.workspaceCacheID
-	}
+	record.Prompt = workspaceID
 	if strings.TrimSpace(record.SHA256) != "" {
 		_, _ = s.db.Exec(`INSERT INTO attachment_blobs(sha256, storage_path, size, mime_type, ref_count, created_at) VALUES(?, ?, ?, ?, 0, ?) ON CONFLICT(sha256) DO UPDATE SET ref_count = attachment_blobs.ref_count`, record.SHA256, record.StoragePath, record.Size, record.MIMEType, formatDBTime(record.CreatedAt))
 	}
-	_, err := s.db.Exec(`INSERT INTO attachments(workspace_id, id, session_id, message_id, filename, mime_type, size, storage_path, sha256, text_content, status, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		record.Prompt, record.ID, record.SessionID, record.MessageID, record.Name, record.MIMEType, record.Size, record.StoragePath, record.SHA256, record.TextContent, record.Status, formatDBTime(record.CreatedAt))
+	_, err = s.db.Exec(`INSERT INTO attachments(workspace_id, id, session_id, message_id, filename, mime_type, size, storage_path, sha256, text_content, status, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, record.Prompt, record.ID, record.SessionID, record.MessageID, record.Name, record.MIMEType, record.Size, record.StoragePath, record.SHA256, record.TextContent, record.Status, formatDBTime(record.CreatedAt))
 	if err != nil {
 		return err
 	}
@@ -111,14 +112,18 @@ func (s *Store) migrateAttachmentBlobs() error {
 	return s.setMetaValue("attachment_blobs_migrated", "1")
 }
 
-func (s *Store) attachmentRecordsByIDsLocked(ids []string) ([]model.AttachmentRecord, error) {
+func (s *Store) attachmentRecordsByIDsLocked(workspaceID string, ids []string) ([]model.AttachmentRecord, error) {
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return nil, err
+	}
 	ids = uniqueAttachmentIDs(ids)
 	if len(ids) == 0 {
 		return nil, nil
 	}
 	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
 	args := make([]any, 0, len(ids)+1)
-	args = append(args, s.workspaceCacheID)
+	args = append(args, workspaceID)
 	for _, id := range ids {
 		args = append(args, id)
 	}
@@ -149,14 +154,18 @@ func (s *Store) attachmentRecordsByIDsLocked(ids []string) ([]model.AttachmentRe
 	return records, nil
 }
 
-func (s *Store) AttachmentRecordByID(id string) (model.AttachmentRecord, error) {
+func (s *Store) AttachmentRecordByID(workspaceID string, id string) (model.AttachmentRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return model.AttachmentRecord{}, err
+	}
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return model.AttachmentRecord{}, fmt.Errorf("attachment id is empty")
 	}
-	row := s.db.QueryRow(`SELECT workspace_id, id, session_id, message_id, filename, mime_type, size, storage_path, sha256, text_content, status, created_at FROM attachments WHERE workspace_id = ? AND id = ?`, s.workspaceCacheID, id)
+	row := s.db.QueryRow(`SELECT workspace_id, id, session_id, message_id, filename, mime_type, size, storage_path, sha256, text_content, status, created_at FROM attachments WHERE workspace_id = ? AND id = ?`, workspaceID, id)
 	record, err := scanAttachmentRecord(row)
 	if err != nil {
 		if err == sql.ErrNoRows {

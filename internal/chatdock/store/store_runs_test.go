@@ -12,7 +12,7 @@ func TestStoreMCPRunsAndAgentTasks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	run, err := store.StartMCPRun("session-1", "test run")
+	run, err := store.StartMCPRun("default", "session-1", "test run")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +28,7 @@ func TestStoreMCPRunsAndAgentTasks(t *testing.T) {
 	if finished.Status != "success" || finished.EventCount != 1 {
 		t.Fatalf("unexpected finished run: %#v", finished)
 	}
-	runs, err := store.ListMCPRuns("", 10)
+	runs, err := store.ListMCPRuns("default", "", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestStoreMCPRunsAndAgentTasks(t *testing.T) {
 	if len(detail.Events) != 1 || detail.Events[0].Tool != "task_manage" || detail.Events[0].Server != "DockMini" {
 		t.Fatalf("unexpected run detail: %#v", detail)
 	}
-	tasks, err := store.ListAgentTasks(10)
+	tasks, err := store.ListAgentTasks("default", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,16 +57,16 @@ func TestStoreEffectiveMCPConfigFallsBackToDefaultWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 	defaultConfig := `{"servers":{"agentdock":{"url":"http://host.docker.internal:18766/mcp"}}}`
-	if _, err := store.SaveMCPConfig(defaultConfig); err != nil {
+	if _, err := store.SaveMCPConfig("default", defaultConfig); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.CreateWorkspace(model.CreateWorkspaceRequest{Name: "model", SystemPrompt: "model workspace"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.SaveMCPConfig(`{"servers":{}}`); err != nil {
+	if _, err := store.SaveMCPConfig("model", `{"servers":{}}`); err != nil {
 		t.Fatal(err)
 	}
-	content, err := store.GetEffectiveMCPConfig()
+	content, err := store.GetEffectiveMCPConfig("model")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,11 +84,11 @@ func TestStoreChatJobEventsPersistAndFinish(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := store.CreateSession()
+	session, err := store.CreateSession("default")
 	if err != nil {
 		t.Fatal(err)
 	}
-	job, err := store.CreateChatJob(session.ID, "req_test")
+	job, err := store.CreateChatJob("default", session.ID, "req_test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,11 +116,11 @@ func TestStoreChatJobWorkspaceBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := store.CreateSession()
+	session, err := store.CreateSession("default")
 	if err != nil {
 		t.Fatal(err)
 	}
-	job, err := store.CreateChatJob(session.ID, "req_default")
+	job, err := store.CreateChatJob("default", session.ID, "req_default")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func TestStoreMCPRunDetailWorkspaceBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	run, err := store.StartMCPRun("session-1", "default run")
+	run, err := store.StartMCPRun("default", "session-1", "default run")
 	if err != nil {
 		t.Fatal(err)
 	}

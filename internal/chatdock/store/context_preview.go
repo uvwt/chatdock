@@ -29,15 +29,24 @@ type ContextPreviewResponse struct {
 	Items           []ContextPreviewItem `json:"items"`
 }
 
-func (s *Store) ContextPreview(sessionID string) (ContextPreviewResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	session, ok := s.sessions[strings.TrimSpace(sessionID)]
+func (s *Store) ContextPreview(workspaceID string, sessionID string) (ContextPreviewResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return ContextPreviewResponse{}, err
+	}
+	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, strings.TrimSpace(sessionID))
+	if err != nil {
+		return ContextPreviewResponse{}, err
+	}
 	if !ok {
 		return ContextPreviewResponse{}, model.ErrSessionNotFound
 	}
-	cfg := s.modelCfg
+	cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
+	if err != nil {
+		return ContextPreviewResponse{}, err
+	}
 	recent, summarize := llm.ContextPlan(cfg)
 	prepared := llm.BuildChatContextMessages(cfg, cloneMessages(session.Messages))
 	items := make([]ContextPreviewItem, 0, len(prepared))
@@ -55,7 +64,7 @@ func (s *Store) ContextPreview(sessionID string) (ContextPreviewResponse, error)
 		}
 		items = append(items, ContextPreviewItem{Role: msg.Role, Source: source, Chars: chars, EstimatedTokens: tokens, ContentPreview: llm.CompactContextText(msg.Content, 360)})
 	}
-	return ContextPreviewResponse{SessionID: session.ID, Workspace: s.workspaceCacheID, ContextMode: cfg.ContextMode, RecentMessages: recent, SummarizeOld: summarize, MessageCount: len(session.Messages), ContextCount: len(items), TotalChars: totalChars, EstimatedTokens: totalTokens, Items: items}, nil
+	return ContextPreviewResponse{SessionID: session.ID, Workspace: workspaceID, ContextMode: cfg.ContextMode, RecentMessages: recent, SummarizeOld: summarize, MessageCount: len(session.Messages), ContextCount: len(items), TotalChars: totalChars, EstimatedTokens: totalTokens, Items: items}, nil
 }
 
 func estimateTokens(content string) int {

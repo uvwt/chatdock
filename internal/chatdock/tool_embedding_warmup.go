@@ -13,14 +13,14 @@ func (a *App) warmToolEmbeddingIndex(parent context.Context) {
 	case <-parent.Done():
 		return
 	}
-	cfg := a.embeddingConfig()
+	cfg := a.embeddingConfig("default")
 	if strings.TrimSpace(cfg.EmbeddingBaseURL) == "" {
 		return
 	}
 	ctx, cancel := context.WithTimeout(parent, 2*time.Minute)
 	defer cancel()
 	tools := builtinChatDockTools()
-	mcpCfg, err := a.activeMCPConfig()
+	mcpCfg, err := a.activeMCPConfig("default")
 	if err != nil {
 		log.Printf("tool embedding warmup using builtin tools only: MCP config unavailable: %v", err)
 	} else if len(mcpCfg.Servers) > 0 {
@@ -36,7 +36,7 @@ func (a *App) warmToolEmbeddingIndex(parent context.Context) {
 		return
 	}
 	started := time.Now()
-	records, err := a.ensureToolEmbeddingIndex(ctx, catalog, cfg.EmbeddingModel)
+	records, err := a.ensureToolEmbeddingIndex(ctx, "default", catalog, cfg.EmbeddingModel)
 	if err != nil {
 		log.Printf("tool embedding warmup failed: %v", err)
 		return

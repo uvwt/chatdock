@@ -7,7 +7,7 @@ type SetupStatus struct {
 	HasModelProvider bool   `json:"has_model_provider"`
 	HasAPIKey        bool   `json:"has_api_key"`
 	HasWorkspace     bool   `json:"has_workspace"`
-	WorkspaceCacheID string `json:"active_workspace"`
+	ActiveWorkspace  string `json:"active_workspace"`
 	WorkspaceCount   int    `json:"workspace_count"`
 	DataDir          string `json:"data_dir"`
 }
@@ -159,7 +159,7 @@ type DataStatus struct {
 	LatestBackupAt         time.Time    `json:"latest_backup_at,omitempty"`
 	LatestBackupAgeSeconds int64        `json:"latest_backup_age_seconds,omitempty"`
 	Backups                []BackupInfo `json:"backups,omitempty"`
-	WorkspaceCacheID       string       `json:"active_workspace"`
+	ActiveWorkspace        string       `json:"active_workspace"`
 	WorkspaceCount         int          `json:"workspace_count"`
 	SessionCount           int          `json:"session_count"`
 }

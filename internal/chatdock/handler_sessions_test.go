@@ -63,7 +63,7 @@ func TestSessionCloneAPI(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := app.store.AppendUserMessage(session.ID, "需要复制的消息"); err != nil {
+	if _, _, _, err := app.store.AppendUserMessage("default", session.ID, "需要复制的消息"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -113,10 +113,10 @@ func TestSessionBranchAPI(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := app.store.AppendUserMessage(session.ID, "需要分支的用户消息"); err != nil {
+	if _, _, _, err := app.store.AppendUserMessage("default", session.ID, "需要分支的用户消息"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.AppendAssistantMessage(session.ID, "需要分支的助手回复"); err != nil {
+	if _, err := app.store.AppendAssistantMessage("default", session.ID, "需要分支的助手回复"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -185,13 +185,13 @@ func TestSessionEditUserMessageTruncatesFollowingMessages(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := app.store.AppendUserMessage(session.ID, "原始问题"); err != nil {
+	if _, _, _, err := app.store.AppendUserMessage("default", session.ID, "原始问题"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.AppendAssistantMessage(session.ID, "后续回答"); err != nil {
+	if _, err := app.store.AppendAssistantMessage("default", session.ID, "后续回答"); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := app.store.AppendUserMessage(session.ID, "后续追问"); err != nil {
+	if _, _, _, err := app.store.AppendUserMessage("default", session.ID, "后续追问"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -279,7 +279,7 @@ func TestSessionGetCompactsToolEventDetailsAndLazyLoadsFullEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 	huge := strings.Repeat("x", 20000)
-	_, err = app.store.AppendAssistantMessageWithParts(session.ID, "done", "", nil, []model.MessageEvent{{
+	_, err = app.store.AppendAssistantMessageWithParts("default", session.ID, "done", "", nil, []model.MessageEvent{{
 		Kind: "tool", Phase: "done", Text: "调用完成：chatdock_tool_execute", Details: map[string]any{
 			"event":     "tool_call_result",
 			"tool":      "chatdock_tool_execute",

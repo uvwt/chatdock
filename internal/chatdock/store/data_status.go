@@ -12,10 +12,9 @@ func (s *Store) DataStatus() (DataStatus, error) {
 	s.mu.RLock()
 	dataDir := s.dataDir
 	dbPath := s.dbPath
-	active := s.workspaceCacheID
 	s.mu.RUnlock()
 
-	workspaceSummaries, err := s.listWorkspaceSummaries(active)
+	workspaceSummaries, err := s.listWorkspaceSummaries(defaultWorkspaceID)
 	if err != nil {
 		return DataStatus{}, err
 	}
@@ -29,19 +28,9 @@ func (s *Store) DataStatus() (DataStatus, error) {
 	}
 	_, walErr := os.Stat(dbPath + "-wal")
 	_, shmErr := os.Stat(dbPath + "-shm")
-	status := DataStatus{
-		DataDir:          dataDir,
-		DatabasePath:     dbPath,
-		DatabaseExists:   info != nil,
-		WALEnabled:       walErr == nil,
-		SHMExists:        shmErr == nil,
-		WorkspaceCacheID: active,
-		WorkspaceCount:   len(workspaceSummaries),
-		SessionCount:     sessionCount,
-	}
+	status := DataStatus{DataDir: dataDir, DatabasePath: dbPath, DatabaseExists: info != nil, WALEnabled: walErr == nil, SHMExists: shmErr == nil, ActiveWorkspace: defaultWorkspaceID, WorkspaceCount: len(workspaceSummaries), SessionCount: sessionCount}
 	if info != nil {
 		status.DatabaseSizeBytes = info.Size()
-		// quick_check 只读且开销很小，适合在数据状态页暴露 SQLite 文件健康度。
 		var quickCheck string
 		if err := s.db.QueryRow("PRAGMA quick_check").Scan(&quickCheck); err != nil {
 			status.DatabaseWarning = "SQLite quick_check 执行失败"
@@ -79,19 +68,10 @@ func (s *Store) DataStatus() (DataStatus, error) {
 			}
 			status.BackupDir = dir
 			status.BackupCount++
-			status.Backups = append(status.Backups, BackupInfo{
-				Name:       name,
-				Path:       filepath.Join(dir, name),
-				SizeBytes:  fileInfo.Size(),
-				UpdatedAt:  fileInfo.ModTime(),
-				AgeSeconds: int64(time.Since(fileInfo.ModTime()).Seconds()),
-			})
+			status.Backups = append(status.Backups, BackupInfo{Name: name, Path: filepath.Join(dir, name), SizeBytes: fileInfo.Size(), UpdatedAt: fileInfo.ModTime(), AgeSeconds: int64(time.Since(fileInfo.ModTime()).Seconds())})
 		}
 	}
-	sort.Slice(status.Backups, func(i, j int) bool {
-		return status.Backups[i].UpdatedAt.After(status.Backups[j].UpdatedAt)
-	})
-	// 备份健康状态用于配置中心自助排障：48 小时内有数据库备份才视为健康。
+	sort.Slice(status.Backups, func(i, j int) bool { return status.Backups[i].UpdatedAt.After(status.Backups[j].UpdatedAt) })
 	if len(status.Backups) > 0 {
 		latest := status.Backups[0]
 		status.LatestBackupAt = latest.UpdatedAt

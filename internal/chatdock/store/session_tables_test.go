@@ -48,10 +48,10 @@ func TestSessionJSONMigratesToTablesAndPersistsCompactLegacyRow(t *testing.T) {
 		t.Fatalf("migrated rows msg=%d events=%d details=%d", msgRows, eventRows, detailRows)
 	}
 
-	if err := st.loadWorkspaceLocked(defaultWorkspaceID); err != nil {
+	session, ok, err := st.GetSession("default", legacy.ID)
+	if err != nil {
 		t.Fatal(err)
 	}
-	session, ok := st.GetSession(legacy.ID)
 	if !ok {
 		t.Fatal("migrated session not loaded")
 	}
@@ -64,7 +64,7 @@ func TestSessionJSONMigratesToTablesAndPersistsCompactLegacyRow(t *testing.T) {
 	if len(session.Messages[0].Parts) != 1 || session.Messages[0].Parts[0].Event == nil {
 		t.Fatalf("session did not reconstruct part event: %#v", session.Messages[0].Parts)
 	}
-	fullEvent, err := st.SessionMessageEventByID(legacy.ID, session.Messages[0].Events[0].ID)
+	fullEvent, err := st.SessionMessageEventByID("default", legacy.ID, session.Messages[0].Events[0].ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestSessionJSONMigratesToTablesAndPersistsCompactLegacyRow(t *testing.T) {
 		t.Fatalf("lazy event detail not loaded: %#v", fullEvent)
 	}
 
-	if _, err := st.AppendAssistantMessage(legacy.ID, "new answer"); err != nil {
+	if _, err := st.AppendAssistantMessage("default", legacy.ID, "new answer"); err != nil {
 		t.Fatal(err)
 	}
 	var compactRaw string

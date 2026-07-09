@@ -11,8 +11,12 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func (s *Store) loadScheduledTasksLocked() ([]model.ScheduledTask, error) {
-	tasks, err := loadScheduledTasksForWorkspaceLocked(s.db, s.workspaceCacheID)
+func (s *Store) loadScheduledTasksForWorkspaceLocked(workspaceID string) ([]model.ScheduledTask, error) {
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	tasks, err := loadScheduledTasksForWorkspaceLocked(s.db, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -31,27 +35,31 @@ func (s *Store) loadScheduledTasksLocked() ([]model.ScheduledTask, error) {
 	}
 	sortScheduledTasks(tasks)
 	if changed {
-		if err := s.saveScheduledTasksLocked(tasks); err != nil {
+		if err := s.saveScheduledTasksForWorkspaceLocked(workspaceID, tasks); err != nil {
 			return nil, err
 		}
 	}
 	return tasks, nil
 }
 
-func (s *Store) saveScheduledTasksLocked(tasks []model.ScheduledTask) error {
+func (s *Store) saveScheduledTasksForWorkspaceLocked(workspaceID string, tasks []model.ScheduledTask) error {
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return err
+	}
 	sortScheduledTasks(tasks)
 	keep := map[string]bool{}
 	for _, task := range tasks {
 		task = normalizeScheduledTaskForDB(task)
 		keep[task.ID] = true
-		if err := upsertScheduledTaskTx(s.db, s.workspaceCacheID, task); err != nil {
+		if err := upsertScheduledTaskTx(s.db, workspaceID, task); err != nil {
 			return err
 		}
 	}
-	if err := deleteScheduledTasksExceptWorkspaceLocked(s.db, s.workspaceCacheID, keep); err != nil {
+	if err := deleteScheduledTasksExceptWorkspaceLocked(s.db, workspaceID, keep); err != nil {
 		return err
 	}
-	return s.touchWorkspaceLocked(s.workspaceCacheID, time.Now())
+	return s.touchWorkspaceLocked(workspaceID, time.Now())
 }
 
 func sortScheduledTasks(tasks []model.ScheduledTask) {

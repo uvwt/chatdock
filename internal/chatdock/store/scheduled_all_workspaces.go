@@ -16,7 +16,6 @@ type DueScheduledTask struct {
 func (s *Store) DueScheduledTasksAllWorkspaces(now time.Time) (items []DueScheduledTask, err error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
 	rows, err := s.db.Query(`SELECT workspace_id, id, title, task_prompt, enabled, running, schedule_type, run_at, time_of_day, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks WHERE enabled = 1 AND running = 0 AND next_run_at != '' AND next_run_at <= ? ORDER BY next_run_at ASC`, formatScheduleDBTime(now))
 	if err != nil {
 		return nil, err
@@ -24,11 +23,11 @@ func (s *Store) DueScheduledTasksAllWorkspaces(now time.Time) (items []DueSchedu
 	defer rows.Close()
 	out := make([]DueScheduledTask, 0)
 	for rows.Next() {
-		var prompt string
+		var workspaceID string
 		var task model.ScheduledTask
 		var enabled, running int
 		var runAt, nextRunAt, lastRunAt, createdAt, updatedAt string
-		if err := rows.Scan(&prompt, &task.ID, &task.Title, &task.Prompt, &enabled, &running, &task.ScheduleType, &runAt, &task.TimeOfDay, &task.IntervalMinutes, &task.ContextMode, &nextRunAt, &lastRunAt, &task.LastStatus, &task.LastError, &task.SessionID, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&workspaceID, &task.ID, &task.Title, &task.Prompt, &enabled, &running, &task.ScheduleType, &runAt, &task.TimeOfDay, &task.IntervalMinutes, &task.ContextMode, &nextRunAt, &lastRunAt, &task.LastStatus, &task.LastError, &task.SessionID, &createdAt, &updatedAt); err != nil {
 			return nil, err
 		}
 		task.Enabled = enabled != 0
@@ -39,7 +38,7 @@ func (s *Store) DueScheduledTasksAllWorkspaces(now time.Time) (items []DueSchedu
 		task.CreatedAt = parseDBTimeZero(createdAt)
 		task.UpdatedAt = parseDBTimeZero(updatedAt)
 		task.ContextMode = normalizeScheduledTaskContextMode(task.ContextMode)
-		out = append(out, DueScheduledTask{WorkspaceID: prompt, Task: task})
+		out = append(out, DueScheduledTask{WorkspaceID: workspaceID, Task: task})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -48,34 +47,25 @@ func (s *Store) DueScheduledTasksAllWorkspaces(now time.Time) (items []DueSchedu
 }
 
 func (s *Store) PrepareScheduledTaskRunInWorkspace(workspaceID string, id string, manual bool, now time.Time) (model.ScheduledTaskRun, error) {
-	workspaceID, err := normalizeWorkspaceID(workspaceID)
-	if err != nil {
-		return model.ScheduledTaskRun{}, err
-	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	var run model.ScheduledTaskRun
-	err = s.withWorkspaceCacheLocked(workspaceID, func() error {
-		prepared, err := s.prepareScheduledTaskRunLocked(id, manual, now)
-		if err != nil {
-			return err
-		}
-		run = prepared
-		return nil
-	})
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
 	if err != nil {
 		return model.ScheduledTaskRun{}, err
 	}
-	return run, nil
+	return s.prepareScheduledTaskRunLocked(workspaceID, id, manual, now)
 }
 
-func (s *Store) prepareScheduledTaskRunLocked(id string, manual bool, now time.Time) (model.ScheduledTaskRun, error) {
+func (s *Store) prepareScheduledTaskRunLocked(workspaceID string, id string, manual bool, now time.Time) (model.ScheduledTaskRun, error) {
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return model.ScheduledTaskRun{}, err
+	}
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return model.ScheduledTaskRun{}, fmt.Errorf("scheduled task id is empty")
 	}
-	tasks, err := s.loadScheduledTasksLocked()
+	tasks, err := s.loadScheduledTasksForWorkspaceLocked(workspaceID)
 	if err != nil {
 		return model.ScheduledTaskRun{}, err
 	}
@@ -102,82 +92,72 @@ func (s *Store) prepareScheduledTaskRunLocked(id string, manual bool, now time.T
 			return model.ScheduledTaskRun{}, fmt.Errorf("scheduled task is not due: %s", task.Title)
 		}
 	}
-
 	runID := model.NewID()
 	message := strings.TrimSpace(task.Prompt)
 	userMessage := model.Message{ID: model.NewID(), Role: "user", Content: message, CreatedAt: now}
 	history := []model.Message{userMessage}
 	sessionID := ""
-
+	cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
+	if err != nil {
+		return model.ScheduledTaskRun{}, err
+	}
 	switch task.ContextMode {
 	case model.ScheduledTaskContextSession:
 		if strings.TrimSpace(task.SessionID) == "" {
 			session := &model.Session{ID: model.NewID(), Title: "定时任务：" + task.Title, CreatedAt: now, UpdatedAt: now, Messages: []model.Message{}}
-			s.sessions[session.ID] = session
-			if err := s.saveSessionLocked(session); err != nil {
+			if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
 				return model.ScheduledTaskRun{}, err
 			}
 			task.SessionID = session.ID
 		}
-		session, ok := s.sessions[task.SessionID]
+		session, ok, err := s.sessionForWorkspaceLocked(workspaceID, task.SessionID)
+		if err != nil {
+			return model.ScheduledTaskRun{}, err
+		}
 		if !ok {
 			return model.ScheduledTaskRun{}, model.ErrSessionNotFound
 		}
 		session.Messages = append(session.Messages, userMessage)
 		session.UpdatedAt = now
-		if err := s.saveSessionLocked(session); err != nil {
+		if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
 			return model.ScheduledTaskRun{}, err
 		}
 		sessionID = task.SessionID
 		history = cloneMessages(session.Messages)
 	case model.ScheduledTaskContextLastResult:
-		session, err := s.createScheduledTaskRunSessionLocked(task, userMessage, now)
+		session, err := s.createScheduledTaskRunSessionLocked(workspaceID, cfg, task, userMessage, now)
 		if err != nil {
 			return model.ScheduledTaskRun{}, err
 		}
 		sessionID = session.ID
-		if previous, ok, err := s.latestSuccessfulScheduledTaskRunLocked(task.ID); err != nil {
+		if previous, ok, err := s.latestSuccessfulScheduledTaskRunLocked(workspaceID, task.ID); err != nil {
 			return model.ScheduledTaskRun{}, err
 		} else if ok {
-			history = []model.Message{
-				{ID: model.NewID(), Role: "system", Content: "以下是这个定时任务上次成功运行的结果，仅用于延续状态，不代表本次已经完成：\n" + limitRunes(previous.Output, 8000), CreatedAt: now},
-				userMessage,
-			}
+			history = []model.Message{{ID: model.NewID(), Role: "system", Content: "以下是这个定时任务上次成功运行的结果，仅用于延续状态，不代表本次已经完成：\n" + limitRunes(previous.Output, 8000), CreatedAt: now}, userMessage}
 		}
 	default:
-		session, err := s.createScheduledTaskRunSessionLocked(task, userMessage, now)
+		session, err := s.createScheduledTaskRunSessionLocked(workspaceID, cfg, task, userMessage, now)
 		if err != nil {
 			return model.ScheduledTaskRun{}, err
 		}
 		sessionID = session.ID
 	}
-
 	task.Running = true
 	task.UpdatedAt = now
 	tasks[index] = task
-	if err := s.saveScheduledTasksLocked(tasks); err != nil {
+	if err := s.saveScheduledTasksForWorkspaceLocked(workspaceID, tasks); err != nil {
 		return model.ScheduledTaskRun{}, err
 	}
-	cfg := s.modelCfg
-	return model.ScheduledTaskRun{Task: task, WorkspaceID: s.workspaceCacheID, SessionID: sessionID, RunID: runID, Config: cfg, History: history}, nil
+	return model.ScheduledTaskRun{Task: task, WorkspaceID: workspaceID, SessionID: sessionID, RunID: runID, Config: cfg, History: history}, nil
 }
 
-func (s *Store) createScheduledTaskRunSessionLocked(task model.ScheduledTask, userMessage model.Message, now time.Time) (*model.Session, error) {
+func (s *Store) createScheduledTaskRunSessionLocked(workspaceID string, cfg model.ModelConfig, task model.ScheduledTask, userMessage model.Message, now time.Time) (*model.Session, error) {
 	title := "定时任务：" + task.Title
 	if task.ContextMode != model.ScheduledTaskContextSession {
 		title = title + " · " + now.Format("01-02 15:04")
 	}
-	session := &model.Session{
-		ID:         model.NewID(),
-		Title:      title,
-		ProviderID: s.modelCfg.ProviderID,
-		Model:      s.modelCfg.Model,
-		CreatedAt:  now,
-		UpdatedAt:  now,
-		Messages:   []model.Message{userMessage},
-	}
-	s.sessions[session.ID] = session
-	if err := s.saveSessionLocked(session); err != nil {
+	session := &model.Session{ID: model.NewID(), Title: title, ProviderID: cfg.ProviderID, Model: cfg.Model, CreatedAt: now, UpdatedAt: now, Messages: []model.Message{userMessage}}
+	if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
 		return nil, err
 	}
 	return session, nil

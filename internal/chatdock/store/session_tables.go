@@ -276,7 +276,11 @@ func insertSessionMessageEventTx(tx interface {
 	if strings.TrimSpace(event.ID) == "" {
 		event.ID = model.NewID()
 	}
-	if _, err := tx.Exec(`INSERT INTO session_message_events(workspace_id, session_id, message_index, event_index, id, kind, phase, call_key, text, meta) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, prompt, sessionID, messageIndex, eventIndex, event.ID, event.Kind, event.Phase, event.CallKey, event.Text, event.Meta); err != nil {
+	meta := strings.TrimSpace(event.Meta)
+	if meta == "" && len(event.Details) > 0 {
+		meta = compactEventMetaForDB(event.Details)
+	}
+	if _, err := tx.Exec(`INSERT INTO session_message_events(workspace_id, session_id, message_index, event_index, id, kind, phase, call_key, text, meta) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, prompt, sessionID, messageIndex, eventIndex, event.ID, event.Kind, event.Phase, event.CallKey, event.Text, meta); err != nil {
 		return err
 	}
 	if len(event.Details) > 0 {
@@ -286,6 +290,32 @@ func insertSessionMessageEventTx(tx interface {
 		}
 	}
 	return nil
+}
+
+func compactEventMetaForDB(details map[string]any) string {
+	out := map[string]any{}
+	if args, ok := details["arguments"].(map[string]any); ok {
+		argOut := map[string]any{}
+		for _, key := range []string{"name", "tool", "query"} {
+			if value, ok := args[key].(string); ok && strings.TrimSpace(value) != "" {
+				argOut[key] = strings.TrimSpace(value)
+			}
+		}
+		if len(argOut) > 0 {
+			out["arguments"] = argOut
+		}
+	}
+	if value, ok := details["tool"].(string); ok && strings.TrimSpace(value) != "" {
+		out["tool"] = strings.TrimSpace(value)
+	}
+	if len(out) == 0 {
+		return ""
+	}
+	raw, err := json.Marshal(out)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
 }
 
 func compactSessionForLegacyRow(session *model.Session) model.Session {
@@ -335,15 +365,19 @@ func matchingMessageEventIndex(events []model.MessageEvent, target model.Message
 	return -1
 }
 
-func (s *Store) SessionMessageEventByID(sessionID string, eventID string) (model.MessageEvent, error) {
+func (s *Store) SessionMessageEventByID(workspaceID string, sessionID string, eventID string) (model.MessageEvent, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return model.MessageEvent{}, err
+	}
 	sessionID = strings.TrimSpace(sessionID)
 	eventID = strings.TrimSpace(eventID)
 	if sessionID == "" || eventID == "" {
 		return model.MessageEvent{}, fmt.Errorf("session id and event id are required")
 	}
-	row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.workspace_id = ? AND e.session_id = ? AND e.id = ?`, s.workspaceCacheID, sessionID, eventID)
+	row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.workspace_id = ? AND e.session_id = ? AND e.id = ?`, workspaceID, sessionID, eventID)
 	var event model.MessageEvent
 	var detailsRaw string
 	if err := row.Scan(&event.ID, &event.Kind, &event.Phase, &event.CallKey, &event.Text, &event.Meta, &detailsRaw); err != nil {
@@ -355,20 +389,24 @@ func (s *Store) SessionMessageEventByID(sessionID string, eventID string) (model
 	return event, nil
 }
 
-func (s *Store) SessionMessageEventByIndex(sessionID string, messageIndex int, eventIndex int, partIndex int) (model.MessageEvent, error) {
+func (s *Store) SessionMessageEventByIndex(workspaceID string, sessionID string, messageIndex int, eventIndex int, partIndex int) (model.MessageEvent, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return model.MessageEvent{}, err
+	}
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" || messageIndex < 0 {
 		return model.MessageEvent{}, fmt.Errorf("invalid session event ref")
 	}
 	if eventIndex < 0 && partIndex >= 0 {
 		var eventID string
-		if err := s.db.QueryRow(`SELECT event_id FROM session_message_parts WHERE workspace_id = ? AND session_id = ? AND message_index = ? AND part_index = ?`, s.workspaceCacheID, sessionID, messageIndex, partIndex).Scan(&eventID); err != nil {
+		if err := s.db.QueryRow(`SELECT event_id FROM session_message_parts WHERE workspace_id = ? AND session_id = ? AND message_index = ? AND part_index = ?`, workspaceID, sessionID, messageIndex, partIndex).Scan(&eventID); err != nil {
 			return model.MessageEvent{}, err
 		}
 		eventIndex = -1
-		row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.workspace_id = ? AND e.session_id = ? AND e.id = ?`, s.workspaceCacheID, sessionID, eventID)
+		row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.workspace_id = ? AND e.session_id = ? AND e.id = ?`, workspaceID, sessionID, eventID)
 		var event model.MessageEvent
 		var detailsRaw string
 		if err := row.Scan(&event.ID, &event.Kind, &event.Phase, &event.CallKey, &event.Text, &event.Meta, &detailsRaw); err != nil {
@@ -382,7 +420,7 @@ func (s *Store) SessionMessageEventByIndex(sessionID string, messageIndex int, e
 	if eventIndex < 0 {
 		return model.MessageEvent{}, fmt.Errorf("invalid event index")
 	}
-	row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.workspace_id = ? AND e.session_id = ? AND e.message_index = ? AND e.event_index = ?`, s.workspaceCacheID, sessionID, messageIndex, eventIndex)
+	row := s.db.QueryRow(`SELECT e.id, e.kind, e.phase, e.call_key, e.text, e.meta, COALESCE(d.details_json, '') FROM session_message_events e LEFT JOIN session_message_event_details d ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id WHERE e.workspace_id = ? AND e.session_id = ? AND e.message_index = ? AND e.event_index = ?`, workspaceID, sessionID, messageIndex, eventIndex)
 	var event model.MessageEvent
 	var detailsRaw string
 	if err := row.Scan(&event.ID, &event.Kind, &event.Phase, &event.CallKey, &event.Text, &event.Meta, &detailsRaw); err != nil {

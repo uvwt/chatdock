@@ -14,28 +14,29 @@ const (
 	scheduleTypeInterval = "interval"
 )
 
-func (s *Store) ListScheduledTasks() (model.ScheduledTaskResponse, error) {
+func (s *Store) ListScheduledTasks(workspaceID string) (model.ScheduledTaskResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	tasks, err := s.loadScheduledTasksLocked()
+	tasks, err := s.loadScheduledTasksForWorkspaceLocked(workspaceID)
 	if err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
 	return model.ScheduledTaskResponse{Tasks: cloneScheduledTasks(tasks)}, nil
 }
 
-func (s *Store) CreateScheduledTask(input model.ScheduledTaskRequest) (model.ScheduledTaskResponse, error) {
+func (s *Store) CreateScheduledTask(workspaceID string, input model.ScheduledTaskRequest) (model.ScheduledTaskResponse, error) {
 	now := time.Now()
 	next, err := normalizeScheduledTaskInput(input, nil, now)
 	if err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	tasks, err := s.loadScheduledTasksLocked()
+	workspaceID, err = s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return model.ScheduledTaskResponse{}, err
+	}
+	tasks, err := s.loadScheduledTasksForWorkspaceLocked(workspaceID)
 	if err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
@@ -48,23 +49,25 @@ func (s *Store) CreateScheduledTask(input model.ScheduledTaskRequest) (model.Sch
 	next.CreatedAt = now
 	next.UpdatedAt = now
 	tasks = append(tasks, next)
-	if err := s.saveScheduledTasksLocked(tasks); err != nil {
+	if err := s.saveScheduledTasksForWorkspaceLocked(workspaceID, tasks); err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
 	return model.ScheduledTaskResponse{Tasks: cloneScheduledTasks(tasks)}, nil
 }
 
-func (s *Store) UpdateScheduledTask(id string, input model.ScheduledTaskRequest) (model.ScheduledTaskResponse, error) {
+func (s *Store) UpdateScheduledTask(workspaceID string, id string, input model.ScheduledTaskRequest) (model.ScheduledTaskResponse, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return model.ScheduledTaskResponse{}, fmt.Errorf("scheduled task id is empty")
 	}
 	now := time.Now()
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	tasks, err := s.loadScheduledTasksLocked()
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return model.ScheduledTaskResponse{}, err
+	}
+	tasks, err := s.loadScheduledTasksForWorkspaceLocked(workspaceID)
 	if err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
@@ -99,22 +102,24 @@ func (s *Store) UpdateScheduledTask(id string, input model.ScheduledTaskRequest)
 	}
 	next.UpdatedAt = now
 	tasks[index] = next
-	if err := s.saveScheduledTasksLocked(tasks); err != nil {
+	if err := s.saveScheduledTasksForWorkspaceLocked(workspaceID, tasks); err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
 	return model.ScheduledTaskResponse{Tasks: cloneScheduledTasks(tasks)}, nil
 }
 
-func (s *Store) DeleteScheduledTask(id string) (model.ScheduledTaskResponse, error) {
+func (s *Store) DeleteScheduledTask(workspaceID string, id string) (model.ScheduledTaskResponse, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return model.ScheduledTaskResponse{}, fmt.Errorf("scheduled task id is empty")
 	}
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	tasks, err := s.loadScheduledTasksLocked()
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return model.ScheduledTaskResponse{}, err
+	}
+	tasks, err := s.loadScheduledTasksForWorkspaceLocked(workspaceID)
 	if err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
@@ -129,7 +134,7 @@ func (s *Store) DeleteScheduledTask(id string) (model.ScheduledTaskResponse, err
 		return model.ScheduledTaskResponse{}, fmt.Errorf("scheduled task not found: %s", id)
 	}
 	tasks = append(tasks[:index], tasks[index+1:]...)
-	if err := s.saveScheduledTasksLocked(tasks); err != nil {
+	if err := s.saveScheduledTasksForWorkspaceLocked(workspaceID, tasks); err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
 	return model.ScheduledTaskResponse{Tasks: cloneScheduledTasks(tasks)}, nil

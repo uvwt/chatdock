@@ -22,7 +22,7 @@ type SessionSearchResult struct {
 	Score        int       `json:"score"`
 }
 
-func (s *Store) SearchSessions(query string, limit int) ([]SessionSearchResult, error) {
+func (s *Store) SearchSessions(workspaceID string, query string, limit int) ([]SessionSearchResult, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return nil, nil
@@ -33,9 +33,16 @@ func (s *Store) SearchSessions(query string, limit int) ([]SessionSearchResult, 
 	needle := strings.ToLower(query)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	sessions, err := loadSessionsFromTablesLocked(s.db, workspaceID)
+	if err != nil {
+		return nil, err
+	}
 	results := make([]SessionSearchResult, 0)
-	for _, session := range s.sessions {
+	for _, session := range sessions {
 		lastRole, preview := sessionPreview(session)
 		bestScore, field, snippet := matchSessionText(session.Title, "标题", needle, query)
 		if score, f, snip := matchSessionText(preview, "摘要", needle, query); score > bestScore {
@@ -52,7 +59,7 @@ func (s *Store) SearchSessions(query string, limit int) ([]SessionSearchResult, 
 				}
 			}
 		}
-		if score, f, snip := s.matchAttachmentTextLocked(session.ID, needle, query); score > bestScore {
+		if score, f, snip := s.matchAttachmentTextLocked(workspaceID, session.ID, needle, query); score > bestScore {
 			bestScore, field, snippet = score, f, snip
 		}
 		if bestScore <= 0 {
@@ -75,8 +82,8 @@ func (s *Store) SearchSessions(query string, limit int) ([]SessionSearchResult, 
 	return results, nil
 }
 
-func (s *Store) matchAttachmentTextLocked(sessionID string, needle string, original string) (int, string, string) {
-	rows, err := s.db.Query(`SELECT filename, text_content FROM attachments WHERE workspace_id = ? AND session_id = ?`, s.workspaceCacheID, sessionID)
+func (s *Store) matchAttachmentTextLocked(workspaceID string, sessionID string, needle string, original string) (int, string, string) {
+	rows, err := s.db.Query(`SELECT filename, text_content FROM attachments WHERE workspace_id = ? AND session_id = ?`, workspaceID, sessionID)
 	if err != nil {
 		return 0, "", ""
 	}

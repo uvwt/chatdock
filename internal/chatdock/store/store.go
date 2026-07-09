@@ -1,7 +1,6 @@
 package store
 
 import (
-	"chatdock/internal/chatdock/model"
 	"database/sql"
 	"fmt"
 	"os"
@@ -15,13 +14,10 @@ import (
 const defaultWorkspaceID = "default"
 
 type Store struct {
-	mu               sync.RWMutex
-	dataDir          string
-	dbPath           string
-	db               *sql.DB
-	workspaceCacheID string
-	modelCfg         model.ModelConfig
-	sessions         map[string]*model.Session
+	mu      sync.RWMutex
+	dataDir string
+	dbPath  string
+	db      *sql.DB
 }
 
 func NewStore(dataDir string) (*Store, error) {
@@ -37,13 +33,7 @@ func NewStore(dataDir string) (*Store, error) {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
-	store := &Store{
-		dataDir:          dataDir,
-		dbPath:           dbPath,
-		db:               db,
-		workspaceCacheID: defaultWorkspaceID,
-		sessions:         make(map[string]*model.Session),
-	}
+	store := &Store{dataDir: dataDir, dbPath: dbPath, db: db}
 	if err := store.initSQLite(); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("init sqlite: %w", err)
@@ -76,10 +66,13 @@ func NewStore(dataDir string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("mark running chat jobs interrupted: %w", err)
 	}
-	if err := store.loadWorkspaceLocked(defaultWorkspaceID); err != nil {
+	store.mu.Lock()
+	if err := store.ensureWorkspaceDefaultsLocked(defaultWorkspaceID); err != nil {
+		store.mu.Unlock()
 		_ = db.Close()
-		return nil, fmt.Errorf("load default workspace: %w", err)
+		return nil, fmt.Errorf("ensure default workspace: %w", err)
 	}
+	store.mu.Unlock()
 	return store, nil
 }
 

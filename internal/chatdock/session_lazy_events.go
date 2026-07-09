@@ -3,6 +3,7 @@ package chatdock
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -45,6 +46,8 @@ func compactMessageEvent(sessionID string, messageID string, messageIndex int, e
 	details := map[string]any{}
 	if len(event.Details) > 0 {
 		details = compactToolEventDetails(event.Details)
+	} else if strings.TrimSpace(event.Meta) != "" {
+		_ = json.Unmarshal([]byte(event.Meta), &details)
 	}
 	details["lazy"] = true
 	details["session_id"] = sessionID
@@ -308,7 +311,7 @@ func matchingEventIndex(events []model.MessageEvent, target model.MessageEvent) 
 func (a *App) handleGetSessionToolEventByID(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.PathValue("id")
 	eventID := r.PathValue("event_id")
-	event, err := a.store.SessionMessageEventByID(sessionID, eventID)
+	event, err := a.store.SessionMessageEventByID(a.workspaceIDFromRequest(r), sessionID, eventID)
 	if err != nil {
 		writeError(w, http.StatusNotFound, fmt.Errorf("tool event not found"))
 		return
@@ -343,7 +346,7 @@ func (a *App) handleGetSessionToolEvent(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, fmt.Errorf("event_index or part_index is required"))
 		return
 	}
-	event, err := a.store.SessionMessageEventByIndex(sessionID, messageIndex, eventIndex, partIndex)
+	event, err := a.store.SessionMessageEventByIndex(a.workspaceIDFromRequest(r), sessionID, messageIndex, eventIndex, partIndex)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

@@ -7,22 +7,24 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func (s *Store) GetModelConfig() model.ModelConfig {
+func (s *Store) GetModelConfig(workspaceID string) model.ModelConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.modelCfg
+	cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
+	if err != nil {
+		return model.DefaultModelConfig()
+	}
+	return cfg
 }
 
-func (s *Store) SaveModelConfig(next model.ModelConfig) (model.ModelConfig, error) {
+func (s *Store) SaveModelConfig(workspaceID string, next model.ModelConfig) (model.ModelConfig, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	cfg, err := s.saveModelConfigForWorkspaceLocked(s.workspaceCacheID, next)
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
 	if err != nil {
 		return model.ModelConfig{}, err
 	}
-	s.modelCfg = cfg
-	return cfg, nil
+	return s.saveModelConfigForWorkspaceLocked(workspaceID, next)
 }
 
 func (s *Store) saveModelConfigForWorkspaceLocked(workspaceID string, next model.ModelConfig) (model.ModelConfig, error) {
@@ -102,19 +104,7 @@ func (s *Store) upsertProviderFromConfigLocked(workspaceID string, cfg model.Mod
 		records[i] = normalizeModelProviderRecord(records[i])
 		return s.saveModelProviderRecordsLocked(records)
 	}
-	record := normalizeModelProviderRecord(modelProviderRecord{
-		ID:           id,
-		Name:         providerDisplayName(workspaceID, cfg),
-		Type:         "openai-compatible",
-		BaseURL:      strings.TrimSpace(cfg.BaseURL),
-		APIKey:       strings.TrimSpace(cfg.APIKey),
-		DefaultModel: strings.TrimSpace(cfg.Model),
-		Models:       normalizeProviderModelNames(cfg.Models, cfg.Model),
-		TimeoutMS:    120000,
-		Enabled:      strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != "",
-		CreatedAt:    now,
-		UpdatedAt:    now,
-	})
+	record := normalizeModelProviderRecord(modelProviderRecord{ID: id, Name: providerDisplayName(workspaceID, cfg), Type: "openai-compatible", BaseURL: strings.TrimSpace(cfg.BaseURL), APIKey: strings.TrimSpace(cfg.APIKey), DefaultModel: strings.TrimSpace(cfg.Model), Models: normalizeProviderModelNames(cfg.Models, cfg.Model), TimeoutMS: 120000, Enabled: strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != "", CreatedAt: now, UpdatedAt: now})
 	records = append(records, record)
 	return s.saveModelProviderRecordsLocked(records)
 }

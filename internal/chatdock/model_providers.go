@@ -63,7 +63,7 @@ func (a *App) handleDeleteModelProvider(w http.ResponseWriter, r *http.Request) 
 }
 
 func (a *App) modelConfigFromRequest(r *http.Request) (model.ModelConfig, error) {
-	cfg := a.store.GetModelConfig()
+	cfg := a.store.GetModelConfig(a.workspaceIDFromRequest(r))
 	if r.Body == nil {
 		return cfg, nil
 	}

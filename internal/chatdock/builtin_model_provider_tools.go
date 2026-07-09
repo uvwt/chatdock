@@ -91,19 +91,19 @@ func isBuiltinModelProviderTool(name string) bool {
 	}
 }
 
-func (a *App) callBuiltinModelProviderTool(ctx context.Context, name string, args map[string]any) (any, error) {
+func (a *App) callBuiltinModelProviderTool(ctx context.Context, workspaceID string, name string, args map[string]any) (any, error) {
 	switch name {
 	case builtinToolListModelProviders:
 		return a.builtinListModelProviders(args)
 	case builtinToolSaveModelProvider:
-		return a.builtinSaveModelProvider(args)
+		return a.builtinSaveModelProvider(workspaceID, args)
 	case builtinToolCreateModelProvider:
-		return a.builtinSaveModelProvider(args)
+		return a.builtinSaveModelProvider(workspaceID, args)
 	case builtinToolUpdateModelProvider:
 		if _, ok := args["id"]; !ok {
 			return nil, fmt.Errorf("id is required")
 		}
-		return a.builtinSaveModelProvider(args)
+		return a.builtinSaveModelProvider(workspaceID, args)
 	case builtinToolSetModelProviderEnabled:
 		id, err := requiredStringArg(args, "id")
 		if err != nil {
@@ -142,7 +142,7 @@ func (a *App) callBuiltinModelProviderTool(ctx context.Context, name string, arg
 		if err != nil {
 			return nil, err
 		}
-		workspace, err := a.setWorkspaceModelProvider(providerID, strings.TrimSpace(stringArg(args, "model")))
+		workspace, err := a.setWorkspaceModelProvider(workspaceID, providerID, strings.TrimSpace(stringArg(args, "model")))
 		if err != nil {
 			return nil, err
 		}
@@ -152,7 +152,7 @@ func (a *App) callBuiltinModelProviderTool(ctx context.Context, name string, arg
 	}
 }
 
-func (a *App) builtinSaveModelProvider(args map[string]any) (map[string]any, error) {
+func (a *App) builtinSaveModelProvider(workspaceID string, args map[string]any) (map[string]any, error) {
 	id := strings.TrimSpace(stringArg(args, "id"))
 	var previous *store.ModelProvider
 	if id != "" {
@@ -181,7 +181,7 @@ func (a *App) builtinSaveModelProvider(args map[string]any) (map[string]any, err
 	result := map[string]any{"ok": true, "provider": provider, "secret_handling": "api_key/api_keys 已保存但不会回显；结果只包含 has_api_key/api_key_masked。"}
 	if setDefault, ok := optionalBoolArg(args, "set_as_workspace_default"); ok && setDefault {
 		workspaceModel := strings.TrimSpace(stringArg(args, "workspace_model"))
-		workspace, err := a.setWorkspaceModelProvider(provider.ID, workspaceModel)
+		workspace, err := a.setWorkspaceModelProvider(workspaceID, provider.ID, workspaceModel)
 		if err != nil {
 			return nil, err
 		}
@@ -371,7 +371,7 @@ func (a *App) findModelProvider(id string) (store.ModelProvider, error) {
 	return store.ModelProvider{}, fmt.Errorf("model provider not found: %s", id)
 }
 
-func (a *App) setWorkspaceModelProvider(providerID string, modelName string) (map[string]any, error) {
+func (a *App) setWorkspaceModelProvider(workspaceID string, providerID string, modelName string) (map[string]any, error) {
 	provider, err := a.findModelProvider(providerID)
 	if err != nil {
 		return nil, err
@@ -379,18 +379,18 @@ func (a *App) setWorkspaceModelProvider(providerID string, modelName string) (ma
 	if !provider.Enabled {
 		return nil, fmt.Errorf("model provider is disabled: %s", provider.ID)
 	}
-	cfg := a.store.GetModelConfig()
+	cfg := a.store.GetModelConfig(workspaceID)
 	cfg.ProviderID = provider.ID
 	if strings.TrimSpace(modelName) == "" {
 		modelName = provider.DefaultModel
 	}
 	cfg.Model = strings.TrimSpace(modelName)
 	cfg.Models = append([]string(nil), provider.Models...)
-	saved, err := a.store.SaveModelConfig(cfg)
+	saved, err := a.store.SaveModelConfig(workspaceID, cfg)
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"ok": true, "workspace": a.store.WorkspaceCacheID(), "provider_id": saved.ProviderID, "model": saved.Model}, nil
+	return map[string]any{"ok": true, "workspace": workspaceID, "provider_id": saved.ProviderID, "model": saved.Model}, nil
 }
 
 func modelProviderInputFromArgs(args map[string]any, previous *store.ModelProvider) (store.ModelProviderInput, error) {

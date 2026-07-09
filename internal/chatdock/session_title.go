@@ -9,16 +9,16 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func (a *App) maybeGenerateSessionTitle(ctx context.Context, sessionID string, cfg model.ModelConfig) *model.Session {
-	session, ok := a.store.GetSession(sessionID)
-	if !ok || !shouldGenerateSessionTitle(session) {
+func (a *App) maybeGenerateSessionTitle(ctx context.Context, workspaceID string, sessionID string, cfg model.ModelConfig) *model.Session {
+	session, ok, err := a.store.GetSession(workspaceID, sessionID)
+	if err != nil || !ok || !shouldGenerateSessionTitle(session) {
 		return session
 	}
 	title, err := a.generateSessionTitle(ctx, cfg, session)
 	if err != nil || title == "" {
 		return session
 	}
-	renamed, err := a.store.RenameSession(sessionID, title)
+	renamed, err := a.store.RenameSession(workspaceID, sessionID, title)
 	if err != nil {
 		return session
 	}

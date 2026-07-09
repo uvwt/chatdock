@@ -15,7 +15,7 @@ func TestSearchToolCatalogAlwaysReturnsPinnedTools(t *testing.T) {
 		{Server: "DockMini", Name: "task_manage", FullName: "DockMini__task_manage", Title: "任务模板"},
 	})
 
-	result := searchToolCatalogWithApp(context.Background(), nil, catalog, map[string]any{"query": "天气", "limit": 1})
+	result := searchToolCatalogWithApp(context.Background(), nil, "default", catalog, map[string]any{"query": "天气", "limit": 1})
 	items, ok := result["tools"].([]map[string]any)
 	if !ok {
 		t.Fatalf("unexpected tools payload: %#v", result["tools"])

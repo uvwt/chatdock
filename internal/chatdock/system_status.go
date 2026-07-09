@@ -35,7 +35,7 @@ func (a *App) handleSystemStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleMCPStatus(w http.ResponseWriter, r *http.Request) {
-	cfg, err := a.activeMCPConfig()
+	cfg, err := a.activeMCPConfig(a.workspaceIDFromRequest(r))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

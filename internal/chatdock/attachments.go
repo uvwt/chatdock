@@ -40,7 +40,8 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 	name := cleanUploadName(header.Filename)
 	id := model.NewID()
 	sessionID := strings.TrimSpace(r.FormValue("session_id"))
-	prompt := a.store.WorkspaceCacheID()
+	workspaceID := a.workspaceIDFromRequest(r)
+	prompt := workspaceID
 	uploadDir := filepath.Join(a.cfg.DataDir, "uploads", safeFileComponent(prompt))
 	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
@@ -104,7 +105,7 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 		SHA256:      sha,
 		TextContent: text,
 	}
-	if err := a.store.SaveAttachment(record); err != nil {
+	if err := a.store.SaveAttachment(workspaceID, record); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -113,7 +114,7 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleDownloadFile(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(r.PathValue("id"))
-	record, err := a.store.AttachmentRecordByID(id)
+	record, err := a.store.AttachmentRecordByID(a.workspaceIDFromRequest(r), id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err)
 		return
@@ -145,7 +146,7 @@ func (a *App) handleModelImageFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	record, err := a.store.AttachmentRecordByID(id)
+	record, err := a.store.AttachmentRecordByID(a.workspaceIDFromRequest(r), id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err)
 		return

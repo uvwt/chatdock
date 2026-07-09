@@ -9,15 +9,13 @@ import (
 
 func (s *Store) SetupStatus() (SetupStatus, error) {
 	s.mu.RLock()
-	active := s.workspaceCacheID
 	dataDir := s.dataDir
 	providers, providerErr := s.loadModelProviderRecordsLocked()
 	s.mu.RUnlock()
 	if providerErr != nil {
 		return SetupStatus{}, providerErr
 	}
-
-	workspaces, err := s.listWorkspaceSummaries(active)
+	workspaces, err := s.listWorkspaceSummaries(defaultWorkspaceID)
 	if err != nil {
 		return SetupStatus{}, err
 	}
@@ -36,17 +34,7 @@ func (s *Store) SetupStatus() (SetupStatus, error) {
 			}
 		}
 	}
-	// setup 只表达系统是否完成基础初始化；单个工作空间能否聊天由 workspace readiness 判断，
-	// 避免当前工作空间缺 key 时把整个系统误判为“未初始化”。
-	return SetupStatus{
-		NeedsSetup:       len(workspaces) == 0 || !hasProvider,
-		HasModelProvider: hasProvider,
-		HasAPIKey:        hasKey,
-		HasWorkspace:     len(workspaces) > 0,
-		WorkspaceCacheID: active,
-		WorkspaceCount:   len(workspaces),
-		DataDir:          dataDir,
-	}, nil
+	return SetupStatus{NeedsSetup: len(workspaces) == 0 || !hasProvider, HasModelProvider: hasProvider, HasAPIKey: hasKey, HasWorkspace: len(workspaces) > 0, ActiveWorkspace: defaultWorkspaceID, WorkspaceCount: len(workspaces), DataDir: dataDir}, nil
 }
 
 func (s *Store) InitializeSetup(input SetupInitRequest) (SetupStatus, error) {
@@ -58,7 +46,6 @@ func (s *Store) InitializeSetup(input SetupInitRequest) (SetupStatus, error) {
 	if err != nil {
 		return SetupStatus{}, err
 	}
-
 	s.mu.Lock()
 	if exists, err := s.workspaceExistsLocked(name); err != nil {
 		s.mu.Unlock()
@@ -69,11 +56,7 @@ func (s *Store) InitializeSetup(input SetupInitRequest) (SetupStatus, error) {
 			return SetupStatus{}, err
 		}
 	}
-	if err := s.loadWorkspaceLocked(name); err != nil {
-		s.mu.Unlock()
-		return SetupStatus{}, err
-	}
-	cfg := s.modelCfg
+	cfg := model.DefaultModelConfig()
 	cfg.ProviderID = providerIDFromWorkspace(name)
 	cfg.BaseURL = strings.TrimSpace(input.BaseURL)
 	cfg.APIKey = strings.TrimSpace(input.APIKey)
@@ -82,12 +65,15 @@ func (s *Store) InitializeSetup(input SetupInitRequest) (SetupStatus, error) {
 	if cfg.SystemPrompt == "" {
 		cfg.SystemPrompt = model.DefaultModelConfig().SystemPrompt
 	}
-	s.modelCfg = model.NormalizeModelConfig(cfg)
-	if err := s.upsertProviderFromConfigLocked(s.workspaceCacheID, s.modelCfg); err != nil {
+	cfg = model.NormalizeModelConfig(cfg)
+	if err := s.upsertProviderFromConfigLocked(name, cfg); err != nil {
 		s.mu.Unlock()
 		return SetupStatus{}, err
 	}
-	err = s.setWorkspaceJSONLocked(s.workspaceCacheID, "config", s.modelCfg)
+	err = s.setWorkspaceJSONLocked(name, "config", cfg)
+	if err == nil {
+		err = s.setWorkspaceRawLocked(name, "mcp", DefaultMCPConfig())
+	}
 	s.mu.Unlock()
 	if err != nil {
 		return SetupStatus{}, err

@@ -15,7 +15,7 @@ type scheduledSessionCompletionResult struct {
 	AssistantSaved bool
 }
 
-func (a *App) completeScheduledSessionWithRecordedEvents(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message) (scheduledSessionCompletionResult, error) {
+func (a *App) completeScheduledSessionWithRecordedEvents(ctx context.Context, workspaceID string, sessionID string, cfg model.ModelConfig, history []model.Message) (scheduledSessionCompletionResult, error) {
 	var answer strings.Builder
 	var reasoning strings.Builder
 	var parts messagePartsRecorder
@@ -49,7 +49,7 @@ func (a *App) completeScheduledSessionWithRecordedEvents(ctx context.Context, se
 		if strings.TrimSpace(currentAnswer) == "" && strings.TrimSpace(currentReasoning) == "" && len(parts.parts) == 0 && len(parts.events) == 0 {
 			return nil
 		}
-		_, messageID, err := a.store.UpsertAssistantMessageCheckpoint(sessionID, checkpointMessageID, currentAnswer, currentReasoning, parts.parts, parts.events)
+		_, messageID, err := a.store.UpsertAssistantMessageCheckpoint(workspaceID, sessionID, checkpointMessageID, currentAnswer, currentReasoning, parts.parts, parts.events)
 		if err != nil {
 			return err
 		}
@@ -86,7 +86,7 @@ func (a *App) completeScheduledSessionWithRecordedEvents(ctx context.Context, se
 		return saveCheckpoint(false)
 	}
 
-	finalAnswer, runErr := a.completeWithRecordedTools(ctx, "", sessionID, cfg, history, emit)
+	finalAnswer, runErr := a.completeWithRecordedTools(ctx, workspaceID, "", sessionID, cfg, history, emit)
 	if err := flushDeltaEvent(true); err != nil && runErr == nil {
 		runErr = err
 	}
