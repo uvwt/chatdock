@@ -11,7 +11,9 @@ import (
 func TestSearchToolCatalogAlwaysReturnsPinnedTools(t *testing.T) {
 	catalog := newToolCatalog([]mcp.MCPTool{
 		{Server: "DockMini", Name: "exec_command", FullName: "DockMini__exec_command", Title: "执行命令"},
-		{Server: "DockMini", Name: "skill_manage", FullName: "DockMini__skill_manage", Title: "Skill 管理"},
+		{Server: "DockMini", Name: "skill_read", FullName: "DockMini__skill_read", Title: "Skill 发现"},
+		{Server: "DockMini", Name: "skill_run", FullName: "DockMini__skill_run", Title: "Skill 执行"},
+		{Server: "DockMini", Name: "workflow_template_manage", FullName: "DockMini__workflow_template_manage", Title: "任务模板"},
 		{Server: "DockMini", Name: "task_manage", FullName: "DockMini__task_manage", Title: "任务模板"},
 	})
 
@@ -21,21 +23,27 @@ func TestSearchToolCatalogAlwaysReturnsPinnedTools(t *testing.T) {
 		t.Fatalf("unexpected tools payload: %#v", result["tools"])
 	}
 	assertToolSearchItem(t, items, "DockMini__exec_command")
-	assertToolSearchItem(t, items, "DockMini__skill_manage")
+	assertToolSearchItem(t, items, "DockMini__skill_read")
+	assertToolSearchItem(t, items, "DockMini__skill_run")
+	assertToolSearchItem(t, items, "DockMini__workflow_template_manage")
 	assertToolSearchItem(t, items, "DockMini__task_manage")
 }
 
 func TestPinnedToolMatchesSupportSingleUnderscoreNames(t *testing.T) {
 	catalog := newToolCatalog([]mcp.MCPTool{
 		{Server: "DockMini", Name: "exec_command", FullName: "DockMini_exec_command", Title: "执行命令"},
-		{Server: "DockMini", Name: "skill_manage", FullName: "DockMini_skill_manage", Title: "Skill 管理"},
+		{Server: "DockMini", Name: "skill_read", FullName: "DockMini_skill_read", Title: "Skill 发现"},
+		{Server: "DockMini", Name: "skill_run", FullName: "DockMini_skill_run", Title: "Skill 执行"},
+		{Server: "DockMini", Name: "workflow_template_manage", FullName: "DockMini_workflow_template_manage", Title: "任务模板"},
 		{Server: "DockMini", Name: "task_manage", FullName: "DockMini_task_manage", Title: "任务模板"},
 	})
 
 	matches := appendPinnedToolMatches(catalog, nil)
 
 	assertPinnedTool(t, matches, "DockMini_exec_command")
-	assertPinnedTool(t, matches, "DockMini_skill_manage")
+	assertPinnedTool(t, matches, "DockMini_skill_read")
+	assertPinnedTool(t, matches, "DockMini_skill_run")
+	assertPinnedTool(t, matches, "DockMini_workflow_template_manage")
 	assertPinnedTool(t, matches, "DockMini_task_manage")
 }
 

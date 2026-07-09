@@ -120,9 +120,9 @@ MCP 配置、自动化任务和会话都按工作空间隔离保存到 SQLite。
         "type": "bearer",
         "token_env": "AGENTDOCK_TOKEN"
       },
-      "allow_tools": ["memory_*", "desktop_screenshot"],
-      "deny_tools": ["memory_delete"],
-      "confirm_tools": ["desktop_*", "file_write", "git_push"],
+      "allow_tools": ["recall_*", "skill_*", "workflow_template_manage", "task_manage"],
+      "deny_tools": ["private_note_manage"],
+      "confirm_tools": ["exec_command", "file_edit", "git_write"],
       "timeout_ms": 90000,
       "cache_ttl_ms": 30000
     }

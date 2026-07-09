@@ -202,7 +202,7 @@ func agentTaskStatus(action string, status string, errorText string, result map[
 		return "completed"
 	case "block":
 		return "blocked"
-	case "template_match":
+	case "match":
 		return "matched"
 	case "create", "resume", "phase_checkpoint", "complete_step", "record_attempt", "advance":
 		return "active"

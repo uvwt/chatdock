@@ -7,9 +7,9 @@ func TestParseMCPConfigAndToolFilters(t *testing.T) {
 		"servers": {
 			"agentdock": {
 				"url": "http://127.0.0.1:18766/mcp",
-				"allow_tools": ["memory_*"],
-				"deny_tools": ["memory_delete"],
-				"confirm_tools": ["memory_write"]
+				"allow_tools": ["recall_*"],
+				"deny_tools": ["recall_delete"],
+				"confirm_tools": ["recall_write"]
 			}
 		}
 	}`
@@ -18,17 +18,17 @@ func TestParseMCPConfigAndToolFilters(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := cfg.Servers["agentdock"]
-	if !s.allowsTool("memory_read", "agentdock__memory_read") {
-		t.Fatal("expected memory_read to be allowed")
+	if !s.allowsTool("recall_read", "agentdock__recall_read") {
+		t.Fatal("expected recall_read to be allowed")
 	}
-	if s.allowsTool("desktop_click", "agentdock__desktop_click") {
-		t.Fatal("expected desktop_click to be filtered by allow list")
+	if s.allowsTool("exec_command", "agentdock__exec_command") {
+		t.Fatal("expected exec_command to be filtered by allow list")
 	}
-	if s.allowsTool("memory_delete", "agentdock__memory_delete") {
-		t.Fatal("expected memory_delete to be denied")
+	if s.allowsTool("recall_delete", "agentdock__recall_delete") {
+		t.Fatal("expected recall_delete to be denied")
 	}
-	if !s.requiresConfirmation("memory_write", "agentdock__memory_write") {
-		t.Fatal("expected memory_write to require confirmation")
+	if !s.requiresConfirmation("recall_write", "agentdock__recall_write") {
+		t.Fatal("expected recall_write to require confirmation")
 	}
 }
 

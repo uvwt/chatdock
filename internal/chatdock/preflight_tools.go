@@ -93,7 +93,7 @@ func (a *App) runConversationPreflight(ctx context.Context, history []model.Mess
 	}
 
 	if result.Decision.NeedsMemory {
-		if tool, ok := findCatalogTool(catalog, []string{"memory_recall", "recall_bootstrap", "memory_search", "notes_search"}); ok {
+		if tool, ok := findCatalogTool(catalog, []string{"recall_bootstrap", "recall_search", "notes_search"}); ok {
 			result.MemoryTool = tool.FullName
 			wg.Add(1)
 			go func() {
@@ -114,16 +114,15 @@ func (a *App) runConversationPreflight(ctx context.Context, history []model.Mess
 	}
 
 	if result.Decision.NeedsTaskTemplate {
-		if tool, ok := findCatalogTool(catalog, []string{"task_manage"}); ok {
+		if tool, ok := findCatalogTool(catalog, []string{"workflow_template_manage"}); ok {
 			result.TaskTemplateTool = tool.FullName
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				args := map[string]any{
-					"action":          "template_match",
-					"task_type":       query,
-					"device":          "DockMini",
-					"selected_reason": "ChatDock 会话前置规则判定当前请求属于项目操作任务，需先匹配任务模板。",
+					"action": "match",
+					"goal":   query,
+					"device": "DockMini",
 				}
 				value, err := callPreflightTool(ctx, tool.FullName, args, runTool, safeEmit)
 				mu.Lock()
@@ -135,7 +134,7 @@ func (a *App) runConversationPreflight(ctx context.Context, history []model.Mess
 				result.TaskTemplateResult = value
 			}()
 		} else {
-			result.TaskTemplateError = "task_manage tool not found"
+			result.TaskTemplateError = "workflow_template_manage tool not found"
 		}
 	}
 

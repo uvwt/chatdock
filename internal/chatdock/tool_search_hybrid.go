@@ -105,7 +105,7 @@ func findPinnedCatalogTool(catalog toolCatalog, candidate string) (mcp.MCPTool, 
 	return mcp.MCPTool{}, false
 }
 
-var pinnedToolSearchCandidates = []string{"exec_command", "skill_manage", "task_manage"}
+var pinnedToolSearchCandidates = []string{"exec_command", "skill_read", "skill_run", "workflow_template_manage", "task_manage"}
 
 func keywordToolScores(catalog toolCatalog, query string) map[string]int {
 	query = strings.ToLower(strings.TrimSpace(query))
@@ -275,10 +275,18 @@ func pinnedToolSearchAliases(tool mcp.MCPTool) string {
 	switch {
 	case toolNameMatches(tool.FullName, tool.Name, "exec_command"):
 		return "命令 执行命令 shell terminal 终端 bash zsh command exec_command 运行命令 查看状态 git docker go test"
-	case toolNameMatches(tool.FullName, tool.Name, "skill_manage"):
-		return "Skill 技能 skill 工具 技能管理 Skill Runtime validate install run rollback env"
+	case toolNameMatches(tool.FullName, tool.Name, "skill_read"):
+		return "Skill 技能 skill 工具 技能发现 只读 inspect list 查看 Skill Runtime"
+	case toolNameMatches(tool.FullName, tool.Name, "skill_run"):
+		return "Skill 技能 skill 工具 执行 operation run Skill Runtime 调用技能"
+	case toolNameMatches(tool.FullName, tool.Name, "skill_package"):
+		return "Skill 技能 skill 包 生命周期 validate install rollback 安装 校验 回滚 Skill Runtime"
+	case toolNameMatches(tool.FullName, tool.Name, "skill_env_manage"):
+		return "Skill 技能 skill 环境变量 env registry secret plain verify 配置 Skill Runtime"
+	case toolNameMatches(tool.FullName, tool.Name, "workflow_template_manage"):
+		return "任务模板 workflow template match workflow_template_manage 模板匹配 多步骤流程 部署 排障 开发"
 	case toolNameMatches(tool.FullName, tool.Name, "task_manage"):
-		return "任务模板 workflow template template_match 可恢复任务 task_manage 多步骤流程 部署 排障 开发"
+		return "可恢复任务 task_manage create resume block final_review complete_after_review 多步骤流程 部署 排障 开发"
 	default:
 		return ""
 	}

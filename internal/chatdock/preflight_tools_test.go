@@ -1,8 +1,10 @@
 package chatdock
 
 import (
+	"context"
 	"testing"
 
+	"chatdock/internal/chatdock/mcp"
 	"chatdock/internal/chatdock/model"
 )
 
@@ -46,5 +48,28 @@ func TestDecideConversationPreflightContinuePlainDiscussion(t *testing.T) {
 	})
 	if decision.NeedsMemory || decision.NeedsTaskTemplate {
 		t.Fatalf("expected plain continuation not to need tools, got %+v", decision)
+	}
+}
+
+func TestConversationPreflightUsesWorkflowTemplateManageMatch(t *testing.T) {
+	catalog := newToolCatalog([]mcp.MCPTool{
+		{Server: "DockMini", Name: "workflow_template_manage", FullName: "DockMini__workflow_template_manage"},
+	})
+	var calledName string
+	var calledArgs map[string]any
+	result := (&App{}).runConversationPreflight(context.Background(), []model.Message{{Role: "user", Content: "按这个逻辑改 ChatDock 代码"}}, catalog, func(name string, args map[string]any) (any, error) {
+		calledName = name
+		calledArgs = args
+		return map[string]any{"ok": true}, nil
+	}, nil)
+
+	if result.TaskTemplateError != "" {
+		t.Fatalf("unexpected task template error: %s", result.TaskTemplateError)
+	}
+	if calledName != "DockMini__workflow_template_manage" {
+		t.Fatalf("expected workflow_template_manage, got %q", calledName)
+	}
+	if calledArgs["action"] != "match" || calledArgs["goal"] == "" || calledArgs["task_type"] != nil {
+		t.Fatalf("unexpected preflight args: %#v", calledArgs)
 	}
 }

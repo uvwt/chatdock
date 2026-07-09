@@ -15,7 +15,7 @@ import (
 func TestRuntimeContextProbeMessagesContainCapabilityContext(t *testing.T) {
 	capabilityServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"context":"# AgentDock Capability Context\n- exec_command\n- skill_manage\n- task_manage\n任务模板：template_match"}`))
+		_, _ = w.Write([]byte(`{"context":"# AgentDock Context\n- exec_command\n- skill_read\n- skill_run\n- workflow_template_manage\n- task_manage\n任务模板：workflow_template_manage match"}`))
 	}))
 	defer capabilityServer.Close()
 
@@ -29,14 +29,14 @@ func TestRuntimeContextProbeMessagesContainCapabilityContext(t *testing.T) {
 	if len(messages) != 2 {
 		t.Fatalf("expected merged runtime system and latest user, got %#v", messages)
 	}
-	if messages[0]["role"] != "system" || !strings.Contains(toString(messages[0]["content"]), "AgentDock Capability Context") {
+	if messages[0]["role"] != "system" || !strings.Contains(toString(messages[0]["content"]), "AgentDock Context") {
 		t.Fatalf("runtime system context should be first, got %#v", messages)
 	}
 	joined := ""
 	for _, msg := range messages {
 		joined += "\n" + strings.TrimSpace(toString(msg["content"]))
 	}
-	if !strings.Contains(joined, "exec_command") || !strings.Contains(joined, "task_manage") {
+	if !strings.Contains(joined, "exec_command") || !strings.Contains(joined, "workflow_template_manage") || !strings.Contains(joined, "task_manage") {
 		t.Fatalf("capability details missing from model request: %#v", messages)
 	}
 	if messages[len(messages)-1]["role"] != "user" || messages[len(messages)-1]["content"] != "latest" {
