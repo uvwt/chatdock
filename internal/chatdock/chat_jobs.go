@@ -66,7 +66,7 @@ func (a *App) unregisterChatJobCancel(jobID string) {
 	delete(a.jobCancel, strings.TrimSpace(jobID))
 }
 
-func (a *App) cancelChatJob(jobID string) (storepkg.ChatJob, error) {
+func (a *App) cancelChatJob(workspaceID string, jobID string) (storepkg.ChatJob, error) {
 	jobID = strings.TrimSpace(jobID)
 	a.jobMu.Lock()
 	cancel := a.jobCancel[jobID]
@@ -74,7 +74,7 @@ func (a *App) cancelChatJob(jobID string) (storepkg.ChatJob, error) {
 	if cancel != nil {
 		cancel()
 	}
-	job, err := a.store.InterruptChatJob(jobID, "用户已停止生成。")
+	job, err := a.store.InterruptChatJob(workspaceID, jobID, "用户已停止生成。")
 	if err == nil {
 		_, _ = a.store.AddChatJobEvent(jobID, "job_cancelled", map[string]any{"message": "用户已停止生成。"})
 	}
@@ -221,7 +221,7 @@ func (a *App) handleListChatJobs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleCancelChatJob(w http.ResponseWriter, r *http.Request) {
-	job, err := a.cancelChatJob(r.PathValue("id"))
+	job, err := a.cancelChatJob(a.workspaceIDFromRequest(r), r.PathValue("id"))
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, sql.ErrNoRows) {
@@ -245,14 +245,14 @@ func (a *App) handleChatJobEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
-	streamChatJobEvents(r, w, flusher, a, jobID, after)
+	streamChatJobEvents(r, w, flusher, a, a.workspaceIDFromRequest(r), jobID, after)
 }
 
-func streamChatJobEvents(r *http.Request, w http.ResponseWriter, flusher http.Flusher, a *App, jobID string, after int) {
+func streamChatJobEvents(r *http.Request, w http.ResponseWriter, flusher http.Flusher, a *App, workspaceID string, jobID string, after int) {
 	ticker := time.NewTicker(300 * time.Millisecond)
 	defer ticker.Stop()
 	for {
-		job, events, err := a.store.ChatJobEventsAfter(jobID, after)
+		job, events, err := a.store.ChatJobEventsAfter(workspaceID, jobID, after)
 		if err != nil {
 			_ = writeSSE(w, flusher, "error", map[string]string{"message": err.Error()})
 			return

@@ -35,7 +35,7 @@ func TestStoreMCPRunsAndAgentTasks(t *testing.T) {
 	if len(runs.Runs) != 1 || runs.Runs[0].ID != run.ID {
 		t.Fatalf("unexpected runs: %#v", runs.Runs)
 	}
-	detail, err := store.MCPRunDetail(run.ID)
+	detail, err := store.MCPRunDetail("default", run.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestStoreChatJobEventsPersistAndFinish(t *testing.T) {
 	if _, err := store.AddChatJobEvent(job.ID, "delta", llm.StreamDelta{Content: "hello"}); err != nil {
 		t.Fatal(err)
 	}
-	loaded, events, err := store.ChatJobEventsAfter(job.ID, 0)
+	loaded, events, err := store.ChatJobEventsAfter("default", job.ID, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,5 +108,59 @@ func TestStoreChatJobEventsPersistAndFinish(t *testing.T) {
 	}
 	if finished.Status != "success" || finished.Answer != "answer" || finished.Reasoning != "reason" || finished.FinishedAt == nil {
 		t.Fatalf("unexpected finished job: %#v", finished)
+	}
+}
+
+func TestStoreChatJobWorkspaceBoundary(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := store.CreateSession()
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := store.CreateChatJob(session.ID, "req_default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateWorkspace(model.CreateWorkspaceRequest{Name: "research", SystemPrompt: "研究"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.GetChatJob("research", job.ID); err == nil {
+		t.Fatal("chat job from default workspace must not be visible in research workspace")
+	}
+	if _, _, err := store.ChatJobEventsAfter("research", job.ID, 0); err == nil {
+		t.Fatal("chat job events from default workspace must not be visible in research workspace")
+	}
+	if _, err := store.InterruptChatJob("research", job.ID, "stop"); err == nil {
+		t.Fatal("chat job cancel from wrong workspace must fail")
+	}
+	loaded, err := store.GetChatJob("default", job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.ID != job.ID || loaded.Workspace != "default" {
+		t.Fatalf("unexpected default workspace job: %#v", loaded)
+	}
+}
+
+func TestStoreMCPRunDetailWorkspaceBoundary(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run, err := store.StartMCPRun("session-1", "default run")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateWorkspace(model.CreateWorkspaceRequest{Name: "research", SystemPrompt: "研究"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.MCPRunDetail("research", run.ID); err == nil {
+		t.Fatal("mcp run detail from default workspace must not be visible in research workspace")
+	}
+	if detail, err := store.MCPRunDetail("default", run.ID); err != nil || detail.Run.ID != run.ID {
+		t.Fatalf("default workspace should load mcp run detail, detail=%#v err=%v", detail, err)
 	}
 }

@@ -26,11 +26,12 @@ func (a *App) workspaceIDForSession(sessionID string) string {
 func (a *App) workspaceScopeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		workspaceID := a.workspaceIDFromRequest(r)
-		if workspaceID != "" && workspaceID != "default" {
-			// 前端把当前工作空间显式放到每个请求头里；旧 Store 仍有少量当前工作空间缓存，
-			// 因此进入 handler 前先把缓存同步到请求指定的 workspace。无效 workspace 不在这里报错，
-			// 交给具体 handler 返回更贴近业务的错误。
-			_, _ = a.store.LoadWorkspaceCache(model.WorkspaceIDRequest{Name: workspaceID})
+		// 前端会把当前工作空间显式放到每个请求头里；旧 Store 仍有少量当前工作空间缓存，
+		// 因此每个请求都必须同步缓存，包括 default。不能吞掉无效 workspace 错误，否则会继续沿用
+		// 上一次请求留下的缓存，造成跨工作空间串读写。
+		if _, err := a.store.LoadWorkspaceCache(model.WorkspaceIDRequest{Name: workspaceID}); err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
 		}
 		next.ServeHTTP(w, r)
 	})

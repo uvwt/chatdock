@@ -126,10 +126,14 @@ func (s *Store) ListMCPRuns(sessionID string, limit int) (MCPRunResponse, error)
 	return MCPRunResponse{Runs: runs}, nil
 }
 
-func (s *Store) MCPRunDetail(runID string) (MCPRunDetailResponse, error) {
+func (s *Store) MCPRunDetail(workspaceID string, runID string) (MCPRunDetailResponse, error) {
+	workspaceID, err := normalizeWorkspaceID(workspaceID)
+	if err != nil {
+		return MCPRunDetailResponse{}, err
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	run, err := s.getMCPRunLocked(runID)
+	run, err := s.getMCPRunForWorkspaceLocked(workspaceID, runID)
 	if err != nil {
 		return MCPRunDetailResponse{}, err
 	}

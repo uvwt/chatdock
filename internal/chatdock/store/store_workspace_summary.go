@@ -150,8 +150,12 @@ func (s *Store) LoadWorkspaceCache(input model.WorkspaceIDRequest) (model.Worksp
 	if !exists {
 		return model.WorkspaceListResponse{}, fmt.Errorf("workspace not found: %s", name)
 	}
-	if err := s.loadWorkspaceLocked(name); err != nil {
-		return model.WorkspaceListResponse{}, err
+	// 请求级 workspace 同步只负责确保缓存指向目标工作空间；目标已经一致时不要重载，
+	// 避免把当前请求刚写入的内存态会话细节无意义地从表结构重建一遍。
+	if name != s.workspaceCacheID {
+		if err := s.loadWorkspaceLocked(name); err != nil {
+			return model.WorkspaceListResponse{}, err
+		}
 	}
 	workspaces, err := s.listWorkspaceSummariesLocked()
 	if err != nil {

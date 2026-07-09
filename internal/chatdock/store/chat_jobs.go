@@ -66,7 +66,7 @@ func (s *Store) AddChatJobEvent(jobID string, event string, data any) (ChatJobEv
 	if jobID == "" || event == "" {
 		return ChatJobEvent{}, fmt.Errorf("job id and event are required")
 	}
-	if _, err := s.getChatJobLocked(jobID); err != nil {
+	if _, err := s.getChatJobByIDLocked(jobID); err != nil {
 		return ChatJobEvent{}, err
 	}
 	var seq int
@@ -88,7 +88,7 @@ func (s *Store) FinishChatJob(jobID string, status string, answer string, reason
 	defer s.mu.Unlock()
 
 	jobID = strings.TrimSpace(jobID)
-	existing, _ := s.getChatJobLocked(jobID)
+	existing, _ := s.getChatJobByIDLocked(jobID)
 	status = strings.TrimSpace(status)
 	if status == "" {
 		status = "success"
@@ -116,7 +116,7 @@ func (s *Store) FinishChatJob(jobID string, status string, answer string, reason
 			return ChatJob{}, err
 		}
 	}
-	return s.getChatJobLocked(jobID)
+	return s.getChatJobByIDLocked(jobID)
 }
 
 func (s *Store) compactFinishedChatJobEventsLocked(jobID string) error {
@@ -154,17 +154,25 @@ func (s *Store) ListChatJobs(sessionID string, runningOnly bool, limit int) ([]C
 	return scanChatJobs(rows)
 }
 
-func (s *Store) GetChatJob(jobID string) (ChatJob, error) {
+func (s *Store) GetChatJob(workspaceID string, jobID string) (ChatJob, error) {
+	workspaceID, err := normalizeWorkspaceID(workspaceID)
+	if err != nil {
+		return ChatJob{}, err
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.getChatJobLocked(jobID)
+	return s.getChatJobForWorkspaceLocked(workspaceID, jobID)
 }
 
-func (s *Store) ChatJobEventsAfter(jobID string, after int) (ChatJob, []ChatJobEvent, error) {
+func (s *Store) ChatJobEventsAfter(workspaceID string, jobID string, after int) (ChatJob, []ChatJobEvent, error) {
+	workspaceID, err := normalizeWorkspaceID(workspaceID)
+	if err != nil {
+		return ChatJob{}, nil, err
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	job, err := s.getChatJobLocked(jobID)
+	job, err := s.getChatJobForWorkspaceLocked(workspaceID, jobID)
 	if err != nil {
 		return ChatJob{}, nil, err
 	}
@@ -180,12 +188,16 @@ func (s *Store) ChatJobEventsAfter(jobID string, after int) (ChatJob, []ChatJobE
 	return job, events, nil
 }
 
-func (s *Store) InterruptChatJob(jobID string, reason string) (ChatJob, error) {
+func (s *Store) InterruptChatJob(workspaceID string, jobID string, reason string) (ChatJob, error) {
+	workspaceID, err := normalizeWorkspaceID(workspaceID)
+	if err != nil {
+		return ChatJob{}, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	jobID = strings.TrimSpace(jobID)
-	job, err := s.getChatJobLocked(jobID)
+	job, err := s.getChatJobForWorkspaceLocked(workspaceID, jobID)
 	if err != nil {
 		return ChatJob{}, err
 	}
@@ -200,7 +212,7 @@ func (s *Store) InterruptChatJob(jobID string, reason string) (ChatJob, error) {
 	if err != nil {
 		return ChatJob{}, err
 	}
-	return s.getChatJobLocked(jobID)
+	return s.getChatJobByIDLocked(jobID)
 }
 
 func (s *Store) MarkRunningChatJobsInterrupted() error {
@@ -209,8 +221,17 @@ func (s *Store) MarkRunningChatJobsInterrupted() error {
 	return err
 }
 
-func (s *Store) getChatJobLocked(jobID string) (ChatJob, error) {
+func (s *Store) getChatJobByIDLocked(jobID string) (ChatJob, error) {
 	row := s.db.QueryRow(`SELECT workspace_id, id, session_id, request_id, status, answer, reasoning, error, started_at, finished_at, updated_at FROM chat_jobs WHERE id = ?`, strings.TrimSpace(jobID))
+	return scanSingleChatJob(row)
+}
+
+func (s *Store) getChatJobForWorkspaceLocked(workspaceID string, jobID string) (ChatJob, error) {
+	row := s.db.QueryRow(`SELECT workspace_id, id, session_id, request_id, status, answer, reasoning, error, started_at, finished_at, updated_at FROM chat_jobs WHERE workspace_id = ? AND id = ?`, strings.TrimSpace(workspaceID), strings.TrimSpace(jobID))
+	return scanSingleChatJob(row)
+}
+
+func scanSingleChatJob(row *sql.Row) (ChatJob, error) {
 	jobs, err := scanChatJobs(rowRows{row: row})
 	if err != nil {
 		return ChatJob{}, err

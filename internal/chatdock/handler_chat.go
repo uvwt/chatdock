@@ -85,7 +85,7 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 	_ = writeSSE(w, flusher, "job_started", job)
-	streamChatJobEvents(r, w, flusher, a, job.ID, 0)
+	streamChatJobEvents(r, w, flusher, a, a.workspaceIDFromRequest(r), job.ID, 0)
 }
 
 func (a *App) completeWithOptionalTools(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message) (string, error) {

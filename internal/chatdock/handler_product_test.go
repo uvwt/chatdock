@@ -103,16 +103,17 @@ func TestWorkspaceResourceAPIs(t *testing.T) {
 		t.Fatalf("reselect workspace status %d: %s", w.Code, w.Body.String())
 	}
 	r = httptest.NewRequest(http.MethodGet, "/api/config", nil)
+	r.Header.Set("X-Workspace-ID", "research")
 	w = httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
-		t.Fatalf("active config status %d: %s", w.Code, w.Body.String())
+		t.Fatalf("research scoped config status %d: %s", w.Code, w.Body.String())
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &cfg); err != nil {
 		t.Fatal(err)
 	}
 	if cfg.Model != "demo-model" {
-		t.Fatalf("active config did not follow selected workspace: %#v", cfg)
+		t.Fatalf("research scoped config did not follow workspace header: %#v", cfg)
 	}
 
 	r = httptest.NewRequest(http.MethodDelete, "/api/workspaces/default", nil)
@@ -173,6 +174,7 @@ func TestSetupInitPersistsAcrossRestart(t *testing.T) {
 		t.Fatalf("select after restart status %d: %s", w.Code, w.Body.String())
 	}
 	r = httptest.NewRequest(http.MethodGet, "/api/setup/status", nil)
+	r.Header.Set("X-Workspace-ID", "daily")
 	w = httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
@@ -184,5 +186,50 @@ func TestSetupInitPersistsAcrossRestart(t *testing.T) {
 	}
 	if status.NeedsSetup || status.WorkspaceCacheID != "daily" || !status.HasAPIKey {
 		t.Fatalf("setup state did not persist: %#v", status)
+	}
+}
+
+func TestWorkspaceScopeMiddlewareLoadsDefaultAndRejectsInvalidWorkspace(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+
+	r := httptest.NewRequest(http.MethodPost, "/api/workspaces", bytes.NewReader([]byte(`{"name":"research","system_prompt":"研究"}`)))
+	w := httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("create workspace status %d: %s", w.Code, w.Body.String())
+	}
+	r = httptest.NewRequest(http.MethodPost, "/api/workspaces/research/config", bytes.NewReader([]byte(`{"base_url":"https://example.test/v1","api_key":"secret-value","model":"research-model","system_prompt":"研究助手"}`)))
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("save research config status %d: %s", w.Code, w.Body.String())
+	}
+
+	// 创建 research 后 Store 缓存停在 research；显式 default 请求必须切回 default，不能沿用上一次缓存。
+	r = httptest.NewRequest(http.MethodGet, "/api/config", nil)
+	r.Header.Set("X-Workspace-ID", "default")
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("default config status %d: %s", w.Code, w.Body.String())
+	}
+	var cfg model.PublicModelConfig
+	if err := json.Unmarshal(w.Body.Bytes(), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Model == "research-model" || app.store.WorkspaceCacheID() != "default" {
+		t.Fatalf("default scoped request used stale workspace cache, cfg=%#v cache=%s", cfg, app.store.WorkspaceCacheID())
+	}
+
+	r = httptest.NewRequest(http.MethodGet, "/api/config", nil)
+	r.Header.Set("X-Workspace-ID", "missing-workspace")
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("invalid workspace should fail with 400, got %d: %s", w.Code, w.Body.String())
 	}
 }

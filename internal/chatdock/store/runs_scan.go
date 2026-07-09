@@ -23,6 +23,19 @@ func (s *Store) getMCPRunLocked(runID string) (MCPRun, error) {
 	return runs[0], nil
 }
 
+func (s *Store) getMCPRunForWorkspaceLocked(workspaceID string, runID string) (MCPRun, error) {
+	row := s.db.QueryRow(`SELECT workspace_id, id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at FROM mcp_runs WHERE workspace_id = ? AND id = ?`, strings.TrimSpace(workspaceID), strings.TrimSpace(runID))
+	rows := &singleRow{scan: row.Scan}
+	runs, err := scanMCPRuns(rows)
+	if err != nil {
+		return MCPRun{}, err
+	}
+	if len(runs) == 0 {
+		return MCPRun{}, sql.ErrNoRows
+	}
+	return runs[0], nil
+}
+
 func (s *Store) listMCPRunEventsLocked(runID string) ([]MCPRunEvent, error) {
 	rows, err := s.db.Query(`SELECT id, run_id, seq, kind, status, server, tool, action, summary, arguments_json, result_json, error, duration_ms, started_at, finished_at, created_at FROM mcp_run_events WHERE run_id = ? ORDER BY seq ASC`, runID)
 	if err != nil {
