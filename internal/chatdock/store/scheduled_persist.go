@@ -47,19 +47,28 @@ func (s *Store) saveScheduledTasksForWorkspaceLocked(workspaceID string, tasks [
 	if err != nil {
 		return err
 	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	sortScheduledTasks(tasks)
 	keep := map[string]bool{}
 	for _, task := range tasks {
 		task = normalizeScheduledTaskForDB(task)
 		keep[task.ID] = true
-		if err := upsertScheduledTaskTx(s.db, workspaceID, task); err != nil {
+		if err := upsertScheduledTaskTx(tx, workspaceID, task); err != nil {
 			return err
 		}
 	}
-	if err := deleteScheduledTasksExceptWorkspaceLocked(s.db, workspaceID, keep); err != nil {
+	if err := deleteScheduledTasksExceptWorkspaceLocked(tx, workspaceID, keep); err != nil {
 		return err
 	}
-	return s.touchWorkspaceLocked(workspaceID, time.Now())
+	if err := touchWorkspace(tx, workspaceID, time.Now()); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func sortScheduledTasks(tasks []model.ScheduledTask) {

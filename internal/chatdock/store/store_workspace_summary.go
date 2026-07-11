@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -40,42 +41,46 @@ func (s *Store) ensureWorkspaceDefaultsLocked(name string) error {
 	if err != nil {
 		return err
 	}
-	if err := s.ensureWorkspaceLocked(name); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
 		return err
 	}
-	if raw, ok, err := s.getWorkspaceRawLocked(name, "config"); err != nil {
+	defer func() { _ = tx.Rollback() }()
+	now := time.Now()
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO workspaces(name, created_at, updated_at) VALUES(?, ?, ?)`, name, formatDBTime(now), formatDBTime(now)); err != nil {
+		return err
+	}
+	if raw, ok, err := getWorkspaceRawWith(tx, name, "config"); err != nil {
 		return err
 	} else if !ok || strings.TrimSpace(raw) == "" {
-		if err := s.setWorkspaceJSONLocked(name, "config", model.DefaultModelConfig()); err != nil {
+		if err := setWorkspaceJSONWith(tx, name, "config", model.DefaultModelConfig(), now); err != nil {
 			return err
 		}
 	}
-	if raw, ok, err := s.getWorkspaceRawLocked(name, "mcp"); err != nil {
+	if raw, ok, err := getWorkspaceRawWith(tx, name, "mcp"); err != nil {
 		return err
 	} else if !ok || strings.TrimSpace(raw) == "" {
-		if err := s.setWorkspaceRawLocked(name, "mcp", DefaultMCPConfig()); err != nil {
+		if err := setWorkspaceRawWith(tx, name, "mcp", DefaultMCPConfig(), now); err != nil {
 			return err
 		}
 	}
-	return nil
+	return tx.Commit()
 }
 
 func (s *Store) ListWorkspaceSummaries(active string) (model.WorkspaceListResponse, error) {
-	active = strings.TrimSpace(active)
-	if active == "" {
-		active = defaultWorkspaceID
-	}
-	workspaces, err := s.listWorkspaceSummaries(active)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	workspaces, err := listWorkspaceSummariesWith(s.db, active)
 	if err != nil {
 		return model.WorkspaceListResponse{}, err
 	}
-	return model.WorkspaceListResponse{Active: active, Workspaces: workspaces}, nil
+	return model.WorkspaceListResponse{Active: activeWorkspaceFromSummaries(workspaces), Workspaces: workspaces}, nil
 }
 
-func (s *Store) CreateWorkspace(input model.CreateWorkspaceRequest) (model.WorkspaceListResponse, error) {
+func (s *Store) CreateWorkspace(input model.CreateWorkspaceRequest) (WorkspaceResponse, error) {
 	name, err := normalizeWorkspaceID(input.Name)
 	if err != nil {
-		return model.WorkspaceListResponse{}, err
+		return WorkspaceResponse{}, err
 	}
 
 	s.mu.Lock()
@@ -83,84 +88,136 @@ func (s *Store) CreateWorkspace(input model.CreateWorkspaceRequest) (model.Works
 
 	exists, err := s.workspaceExistsLocked(name)
 	if err != nil {
-		return model.WorkspaceListResponse{}, err
+		return WorkspaceResponse{}, err
 	}
 	if exists {
-		return model.WorkspaceListResponse{}, fmt.Errorf("workspace already exists: %s", name)
+		return WorkspaceResponse{}, fmt.Errorf("workspace already exists: %s", name)
 	}
 
-	now := time.Now()
-	if err := s.insertWorkspaceLocked(name, now); err != nil {
-		return model.WorkspaceListResponse{}, err
-	}
 	cfg, err := s.modelConfigForWorkspaceLocked(defaultWorkspaceID)
 	if err != nil {
-		cfg = model.DefaultModelConfig()
+		return WorkspaceResponse{}, fmt.Errorf("load default workspace config: %w", err)
 	}
 	cfg.SystemPrompt = strings.TrimSpace(input.SystemPrompt)
 	if cfg.SystemPrompt == "" {
 		cfg.SystemPrompt = model.DefaultModelConfig().SystemPrompt
 	}
 	cfg = model.NormalizeModelConfig(cfg)
-	if err := s.setWorkspaceJSONLocked(name, "config", cfg); err != nil {
-		return model.WorkspaceListResponse{}, err
-	}
-	if err := s.setWorkspaceRawLocked(name, "mcp", DefaultMCPConfig()); err != nil {
-		return model.WorkspaceListResponse{}, err
-	}
-	workspaces, err := s.listWorkspaceSummaries(name)
+
+	tx, err := s.db.Begin()
 	if err != nil {
-		return model.WorkspaceListResponse{}, err
+		return WorkspaceResponse{}, err
 	}
-	return model.WorkspaceListResponse{Active: name, Workspaces: workspaces}, nil
+	defer func() { _ = tx.Rollback() }()
+
+	now := time.Now()
+	if err := insertWorkspaceRecordsTx(tx, name, now, cfg); err != nil {
+		return WorkspaceResponse{}, err
+	}
+	result, err := listWorkspacesWith(tx, name)
+	if err != nil {
+		return WorkspaceResponse{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return WorkspaceResponse{}, err
+	}
+	return result, nil
 }
 
-func (s *Store) DeleteWorkspace(input model.WorkspaceIDRequest) (model.WorkspaceListResponse, error) {
+func insertWorkspaceRecordsTx(tx *sql.Tx, name string, now time.Time, cfg model.ModelConfig) error {
+	configRaw, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode workspace config: %w", err)
+	}
+	timestamp := formatDBTime(now)
+	if _, err := tx.Exec(`INSERT INTO workspaces(name, created_at, updated_at) VALUES(?, ?, ?)`, name, timestamp, timestamp); err != nil {
+		return err
+	}
+	for _, item := range []struct {
+		key   string
+		value string
+	}{
+		{key: "config", value: string(configRaw) + "\n"},
+		{key: "mcp", value: DefaultMCPConfig()},
+	} {
+		if _, err := tx.Exec(`INSERT INTO workspace_kv(workspace_id, key, value, updated_at) VALUES(?, ?, ?, ?)`, name, item.key, item.value, timestamp); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Store) DeleteWorkspace(input model.WorkspaceIDRequest) (WorkspaceResponse, error) {
 	name, err := normalizeWorkspaceID(input.Name)
 	if err != nil {
-		return model.WorkspaceListResponse{}, err
+		return WorkspaceResponse{}, err
+	}
+	if name == defaultWorkspaceID {
+		return WorkspaceResponse{}, fmt.Errorf("default workspace cannot be deleted")
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	tx, err := s.db.Begin()
+	if err != nil {
+		return WorkspaceResponse{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
 
-	if name == defaultWorkspaceID {
-		return model.WorkspaceListResponse{}, fmt.Errorf("default workspace cannot be deleted")
+	var workspaceCount int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM workspaces WHERE name = ?`, name).Scan(&workspaceCount); err != nil {
+		return WorkspaceResponse{}, err
 	}
-	exists, err := s.workspaceExistsLocked(name)
+	if workspaceCount == 0 {
+		return WorkspaceResponse{}, fmt.Errorf("workspace not found: %s", name)
+	}
+	names, err := listWorkspaceIDsWith(tx)
 	if err != nil {
-		return model.WorkspaceListResponse{}, err
-	}
-	if !exists {
-		return model.WorkspaceListResponse{}, fmt.Errorf("workspace not found: %s", name)
-	}
-	names, err := s.listWorkspaceIDsLocked()
-	if err != nil {
-		return model.WorkspaceListResponse{}, err
+		return WorkspaceResponse{}, err
 	}
 	if len(names) <= 1 {
-		return model.WorkspaceListResponse{}, fmt.Errorf("last workspace cannot be deleted")
+		return WorkspaceResponse{}, fmt.Errorf("last workspace cannot be deleted")
+	}
+	chatJobs, scheduledTasks, err := workspaceRunningWorkWith(tx, name)
+	if err != nil {
+		return WorkspaceResponse{}, err
+	}
+	if chatJobs > 0 || scheduledTasks > 0 {
+		return WorkspaceResponse{}, fmt.Errorf("workspace has running work: chat_jobs=%d scheduled_tasks=%d", chatJobs, scheduledTasks)
 	}
 	// workspace_kv 和各业务表都声明了 ON DELETE CASCADE；删除 workspace 时只删主表，
-	// 让 SQLite 在同一连接内级联清理，避免前后端各自补删造成状态不一致。
-	if _, err := s.db.Exec(`DELETE FROM workspaces WHERE name = ?`, name); err != nil {
-		return model.WorkspaceListResponse{}, err
+	// 让 SQLite 在同一事务内级联清理并生成响应快照，避免“实际已删但接口报错”。
+	if _, err := tx.Exec(`DELETE FROM workspaces WHERE name = ?`, name); err != nil {
+		return WorkspaceResponse{}, err
 	}
-	active := defaultWorkspaceID
-	workspaces, err := s.listWorkspaceSummaries(active)
+	if _, err := tx.Exec(`UPDATE attachment_blobs SET ref_count = (SELECT COUNT(*) FROM attachments WHERE attachments.sha256 = attachment_blobs.sha256)`); err != nil {
+		return WorkspaceResponse{}, err
+	}
+	result, err := listWorkspacesWith(tx, defaultWorkspaceID)
 	if err != nil {
-		return model.WorkspaceListResponse{}, err
+		return WorkspaceResponse{}, err
 	}
-	return model.WorkspaceListResponse{Active: active, Workspaces: workspaces}, nil
+	if err := tx.Commit(); err != nil {
+		return WorkspaceResponse{}, err
+	}
+	return result, nil
 }
 
-func (s *Store) listWorkspaceSummaries(active string) ([]model.WorkspaceSummary, error) {
+func workspaceRunningWorkWith(reader sqlQueryer, name string) (int, int, error) {
+	var chatJobs, scheduledTasks int
+	err := reader.QueryRow(`SELECT
+  (SELECT COUNT(*) FROM chat_jobs WHERE workspace_id = ? AND status = 'running'),
+  (SELECT COUNT(*) FROM scheduled_tasks WHERE workspace_id = ? AND running = 1)`, name, name).Scan(&chatJobs, &scheduledTasks)
+	return chatJobs, scheduledTasks, err
+}
+
+func listWorkspaceSummariesWith(reader sqlQueryer, active string) ([]model.WorkspaceSummary, error) {
 	type workspaceRow struct {
 		name       string
 		createdRaw string
 		updatedRaw string
 	}
-	rows, err := s.db.Query(`SELECT name, created_at, updated_at FROM workspaces`)
+	rows, err := reader.Query(`SELECT name, created_at, updated_at FROM workspaces`)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +240,7 @@ func (s *Store) listWorkspaceSummaries(active string) ([]model.WorkspaceSummary,
 
 	items := []model.WorkspaceSummary{}
 	for _, row := range workspaceRows {
-		item, err := s.workspaceSummaryFromDB(row.name, active, row.createdRaw, row.updatedRaw)
+		item, err := workspaceSummaryFromDB(reader, row.name, active, row.createdRaw, row.updatedRaw)
 		if err != nil {
 			return nil, err
 		}
@@ -198,11 +255,50 @@ func (s *Store) listWorkspaceSummaries(active string) ([]model.WorkspaceSummary,
 		}
 		return items[i].UpdatedAt.After(items[j].UpdatedAt)
 	})
+	markActiveWorkspace(items, active)
 	return items, nil
 }
 
+func markActiveWorkspace(items []model.WorkspaceSummary, requested string) {
+	requested = strings.TrimSpace(requested)
+	resolved := ""
+	for _, item := range items {
+		if item.Name == requested {
+			resolved = requested
+			break
+		}
+	}
+	if resolved == "" {
+		for _, item := range items {
+			if item.Name == defaultWorkspaceID {
+				resolved = defaultWorkspaceID
+				break
+			}
+		}
+	}
+	if resolved == "" && len(items) > 0 {
+		resolved = items[0].Name
+	}
+	for i := range items {
+		items[i].Active = items[i].Name == resolved
+	}
+}
+
+func activeWorkspaceFromSummaries(items []model.WorkspaceSummary) string {
+	for _, item := range items {
+		if item.Active {
+			return item.Name
+		}
+	}
+	return defaultWorkspaceID
+}
+
 func (s *Store) listWorkspaceIDsLocked() ([]string, error) {
-	rows, err := s.db.Query(`SELECT name FROM workspaces`)
+	return listWorkspaceIDsWith(s.db)
+}
+
+func listWorkspaceIDsWith(reader sqlQueryer) ([]string, error) {
+	rows, err := reader.Query(`SELECT name FROM workspaces`)
 	if err != nil {
 		return nil, err
 	}
@@ -222,12 +318,12 @@ func (s *Store) listWorkspaceIDsLocked() ([]string, error) {
 	return names, nil
 }
 
-func (s *Store) workspaceSummaryFromDB(name string, active string, createdRaw string, updatedRaw string) (model.WorkspaceSummary, error) {
+func workspaceSummaryFromDB(reader sqlQueryer, name string, active string, createdRaw string, updatedRaw string) (model.WorkspaceSummary, error) {
 	createdAt := parseDBTime(createdRaw)
 	updatedAt := parseDBTime(updatedRaw)
 	var count int
 	var latest sql.NullString
-	if err := s.db.QueryRow(`SELECT COUNT(*), MAX(updated_at) FROM sessions WHERE workspace_id = ?`, name).Scan(&count, &latest); err != nil {
+	if err := reader.QueryRow(`SELECT COUNT(*), MAX(updated_at) FROM sessions WHERE workspace_id = ?`, name).Scan(&count, &latest); err != nil {
 		return model.WorkspaceSummary{}, err
 	}
 	if latest.Valid {

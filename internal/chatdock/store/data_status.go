@@ -12,9 +12,8 @@ func (s *Store) DataStatus() (DataStatus, error) {
 	s.mu.RLock()
 	dataDir := s.dataDir
 	dbPath := s.dbPath
+	workspaceSummaries, err := listWorkspaceSummariesWith(s.db, defaultWorkspaceID)
 	s.mu.RUnlock()
-
-	workspaceSummaries, err := s.listWorkspaceSummaries(defaultWorkspaceID)
 	if err != nil {
 		return DataStatus{}, err
 	}

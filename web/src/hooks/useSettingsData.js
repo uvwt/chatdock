@@ -65,6 +65,7 @@ export function useSettingsData(api) {
       updated_at: ws.updated_at,
       count: ws.session_count || 0,
     })));
+    return data;
   }, [api]);
 
   const loadConfig = useCallback(async () => {

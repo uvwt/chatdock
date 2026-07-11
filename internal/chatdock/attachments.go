@@ -70,14 +70,20 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 		SHA256:      upload.SHA256,
 		TextContent: text,
 	}
-	if err := a.store.SaveAttachment(workspaceID, record); err != nil {
+	saved, err := a.store.SaveAttachment(workspaceID, record)
+	if err != nil {
 		if upload.OwnsStorage {
 			_ = os.Remove(upload.StoragePath)
 		}
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, model.FileUploadResponse{Attachment: record.Attachment})
+	if upload.OwnsStorage && saved.StoragePath != upload.StoragePath {
+		if err := os.Remove(upload.StoragePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			logError("duplicate_upload_cleanup_failed", err, logFields{"path": upload.StoragePath, "sha256": upload.SHA256})
+		}
+	}
+	writeJSONResponse(w, http.StatusOK, model.FileUploadResponse{Attachment: saved.Attachment})
 }
 
 var errEmptyUpload = errors.New("文件为空")
@@ -125,8 +131,20 @@ func (a *App) persistUploadedFile(workspaceID string, id string, name string, co
 		return persistedUpload{}, err
 	}
 	if ok && strings.TrimSpace(blob.StoragePath) != "" {
-		_ = os.Remove(storagePath)
-		return persistedUpload{ID: id, StoragePath: blob.StoragePath, MIMEType: llm.FirstNonEmptyString(mimeType, blob.MIMEType), SHA256: sha, Size: blob.Size}, nil
+		info, statErr := os.Stat(blob.StoragePath)
+		switch {
+		case statErr == nil && !info.IsDir() && (blob.Size <= 0 || info.Size() == blob.Size):
+			_ = os.Remove(storagePath)
+			return persistedUpload{ID: id, StoragePath: blob.StoragePath, MIMEType: llm.FirstNonEmptyString(mimeType, blob.MIMEType), SHA256: sha, Size: blob.Size}, nil
+		case statErr != nil && !errors.Is(statErr, os.ErrNotExist):
+			_ = os.Remove(storagePath)
+			return persistedUpload{}, statErr
+		case blob.RefCount > 0:
+			_ = os.Remove(storagePath)
+			return persistedUpload{}, fmt.Errorf("attachment blob file is missing or invalid: %s", blob.StoragePath)
+		}
+		// 零引用 Blob 只是可复用缓存；文件已丢失时保留本次新文件，
+		// SaveAttachment 会让它在同一事务中接管 canonical path。
 	}
 	return persistedUpload{ID: id, StoragePath: storagePath, MIMEType: mimeType, SHA256: sha, Size: written, OwnsStorage: true}, nil
 }

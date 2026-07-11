@@ -24,23 +24,13 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	workspaceID := a.workspaceIDFromRequest(r)
-	_, cfg, history, err := a.store.AppendUserMessageWithAttachments(workspaceID, input.SessionID, input.Message, input.AttachmentIDs)
+	_, cfg, history, err := a.store.PrepareChat(workspaceID, input)
 	if err != nil {
-		status := http.StatusInternalServerError
+		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {
 			status = http.StatusNotFound
 		}
 		writeError(w, status, err)
-		return
-	}
-
-	cfg, err = a.store.ResolveChatModelConfig(cfg, input.ProviderID, input.Model)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err)
-		return
-	}
-	if _, err := a.store.UpdateSessionModel(workspaceID, input.SessionID, cfg.ProviderID, cfg.Model); err != nil {
-		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -98,10 +88,6 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) completeWithOptionalTools(ctx context.Context, workspaceID string, sessionID string, cfg model.ModelConfig, history []model.Message) (string, error) {
 	return a.completeWithRecordedTools(ctx, workspaceID, "", sessionID, cfg, history, nil)
-}
-
-func (a *App) streamWithOptionalTools(ctx context.Context, workspaceID string, sessionID string, cfg model.ModelConfig, history []model.Message, emit func(string, any) error) (string, error) {
-	return a.completeWithRecordedTools(ctx, workspaceID, "", sessionID, cfg, history, emit)
 }
 
 func isClientCanceled(ctx context.Context, err error) bool {

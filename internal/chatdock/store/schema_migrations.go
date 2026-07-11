@@ -38,9 +38,6 @@ func (s *Store) ensureSQLiteSchemaUpdates() error {
 		if err := s.runSQLiteSchemaMigration(migration); err != nil {
 			return err
 		}
-		if _, err := s.db.Exec(`INSERT OR REPLACE INTO schema_migrations(version, name, applied_at) VALUES(?, ?, ?)`, migration.Version, migration.Name, formatDBTime(time.Now())); err != nil {
-			return fmt.Errorf("record sqlite migration %03d %s: %w", migration.Version, migration.Name, err)
-		}
 	}
 	return nil
 }
@@ -58,15 +55,23 @@ func (s *Store) sqliteSchemaMigrationApplied(version int) (bool, error) {
 }
 
 func (s *Store) runSQLiteSchemaMigration(migration sqliteSchemaMigration) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
 	for _, stmt := range migration.Statements {
-		if _, err := s.db.Exec(stmt); err != nil {
+		if _, err := tx.Exec(stmt); err != nil {
 			if isSQLiteSchemaAlreadyAppliedError(err) {
 				continue
 			}
 			return fmt.Errorf("apply sqlite migration %03d %s: %w", migration.Version, migration.Name, err)
 		}
 	}
-	return nil
+	if _, err := tx.Exec(`INSERT OR REPLACE INTO schema_migrations(version, name, applied_at) VALUES(?, ?, ?)`, migration.Version, migration.Name, formatDBTime(time.Now())); err != nil {
+		return fmt.Errorf("record sqlite migration %03d %s: %w", migration.Version, migration.Name, err)
+	}
+	return tx.Commit()
 }
 
 func isSQLiteSchemaAlreadyAppliedError(err error) bool {

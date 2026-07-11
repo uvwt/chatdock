@@ -53,8 +53,15 @@ func (s *Store) AddMCPRunEvent(runID string, input RunEventInput) (MCPRunEvent, 
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return MCPRunEvent{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	var seq int
-	if err := s.db.QueryRow(`SELECT COALESCE(MAX(seq), 0) + 1 FROM mcp_run_events WHERE run_id = ?`, runID).Scan(&seq); err != nil {
+	if err := tx.QueryRow(`SELECT COALESCE(MAX(seq), 0) + 1 FROM mcp_run_events WHERE run_id = ?`, runID).Scan(&seq); err != nil {
 		return MCPRunEvent{}, err
 	}
 	event.Seq = seq
@@ -62,12 +69,24 @@ func (s *Store) AddMCPRunEvent(runID string, input RunEventInput) (MCPRunEvent, 
 	if event.FinishedAt != nil {
 		finishedRaw = formatDBTime(*event.FinishedAt)
 	}
-	_, err := s.db.Exec(`INSERT INTO mcp_run_events(id, run_id, seq, kind, status, server, tool, action, summary, arguments_json, result_json, error, duration_ms, started_at, finished_at, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, event.ID, event.RunID, event.Seq, event.Kind, event.Status, event.Server, event.Tool, event.Action, event.Summary, compactJSONForDB(event.Arguments), compactJSONForDB(event.Result), event.Error, event.DurationMS, formatDBTime(event.StartedAt), finishedRaw, formatDBTime(event.CreatedAt))
+	if _, err := tx.Exec(`INSERT INTO mcp_run_events(id, run_id, seq, kind, status, server, tool, action, summary, arguments_json, result_json, error, duration_ms, started_at, finished_at, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, event.ID, event.RunID, event.Seq, event.Kind, event.Status, event.Server, event.Tool, event.Action, event.Summary, compactJSONForDB(event.Arguments), compactJSONForDB(event.Result), event.Error, event.DurationMS, formatDBTime(event.StartedAt), finishedRaw, formatDBTime(event.CreatedAt)); err != nil {
+		return MCPRunEvent{}, err
+	}
+	result, err := tx.Exec(`UPDATE mcp_runs SET event_count = event_count + 1, summary = ?, updated_at = ? WHERE id = ?`, event.Summary, formatDBTime(now), runID)
 	if err != nil {
 		return MCPRunEvent{}, err
 	}
-	_, err = s.db.Exec(`UPDATE mcp_runs SET event_count = event_count + 1, summary = ?, updated_at = ? WHERE id = ?`, event.Summary, formatDBTime(now), runID)
-	return event, err
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return MCPRunEvent{}, err
+	}
+	if affected != 1 {
+		return MCPRunEvent{}, fmt.Errorf("mcp run not found: %s", runID)
+	}
+	if err := tx.Commit(); err != nil {
+		return MCPRunEvent{}, err
+	}
+	return event, nil
 }
 
 func (s *Store) FinishMCPRun(runID string, status string, summary string, runErr error) (MCPRun, error) {

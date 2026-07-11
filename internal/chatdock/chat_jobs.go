@@ -16,47 +16,50 @@ import (
 )
 
 func (a *App) startChatJob(ctx context.Context, workspaceID string, input model.ChatRequest) (storepkg.ChatJob, *model.Session, error) {
-	var session *model.Session
-	var cfg model.ModelConfig
-	var history []model.Message
-	var err error
-	if input.Regenerate {
-		session, cfg, history, err = a.store.PrepareSessionRegeneration(workspaceID, input.SessionID)
-	} else {
-		input.Message = strings.TrimSpace(input.Message)
-		if input.Message == "" && len(input.AttachmentIDs) == 0 {
-			return storepkg.ChatJob{}, nil, fmt.Errorf("message is empty")
+	if err := a.reserveChatJob(); err != nil {
+		return storepkg.ChatJob{}, nil, err
+	}
+	launched := false
+	defer func() {
+		if !launched {
+			a.backgroundWG.Done()
 		}
-		session, cfg, history, err = a.store.AppendUserMessageWithAttachments(workspaceID, input.SessionID, input.Message, input.AttachmentIDs)
-	}
-	if err != nil {
-		return storepkg.ChatJob{}, nil, err
-	}
-	cfg, err = a.store.ResolveChatModelConfig(cfg, input.ProviderID, input.Model)
-	if err != nil {
-		return storepkg.ChatJob{}, nil, err
-	}
-	if _, err := a.store.UpdateSessionModel(workspaceID, input.SessionID, cfg.ProviderID, cfg.Model); err != nil {
-		return storepkg.ChatJob{}, nil, err
-	}
+	}()
+
 	requestID := requestIDFromContext(ctx)
 	if requestID == "" {
 		requestID = newRequestID()
 	}
-	job, err := a.store.CreateChatJob(workspaceID, input.SessionID, requestID)
+	job, session, cfg, history, err := a.store.PrepareChatJob(workspaceID, input, requestID)
 	if err != nil {
 		return storepkg.ChatJob{}, nil, err
 	}
-	jobCtx, cancel := context.WithCancel(withRequestID(context.Background(), requestID))
+	jobCtx, cancel := context.WithCancel(withRequestID(a.lifecycleCtx, requestID))
 	a.registerChatJobCancel(job.ID, cancel)
 	logInfo("chat_job_started", logFields{"request_id": requestID, "job_id": job.ID, "session_id": input.SessionID, "provider_id": cfg.ProviderID, "model": cfg.Model})
-	go a.runChatJob(jobCtx, workspaceID, job.ID, input.SessionID, cfg, history)
+	launched = true
+	go func() {
+		defer a.backgroundWG.Done()
+		a.runChatJob(jobCtx, workspaceID, job.ID, input.SessionID, cfg, history)
+	}()
 	return job, session, nil
+}
+
+func (a *App) reserveChatJob() error {
+	a.jobMu.Lock()
+	defer a.jobMu.Unlock()
+	if a.closing {
+		return errAppShuttingDown
+	}
+	a.backgroundWG.Add(1)
+	return nil
 }
 
 func (a *App) registerChatJobCancel(jobID string, cancel context.CancelFunc) {
 	a.jobMu.Lock()
 	defer a.jobMu.Unlock()
+	// 只有成功 reserveChatJob 的调用方能到这里。即使停服刚开始，
+	// 该任务也属于已接纳工作；它会继承已取消的 lifecycle context 并被 Close 等待。
 	a.jobCancel[strings.TrimSpace(jobID)] = cancel
 }
 
@@ -103,11 +106,7 @@ func (a *App) handleCreateChatJob(w http.ResponseWriter, r *http.Request) {
 	}
 	job, session, err := a.startChatJob(r.Context(), a.workspaceIDFromRequest(r), input)
 	if err != nil {
-		status := http.StatusBadGateway
-		if errors.Is(err, model.ErrSessionNotFound) {
-			status = http.StatusNotFound
-		}
-		writeError(w, status, err)
+		writeError(w, chatPreparationHTTPStatus(err), err)
 		return
 	}
 	writeJSONResponse(w, http.StatusOK, map[string]any{"job": job, "session": session})

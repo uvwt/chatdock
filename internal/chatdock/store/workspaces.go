@@ -8,24 +8,30 @@ import (
 )
 
 func (s *Store) ListWorkspaces(active string) (WorkspaceResponse, error) {
-	if strings.TrimSpace(active) == "" {
-		active = defaultWorkspaceID
-	}
-	workspaceSummaries, err := s.listWorkspaceSummaries(active)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return listWorkspacesWith(s.db, active)
+}
+
+func listWorkspacesWith(reader sqlQueryer, active string) (WorkspaceResponse, error) {
+	workspaceSummaries, err := listWorkspaceSummariesWith(reader, active)
 	if err != nil {
 		return WorkspaceResponse{}, err
 	}
 	items := make([]Workspace, 0, len(workspaceSummaries))
 	for _, workspace := range workspaceSummaries {
-		cfg, err := s.modelConfigForWorkspace(workspace.Name)
+		cfg, err := modelConfigForWorkspaceWith(reader, workspace.Name)
 		if err != nil {
 			return WorkspaceResponse{}, err
 		}
-		tasks, _ := s.scheduledTasksForWorkspace(workspace.Name)
+		tasks, err := loadScheduledTasksForWorkspaceLocked(reader, workspace.Name)
+		if err != nil {
+			return WorkspaceResponse{}, err
+		}
 		ready := workspaceReadinessFromConfig(workspace.Name, cfg)
 		items = append(items, Workspace{ID: workspace.Name, Name: workspace.Name, Description: workspaceDescription(workspace.Name), Icon: "message-circle", ProviderID: cfg.ProviderID, Model: cfg.Model, Models: append([]string(nil), cfg.Models...), SystemPrompt: cfg.SystemPrompt, ContextLimit: cfg.MaxContextMessages, Temperature: cfg.Temperature, HideThinking: cfg.HideThinking, EnableReasoning: cfg.EnableThinking, Ready: ready.Ready, ReadinessReason: ready.Reason, TaskCount: len(tasks), SessionCount: workspace.Count, Active: workspace.Active, Archived: false, CreatedAt: workspace.CreatedAt, UpdatedAt: workspace.UpdatedAt})
 	}
-	return WorkspaceResponse{Active: active, Workspaces: items}, nil
+	return WorkspaceResponse{Active: activeWorkspaceFromSummaries(workspaceSummaries), Workspaces: items}, nil
 }
 
 func (s *Store) WorkspaceConfig(workspaceID string) (model.PublicModelConfig, error) {
@@ -77,16 +83,6 @@ func (s *Store) PromptPreview(workspaceID string) (PromptPreviewResponse, error)
 		return PromptPreviewResponse{}, err
 	}
 	return PromptPreviewResponse{WorkspaceID: workspaceID, WorkspaceName: workspaceID, Content: llm.BuildSystemPrompt(cfg)}, nil
-}
-
-func (s *Store) scheduledTasksForWorkspace(workspaceID string) ([]model.ScheduledTask, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	tasks, err := loadScheduledTasksForWorkspaceLocked(s.db, workspaceID)
-	if err != nil {
-		return nil, err
-	}
-	return cloneScheduledTasks(tasks), nil
 }
 
 func (s *Store) WorkspaceReadiness(workspaceID string) (WorkspaceReadiness, error) {

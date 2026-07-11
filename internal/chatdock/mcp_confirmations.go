@@ -39,7 +39,10 @@ func mcpToolNeedsConfirmation(cfg mcp.MCPConfig, fullName string) bool {
 }
 
 func (a *App) requestMCPConfirmation(ctx context.Context, sessionID string, tool string, args map[string]any, emit func(string, any) error) error {
-	workspaceID := a.workspaceIDForSession(sessionID)
+	workspaceID, err := a.workspaceIDForSession(sessionID)
+	if err != nil {
+		return err
+	}
 	confirmation := &MCPConfirmation{
 		ID:          model.NewID(),
 		Workspace:   workspaceID,

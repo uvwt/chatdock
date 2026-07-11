@@ -89,7 +89,7 @@ func TestStoreChatJobEventsPersistAndFinish(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	job, err := store.CreateChatJob("default", session.ID, "req_test")
+	job, err := createChatJobForTest(t, store, "default", session.ID, "req_test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestInterruptChatJobPersistsCancellationEvent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	job, err := store.CreateChatJob("default", session.ID, "req_cancel")
+	job, err := createChatJobForTest(t, store, "default", session.ID, "req_cancel")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func TestStoreChatJobWorkspaceBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	job, err := store.CreateChatJob("default", session.ID, "req_default")
+	job, err := createChatJobForTest(t, store, "default", session.ID, "req_default")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,5 +203,44 @@ func TestStoreMCPRunDetailWorkspaceBoundary(t *testing.T) {
 	}
 	if detail, err := store.MCPRunDetail("default", run.ID); err != nil || detail.Run.ID != run.ID {
 		t.Fatalf("default workspace should load mcp run detail, detail=%#v err=%v", detail, err)
+	}
+}
+
+func TestAddMCPRunEventRollsBackWhenRunUpdateFails(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := store.Close(); err != nil {
+			t.Errorf("close store: %v", err)
+		}
+	})
+
+	run, err := store.StartMCPRun(defaultWorkspaceID, "session-1", "rollback test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.db.Exec(`CREATE TRIGGER fail_mcp_run_event_count
+BEFORE UPDATE OF event_count ON mcp_runs
+WHEN OLD.id = '` + run.ID + `'
+BEGIN
+  SELECT RAISE(ABORT, 'forced run update failure');
+END`); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := store.AddMCPRunEvent(run.ID, RunEventInput{Status: "success", Tool: "DockMini__task_manage"}); err == nil {
+		t.Fatal("expected run update failure")
+	}
+	var eventCount, storedEventCount int
+	if err := store.db.QueryRow(`SELECT COUNT(*) FROM mcp_run_events WHERE run_id = ?`, run.ID).Scan(&eventCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.db.QueryRow(`SELECT event_count FROM mcp_runs WHERE id = ?`, run.ID).Scan(&storedEventCount); err != nil {
+		t.Fatal(err)
+	}
+	if eventCount != 0 || storedEventCount != 0 {
+		t.Fatalf("partial run event persisted: events=%d event_count=%d", eventCount, storedEventCount)
 	}
 }

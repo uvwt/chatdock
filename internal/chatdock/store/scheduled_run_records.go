@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 
 	"chatdock/internal/chatdock/model"
@@ -50,35 +49,6 @@ func (s *Store) ListScheduledTaskRuns(workspaceID string, taskID string, limit i
 	return model.ScheduledTaskRunRecordResponse{Runs: out}, nil
 }
 
-func sortScheduledTaskRunRecords(records []model.ScheduledTaskRunRecord) {
-	sort.Slice(records, func(i, j int) bool {
-		return records[i].StartedAt.After(records[j].StartedAt)
-	})
-}
-
-func trimScheduledTaskRunRecords(records []model.ScheduledTaskRunRecord, perTaskLimit int, totalLimit int) []model.ScheduledTaskRunRecord {
-	if perTaskLimit <= 0 {
-		perTaskLimit = 100
-	}
-	if totalLimit <= 0 {
-		totalLimit = 500
-	}
-	sortScheduledTaskRunRecords(records)
-	counts := map[string]int{}
-	out := make([]model.ScheduledTaskRunRecord, 0, len(records))
-	for _, record := range records {
-		if len(out) >= totalLimit {
-			break
-		}
-		counts[record.TaskID]++
-		if counts[record.TaskID] > perTaskLimit {
-			continue
-		}
-		out = append(out, record)
-	}
-	return out
-}
-
 func (s *Store) latestSuccessfulScheduledTaskRunLocked(workspaceID string, taskID string) (model.ScheduledTaskRunRecord, bool, error) {
 	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
 	if err != nil {
@@ -95,19 +65,4 @@ func (s *Store) latestSuccessfulScheduledTaskRunLocked(workspaceID string, taskI
 		return model.ScheduledTaskRunRecord{}, false, err
 	}
 	return record, true, nil
-}
-
-func (s *Store) appendScheduledTaskRunRecordLocked(workspaceID string, record model.ScheduledTaskRunRecord) (model.ScheduledTaskRunRecord, error) {
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return model.ScheduledTaskRunRecord{}, err
-	}
-	record = normalizeScheduledRunRecordForDB(record)
-	if record.TaskID == "" {
-		return model.ScheduledTaskRunRecord{}, fmt.Errorf("scheduled task id is empty")
-	}
-	if err := upsertScheduledTaskRunTx(s.db, workspaceID, record); err != nil {
-		return model.ScheduledTaskRunRecord{}, err
-	}
-	return record, nil
 }

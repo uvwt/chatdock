@@ -7,10 +7,14 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func (s *Store) GetModelConfig(workspaceID string) model.ModelConfig {
+func (s *Store) ModelConfig(workspaceID string) (model.ModelConfig, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
+	return s.modelConfigForWorkspaceLocked(workspaceID)
+}
+
+func (s *Store) BestEffortModelConfig(workspaceID string) model.ModelConfig {
+	cfg, err := s.ModelConfig(workspaceID)
 	if err != nil {
 		return model.DefaultModelConfig()
 	}
@@ -56,32 +60,42 @@ func (s *Store) saveModelConfigForWorkspaceLocked(workspaceID string, next model
 	if strings.TrimSpace(next.EmbeddingAPIKey) == "" || isMaskedSecret(next.EmbeddingAPIKey) {
 		next.EmbeddingAPIKey = current.EmbeddingAPIKey
 	}
-	if strings.TrimSpace(next.EmbeddingBaseURL) != current.EmbeddingBaseURL || strings.TrimSpace(next.EmbeddingModel) != current.EmbeddingModel {
-		if err := s.deleteToolEmbeddingsForWorkspaceLocked(workspaceID); err != nil {
-			return model.ModelConfig{}, err
-		}
-	}
+	embeddingChanged := strings.TrimSpace(next.EmbeddingBaseURL) != current.EmbeddingBaseURL || strings.TrimSpace(next.EmbeddingModel) != current.EmbeddingModel
 	if strings.TrimSpace(next.SystemPrompt) == "" {
 		next.SystemPrompt = current.SystemPrompt
 	}
 	next = model.NormalizeModelConfig(next)
-	if requestedBaseURL != "" {
-		if err := s.upsertProviderFromConfigLocked(workspaceID, next); err != nil {
-			return model.ModelConfig{}, err
-		}
-	}
-	merged, err := s.applyProviderToConfigLocked(next)
+
+	tx, err := s.db.Begin()
 	if err != nil {
 		return model.ModelConfig{}, err
 	}
-	if err := s.setWorkspaceJSONLocked(workspaceID, "config", merged); err != nil {
+	defer func() { _ = tx.Rollback() }()
+	if embeddingChanged {
+		if err := deleteToolEmbeddingsWith(tx, workspaceID); err != nil {
+			return model.ModelConfig{}, err
+		}
+	}
+	if requestedBaseURL != "" {
+		if err := upsertProviderFromConfigWith(tx, workspaceID, next); err != nil {
+			return model.ModelConfig{}, err
+		}
+	}
+	merged, err := applyProviderToConfigWith(tx, next)
+	if err != nil {
+		return model.ModelConfig{}, err
+	}
+	if err := setWorkspaceJSONWith(tx, workspaceID, "config", merged, time.Now()); err != nil {
+		return model.ModelConfig{}, err
+	}
+	if err := tx.Commit(); err != nil {
 		return model.ModelConfig{}, err
 	}
 	return merged, nil
 }
 
-func (s *Store) upsertProviderFromConfigLocked(workspaceID string, cfg model.ModelConfig) error {
-	records, err := s.loadModelProviderRecordsLocked()
+func upsertProviderFromConfigWith(db sqlQueryWriter, workspaceID string, cfg model.ModelConfig) error {
+	records, err := loadModelProviderRecordsWith(db)
 	if err != nil {
 		return err
 	}
@@ -101,9 +115,9 @@ func (s *Store) upsertProviderFromConfigLocked(workspaceID string, cfg model.Mod
 		records[i].Enabled = strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != ""
 		records[i].UpdatedAt = now
 		records[i] = normalizeModelProviderRecord(records[i])
-		return s.saveModelProviderRecordsLocked(records)
+		return saveModelProviderRecordsWith(db, records)
 	}
 	record := normalizeModelProviderRecord(modelProviderRecord{ID: id, Name: providerDisplayName(workspaceID, cfg), Type: "openai-compatible", BaseURL: strings.TrimSpace(cfg.BaseURL), APIKeys: upsertProviderAPIKey(nil, "", cfg.APIKey, now), DefaultModel: strings.TrimSpace(cfg.Model), Models: normalizeProviderModelNames(cfg.Models, cfg.Model), TimeoutMS: 120000, Enabled: strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != "", CreatedAt: now, UpdatedAt: now})
 	records = append(records, record)
-	return s.saveModelProviderRecordsLocked(records)
+	return saveModelProviderRecordsWith(db, records)
 }

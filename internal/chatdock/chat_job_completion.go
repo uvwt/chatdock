@@ -40,13 +40,24 @@ func (a *App) finishChatJob(ctx context.Context, workspaceID string, sessionID s
 		return
 	}
 	logInfo("chat_job_finished", fields)
-	go a.generateSessionTitleAfterChat(ctx, workspaceID, sessionID, cfg)
+	a.startSessionTitleGeneration(requestIDFromContext(ctx), workspaceID, sessionID, cfg)
 }
 
-func (a *App) generateSessionTitleAfterChat(ctx context.Context, workspaceID string, sessionID string, cfg model.ModelConfig) {
-	titleCtx, cancel := context.WithTimeout(withRequestID(context.Background(), requestIDFromContext(ctx)), 20*time.Second)
-	defer cancel()
-	if _, err := a.maybeGenerateSessionTitle(titleCtx, workspaceID, sessionID, cfg); err != nil {
-		logError("session_title_generation_failed", err, logFields{"request_id": requestIDFromContext(ctx), "session_id": sessionID})
+func (a *App) startSessionTitleGeneration(requestID string, workspaceID string, sessionID string, cfg model.ModelConfig) {
+	a.jobMu.Lock()
+	if a.closing {
+		a.jobMu.Unlock()
+		return
 	}
+	a.backgroundWG.Add(1)
+	a.jobMu.Unlock()
+
+	go func() {
+		defer a.backgroundWG.Done()
+		titleCtx, cancel := context.WithTimeout(withRequestID(a.lifecycleCtx, requestID), 20*time.Second)
+		defer cancel()
+		if _, err := a.maybeGenerateSessionTitle(titleCtx, workspaceID, sessionID, cfg); err != nil && !isClientCanceled(titleCtx, err) {
+			logError("session_title_generation_failed", err, logFields{"request_id": requestID, "session_id": sessionID})
+		}
+	}()
 }

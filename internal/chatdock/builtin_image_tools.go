@@ -2,10 +2,12 @@ package chatdock
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strings"
 	"time"
@@ -55,7 +57,7 @@ func loadImageURLForModel(ctx context.Context, args map[string]any) (map[string]
 	if err != nil {
 		return nil, err
 	}
-	parsed, err := validatePublicHTTPImageURL(rawURL)
+	parsed, err := validatePublicHTTPImageURL(ctx, rawURL)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +103,7 @@ type imageURLMeta struct {
 	SizeBytes int64
 }
 
-func validatePublicHTTPImageURL(raw string) (*url.URL, error) {
+func validatePublicHTTPImageURL(ctx context.Context, raw string) (*url.URL, error) {
 	parsed, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil {
 		return nil, err
@@ -112,7 +114,7 @@ func validatePublicHTTPImageURL(raw string) (*url.URL, error) {
 	if parsed.Hostname() == "" {
 		return nil, fmt.Errorf("url host is required")
 	}
-	if err := rejectPrivateHost(parsed.Hostname()); err != nil {
+	if err := rejectPrivateHost(ctx, parsed.Hostname()); err != nil {
 		return nil, err
 	}
 	return parsed, nil
@@ -123,7 +125,8 @@ func probeImageURL(ctx context.Context, rawURL string) (imageURLMeta, error) {
 	defer cancel()
 
 	client := &http.Client{
-		Timeout: 25 * time.Second,
+		Timeout:   25 * time.Second,
+		Transport: publicImageTransport(),
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 5 {
 				return fmt.Errorf("too many redirects")
@@ -134,7 +137,7 @@ func probeImageURL(ctx context.Context, rawURL string) (imageURLMeta, error) {
 			if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
 				return fmt.Errorf("redirect url must use http or https")
 			}
-			return rejectPrivateHost(req.URL.Hostname())
+			return rejectPrivateHost(req.Context(), req.URL.Hostname())
 		},
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
@@ -177,43 +180,99 @@ func probeImageURL(ctx context.Context, rawURL string) (imageURLMeta, error) {
 	return imageURLMeta{MIMEType: mimeType, SizeBytes: int64(len(raw))}, nil
 }
 
-func rejectPrivateHost(host string) error {
+func publicImageTransport() *http.Transport {
+	dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}
+	return &http.Transport{
+		Proxy:                 nil,
+		ForceAttemptHTTP2:     true,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 15 * time.Second,
+		IdleConnTimeout:       30 * time.Second,
+		DialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
+			host, port, err := net.SplitHostPort(address)
+			if err != nil {
+				return nil, err
+			}
+			ips, err := resolvePublicHostIPs(ctx, host)
+			if err != nil {
+				return nil, err
+			}
+			var dialErrors []error
+			for _, ip := range ips {
+				conn, dialErr := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+				if dialErr == nil {
+					return conn, nil
+				}
+				dialErrors = append(dialErrors, dialErr)
+			}
+			return nil, errors.Join(dialErrors...)
+		},
+	}
+}
+
+func resolvePublicHostIPs(parent context.Context, host string) ([]net.IP, error) {
 	host = strings.TrimSpace(host)
 	if host == "" {
-		return fmt.Errorf("url host is required")
+		return nil, fmt.Errorf("url host is required")
 	}
 	lower := strings.ToLower(strings.TrimSuffix(host, "."))
 	if lower == "localhost" || strings.HasSuffix(lower, ".localhost") {
-		return fmt.Errorf("private or localhost image URLs are not allowed")
+		return nil, fmt.Errorf("private or localhost image URLs are not allowed")
 	}
 	if ip := net.ParseIP(lower); ip != nil {
 		if isPrivateOrLocalIP(ip) {
-			return fmt.Errorf("private or localhost image URLs are not allowed")
+			return nil, fmt.Errorf("private or localhost image URLs are not allowed")
 		}
-		return nil
+		return []net.IP{ip}, nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	defer cancel()
 	ips, err := net.DefaultResolver.LookupIP(ctx, "ip", lower)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if len(ips) == 0 {
-		return fmt.Errorf("url host has no DNS records")
+		return nil, fmt.Errorf("url host has no DNS records")
 	}
 	for _, ip := range ips {
 		if isPrivateOrLocalIP(ip) {
-			return fmt.Errorf("private or localhost image URLs are not allowed")
+			return nil, fmt.Errorf("private or localhost image URLs are not allowed")
 		}
 	}
-	return nil
+	return ips, nil
+}
+
+func rejectPrivateHost(parent context.Context, host string) error {
+	_, err := resolvePublicHostIPs(parent, host)
+	return err
+}
+
+var blockedImageIPPrefixes = []netip.Prefix{
+	netip.MustParsePrefix("100.64.0.0/10"),  // 运营商共享地址，常用于内部网络。
+	netip.MustParsePrefix("192.0.0.0/24"),   // IETF 协议分配。
+	netip.MustParsePrefix("192.0.2.0/24"),   // 文档地址。
+	netip.MustParsePrefix("192.88.99.0/24"), // 已弃用的 6to4 中继。
+	netip.MustParsePrefix("198.18.0.0/15"),  // 网络设备基准测试。
+	netip.MustParsePrefix("198.51.100.0/24"),
+	netip.MustParsePrefix("203.0.113.0/24"),
+	netip.MustParsePrefix("2001:db8::/32"),
 }
 
 func isPrivateOrLocalIP(ip net.IP) bool {
-	if ip == nil {
+	addr, ok := netip.AddrFromSlice(ip)
+	if !ok {
 		return true
 	}
-	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast()
+	addr = addr.Unmap()
+	if !addr.IsGlobalUnicast() || addr.IsPrivate() || addr.IsLoopback() || addr.IsLinkLocalUnicast() || addr.IsMulticast() || addr.IsUnspecified() {
+		return true
+	}
+	for _, prefix := range blockedImageIPPrefixes {
+		if prefix.Contains(addr) {
+			return true
+		}
+	}
+	return false
 }
 
 func isSupportedVisionImageMIME(mimeType string) bool {

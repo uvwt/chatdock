@@ -61,7 +61,7 @@ func (s *Store) prepareScheduledTaskRunLocked(workspaceID string, id string, man
 	if err != nil {
 		return model.ScheduledTaskRun{}, err
 	}
-	index, task, err := scheduledTaskForRun(tasks, id, manual, now)
+	_, task, err := scheduledTaskForRun(tasks, id, manual, now)
 	if err != nil {
 		return model.ScheduledTaskRun{}, err
 	}
@@ -70,17 +70,16 @@ func (s *Store) prepareScheduledTaskRunLocked(workspaceID string, id string, man
 		return model.ScheduledTaskRun{}, err
 	}
 	userMessage := model.Message{ID: model.NewID(), Role: "user", Content: strings.TrimSpace(task.Prompt), CreatedAt: now}
-	task, sessionID, history, err := s.prepareScheduledTaskContextLocked(workspaceID, cfg, task, userMessage, now)
+	task, session, history, err := s.prepareScheduledTaskContextLocked(workspaceID, cfg, task, userMessage, now)
 	if err != nil {
 		return model.ScheduledTaskRun{}, err
 	}
 	task.Running = true
 	task.UpdatedAt = now
-	tasks[index] = task
-	if err := s.saveScheduledTasksForWorkspaceLocked(workspaceID, tasks); err != nil {
+	if err := s.saveScheduledTaskStartLocked(workspaceID, task, session); err != nil {
 		return model.ScheduledTaskRun{}, err
 	}
-	return model.ScheduledTaskRun{Task: task, WorkspaceID: workspaceID, SessionID: sessionID, RunID: model.NewID(), Config: cfg, History: history}, nil
+	return model.ScheduledTaskRun{Task: task, WorkspaceID: workspaceID, SessionID: session.ID, RunID: model.NewID(), Config: cfg, History: history}, nil
 }
 
 func scheduledTaskForRun(tasks []model.ScheduledTask, id string, manual bool, now time.Time) (int, model.ScheduledTask, error) {
@@ -107,68 +106,73 @@ func scheduledTaskForRun(tasks []model.ScheduledTask, id string, manual bool, no
 	return -1, model.ScheduledTask{}, fmt.Errorf("scheduled task not found: %s", id)
 }
 
-func (s *Store) prepareScheduledTaskContextLocked(workspaceID string, cfg model.ModelConfig, task model.ScheduledTask, userMessage model.Message, now time.Time) (model.ScheduledTask, string, []model.Message, error) {
+func (s *Store) prepareScheduledTaskContextLocked(workspaceID string, cfg model.ModelConfig, task model.ScheduledTask, userMessage model.Message, now time.Time) (model.ScheduledTask, *model.Session, []model.Message, error) {
 	history := []model.Message{userMessage}
 	switch task.ContextMode {
 	case model.ScheduledTaskContextSession:
-		session, updatedTask, err := s.appendScheduledTaskSessionLocked(workspaceID, task, userMessage, now)
+		session, updatedTask, err := s.prepareScheduledTaskSessionLocked(workspaceID, task, userMessage, now)
 		if err != nil {
-			return task, "", nil, err
+			return task, nil, nil, err
 		}
-		return updatedTask, session.ID, cloneMessages(session.Messages), nil
+		return updatedTask, session, cloneMessages(session.Messages), nil
 	case model.ScheduledTaskContextLastResult:
-		session, err := s.createScheduledTaskRunSessionLocked(workspaceID, cfg, task, userMessage, now)
-		if err != nil {
-			return task, "", nil, err
-		}
+		session := newScheduledTaskRunSession(cfg, task, userMessage, now)
 		previous, ok, err := s.latestSuccessfulScheduledTaskRunLocked(workspaceID, task.ID)
 		if err != nil {
-			return task, "", nil, err
+			return task, nil, nil, err
 		}
 		if ok {
 			history = []model.Message{{ID: model.NewID(), Role: "system", Content: "以下是这个定时任务上次成功运行的结果，仅用于延续状态，不代表本次已经完成：\n" + limitRunes(previous.Output, 8000), CreatedAt: now}, userMessage}
 		}
-		return task, session.ID, history, nil
+		return task, session, history, nil
 	default:
-		session, err := s.createScheduledTaskRunSessionLocked(workspaceID, cfg, task, userMessage, now)
-		if err != nil {
-			return task, "", nil, err
-		}
-		return task, session.ID, history, nil
+		return task, newScheduledTaskRunSession(cfg, task, userMessage, now), history, nil
 	}
 }
 
-func (s *Store) appendScheduledTaskSessionLocked(workspaceID string, task model.ScheduledTask, userMessage model.Message, now time.Time) (*model.Session, model.ScheduledTask, error) {
+func (s *Store) prepareScheduledTaskSessionLocked(workspaceID string, task model.ScheduledTask, userMessage model.Message, now time.Time) (*model.Session, model.ScheduledTask, error) {
+	var session *model.Session
 	if strings.TrimSpace(task.SessionID) == "" {
-		session := &model.Session{ID: model.NewID(), Title: "定时任务：" + task.Title, CreatedAt: now, UpdatedAt: now, Messages: []model.Message{}}
-		if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
+		session = &model.Session{ID: model.NewID(), Title: "定时任务：" + task.Title, CreatedAt: now, UpdatedAt: now, Messages: []model.Message{}}
+		task.SessionID = session.ID
+	} else {
+		var ok bool
+		var err error
+		session, ok, err = s.sessionForWorkspaceLocked(workspaceID, task.SessionID)
+		if err != nil {
 			return nil, task, err
 		}
-		task.SessionID = session.ID
-	}
-	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, task.SessionID)
-	if err != nil {
-		return nil, task, err
-	}
-	if !ok {
-		return nil, task, model.ErrSessionNotFound
+		if !ok {
+			return nil, task, model.ErrSessionNotFound
+		}
 	}
 	session.Messages = append(session.Messages, userMessage)
 	session.UpdatedAt = now
-	if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
-		return nil, task, err
-	}
 	return session, task, nil
 }
 
-func (s *Store) createScheduledTaskRunSessionLocked(workspaceID string, cfg model.ModelConfig, task model.ScheduledTask, userMessage model.Message, now time.Time) (*model.Session, error) {
+func newScheduledTaskRunSession(cfg model.ModelConfig, task model.ScheduledTask, userMessage model.Message, now time.Time) *model.Session {
 	title := "定时任务：" + task.Title
 	if task.ContextMode != model.ScheduledTaskContextSession {
-		title = title + " · " + now.Format("01-02 15:04")
+		title += " · " + now.Format("01-02 15:04")
 	}
-	session := &model.Session{ID: model.NewID(), Title: title, ProviderID: cfg.ProviderID, Model: cfg.Model, CreatedAt: now, UpdatedAt: now, Messages: []model.Message{userMessage}}
-	if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
-		return nil, err
+	return &model.Session{ID: model.NewID(), Title: title, ProviderID: cfg.ProviderID, Model: cfg.Model, CreatedAt: now, UpdatedAt: now, Messages: []model.Message{userMessage}}
+}
+
+func (s *Store) saveScheduledTaskStartLocked(workspaceID string, task model.ScheduledTask, session *model.Session) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
 	}
-	return session, nil
+	defer func() { _ = tx.Rollback() }()
+	if err := upsertSessionTablesTx(tx, workspaceID, session); err != nil {
+		return err
+	}
+	if err := upsertScheduledTaskTx(tx, workspaceID, normalizeScheduledTaskForDB(task)); err != nil {
+		return err
+	}
+	if err := touchWorkspace(tx, workspaceID, time.Now()); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

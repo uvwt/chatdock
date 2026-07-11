@@ -111,7 +111,11 @@ func (a *App) builtinSaveModelProvider(workspaceID string, args map[string]any) 
 	id := strings.TrimSpace(stringArg(args, "id"))
 	var previous *store.ModelProvider
 	if id != "" {
-		if found, err := a.findModelProvider(id); err == nil {
+		found, ok, err := a.findModelProvider(id)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
 			previous = &found
 		}
 	}
@@ -119,28 +123,15 @@ func (a *App) builtinSaveModelProvider(workspaceID string, args map[string]any) 
 	if err != nil {
 		return nil, err
 	}
-	var provider store.ModelProvider
-	if previous != nil {
-		provider, err = a.store.UpdateModelProvider(previous.ID, input)
-	} else {
-		provider, err = a.store.CreateModelProvider(input)
-		if err == nil && !input.Enabled {
-			disabledInput := modelProviderInputFromProvider(provider)
-			disabledInput.Enabled = false
-			provider, err = a.store.UpdateModelProvider(provider.ID, disabledInput)
-		}
-	}
+	setDefault, _ := optionalBoolArg(args, "set_as_workspace_default")
+	workspaceModel := strings.TrimSpace(stringArg(args, "workspace_model"))
+	provider, savedConfig, err := a.store.UpsertModelProvider(workspaceID, id, input, setDefault, workspaceModel)
 	if err != nil {
 		return nil, err
 	}
 	result := map[string]any{"ok": true, "provider": provider, "secret_handling": "api_keys 已保存但不会回显；结果只包含 has_api_key/api_key_masked。"}
-	if setDefault, ok := optionalBoolArg(args, "set_as_workspace_default"); ok && setDefault {
-		workspaceModel := strings.TrimSpace(stringArg(args, "workspace_model"))
-		workspace, err := a.setWorkspaceModelProvider(workspaceID, provider.ID, workspaceModel)
-		if err != nil {
-			return nil, err
-		}
-		result["workspace"] = workspace
+	if savedConfig != nil {
+		result["workspace"] = map[string]any{"ok": true, "workspace": workspaceID, "provider_id": savedConfig.ProviderID, "model": savedConfig.Model}
 	}
 	return result, nil
 }
@@ -265,47 +256,26 @@ func (a *App) builtinListModelProviders(args map[string]any) (map[string]any, er
 	return map[string]any{"providers": filtered, "count": len(filtered), "secret_handling": "结果只包含 has_api_key/api_key_masked，不包含明文 api_key。"}, nil
 }
 
-func (a *App) findModelProvider(id string) (store.ModelProvider, error) {
+func (a *App) findModelProvider(id string) (store.ModelProvider, bool, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
-		return store.ModelProvider{}, fmt.Errorf("model provider id is empty")
+		return store.ModelProvider{}, false, fmt.Errorf("model provider id is empty")
 	}
 	providers, err := a.store.ListModelProviders()
 	if err != nil {
-		return store.ModelProvider{}, err
+		return store.ModelProvider{}, false, err
 	}
 	for _, provider := range providers {
 		if provider.ID == id || strings.EqualFold(provider.ID, id) {
-			return provider, nil
+			return provider, true, nil
 		}
 	}
-	return store.ModelProvider{}, fmt.Errorf("model provider not found: %s", id)
-}
-
-func (a *App) setWorkspaceModelProvider(workspaceID string, providerID string, modelName string) (map[string]any, error) {
-	provider, err := a.findModelProvider(providerID)
-	if err != nil {
-		return nil, err
-	}
-	if !provider.Enabled {
-		return nil, fmt.Errorf("model provider is disabled: %s", provider.ID)
-	}
-	cfg := a.store.GetModelConfig(workspaceID)
-	cfg.ProviderID = provider.ID
-	if strings.TrimSpace(modelName) == "" {
-		modelName = provider.DefaultModel
-	}
-	cfg.Model = strings.TrimSpace(modelName)
-	cfg.Models = append([]string(nil), provider.Models...)
-	saved, err := a.store.SaveModelConfig(workspaceID, cfg)
-	if err != nil {
-		return nil, err
-	}
-	return map[string]any{"ok": true, "workspace": workspaceID, "provider_id": saved.ProviderID, "model": saved.Model}, nil
+	return store.ModelProvider{}, false, nil
 }
 
 func modelProviderInputFromArgs(args map[string]any, previous *store.ModelProvider) (store.ModelProviderInput, error) {
-	input := store.ModelProviderInput{Type: "openai-compatible", Enabled: true, TimeoutMS: 120000, KeyStrategy: "auto"}
+	enabled := true
+	input := store.ModelProviderInput{Type: "openai-compatible", Enabled: &enabled, TimeoutMS: 120000, KeyStrategy: "auto"}
 	if previous != nil {
 		input = modelProviderInputFromProvider(*previous)
 	}
@@ -332,7 +302,7 @@ func modelProviderInputFromArgs(args map[string]any, previous *store.ModelProvid
 		input.TimeoutMS = value
 	}
 	if value, ok := optionalBoolArg(args, "enabled"); ok {
-		input.Enabled = value
+		input.Enabled = &value
 	}
 	if value, ok := optionalStringArg(args, "key_strategy"); ok {
 		input.KeyStrategy = strings.ToLower(value)
@@ -359,6 +329,7 @@ func modelProviderInputFromArgs(args map[string]any, previous *store.ModelProvid
 
 func modelProviderInputFromProvider(provider store.ModelProvider) store.ModelProviderInput {
 	keys := make([]store.ModelProviderAPIKeyInput, 0, len(provider.APIKeys))
+	enabled := provider.Enabled
 	for _, key := range provider.APIKeys {
 		enabled := key.Enabled
 		keys = append(keys, store.ModelProviderAPIKeyInput{ID: key.ID, Name: key.Name, APIKey: "********", Enabled: &enabled, Priority: key.Priority})
@@ -371,7 +342,7 @@ func modelProviderInputFromProvider(provider store.ModelProvider) store.ModelPro
 		DefaultModel:  provider.DefaultModel,
 		Models:        append([]string(nil), provider.Models...),
 		TimeoutMS:     provider.TimeoutMS,
-		Enabled:       provider.Enabled,
+		Enabled:       &enabled,
 		KeyStrategy:   provider.KeyStrategy,
 		SelectedKeyID: provider.SelectedKeyID,
 		APIKeys:       keys,

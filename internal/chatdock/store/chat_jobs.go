@@ -41,28 +41,13 @@ type chatJobEventRow struct {
 	CreatedAt time.Time
 }
 
-func (s *Store) CreateChatJob(workspaceID string, sessionID string, requestID string) (ChatJob, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return ChatJob{}, err
-	}
-	if strings.TrimSpace(sessionID) == "" {
-		return ChatJob{}, fmt.Errorf("session id is empty")
-	}
-	if _, ok, err := s.sessionForWorkspaceLocked(workspaceID, sessionID); err != nil {
-		return ChatJob{}, err
-	} else if !ok {
-		return ChatJob{}, model.ErrSessionNotFound
-	}
-	now := time.Now()
-	job := ChatJob{Workspace: workspaceID, ID: model.NewID(), SessionID: strings.TrimSpace(sessionID), RequestID: strings.TrimSpace(requestID), Status: "running", StartedAt: now, UpdatedAt: now}
-	_, err = s.db.Exec(`INSERT INTO chat_jobs(workspace_id, id, session_id, request_id, status, answer, reasoning, error, started_at, finished_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, job.Workspace, job.ID, job.SessionID, job.RequestID, job.Status, "", "", "", formatDBTime(job.StartedAt), "", formatDBTime(job.UpdatedAt))
-	if err != nil {
-		return ChatJob{}, err
-	}
-	return job, nil
+func newChatJob(workspaceID string, sessionID string, requestID string, now time.Time) ChatJob {
+	return ChatJob{Workspace: workspaceID, ID: model.NewID(), SessionID: strings.TrimSpace(sessionID), RequestID: strings.TrimSpace(requestID), Status: "running", StartedAt: now, UpdatedAt: now}
+}
+
+func insertChatJobWith(writer sqlWriter, job ChatJob) error {
+	_, err := writer.Exec(`INSERT INTO chat_jobs(workspace_id, id, session_id, request_id, status, answer, reasoning, error, started_at, finished_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, job.Workspace, job.ID, job.SessionID, job.RequestID, job.Status, "", "", "", formatDBTime(job.StartedAt), "", formatDBTime(job.UpdatedAt))
+	return err
 }
 
 func (s *Store) AddChatJobEvent(jobID string, event string, data any) (ChatJobEvent, error) {
@@ -271,12 +256,6 @@ func (s *Store) InterruptChatJob(workspaceID string, jobID string, reason string
 		return ChatJob{}, err
 	}
 	return s.getChatJobByIDLocked(jobID)
-}
-
-func (s *Store) MarkRunningChatJobsInterrupted() error {
-	now := time.Now()
-	_, err := s.db.Exec(`UPDATE chat_jobs SET status = 'interrupted', error = 'ChatDock restarted before this job finished.', finished_at = ?, updated_at = ? WHERE status = 'running'`, formatDBTime(now), formatDBTime(now))
-	return err
 }
 
 func (s *Store) getChatJobByIDLocked(jobID string) (ChatJob, error) {

@@ -8,14 +8,12 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func (s *Store) modelConfigForWorkspace(prompt string) (model.ModelConfig, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.modelConfigForWorkspaceLocked(prompt)
+func (s *Store) modelConfigForWorkspaceLocked(prompt string) (model.ModelConfig, error) {
+	return modelConfigForWorkspaceWith(s.db, prompt)
 }
 
-func (s *Store) modelConfigForWorkspaceLocked(prompt string) (model.ModelConfig, error) {
-	raw, ok, err := s.getWorkspaceRawLocked(prompt, "config")
+func modelConfigForWorkspaceWith(reader sqlQueryer, prompt string) (model.ModelConfig, error) {
+	raw, ok, err := getWorkspaceRawWith(reader, prompt, "config")
 	if err != nil {
 		return model.ModelConfig{}, err
 	}
@@ -27,7 +25,7 @@ func (s *Store) modelConfigForWorkspaceLocked(prompt string) (model.ModelConfig,
 		return model.ModelConfig{}, err
 	}
 	cfg = model.NormalizeModelConfig(cfg)
-	return s.applyProviderToConfigLocked(cfg)
+	return applyProviderToConfigWith(reader, cfg)
 }
 
 func maskSecret(value string) string {
@@ -54,13 +52,9 @@ func maskSecret(value string) string {
 	return string(runes[:prefixLen]) + strings.Repeat("*", 8) + string(runes[len(runes)-suffixLen:])
 }
 
-func (s *Store) ResolveChatModelConfig(base model.ModelConfig, providerID string, selectedModel string) (model.ModelConfig, error) {
+func (s *Store) resolveChatModelConfigLocked(base model.ModelConfig, providerID string, selectedModel string) (model.ModelConfig, error) {
 	providerID = normalizeProviderID(providerID)
 	selectedModel = strings.TrimSpace(selectedModel)
-
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	next := model.NormalizeModelConfig(base)
 	if providerID == "" {
 		providerID = next.ProviderID
@@ -71,7 +65,7 @@ func (s *Store) ResolveChatModelConfig(base model.ModelConfig, providerID string
 			return model.ModelConfig{}, err
 		}
 		if !ok {
-			return model.ModelConfig{}, fmt.Errorf("model provider not found: %s", providerID)
+			return model.ModelConfig{}, invalidChatRequest("model provider not found: %s", providerID)
 		}
 		// 供应商选择只切换连接、密钥和模型；当前会话的系统提示词和上下文策略继续沿用当前工作空间。
 		next.ProviderID = providerCfg.ProviderID
@@ -92,9 +86,9 @@ func (s *Store) ResolveChatModelConfig(base model.ModelConfig, providerID string
 	return next, nil
 }
 
-func (s *Store) applyProviderToConfigLocked(cfg model.ModelConfig) (model.ModelConfig, error) {
+func applyProviderToConfigWith(reader sqlQueryer, cfg model.ModelConfig) (model.ModelConfig, error) {
 	cfg = model.NormalizeModelConfig(cfg)
-	providerCfg, ok, err := s.modelProviderConfigLocked(cfg.ProviderID)
+	providerCfg, ok, err := modelProviderConfigWith(reader, cfg.ProviderID)
 	if err != nil {
 		return model.ModelConfig{}, err
 	}

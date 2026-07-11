@@ -76,3 +76,23 @@ func TestRequestMCPConfirmationResolvesApprovedState(t *testing.T) {
 		t.Fatalf("resolved confirmation should leave no active state: %d", activeCount)
 	}
 }
+
+func TestRequestMCPConfirmationRejectsUnknownSession(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Close()
+
+	err = app.requestMCPConfirmation(context.Background(), "missing-session", "demo_tool", nil, nil)
+	if err == nil {
+		t.Fatal("unknown session must not fall back to default workspace")
+	}
+	items, listErr := app.store.ListMCPConfirmations("default", true, 10)
+	if listErr != nil {
+		t.Fatal(listErr)
+	}
+	if len(items) != 0 {
+		t.Fatalf("unknown session created default workspace confirmation: %#v", items)
+	}
+}

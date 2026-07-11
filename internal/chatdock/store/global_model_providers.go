@@ -58,7 +58,12 @@ func (s *Store) EnsureGlobalModelProviders() error {
 }
 
 func (s *Store) ensureGlobalModelProvidersLocked() error {
-	records, err := s.loadModelProviderRecordsLocked()
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	records, err := loadModelProviderRecordsWith(tx)
 	if err != nil {
 		return err
 	}
@@ -66,7 +71,7 @@ func (s *Store) ensureGlobalModelProvidersLocked() error {
 		return nil
 	}
 
-	names, err := s.listWorkspaceIDsLocked()
+	names, err := listWorkspaceIDsWith(tx)
 	if err != nil {
 		return err
 	}
@@ -75,7 +80,7 @@ func (s *Store) ensureGlobalModelProvidersLocked() error {
 	}
 	now := time.Now()
 	for _, workspaceID := range names {
-		cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
+		cfg, err := modelConfigForWorkspaceWith(tx, workspaceID)
 		if err != nil {
 			return err
 		}
@@ -96,11 +101,14 @@ func (s *Store) ensureGlobalModelProvidersLocked() error {
 		record = normalizeModelProviderRecord(record)
 		records = append(records, record)
 		cfg.ProviderID = id
-		if err := s.setWorkspaceJSONLocked(workspaceID, "config", cfg); err != nil {
+		if err := setWorkspaceJSONWith(tx, workspaceID, "config", cfg, now); err != nil {
 			return err
 		}
 	}
-	return s.saveModelProviderRecordsLocked(records)
+	if err := saveModelProviderRecordsWith(tx, records); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) ListModelProviders() ([]ModelProvider, error) {
@@ -126,12 +134,102 @@ func (s *Store) ListModelProviders() ([]ModelProvider, error) {
 func (s *Store) CreateModelProvider(input ModelProviderInput) (ModelProvider, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	records, err := s.loadModelProviderRecordsLocked()
 	if err != nil {
 		return ModelProvider{}, err
 	}
-	now := time.Now()
+	records, record, err := createModelProviderRecord(records, input, time.Now())
+	if err != nil {
+		return ModelProvider{}, err
+	}
+	if err := s.saveModelProviderRecordsLocked(records); err != nil {
+		return ModelProvider{}, err
+	}
+	return publicModelProvider(record), nil
+}
+
+func (s *Store) UpdateModelProvider(id string, input ModelProviderInput) (ModelProvider, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	records, err := s.loadModelProviderRecordsLocked()
+	if err != nil {
+		return ModelProvider{}, err
+	}
+	records, record, err := updateModelProviderRecord(records, id, input, time.Now())
+	if err != nil {
+		return ModelProvider{}, err
+	}
+	if err := s.saveModelProviderRecordsLocked(records); err != nil {
+		return ModelProvider{}, err
+	}
+	return publicModelProvider(record), nil
+}
+
+func (s *Store) UpsertModelProvider(workspaceID string, id string, input ModelProviderInput, setWorkspaceDefault bool, workspaceModel string) (ModelProvider, *model.ModelConfig, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	if err != nil {
+		return ModelProvider{}, nil, err
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return ModelProvider{}, nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	records, err := loadModelProviderRecordsWith(tx)
+	if err != nil {
+		return ModelProvider{}, nil, err
+	}
+
+	id = normalizeProviderID(id)
+	var record modelProviderRecord
+	if modelProviderRecordExists(records, id) {
+		records, record, err = updateModelProviderRecord(records, id, input, time.Now())
+	} else {
+		if id != "" {
+			input.ID = id
+		}
+		records, record, err = createModelProviderRecord(records, input, time.Now())
+	}
+	if err != nil {
+		return ModelProvider{}, nil, err
+	}
+	if err := saveModelProviderRecordsWith(tx, records); err != nil {
+		return ModelProvider{}, nil, err
+	}
+
+	var savedConfig *model.ModelConfig
+	if setWorkspaceDefault {
+		if !record.Enabled {
+			return ModelProvider{}, nil, fmt.Errorf("model provider is disabled: %s", record.ID)
+		}
+		cfg, err := modelConfigForWorkspaceWith(tx, workspaceID)
+		if err != nil {
+			return ModelProvider{}, nil, err
+		}
+		cfg.ProviderID = record.ID
+		cfg.Model = strings.TrimSpace(workspaceModel)
+		if cfg.Model == "" {
+			cfg.Model = record.DefaultModel
+		}
+		cfg.Models = append([]string(nil), record.Models...)
+		cfg, err = applyProviderToConfigWith(tx, cfg)
+		if err != nil {
+			return ModelProvider{}, nil, err
+		}
+		if err := setWorkspaceJSONWith(tx, workspaceID, "config", cfg, time.Now()); err != nil {
+			return ModelProvider{}, nil, err
+		}
+		savedConfig = &cfg
+	}
+	if err := tx.Commit(); err != nil {
+		return ModelProvider{}, nil, err
+	}
+	return publicModelProvider(record), savedConfig, nil
+}
+
+func createModelProviderRecord(records []modelProviderRecord, input ModelProviderInput, now time.Time) ([]modelProviderRecord, modelProviderRecord, error) {
 	id := normalizeProviderID(input.ID)
 	if id == "" {
 		id = normalizeProviderID(input.Name)
@@ -143,54 +241,34 @@ func (s *Store) CreateModelProvider(input ModelProviderInput) (ModelProvider, er
 		id = fmt.Sprintf("provider-%d", now.Unix())
 	}
 	id = uniqueProviderID(id, records)
-
-	record := modelProviderRecord{
-		ID:           id,
-		Name:         strings.TrimSpace(input.Name),
-		Type:         strings.TrimSpace(input.Type),
-		BaseURL:      strings.TrimSpace(input.BaseURL),
-		DefaultModel: strings.TrimSpace(input.DefaultModel),
-		Models:       normalizeProviderModelNames(input.Models, input.DefaultModel),
-		TimeoutMS:    input.TimeoutMS,
-		Enabled:      true,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+	enabled := true
+	if input.Enabled != nil {
+		enabled = *input.Enabled
 	}
-	if !input.Enabled && strings.TrimSpace(input.BaseURL) == "" {
-		record.Enabled = false
+	record := modelProviderRecord{
+		ID: id, Name: strings.TrimSpace(input.Name), Type: strings.TrimSpace(input.Type), BaseURL: strings.TrimSpace(input.BaseURL),
+		DefaultModel: strings.TrimSpace(input.DefaultModel), Models: normalizeProviderModelNames(input.Models, input.DefaultModel),
+		TimeoutMS: input.TimeoutMS, Enabled: enabled, CreatedAt: now, UpdatedAt: now,
 	}
 	record.KeyStrategy = input.KeyStrategy
 	record.SelectedKeyID = input.SelectedKeyID
 	record.APIKeys = inputKeysToRecords(input.APIKeys, nil, now)
 	record = normalizeModelProviderRecord(record)
 	if err := validateModelProviderRecord(record); err != nil {
-		return ModelProvider{}, err
+		return nil, modelProviderRecord{}, err
 	}
-	records = append(records, record)
-	if err := s.saveModelProviderRecordsLocked(records); err != nil {
-		return ModelProvider{}, err
-	}
-	return publicModelProvider(record), nil
+	return append(records, record), record, nil
 }
 
-func (s *Store) UpdateModelProvider(id string, input ModelProviderInput) (ModelProvider, error) {
+func updateModelProviderRecord(records []modelProviderRecord, id string, input ModelProviderInput, now time.Time) ([]modelProviderRecord, modelProviderRecord, error) {
 	id = normalizeProviderID(id)
 	if id == "" {
-		return ModelProvider{}, fmt.Errorf("model provider id is required")
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	records, err := s.loadModelProviderRecordsLocked()
-	if err != nil {
-		return ModelProvider{}, err
+		return nil, modelProviderRecord{}, fmt.Errorf("model provider id is required")
 	}
 	for i := range records {
 		if records[i].ID != id {
 			continue
 		}
-		now := time.Now()
 		record := records[i]
 		record.Name = strings.TrimSpace(input.Name)
 		record.Type = strings.TrimSpace(input.Type)
@@ -198,7 +276,9 @@ func (s *Store) UpdateModelProvider(id string, input ModelProviderInput) (ModelP
 		record.DefaultModel = strings.TrimSpace(input.DefaultModel)
 		record.Models = normalizeProviderModelNames(input.Models, input.DefaultModel)
 		record.TimeoutMS = input.TimeoutMS
-		record.Enabled = input.Enabled
+		if input.Enabled != nil {
+			record.Enabled = *input.Enabled
+		}
 		record.KeyStrategy = strings.TrimSpace(input.KeyStrategy)
 		record.SelectedKeyID = normalizeProviderKeyID(input.SelectedKeyID)
 		if input.APIKeys != nil {
@@ -207,44 +287,24 @@ func (s *Store) UpdateModelProvider(id string, input ModelProviderInput) (ModelP
 		record.UpdatedAt = now
 		record = normalizeModelProviderRecord(record)
 		if err := validateModelProviderRecord(record); err != nil {
-			return ModelProvider{}, err
+			return nil, modelProviderRecord{}, err
 		}
 		records[i] = record
-		if err := s.saveModelProviderRecordsLocked(records); err != nil {
-			return ModelProvider{}, err
-		}
-		return publicModelProvider(record), nil
+		return records, record, nil
 	}
-	return ModelProvider{}, fmt.Errorf("model provider not found: %s", id)
+	return nil, modelProviderRecord{}, fmt.Errorf("model provider not found: %s", id)
 }
 
-func (s *Store) UpdateModelProviderModels(id string, models []string) (ModelProvider, error) {
-	id = normalizeProviderID(id)
+func modelProviderRecordExists(records []modelProviderRecord, id string) bool {
 	if id == "" {
-		return ModelProvider{}, fmt.Errorf("model provider id is required")
+		return false
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	records, err := s.loadModelProviderRecordsLocked()
-	if err != nil {
-		return ModelProvider{}, err
+	for _, record := range records {
+		if record.ID == id {
+			return true
+		}
 	}
-	for i := range records {
-		if records[i].ID != id {
-			continue
-		}
-		records[i].Models = normalizeProviderModelNames(models, records[i].DefaultModel)
-		if records[i].DefaultModel == "" && len(records[i].Models) > 0 {
-			records[i].DefaultModel = records[i].Models[0]
-		}
-		records[i].UpdatedAt = time.Now()
-		records[i] = normalizeModelProviderRecord(records[i])
-		if err := s.saveModelProviderRecordsLocked(records); err != nil {
-			return ModelProvider{}, err
-		}
-		return publicModelProvider(records[i]), nil
-	}
-	return ModelProvider{}, fmt.Errorf("model provider not found: %s", id)
+	return false
 }
 
 func (s *Store) MarkModelProviderKeyTestResult(providerID, keyID string, ok bool, errText string, selectOnSuccess bool) (ModelProvider, error) {
@@ -344,11 +404,15 @@ func (s *Store) ModelProviderConfig(id string) (model.ModelConfig, bool, error) 
 }
 
 func (s *Store) modelProviderConfigLocked(id string) (model.ModelConfig, bool, error) {
+	return modelProviderConfigWith(s.db, id)
+}
+
+func modelProviderConfigWith(reader sqlQueryer, id string) (model.ModelConfig, bool, error) {
 	id = normalizeProviderID(id)
 	if id == "" {
 		return model.ModelConfig{}, false, nil
 	}
-	records, err := s.loadModelProviderRecordsLocked()
+	records, err := loadModelProviderRecordsWith(reader)
 	if err != nil {
 		return model.ModelConfig{}, false, err
 	}

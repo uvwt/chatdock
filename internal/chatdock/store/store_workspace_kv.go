@@ -35,10 +35,6 @@ func (s *Store) insertWorkspaceLocked(name string, now time.Time) error {
 	return err
 }
 
-func (s *Store) touchWorkspaceLocked(name string, now time.Time) error {
-	return touchWorkspace(s.db, name, now)
-}
-
 func touchWorkspace(writer sqlWriter, name string, now time.Time) error {
 	result, err := writer.Exec(`UPDATE workspaces SET updated_at = ? WHERE name = ?`, formatDBTime(now), name)
 	if err != nil {
@@ -55,8 +51,12 @@ func touchWorkspace(writer sqlWriter, name string, now time.Time) error {
 }
 
 func (s *Store) getWorkspaceRawLocked(prompt string, key string) (string, bool, error) {
+	return getWorkspaceRawWith(s.db, prompt, key)
+}
+
+func getWorkspaceRawWith(reader sqlQueryer, prompt string, key string) (string, bool, error) {
 	var value string
-	err := s.db.QueryRow(`SELECT value FROM workspace_kv WHERE workspace_id = ? AND key = ?`, prompt, key).Scan(&value)
+	err := reader.QueryRow(`SELECT value FROM workspace_kv WHERE workspace_id = ? AND key = ?`, prompt, key).Scan(&value)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", false, nil
 	}
@@ -67,16 +67,27 @@ func (s *Store) getWorkspaceRawLocked(prompt string, key string) (string, bool, 
 }
 
 func (s *Store) setWorkspaceRawLocked(prompt string, key string, value string) error {
-	if err := s.ensureWorkspaceLocked(prompt); err != nil {
-		return err
-	}
-	now := time.Now()
-	_, err := s.db.Exec(`INSERT INTO workspace_kv(workspace_id, key, value, updated_at) VALUES(?, ?, ?, ?)
-ON CONFLICT(workspace_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`, prompt, key, value, formatDBTime(now))
+	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
-	return s.touchWorkspaceLocked(prompt, now)
+	defer func() { _ = tx.Rollback() }()
+	now := time.Now()
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO workspaces(name, created_at, updated_at) VALUES(?, ?, ?)`, prompt, formatDBTime(now), formatDBTime(now)); err != nil {
+		return err
+	}
+	if err := setWorkspaceRawWith(tx, prompt, key, value, now); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func setWorkspaceRawWith(writer sqlWriter, prompt string, key string, value string, now time.Time) error {
+	if _, err := writer.Exec(`INSERT INTO workspace_kv(workspace_id, key, value, updated_at) VALUES(?, ?, ?, ?)
+ON CONFLICT(workspace_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`, prompt, key, value, formatDBTime(now)); err != nil {
+		return err
+	}
+	return touchWorkspace(writer, prompt, now)
 }
 
 func (s *Store) setWorkspaceJSONLocked(prompt string, key string, value any) error {
@@ -85,6 +96,14 @@ func (s *Store) setWorkspaceJSONLocked(prompt string, key string, value any) err
 		return err
 	}
 	return s.setWorkspaceRawLocked(prompt, key, string(raw)+"\n")
+}
+
+func setWorkspaceJSONWith(writer sqlWriter, prompt string, key string, value any, now time.Time) error {
+	raw, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return err
+	}
+	return setWorkspaceRawWith(writer, prompt, key, string(raw)+"\n", now)
 }
 
 func normalizeWorkspaceID(name string) (string, error) {

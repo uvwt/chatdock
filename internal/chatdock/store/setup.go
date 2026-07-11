@@ -10,12 +10,13 @@ import (
 func (s *Store) SetupStatus() (SetupStatus, error) {
 	s.mu.RLock()
 	dataDir := s.dataDir
-	providers, providerErr := s.loadModelProviderRecordsLocked()
-	s.mu.RUnlock()
-	if providerErr != nil {
-		return SetupStatus{}, providerErr
+	providers, err := s.loadModelProviderRecordsLocked()
+	if err != nil {
+		s.mu.RUnlock()
+		return SetupStatus{}, err
 	}
-	workspaces, err := s.listWorkspaceSummaries(defaultWorkspaceID)
+	workspaces, err := listWorkspaceSummariesWith(s.db, defaultWorkspaceID)
+	s.mu.RUnlock()
 	if err != nil {
 		return SetupStatus{}, err
 	}
@@ -43,16 +44,6 @@ func (s *Store) InitializeSetup(input SetupInitRequest) (SetupStatus, error) {
 	if err != nil {
 		return SetupStatus{}, err
 	}
-	s.mu.Lock()
-	if exists, err := s.workspaceExistsLocked(name); err != nil {
-		s.mu.Unlock()
-		return SetupStatus{}, err
-	} else if !exists {
-		if err := s.insertWorkspaceLocked(name, time.Now()); err != nil {
-			s.mu.Unlock()
-			return SetupStatus{}, err
-		}
-	}
 	cfg := model.DefaultModelConfig()
 	cfg.ProviderID = providerIDFromWorkspace(name)
 	cfg.BaseURL = strings.TrimSpace(input.BaseURL)
@@ -63,17 +54,34 @@ func (s *Store) InitializeSetup(input SetupInitRequest) (SetupStatus, error) {
 		cfg.SystemPrompt = model.DefaultModelConfig().SystemPrompt
 	}
 	cfg = model.NormalizeModelConfig(cfg)
-	if err := s.upsertProviderFromConfigLocked(name, cfg); err != nil {
-		s.mu.Unlock()
-		return SetupStatus{}, err
-	}
-	err = s.setWorkspaceJSONLocked(name, "config", cfg)
-	if err == nil {
-		err = s.setWorkspaceRawLocked(name, "mcp", DefaultMCPConfig())
-	}
-	s.mu.Unlock()
-	if err != nil {
+
+	if err := s.initializeSetupRecords(name, cfg); err != nil {
 		return SetupStatus{}, err
 	}
 	return s.SetupStatus()
+}
+
+func (s *Store) initializeSetupRecords(name string, cfg model.ModelConfig) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	now := time.Now()
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO workspaces(name, created_at, updated_at) VALUES(?, ?, ?)`, name, formatDBTime(now), formatDBTime(now)); err != nil {
+		return err
+	}
+	if err := upsertProviderFromConfigWith(tx, name, cfg); err != nil {
+		return err
+	}
+	if err := setWorkspaceJSONWith(tx, name, "config", cfg, now); err != nil {
+		return err
+	}
+	if err := setWorkspaceRawWith(tx, name, "mcp", DefaultMCPConfig(), now); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

@@ -3,8 +3,10 @@ package chatdock
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"chatdock/internal/chatdock/mcp"
 	"chatdock/internal/chatdock/model"
@@ -59,7 +61,7 @@ func TestConversationPreflightUsesWorkflowTemplateManageMatch(t *testing.T) {
 	})
 	var calledName string
 	var calledArgs map[string]any
-	result := (&App{}).runConversationPreflight(context.Background(), []model.Message{{Role: "user", Content: "按这个逻辑改 ChatDock 代码"}}, catalog, func(name string, args map[string]any) (any, error) {
+	result := (&App{}).runConversationPreflight(context.Background(), []model.Message{{Role: "user", Content: "按这个逻辑改 ChatDock 代码"}}, catalog, func(_ context.Context, name string, args map[string]any) (any, error) {
 		calledName = name
 		calledArgs = args
 		return map[string]any{"ok": true}, nil
@@ -83,7 +85,7 @@ func TestConversationPreflightRunsMemoryAndTemplateWithoutSharedStateRaces(t *te
 	})
 	var mu sync.Mutex
 	calls := map[string]map[string]any{}
-	result := (&App{}).runConversationPreflight(context.Background(), []model.Message{{Role: "user", Content: "按这个逻辑改 ChatDock 代码"}}, catalog, func(name string, args map[string]any) (any, error) {
+	result := (&App{}).runConversationPreflight(context.Background(), []model.Message{{Role: "user", Content: "按这个逻辑改 ChatDock 代码"}}, catalog, func(_ context.Context, name string, args map[string]any) (any, error) {
 		mu.Lock()
 		calls[name] = args
 		mu.Unlock()
@@ -107,12 +109,69 @@ func TestConversationPreflightReturnsEmitterFailureInMatchingBranch(t *testing.T
 		{Server: "DockMini", Name: "workflow_template_manage", FullName: "DockMini__workflow_template_manage"},
 	})
 	emitErr := errors.New("persist preflight event")
-	result := (&App{}).runConversationPreflight(context.Background(), []model.Message{{Role: "user", Content: "按这个逻辑改 ChatDock 代码"}}, catalog, func(name string, args map[string]any) (any, error) {
+	result := (&App{}).runConversationPreflight(context.Background(), []model.Message{{Role: "user", Content: "按这个逻辑改 ChatDock 代码"}}, catalog, func(_ context.Context, name string, args map[string]any) (any, error) {
 		return map[string]any{"tool": name}, nil
 	}, func(event string, value any) error {
 		return emitErr
 	})
 	if result.MemoryError != emitErr.Error() || result.TaskTemplateError != emitErr.Error() {
 		t.Fatalf("expected emitter error in both branches: %+v", result)
+	}
+}
+
+func TestConversationPreflightTimeoutCancelsContextAwareTools(t *testing.T) {
+	catalog := newToolCatalog([]mcp.MCPTool{
+		{Server: "DockMini", Name: "recall_bootstrap", FullName: "DockMini__recall_bootstrap"},
+		{Server: "DockMini", Name: "workflow_template_manage", FullName: "DockMini__workflow_template_manage"},
+	})
+	canceled := make(chan struct{}, 2)
+	result := (&App{}).runConversationPreflightWithin(context.Background(), []model.Message{{Role: "user", Content: "提交并部署 ChatDock"}}, catalog, func(ctx context.Context, name string, args map[string]any) (any, error) {
+		<-ctx.Done()
+		canceled <- struct{}{}
+		return nil, ctx.Err()
+	}, nil, 20*time.Millisecond)
+	if !strings.Contains(result.MemoryError, context.DeadlineExceeded.Error()) || !strings.Contains(result.TaskTemplateError, context.DeadlineExceeded.Error()) {
+		t.Fatalf("expected timeout errors in both branches: %+v", result)
+	}
+	for range 2 {
+		select {
+		case <-canceled:
+		case <-time.After(time.Second):
+			t.Fatal("preflight tool did not receive canceled context")
+		}
+	}
+}
+
+func TestConversationPreflightTimeoutDoesNotWaitForMisbehavingTool(t *testing.T) {
+	catalog := newToolCatalog([]mcp.MCPTool{{Server: "DockMini", Name: "recall_bootstrap", FullName: "DockMini__recall_bootstrap"}})
+	release := make(chan struct{})
+	finished := make(chan struct{})
+	events := make(chan string, 4)
+	startedAt := time.Now()
+	result := (&App{}).runConversationPreflightWithin(context.Background(), []model.Message{{Role: "user", Content: "按这个逻辑改 ChatDock 代码"}}, catalog, func(context.Context, string, map[string]any) (any, error) {
+		<-release
+		close(finished)
+		return map[string]any{"late": true}, nil
+	}, func(event string, value any) error {
+		events <- event
+		return nil
+	}, 20*time.Millisecond)
+	if elapsed := time.Since(startedAt); elapsed > 500*time.Millisecond {
+		t.Fatalf("preflight waited for a non-cooperative tool: %s", elapsed)
+	}
+	if !strings.Contains(result.MemoryError, context.DeadlineExceeded.Error()) {
+		t.Fatalf("expected timeout result, got %+v", result)
+	}
+	close(release)
+	select {
+	case <-finished:
+	case <-time.After(time.Second):
+		t.Fatal("misbehaving tool did not finish after release")
+	}
+	if len(events) != 1 {
+		t.Fatalf("late preflight result event was emitted: %d events", len(events))
+	}
+	if event := <-events; event != "tool_call_start" {
+		t.Fatalf("unexpected preflight event after timeout: %s", event)
 	}
 }

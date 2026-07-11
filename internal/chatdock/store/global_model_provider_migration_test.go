@@ -3,6 +3,8 @@ package store
 import (
 	"encoding/json"
 	"testing"
+
+	"chatdock/internal/chatdock/model"
 )
 
 func TestStoreMigratesLegacyModelProviderAPIKey(t *testing.T) {
@@ -69,7 +71,7 @@ func TestCreateModelProviderPersistsOnlyAPIKeys(t *testing.T) {
 		Name:         "Current",
 		BaseURL:      "https://example.test/v1",
 		DefaultModel: "demo",
-		Enabled:      true,
+		Enabled:      &enabled,
 		APIKeys: []ModelProviderAPIKeyInput{
 			{ID: "main", Name: "主 key", APIKey: "current-secret", Enabled: &enabled, Priority: 1},
 		},
@@ -100,4 +102,168 @@ func TestCreateModelProviderPersistsOnlyAPIKeys(t *testing.T) {
 		return
 	}
 	t.Fatalf("provider %q not found in %s", provider.ID, raw)
+}
+
+func TestModelProviderEnabledOptionalSemantics(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	created, err := store.CreateModelProvider(ModelProviderInput{
+		ID:           "enabled-default",
+		Name:         "Enabled Default",
+		BaseURL:      "https://example.test/v1",
+		DefaultModel: "demo",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !created.Enabled {
+		t.Fatal("omitted enabled must default to true on create")
+	}
+
+	disabled := false
+	createdDisabled, err := store.CreateModelProvider(ModelProviderInput{
+		ID:           "disabled-explicit",
+		Name:         "Disabled Explicit",
+		BaseURL:      "https://disabled.example.test/v1",
+		DefaultModel: "demo",
+		Enabled:      &disabled,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if createdDisabled.Enabled {
+		t.Fatal("explicit false must be persisted during create")
+	}
+
+	updated, err := store.UpdateModelProvider(created.ID, ModelProviderInput{
+		Name:          "Renamed",
+		Type:          created.Type,
+		BaseURL:       created.BaseURL,
+		DefaultModel:  created.DefaultModel,
+		Models:        created.Models,
+		TimeoutMS:     created.TimeoutMS,
+		KeyStrategy:   created.KeyStrategy,
+		SelectedKeyID: created.SelectedKeyID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !updated.Enabled {
+		t.Fatal("omitted enabled must preserve current value on update")
+	}
+}
+
+func TestEnsureGlobalModelProvidersRollsBackAllWorkspaces(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	if _, err := store.CreateWorkspace(model.CreateWorkspaceRequest{Name: "research"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.db.Exec(`DELETE FROM meta WHERE key = ?`, modelProvidersMetaKey); err != nil {
+		t.Fatal(err)
+	}
+	before := map[string]string{}
+	for _, workspaceID := range []string{defaultWorkspaceID, "research"} {
+		cfg, err := store.ModelConfig(workspaceID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cfg.ProviderID = ""
+		if err := store.setWorkspaceJSONLocked(workspaceID, "config", cfg); err != nil {
+			t.Fatal(err)
+		}
+		raw, ok, err := store.getWorkspaceRawLocked(workspaceID, "config")
+		if err != nil || !ok {
+			t.Fatalf("read %s config: ok=%v err=%v", workspaceID, ok, err)
+		}
+		before[workspaceID] = raw
+	}
+	if _, err := store.db.Exec(`CREATE TRIGGER fail_research_provider_migration
+BEFORE UPDATE ON workspace_kv
+WHEN OLD.workspace_id = 'research' AND OLD.key = 'config'
+BEGIN
+  SELECT RAISE(ABORT, 'forced provider migration failure');
+END`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.EnsureGlobalModelProviders(); err == nil {
+		t.Fatal("expected provider migration failure")
+	}
+	meta, err := store.metaValue(modelProvidersMetaKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta != "" {
+		t.Fatal("provider metadata persisted despite migration rollback")
+	}
+	for workspaceID, want := range before {
+		got, ok, err := store.getWorkspaceRawLocked(workspaceID, "config")
+		if err != nil || !ok {
+			t.Fatalf("read %s after rollback: ok=%v err=%v", workspaceID, ok, err)
+		}
+		if got != want {
+			t.Fatalf("workspace %s config changed despite migration rollback", workspaceID)
+		}
+	}
+}
+
+func TestUpsertModelProviderRollsBackWhenWorkspaceDefaultSaveFails(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	beforeMeta, err := store.metaValue(modelProvidersMetaKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeConfig, ok, err := store.getWorkspaceRawLocked(defaultWorkspaceID, "config")
+	if err != nil || !ok {
+		t.Fatalf("read initial config: ok=%v err=%v", ok, err)
+	}
+	if _, err := store.db.Exec(`CREATE TRIGGER fail_provider_workspace_default
+BEFORE UPDATE ON workspace_kv
+WHEN OLD.workspace_id = 'default' AND OLD.key = 'config'
+BEGIN
+  SELECT RAISE(ABORT, 'forced workspace default failure');
+END`); err != nil {
+		t.Fatal(err)
+	}
+	enabled := true
+	_, _, err = store.UpsertModelProvider(defaultWorkspaceID, "atomic-provider", ModelProviderInput{
+		ID:           "atomic-provider",
+		Name:         "Atomic Provider",
+		Type:         "openai-compatible",
+		BaseURL:      "https://atomic.example.test/v1",
+		DefaultModel: "atomic-model",
+		Models:       []string{"atomic-model"},
+		TimeoutMS:    120000,
+		Enabled:      &enabled,
+		KeyStrategy:  "auto",
+	}, true, "atomic-model")
+	if err == nil {
+		t.Fatal("expected workspace default save failure")
+	}
+	afterMeta, err := store.metaValue(modelProvidersMetaKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if afterMeta != beforeMeta {
+		t.Fatal("provider metadata survived failed workspace default transaction")
+	}
+	afterConfig, ok, err := store.getWorkspaceRawLocked(defaultWorkspaceID, "config")
+	if err != nil || !ok {
+		t.Fatalf("read config after rollback: ok=%v err=%v", ok, err)
+	}
+	if afterConfig != beforeConfig {
+		t.Fatal("workspace config changed despite provider transaction rollback")
+	}
 }

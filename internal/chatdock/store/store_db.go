@@ -19,9 +19,14 @@ type sqlWriter interface {
 	Exec(string, ...any) (sql.Result, error)
 }
 
+type sqlQueryer interface {
+	Query(string, ...any) (*sql.Rows, error)
+	QueryRow(string, ...any) *sql.Row
+}
+
 type sqlQueryWriter interface {
 	sqlWriter
-	Query(string, ...any) (*sql.Rows, error)
+	sqlQueryer
 }
 
 func (s *Store) initSQLite() error {
@@ -337,8 +342,12 @@ func (s *Store) importSessionFile(prompt string, path string) error {
 }
 
 func (s *Store) metaValue(key string) (string, error) {
+	return metaValueWith(s.db, key)
+}
+
+func metaValueWith(reader sqlQueryer, key string) (string, error) {
 	var value string
-	err := s.db.QueryRow(`SELECT value FROM meta WHERE key = ?`, key).Scan(&value)
+	err := reader.QueryRow(`SELECT value FROM meta WHERE key = ?`, key).Scan(&value)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	}
@@ -346,6 +355,10 @@ func (s *Store) metaValue(key string) (string, error) {
 }
 
 func (s *Store) setMetaValue(key string, value string) error {
-	_, err := s.db.Exec(`INSERT INTO meta(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
+	return setMetaValueWith(s.db, key, value)
+}
+
+func setMetaValueWith(writer sqlWriter, key string, value string) error {
+	_, err := writer.Exec(`INSERT INTO meta(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
 	return err
 }

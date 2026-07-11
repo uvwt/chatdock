@@ -46,16 +46,21 @@ func (a *App) startScheduledTask(workspaceID string, id string, manual bool) {
 	a.running[key] = true
 	a.runningMu.Unlock()
 
-	go func() {
+	started := a.startBackgroundWork(func(ctx context.Context) {
 		defer func() {
 			a.runningMu.Lock()
 			delete(a.running, key)
 			a.runningMu.Unlock()
 		}()
-		if _, err := a.executeScheduledTask(context.Background(), workspaceID, id, manual); err != nil {
+		if _, err := a.executeScheduledTask(ctx, workspaceID, id, manual); err != nil && !isClientCanceled(ctx, err) {
 			log.Printf("scheduled task %s failed: %v", key, err)
 		}
-	}()
+	})
+	if !started {
+		a.runningMu.Lock()
+		delete(a.running, key)
+		a.runningMu.Unlock()
+	}
 }
 
 func (a *App) executeScheduledTask(ctx context.Context, workspaceID string, id string, manual bool) (model.ScheduledTaskRunResponse, error) {

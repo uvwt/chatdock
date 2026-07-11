@@ -49,8 +49,23 @@ func TestWorkspaceResourceAPIs(t *testing.T) {
 	}
 	routes := app.routes()
 
-	r := httptest.NewRequest(http.MethodPost, "/api/workspaces", bytes.NewReader([]byte(`{"name":"research","system_prompt":"只做研究总结"}`)))
+	r := httptest.NewRequest(http.MethodGet, "/api/workspaces", nil)
+	r.Header.Set("X-Workspace-ID", "deleted-local-storage")
 	w := httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("list workspaces with stale active status %d: %s", w.Code, w.Body.String())
+	}
+	var staleSpaces storepkg.WorkspaceResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &staleSpaces); err != nil {
+		t.Fatal(err)
+	}
+	if staleSpaces.Active != "default" {
+		t.Fatalf("stale workspace recovery active = %q", staleSpaces.Active)
+	}
+
+	r = httptest.NewRequest(http.MethodPost, "/api/workspaces", bytes.NewReader([]byte(`{"name":"research","system_prompt":"只做研究总结"}`)))
+	w = httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("create workspace status %d: %s", w.Code, w.Body.String())
@@ -59,7 +74,7 @@ func TestWorkspaceResourceAPIs(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &spaces); err != nil {
 		t.Fatal(err)
 	}
-	if spaces.Active != "default" || len(spaces.Workspaces) != 2 {
+	if spaces.Active != "research" || len(spaces.Workspaces) != 2 {
 		t.Fatalf("unexpected workspace response: %#v", spaces)
 	}
 
@@ -115,6 +130,27 @@ func TestWorkspaceResourceAPIs(t *testing.T) {
 	}
 	if cfg.Model != "demo-model" {
 		t.Fatalf("research scoped config did not follow workspace header: %#v", cfg)
+	}
+
+	r = httptest.NewRequest(http.MethodPost, "/api/workspaces", bytes.NewReader([]byte(`{"name":"archive","system_prompt":"归档"}`)))
+	r.Header.Set("X-Workspace-ID", "research")
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("create archive workspace status %d: %s", w.Code, w.Body.String())
+	}
+	r = httptest.NewRequest(http.MethodDelete, "/api/workspaces/archive", nil)
+	r.Header.Set("X-Workspace-ID", "research")
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("delete inactive workspace status %d: %s", w.Code, w.Body.String())
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &spaces); err != nil {
+		t.Fatal(err)
+	}
+	if spaces.Active != "research" || len(spaces.Workspaces) != 2 {
+		t.Fatalf("deleting inactive workspace changed active workspace: %#v", spaces)
 	}
 
 	r = httptest.NewRequest(http.MethodDelete, "/api/workspaces/default", nil)

@@ -330,7 +330,7 @@ func (a *App) embeddingConfig(workspaceID string) model.ModelConfig {
 		}
 		return model.NormalizeModelConfig(cfg)
 	}
-	cfg := a.store.GetModelConfig(workspaceID)
+	cfg := a.store.BestEffortModelConfig(workspaceID)
 	if strings.TrimSpace(cfg.EmbeddingBaseURL) == "" && strings.TrimSpace(a.cfg.EmbeddingBaseURL) != "" {
 		cfg.EmbeddingBaseURL = a.cfg.EmbeddingBaseURL
 		cfg.EmbeddingAPIKey = a.cfg.EmbeddingAPIKey

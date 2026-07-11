@@ -2,11 +2,15 @@ package chatdock
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -253,5 +257,84 @@ func TestModelImageURLIncludesFilenameExtension(t *testing.T) {
 	}
 	if !strings.Contains(url, "expires=") || !strings.Contains(url, "sig=") {
 		t.Fatalf("expected signed URL, got %s", url)
+	}
+}
+
+func TestPersistUploadedFileReplacesMissingZeroReferenceBlob(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Close()
+	if _, err := app.store.CreateWorkspace(model.CreateWorkspaceRequest{Name: "cache-source"}); err != nil {
+		t.Fatal(err)
+	}
+	content := []byte("zero reference content")
+	sum := sha256.Sum256(content)
+	sha := hex.EncodeToString(sum[:])
+	missingPath := filepath.Join(app.cfg.DataDir, "missing-zero-ref.txt")
+	record := model.AttachmentRecord{
+		Attachment:  model.Attachment{ID: "zero-ref-source", Name: "source.txt", MIMEType: "text/plain", Size: int64(len(content)), Status: "stored", CreatedAt: time.Now()},
+		StoragePath: missingPath,
+		SHA256:      sha,
+	}
+	if _, err := app.store.SaveAttachment("cache-source", record); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.store.DeleteWorkspace(model.WorkspaceIDRequest{Name: "cache-source"}); err != nil {
+		t.Fatal(err)
+	}
+
+	upload, err := app.persistUploadedFile("default", "replacement", "replacement.txt", "text/plain", bytes.NewReader(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !upload.OwnsStorage || upload.StoragePath == missingPath {
+		t.Fatalf("missing zero-ref blob was reused: %#v", upload)
+	}
+	if _, err := os.Stat(upload.StoragePath); err != nil {
+		t.Fatalf("replacement upload missing: %v", err)
+	}
+	saved, err := app.store.SaveAttachment("default", model.AttachmentRecord{
+		Attachment:  model.Attachment{ID: upload.ID, Name: "replacement.txt", MIMEType: upload.MIMEType, Size: upload.Size, Status: "stored", CreatedAt: time.Now()},
+		StoragePath: upload.StoragePath,
+		SHA256:      upload.SHA256,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.StoragePath != upload.StoragePath {
+		t.Fatalf("replacement did not become canonical: %#v", saved)
+	}
+}
+
+func TestPersistUploadedFileRejectsMissingReferencedBlob(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Close()
+	content := []byte("referenced content")
+	sum := sha256.Sum256(content)
+	sha := hex.EncodeToString(sum[:])
+	missingPath := filepath.Join(app.cfg.DataDir, "missing-referenced.txt")
+	if _, err := app.store.SaveAttachment("default", model.AttachmentRecord{
+		Attachment:  model.Attachment{ID: "referenced-source", Name: "source.txt", MIMEType: "text/plain", Size: int64(len(content)), Status: "stored", CreatedAt: time.Now()},
+		StoragePath: missingPath,
+		SHA256:      sha,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = app.persistUploadedFile("default", "should-fail", "failed.txt", "text/plain", bytes.NewReader(content))
+	if err == nil || !strings.Contains(err.Error(), "blob file is missing") {
+		t.Fatalf("expected missing referenced blob error, got %v", err)
+	}
+	entries, readErr := os.ReadDir(filepath.Join(app.cfg.DataDir, "uploads", "default"))
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("failed replacement upload was not cleaned up: %#v", entries)
 	}
 }

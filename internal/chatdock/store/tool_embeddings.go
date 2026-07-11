@@ -68,20 +68,25 @@ func (s *Store) SaveToolEmbedding(workspaceID string, item ToolEmbeddingRecord) 
 	return err
 }
 
-func (s *Store) deleteToolEmbeddingsForWorkspaceLocked(workspaceID string) error {
-	_, err := s.db.Exec(`DELETE FROM tool_embeddings WHERE workspace_id = ?`, workspaceID)
+func deleteToolEmbeddingsWith(writer sqlWriter, workspaceID string) error {
+	_, err := writer.Exec(`DELETE FROM tool_embeddings WHERE workspace_id = ?`, workspaceID)
 	return err
 }
 
 func (s *Store) migrateToolEmbeddingBlobs() error {
-	migrated, err := s.metaValue("tool_embedding_blobs_migrated")
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	migrated, err := metaValueWith(tx, "tool_embedding_blobs_migrated")
 	if err != nil {
 		return err
 	}
 	if migrated == "1" {
 		return nil
 	}
-	rows, err := s.db.Query(`SELECT workspace_id, full_name, embedding_model, embedding_json FROM tool_embeddings WHERE length(embedding_blob) = 0`)
+	rows, err := tx.Query(`SELECT workspace_id, full_name, embedding_model, embedding_json FROM tool_embeddings WHERE length(embedding_blob) = 0`)
 	if err != nil {
 		return err
 	}
@@ -109,11 +114,14 @@ func (s *Store) migrateToolEmbeddingBlobs() error {
 		if len(vector) == 0 {
 			return fmt.Errorf("legacy tool embedding %s is empty", it.fullName)
 		}
-		if _, err := s.db.Exec(`UPDATE tool_embeddings SET embedding_blob = ? WHERE workspace_id = ? AND full_name = ? AND embedding_model = ?`, encodeEmbeddingBlob(vector), it.workspaceID, it.fullName, it.model); err != nil {
+		if _, err := tx.Exec(`UPDATE tool_embeddings SET embedding_blob = ? WHERE workspace_id = ? AND full_name = ? AND embedding_model = ?`, encodeEmbeddingBlob(vector), it.workspaceID, it.fullName, it.model); err != nil {
 			return err
 		}
 	}
-	return s.setMetaValue("tool_embedding_blobs_migrated", "1")
+	if err := setMetaValueWith(tx, "tool_embedding_blobs_migrated", "1"); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func encodeEmbeddingBlob(values []float64) []byte {

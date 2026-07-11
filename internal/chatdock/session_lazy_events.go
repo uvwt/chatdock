@@ -268,35 +268,6 @@ func stableToolEventID(sessionID string, messageID string, messageIndex int, eve
 	return "evt_" + hex.EncodeToString(sum[:])[:24]
 }
 
-func findSessionToolEventByID(session *model.Session, eventID string) (model.MessageEvent, bool) {
-	eventID = strings.TrimSpace(eventID)
-	if session == nil || eventID == "" {
-		return model.MessageEvent{}, false
-	}
-	for messageIndex, message := range session.Messages {
-		for eventIndex, event := range message.Events {
-			candidateID := stableToolEventID(session.ID, message.ID, messageIndex, eventIndex, -1, event)
-			if candidateID == eventID {
-				event.ID = candidateID
-				return event, true
-			}
-		}
-		for partIndex, part := range message.Parts {
-			if part.Event == nil {
-				continue
-			}
-			eventIndex := matchingEventIndex(message.Events, *part.Event)
-			candidateID := stableToolEventID(session.ID, message.ID, messageIndex, eventIndex, partIndex, *part.Event)
-			if candidateID == eventID {
-				event := *part.Event
-				event.ID = candidateID
-				return event, true
-			}
-		}
-	}
-	return model.MessageEvent{}, false
-}
-
 func matchingEventIndex(events []model.MessageEvent, target model.MessageEvent) int {
 	for i, event := range events {
 		if target.CallKey != "" && event.CallKey == target.CallKey && event.Kind == target.Kind {

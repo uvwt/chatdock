@@ -281,13 +281,20 @@ export default function App() {
     applySessionModel(s);
     await loadSessions();
     return true;
-  }, [api, applySessionModel, loadSessions]);
+  }, [api, applySessionModel, clearAttachments, loadSessions]);
 
   const refreshAfterLogin = useCallback(async () => {
-    await Promise.allSettled([refreshProductState(), loadWorkspaceSummaries(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
+    const workspaceData = await loadWorkspaceSummaries();
+    const activeWorkspaceID = workspaceData.active || 'default';
+    if (activeWorkspaceID !== selectedWorkspaceID) {
+      setSelectedWorkspaceID(activeWorkspaceID);
+      localStorage.setItem('chatdock.workspaceID', activeWorkspaceID);
+      return;
+    }
+    await Promise.allSettled([refreshProductState(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
     const routeSession = sessionIDFromPath();
     if (routeSession) await loadSessionFromRoute(routeSession).catch(e => showToast('会话路由加载失败：' + e.message, 'error'));
-  }, [refreshProductState, loadWorkspaceSummaries, loadConfig, loadMCPConfig, loadScheduledTasks, loadSessions, loadSessionFromRoute, showToast]);
+  }, [refreshProductState, loadWorkspaceSummaries, loadConfig, loadMCPConfig, loadScheduledTasks, loadSessions, loadSessionFromRoute, selectedWorkspaceID, showToast]);
 
   useEffect(() => {
     let mounted = true;
@@ -457,20 +464,25 @@ export default function App() {
 
   const selectWorkspace = useCallback(async (name) => {
     if (busy) { showToast('当前回复还在进行中，请先暂停或中断后再切换工作空间。', 'error'); return; }
-    if (!name) return;
+    if (!name || name === selectedWorkspaceID) return;
     setWorkspacePickerOpen(false);
-    setSelectedWorkspaceID(name);
-    localStorage.setItem('chatdock.workspaceID', name);
-    await selectWorkspaceRequest(api, name);
-    setCurrent(null);
-    setCurrentTitle('未选择会话');
-    setMessages([{ role: 'empty', content: '已切换工作空间。创建或选择一个会话。' }]);
-    clearAttachments();
-    setChatModel({ provider_id: '', model: '' });
-    await Promise.allSettled([refreshProductState(), loadWorkspaceSummaries(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
-    if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
-    closeSidebarOnMobile();
-  }, [api, busy, refreshProductState, loadWorkspaceSummaries, loadConfig, loadMCPConfig, loadScheduledTasks, loadSessions, closeSidebarOnMobile, showToast]);
+    try {
+      const data = await selectWorkspaceRequest(api, name);
+      const activeWorkspaceID = data.active || name;
+      setWorkspaces(data.workspaces || []);
+      setSelectedWorkspaceID(activeWorkspaceID);
+      localStorage.setItem('chatdock.workspaceID', activeWorkspaceID);
+      setCurrent(null);
+      setCurrentTitle('未选择会话');
+      setMessages([{ role: 'empty', content: '已切换工作空间。创建或选择一个会话。' }]);
+      clearAttachments();
+      setChatModel({ provider_id: '', model: '' });
+      if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
+      closeSidebarOnMobile();
+    } catch (error) {
+      showToast('切换工作空间失败：' + error.message, 'error');
+    }
+  }, [api, busy, clearAttachments, closeSidebarOnMobile, selectedWorkspaceID, showToast]);
 
   const createPersistedSession = useCallback(async ({ refreshList = true } = {}) => {
     const s = await createSessionRecord(api);
@@ -482,7 +494,7 @@ export default function App() {
     if (refreshList) await loadSessions();
     if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
     return s;
-  }, [api, applySessionModel, loadSessions]);
+  }, [api, applySessionModel, clearAttachments, loadSessions]);
 
   const createSession = useCallback(() => {
     if (busy) detachActiveStream();
@@ -498,7 +510,7 @@ export default function App() {
     closeSidebarOnMobile();
     window.setTimeout(() => inputRef.current?.focus(), 0);
     return { id: '', title: '新会话', messages: [], draft: true };
-  }, [busy, closeSidebarOnMobile, detachActiveStream]);
+  }, [busy, clearAttachments, closeSidebarOnMobile, detachActiveStream]);
 
   const openSession = useCallback(async (id, summary = null) => {
     if (!id) return;
@@ -527,7 +539,7 @@ export default function App() {
       setMessages([{ role: 'empty', content: '会话加载失败：' + e.message }]);
       showToast('会话加载失败：' + e.message, 'error');
     }
-  }, [api, applySessionModel, busy, closeSidebarOnMobile, detachActiveStream, loadSessions, messages.length, showToast]);
+  }, [api, applySessionModel, busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, loadSessions, messages.length, showToast]);
 
   const newSession = useCallback(async () => { await createSession(); }, [createSession]);
 
@@ -1023,32 +1035,49 @@ export default function App() {
     });
     if (!values || !values.name.trim()) return;
     const nextWorkspaceID = values.name.trim();
-    setSelectedWorkspaceID(nextWorkspaceID);
-    localStorage.setItem('chatdock.workspaceID', nextWorkspaceID);
-    await createWorkspaceRecord(api, { name: nextWorkspaceID, system_prompt: values.system_prompt || '' });
-    setCurrent(null);
-    setCurrentTitle('未选择会话');
-    setMessages([{ role: 'empty', content: '已创建并切换到新工作空间。' }]);
-    clearAttachments();
-    await Promise.allSettled([refreshProductState(), loadWorkspaceSummaries(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
-    closeSidebarOnMobile();
-    showToast('工作空间已创建', 'success');
-  }, [api, busy, closeSidebarOnMobile, config.system_prompt, loadConfig, loadMCPConfig, loadWorkspaceSummaries, loadScheduledTasks, loadSessions, refreshProductState, showDialog, showToast]);
+    try {
+      const data = await createWorkspaceRecord(api, { name: nextWorkspaceID, system_prompt: values.system_prompt || '' });
+      const activeWorkspaceID = data.active || nextWorkspaceID;
+      setWorkspaces(data.workspaces || []);
+      setSelectedWorkspaceID(activeWorkspaceID);
+      localStorage.setItem('chatdock.workspaceID', activeWorkspaceID);
+      setCurrent(null);
+      setCurrentTitle('未选择会话');
+      setMessages([{ role: 'empty', content: '已创建并切换到新工作空间。' }]);
+      clearAttachments();
+      closeSidebarOnMobile();
+      showToast('工作空间已创建', 'success');
+    } catch (error) {
+      showToast('创建工作空间失败：' + error.message, 'error');
+    }
+  }, [api, busy, clearAttachments, closeSidebarOnMobile, config.system_prompt, showDialog, showToast]);
 
   const deleteWorkspace = useCallback(async (id, name) => {
+    if (busy && id === selectedWorkspaceID) {
+      showToast('当前工作空间仍在生成，请先停止任务再删除。', 'error');
+      return;
+    }
     const ok = await showDialog({ title: '删除工作空间', message: '确定删除工作空间「' + (name || id) + '」？这会删除该工作空间下的配置、任务和会话。若删除当前工作空间，会自动切换到默认工作空间。', confirmText: '删除', danger: true, type: 'confirm' });
     if (!ok) return;
-    const data = await deleteWorkspaceRecord(api, id);
-    setWorkspaces(data.workspaces || []);
-    setSelectedWorkspaceID(data.active || 'default');
-    localStorage.setItem('chatdock.workspaceID', data.active || 'default');
-    setCurrent(null);
-    setCurrentTitle('未选择会话');
-    setMessages([{ role: 'empty', content: '工作空间已删除。当前工作空间：' + (data.active || 'default') }]);
-    clearAttachments();
-    await Promise.allSettled([loadWorkspaceSummaries(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions(), loadSetupStatus(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
-    showToast('工作空间已删除', 'success');
-  }, [api, loadConfig, loadDataStatus, loadMCPConfig, loadModelProviders, loadWorkspaceSummaries, loadScheduledTasks, loadSessions, loadSetupStatus, loadSystemStatus, showDialog, showToast]);
+    try {
+      const data = await deleteWorkspaceRecord(api, id);
+      const activeWorkspaceID = data.active || 'default';
+      const activeChanged = activeWorkspaceID !== selectedWorkspaceID;
+      setWorkspaces(data.workspaces || []);
+      setSelectedWorkspaceID(activeWorkspaceID);
+      localStorage.setItem('chatdock.workspaceID', activeWorkspaceID);
+      setCurrent(null);
+      setCurrentTitle('未选择会话');
+      setMessages([{ role: 'empty', content: '工作空间已删除。当前工作空间：' + activeWorkspaceID }]);
+      clearAttachments();
+      if (!activeChanged) {
+        await Promise.allSettled([loadWorkspaceSummaries(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions(), loadSetupStatus(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
+      }
+      showToast('工作空间已删除', 'success');
+    } catch (error) {
+      showToast('删除工作空间失败：' + error.message, 'error');
+    }
+  }, [api, busy, clearAttachments, loadConfig, loadDataStatus, loadMCPConfig, loadModelProviders, loadWorkspaceSummaries, loadScheduledTasks, loadSessions, loadSetupStatus, loadSystemStatus, selectedWorkspaceID, showDialog, showToast]);
 
   const saveConfig = useCallback(async () => {
     const workspaceID = activeWorkspace?.name || selectedWorkspaceID || 'default';

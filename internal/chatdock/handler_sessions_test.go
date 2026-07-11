@@ -47,6 +47,13 @@ func TestSessionRenameAndExportAPI(t *testing.T) {
 	}
 }
 
+func appendUserMessageForAppTest(t *testing.T, app *App, workspaceID string, sessionID string, content string) {
+	t.Helper()
+	if _, _, _, err := app.store.PrepareChat(workspaceID, model.ChatRequest{SessionID: sessionID, Message: content}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSessionCloneAPI(t *testing.T) {
 	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
@@ -64,9 +71,7 @@ func TestSessionCloneAPI(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := app.store.AppendUserMessage("default", session.ID, "需要复制的消息"); err != nil {
-		t.Fatal(err)
-	}
+	appendUserMessageForAppTest(t, app, "default", session.ID, "需要复制的消息")
 
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodPost, "/api/sessions/"+session.ID+"/clone", bytes.NewReader([]byte(`{}`)))
@@ -114,9 +119,7 @@ func TestSessionBranchAPI(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := app.store.AppendUserMessage("default", session.ID, "需要分支的用户消息"); err != nil {
-		t.Fatal(err)
-	}
+	appendUserMessageForAppTest(t, app, "default", session.ID, "需要分支的用户消息")
 	if _, err := app.store.AppendAssistantMessage("default", session.ID, "需要分支的助手回复"); err != nil {
 		t.Fatal(err)
 	}
@@ -186,15 +189,11 @@ func TestSessionEditUserMessageTruncatesFollowingMessages(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := app.store.AppendUserMessage("default", session.ID, "原始问题"); err != nil {
-		t.Fatal(err)
-	}
+	appendUserMessageForAppTest(t, app, "default", session.ID, "原始问题")
 	if _, err := app.store.AppendAssistantMessage("default", session.ID, "后续回答"); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := app.store.AppendUserMessage("default", session.ID, "后续追问"); err != nil {
-		t.Fatal(err)
-	}
+	appendUserMessageForAppTest(t, app, "default", session.ID, "后续追问")
 
 	body := bytes.NewReader([]byte(`{"message_index":0,"content":"改后的问题"}`))
 	w = httptest.NewRecorder()

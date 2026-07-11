@@ -2,6 +2,7 @@ package chatdock
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -22,9 +23,16 @@ type App struct {
 	client                *llm.ChatClient
 	mcpClient             *mcp.MCPClient
 	server                *http.Server
+	lifecycleCtx          context.Context
+	lifecycleCancel       context.CancelFunc
 	jobMu                 sync.Mutex
 	jobCancel             map[string]context.CancelFunc
 	jobGuidance           map[string][]chatJobGuidance
+	backgroundWG          sync.WaitGroup
+	closing               bool
+	shutdownOnce          sync.Once
+	closeOnce             sync.Once
+	closeErr              error
 	confirmMu             sync.Mutex
 	confirmations         map[string]*MCPConfirmation
 	runningMu             sync.Mutex
@@ -42,21 +50,27 @@ func NewApp(cfg model.ServerConfig) (*App, error) {
 		return nil, err
 	}
 
+	lifecycleCtx, lifecycleCancel := context.WithCancel(context.Background())
 	app := &App{
-		cfg:           cfg,
-		store:         st,
-		client:        llm.NewChatClient(),
-		mcpClient:     mcp.NewMCPClient(),
-		jobCancel:     make(map[string]context.CancelFunc),
-		jobGuidance:   make(map[string][]chatJobGuidance),
-		confirmations: make(map[string]*MCPConfirmation),
-		running:       make(map[string]bool),
-		embeddingMemo: make(map[string][]float64),
+		cfg:             cfg,
+		lifecycleCtx:    lifecycleCtx,
+		lifecycleCancel: lifecycleCancel,
+		store:           st,
+		client:          llm.NewChatClient(),
+		mcpClient:       mcp.NewMCPClient(),
+		jobCancel:       make(map[string]context.CancelFunc),
+		jobGuidance:     make(map[string][]chatJobGuidance),
+		confirmations:   make(map[string]*MCPConfirmation),
+		running:         make(map[string]bool),
+		embeddingMemo:   make(map[string][]float64),
 	}
 	app.server = &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           app.routes(),
 		ReadHeaderTimeout: 10 * time.Second,
+		BaseContext: func(net.Listener) context.Context {
+			return lifecycleCtx
+		},
 	}
 	return app, nil
 }
@@ -66,26 +80,99 @@ func (a *App) ListenAndServe() error {
 	if err != nil {
 		return fmt.Errorf("listen %s failed: %w", a.cfg.Addr, err)
 	}
-	defer func() {
-		if closeErr := a.Close(); closeErr != nil {
-			logError("app_close_failed", closeErr, logFields{"addr": a.cfg.Addr})
-		}
-	}()
-
 	log.Printf("ChatDock listening on %s", displayListenURL(a.cfg.Addr))
 	log.Printf("ChatDock data dir: %s", a.cfg.DataDir)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go a.runScheduler(ctx)
-	go a.warmToolEmbeddingIndex(ctx)
-	return a.server.Serve(listener)
+	a.startBackgroundWork(a.runScheduler)
+	a.startBackgroundWork(a.warmToolEmbeddingIndex)
+	if err := a.server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return nil
+}
+
+func (a *App) startBackgroundWork(run func(context.Context)) bool {
+	if run == nil {
+		return false
+	}
+	a.jobMu.Lock()
+	defer a.jobMu.Unlock()
+	if a.closing {
+		return false
+	}
+	a.backgroundWG.Add(1)
+	go func() {
+		defer a.backgroundWG.Done()
+		run(a.lifecycleCtx)
+	}()
+	return true
+}
+
+func (a *App) Shutdown(ctx context.Context) error {
+	a.beginShutdown()
+	shutdownErr := a.server.Shutdown(ctx)
+	if shutdownErr != nil {
+		shutdownErr = errors.Join(shutdownErr, a.server.Close())
+	}
+	if waitErr := a.waitForBackground(ctx); waitErr != nil {
+		return errors.Join(shutdownErr, waitErr)
+	}
+	return errors.Join(shutdownErr, a.closeStore())
 }
 
 func (a *App) Close() error {
-	if a.store == nil {
-		return nil
+	a.beginShutdown()
+	serverErr := a.server.Close()
+	if errors.Is(serverErr, http.ErrServerClosed) || errors.Is(serverErr, net.ErrClosed) {
+		serverErr = nil
 	}
-	return a.store.Close()
+	return errors.Join(serverErr, a.closeResources())
+}
+
+func (a *App) beginShutdown() {
+	a.shutdownOnce.Do(func() {
+		a.jobMu.Lock()
+		a.closing = true
+		cancels := make([]context.CancelFunc, 0, len(a.jobCancel))
+		for _, cancel := range a.jobCancel {
+			cancels = append(cancels, cancel)
+		}
+		a.jobMu.Unlock()
+
+		if a.lifecycleCancel != nil {
+			a.lifecycleCancel()
+		}
+		for _, cancel := range cancels {
+			cancel()
+		}
+	})
+}
+
+func (a *App) waitForBackground(ctx context.Context) error {
+	done := make(chan struct{})
+	go func() {
+		a.backgroundWG.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (a *App) closeResources() error {
+	a.backgroundWG.Wait()
+	return a.closeStore()
+}
+
+func (a *App) closeStore() error {
+	a.closeOnce.Do(func() {
+		if a.store != nil {
+			a.closeErr = a.store.Close()
+		}
+	})
+	return a.closeErr
 }
 
 func displayListenURL(addr string) string {

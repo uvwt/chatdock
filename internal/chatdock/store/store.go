@@ -59,14 +59,14 @@ func NewStore(dataDir string) (*Store, error) {
 	if err := store.EnsureGlobalModelProviders(); err != nil {
 		return nil, closeStoreAfterInitError(db, "ensure global model providers", err)
 	}
-	if err := store.MarkRunningChatJobsInterrupted(); err != nil {
-		return nil, closeStoreAfterInitError(db, "mark running chat jobs interrupted", err)
-	}
 	store.mu.Lock()
 	err = store.ensureWorkspaceDefaultsLocked(defaultWorkspaceID)
 	store.mu.Unlock()
 	if err != nil {
 		return nil, closeStoreAfterInitError(db, "ensure default workspace", err)
+	}
+	if err := store.recoverInterruptedWork(); err != nil {
+		return nil, closeStoreAfterInitError(db, "recover interrupted work", err)
 	}
 	return store, nil
 }

@@ -3,7 +3,6 @@ package store
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -153,8 +152,8 @@ ON CONFLICT(workspace_id, id) DO UPDATE SET task_id = excluded.task_id, task_tit
 	return err
 }
 
-func loadScheduledTasksForWorkspaceLocked(db *sql.DB, prompt string) ([]model.ScheduledTask, error) {
-	rows, err := db.Query(`SELECT id, title, task_prompt, enabled, running, schedule_type, run_at, time_of_day, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks WHERE workspace_id = ?`, prompt)
+func loadScheduledTasksForWorkspaceLocked(reader sqlQueryer, prompt string) ([]model.ScheduledTask, error) {
+	rows, err := reader.Query(`SELECT id, title, task_prompt, enabled, running, schedule_type, run_at, time_of_day, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks WHERE workspace_id = ?`, prompt)
 	if err != nil {
 		return nil, err
 	}
@@ -282,13 +281,4 @@ func deleteScheduledTasksExceptWorkspaceLocked(db sqlQueryWriter, prompt string,
 		}
 	}
 	return nil
-}
-
-func scheduledTaskExistsInWorkspaceLocked(db *sql.DB, prompt string, id string) (bool, error) {
-	var got string
-	err := db.QueryRow(`SELECT id FROM scheduled_tasks WHERE workspace_id = ? AND id = ?`, prompt, id).Scan(&got)
-	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
-	}
-	return err == nil, err
 }

@@ -6,7 +6,11 @@ import (
 )
 
 func (s *Store) loadModelProviderRecordsLocked() ([]modelProviderRecord, error) {
-	raw, err := s.metaValue(modelProvidersMetaKey)
+	return loadModelProviderRecordsWith(s.db)
+}
+
+func loadModelProviderRecordsWith(reader sqlQueryer) ([]modelProviderRecord, error) {
+	raw, err := metaValueWith(reader, modelProvidersMetaKey)
 	if err != nil {
 		return nil, err
 	}
@@ -31,11 +35,15 @@ func (s *Store) loadModelProviderRecordsLocked() ([]modelProviderRecord, error) 
 }
 
 func (s *Store) saveModelProviderRecordsLocked(records []modelProviderRecord) error {
+	return saveModelProviderRecordsWith(s.db, records)
+}
+
+func saveModelProviderRecordsWith(writer sqlWriter, records []modelProviderRecord) error {
 	raw, err := json.Marshal(records)
 	if err != nil {
 		return err
 	}
-	return s.setMetaValue(modelProvidersMetaKey, string(raw))
+	return setMetaValueWith(writer, modelProvidersMetaKey, string(raw))
 }
 
 func (s *Store) migrateModelProviderAPIKeys() error {

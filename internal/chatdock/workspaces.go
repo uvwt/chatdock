@@ -21,16 +21,12 @@ func (a *App) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	if _, err := a.store.CreateWorkspace(input); err != nil {
+	created, err := a.store.CreateWorkspace(input)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result, err := a.store.ListWorkspaces(a.workspaceIDFromRequest(r))
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
-	}
-	writeJSONResponse(w, http.StatusOK, result)
+	writeJSONResponse(w, http.StatusOK, created)
 }
 
 func workspacePathIDFromRequest(r *http.Request) string {
@@ -39,16 +35,28 @@ func workspacePathIDFromRequest(r *http.Request) string {
 
 func (a *App) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := workspacePathIDFromRequest(r)
-	if _, err := a.store.DeleteWorkspace(model.WorkspaceIDRequest{Name: workspaceID}); err != nil {
+	activeWorkspaceID := a.workspaceIDFromRequest(r)
+	deleted, err := a.store.DeleteWorkspace(model.WorkspaceIDRequest{Name: workspaceID})
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	result, err := a.store.ListWorkspaces(a.workspaceIDFromRequest(r))
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
+	if activeWorkspaceID != workspaceID {
+		activeExists := false
+		for _, item := range deleted.Workspaces {
+			if item.ID == activeWorkspaceID {
+				activeExists = true
+				break
+			}
+		}
+		if activeExists {
+			for i := range deleted.Workspaces {
+				deleted.Workspaces[i].Active = deleted.Workspaces[i].ID == activeWorkspaceID
+			}
+			deleted.Active = activeWorkspaceID
+		}
 	}
-	writeJSONResponse(w, http.StatusOK, result)
+	writeJSONResponse(w, http.StatusOK, deleted)
 }
 
 func (a *App) handleSelectWorkspace(w http.ResponseWriter, r *http.Request) {

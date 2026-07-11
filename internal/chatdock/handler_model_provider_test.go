@@ -105,7 +105,8 @@ func TestModelProviderRequestProviderIDDoesNotReuseCurrentWorkspaceKey(t *testin
 	if _, err := app.store.SaveModelConfig("default", model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "current-workspace-secret"}); err != nil {
 		t.Fatal(err)
 	}
-	provider, err := app.store.CreateModelProvider(store.ModelProviderInput{Name: "Provider No Key", BaseURL: modelServer.URL, DefaultModel: "provider-model", Enabled: true})
+	enabled := true
+	provider, err := app.store.CreateModelProvider(store.ModelProviderInput{Name: "Provider No Key", BaseURL: modelServer.URL, DefaultModel: "provider-model", Enabled: &enabled})
 	if err != nil {
 		t.Fatal(err)
 	}

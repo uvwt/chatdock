@@ -18,12 +18,12 @@ type AttachmentBlob struct {
 	CreatedAt   time.Time
 }
 
-func (s *Store) SaveAttachment(workspaceID string, record model.AttachmentRecord) error {
+func (s *Store) SaveAttachment(workspaceID string, record model.AttachmentRecord) (model.AttachmentRecord, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
 	if err != nil {
-		return err
+		return model.AttachmentRecord{}, err
 	}
 	if strings.TrimSpace(record.ID) == "" {
 		record.ID = model.NewID()
@@ -35,23 +35,38 @@ func (s *Store) SaveAttachment(workspaceID string, record model.AttachmentRecord
 
 	tx, err := s.db.Begin()
 	if err != nil {
-		return err
+		return model.AttachmentRecord{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
 	if strings.TrimSpace(record.SHA256) != "" {
-		if _, err := tx.Exec(`INSERT INTO attachment_blobs(sha256, storage_path, size, mime_type, ref_count, created_at) VALUES(?, ?, ?, ?, 0, ?) ON CONFLICT(sha256) DO UPDATE SET ref_count = attachment_blobs.ref_count`, record.SHA256, record.StoragePath, record.Size, record.MIMEType, formatDBTime(record.CreatedAt)); err != nil {
-			return err
+		if _, err := tx.Exec(`INSERT INTO attachment_blobs(sha256, storage_path, size, mime_type, ref_count, created_at) VALUES(?, ?, ?, ?, 0, ?)
+ON CONFLICT(sha256) DO UPDATE SET
+  storage_path = CASE WHEN attachment_blobs.ref_count = 0 THEN excluded.storage_path ELSE attachment_blobs.storage_path END,
+  size = CASE WHEN attachment_blobs.ref_count = 0 THEN excluded.size ELSE attachment_blobs.size END,
+  mime_type = CASE WHEN attachment_blobs.ref_count = 0 THEN excluded.mime_type ELSE attachment_blobs.mime_type END,
+  created_at = CASE WHEN attachment_blobs.ref_count = 0 THEN excluded.created_at ELSE attachment_blobs.created_at END`, record.SHA256, record.StoragePath, record.Size, record.MIMEType, formatDBTime(record.CreatedAt)); err != nil {
+			return model.AttachmentRecord{}, err
 		}
+		var canonicalPath string
+		var canonicalSize int64
+		if err := tx.QueryRow(`SELECT storage_path, size FROM attachment_blobs WHERE sha256 = ?`, record.SHA256).Scan(&canonicalPath, &canonicalSize); err != nil {
+			return model.AttachmentRecord{}, err
+		}
+		record.StoragePath = canonicalPath
+		record.Size = canonicalSize
 	}
 	if _, err := tx.Exec(`INSERT INTO attachments(workspace_id, id, session_id, message_id, filename, mime_type, size, storage_path, sha256, text_content, status, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, record.Prompt, record.ID, record.SessionID, record.MessageID, record.Name, record.MIMEType, record.Size, record.StoragePath, record.SHA256, record.TextContent, record.Status, formatDBTime(record.CreatedAt)); err != nil {
-		return err
+		return model.AttachmentRecord{}, err
 	}
 	if strings.TrimSpace(record.SHA256) != "" {
 		if _, err := tx.Exec(`UPDATE attachment_blobs SET ref_count = (SELECT COUNT(*) FROM attachments WHERE sha256 = ?) WHERE sha256 = ?`, record.SHA256, record.SHA256); err != nil {
-			return err
+			return model.AttachmentRecord{}, err
 		}
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return model.AttachmentRecord{}, err
+	}
+	return record, nil
 }
 
 func (s *Store) AttachmentBlobBySHA256(sha string) (AttachmentBlob, bool, error) {
@@ -75,14 +90,19 @@ func (s *Store) AttachmentBlobBySHA256(sha string) (AttachmentBlob, bool, error)
 }
 
 func (s *Store) migrateAttachmentBlobs() error {
-	migrated, err := s.metaValue("attachment_blobs_migrated")
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	migrated, err := metaValueWith(tx, "attachment_blobs_migrated")
 	if err != nil {
 		return err
 	}
 	if migrated == "1" {
 		return nil
 	}
-	rows, err := s.db.Query(`SELECT sha256, storage_path, size, mime_type, created_at FROM attachments WHERE sha256 != '' ORDER BY created_at ASC`)
+	rows, err := tx.Query(`SELECT sha256, storage_path, size, mime_type, created_at FROM attachments WHERE sha256 != '' ORDER BY created_at ASC`)
 	if err != nil {
 		return err
 	}
@@ -111,14 +131,17 @@ func (s *Store) migrateAttachmentBlobs() error {
 			continue
 		}
 		seen[item.sha] = true
-		if _, err := s.db.Exec(`INSERT INTO attachment_blobs(sha256, storage_path, size, mime_type, ref_count, created_at) VALUES(?, ?, ?, ?, 0, ?) ON CONFLICT(sha256) DO NOTHING`, item.sha, item.path, item.size, item.mime, item.created); err != nil {
+		if _, err := tx.Exec(`INSERT INTO attachment_blobs(sha256, storage_path, size, mime_type, ref_count, created_at) VALUES(?, ?, ?, ?, 0, ?) ON CONFLICT(sha256) DO NOTHING`, item.sha, item.path, item.size, item.mime, item.created); err != nil {
 			return err
 		}
 	}
-	if _, err := s.db.Exec(`UPDATE attachment_blobs SET ref_count = (SELECT COUNT(*) FROM attachments WHERE attachments.sha256 = attachment_blobs.sha256)`); err != nil {
+	if _, err := tx.Exec(`UPDATE attachment_blobs SET ref_count = (SELECT COUNT(*) FROM attachments WHERE attachments.sha256 = attachment_blobs.sha256)`); err != nil {
 		return err
 	}
-	return s.setMetaValue("attachment_blobs_migrated", "1")
+	if err := setMetaValueWith(tx, "attachment_blobs_migrated", "1"); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) attachmentRecordsByIDsLocked(workspaceID string, ids []string) ([]model.AttachmentRecord, error) {

@@ -90,7 +90,7 @@ type ModelProviderInput struct {
 	DefaultModel  string                     `json:"default_model"`
 	Models        []string                   `json:"models,omitempty"`
 	TimeoutMS     int                        `json:"timeout_ms,omitempty"`
-	Enabled       bool                       `json:"enabled"`
+	Enabled       *bool                      `json:"enabled,omitempty"`
 	KeyStrategy   string                     `json:"key_strategy,omitempty"`
 	SelectedKeyID string                     `json:"selected_key_id,omitempty"`
 	APIKeys       []ModelProviderAPIKeyInput `json:"api_keys,omitempty"`

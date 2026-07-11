@@ -7,7 +7,12 @@ import (
 )
 
 func (a *App) handleGetConfig(w http.ResponseWriter, r *http.Request) {
-	writeJSONResponse(w, http.StatusOK, model.ToPublicModelConfig(a.store.GetModelConfig(a.workspaceIDFromRequest(r))))
+	cfg, err := a.store.ModelConfig(a.workspaceIDFromRequest(r))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, model.ToPublicModelConfig(cfg))
 }
 
 func (a *App) handleSaveConfig(w http.ResponseWriter, r *http.Request) {

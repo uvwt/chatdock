@@ -75,22 +75,26 @@ type preflightCallResult struct {
 	err   error
 }
 
-func (a *App) runConversationPreflight(ctx context.Context, history []model.Message, catalog toolCatalog, runTool func(string, map[string]any) (any, error), emit func(string, any) error) conversationPreflightResult {
+func (a *App) runConversationPreflight(ctx context.Context, history []model.Message, catalog toolCatalog, runTool func(context.Context, string, map[string]any) (any, error), emit func(string, any) error) conversationPreflightResult {
+	return a.runConversationPreflightWithin(ctx, history, catalog, runTool, emit, 8*time.Second)
+}
+
+func (a *App) runConversationPreflightWithin(ctx context.Context, history []model.Message, catalog toolCatalog, runTool func(context.Context, string, map[string]any) (any, error), emit func(string, any) error, timeout time.Duration) conversationPreflightResult {
 	result := conversationPreflightResult{Decision: decideConversationPreflight(history)}
 	if (!result.Decision.NeedsMemory && !result.Decision.NeedsTaskTemplate) || runTool == nil {
 		return result
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	query := preflightQuery(history)
 	results := make(chan preflightCallResult, 2)
 	safeEmit := serializedPreflightEmitter(emit)
-	pending := 0
+	pending := map[string]string{}
 
 	if result.Decision.NeedsMemory {
 		if tool, ok := findCatalogTool(catalog, []string{"recall_bootstrap", "recall_search", "notes_search"}); ok {
-			pending++
+			pending["memory"] = tool.FullName
 			go runMemoryPreflight(ctx, tool, query, runTool, safeEmit, results)
 		} else {
 			result.MemoryError = "memory tool not found"
@@ -98,14 +102,23 @@ func (a *App) runConversationPreflight(ctx context.Context, history []model.Mess
 	}
 	if result.Decision.NeedsTaskTemplate {
 		if tool, ok := findCatalogTool(catalog, []string{"workflow_template_manage"}); ok {
-			pending++
+			pending["task_template"] = tool.FullName
 			go runTaskTemplatePreflight(ctx, tool, query, runTool, safeEmit, results)
 		} else {
 			result.TaskTemplateError = "workflow_template_manage tool not found"
 		}
 	}
-	for range pending {
-		applyPreflightCallResult(&result, <-results)
+	for len(pending) > 0 {
+		select {
+		case call := <-results:
+			delete(pending, call.kind)
+			applyPreflightCallResult(&result, call)
+		case <-ctx.Done():
+			for kind, tool := range pending {
+				applyPreflightCallResult(&result, preflightCallResult{kind: kind, tool: tool, err: ctx.Err()})
+			}
+			return result
+		}
 	}
 	return result
 }
@@ -122,12 +135,12 @@ func serializedPreflightEmitter(emit func(string, any) error) func(string, any) 
 	}
 }
 
-func runMemoryPreflight(ctx context.Context, tool catalogTool, query string, runTool func(string, map[string]any) (any, error), emit func(string, any) error, results chan<- preflightCallResult) {
+func runMemoryPreflight(ctx context.Context, tool catalogTool, query string, runTool func(context.Context, string, map[string]any) (any, error), emit func(string, any) error, results chan<- preflightCallResult) {
 	value, err := callPreflightTool(ctx, tool.FullName, preflightMemoryArgs(tool.Name, query), runTool, emit)
 	results <- preflightCallResult{kind: "memory", tool: tool.FullName, value: value, err: err}
 }
 
-func runTaskTemplatePreflight(ctx context.Context, tool catalogTool, query string, runTool func(string, map[string]any) (any, error), emit func(string, any) error, results chan<- preflightCallResult) {
+func runTaskTemplatePreflight(ctx context.Context, tool catalogTool, query string, runTool func(context.Context, string, map[string]any) (any, error), emit func(string, any) error, results chan<- preflightCallResult) {
 	args := map[string]any{"action": "match", "goal": query, "device": "DockMini"}
 	value, err := callPreflightTool(ctx, tool.FullName, args, runTool, emit)
 	results <- preflightCallResult{kind: "task_template", tool: tool.FullName, value: value, err: err}
@@ -195,7 +208,7 @@ func (r conversationPreflightResult) ContextText() string {
 	return strings.Join(lines, "\n")
 }
 
-func callPreflightTool(ctx context.Context, name string, args map[string]any, runTool func(string, map[string]any) (any, error), emit func(string, any) error) (any, error) {
+func callPreflightTool(ctx context.Context, name string, args map[string]any, runTool func(context.Context, string, map[string]any) (any, error), emit func(string, any) error) (any, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -204,7 +217,10 @@ func callPreflightTool(ctx context.Context, name string, args map[string]any, ru
 			return nil, err
 		}
 	}
-	value, err := runTool(name, args)
+	value, err := runTool(ctx, name, args)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return value, ctxErr
+	}
 	if emit != nil {
 		payload := map[string]any{"tool": name, "result": value}
 		if err != nil {
