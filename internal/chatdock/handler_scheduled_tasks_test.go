@@ -2,7 +2,6 @@ package chatdock
 
 import (
 	"bytes"
-	"chatdock/internal/chatdock/model"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,6 +9,8 @@ import (
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
+
+	"chatdock/internal/chatdock/model"
 )
 
 func TestScheduledTasksAPI(t *testing.T) {

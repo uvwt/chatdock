@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func inputKeysToRecords(inputs []ModelProviderAPIKeyInput, previous []modelProviderAPIKeyRecord, legacyAPIKey string, now time.Time) []modelProviderAPIKeyRecord {
+func inputKeysToRecords(inputs []ModelProviderAPIKeyInput, previous []modelProviderAPIKeyRecord, now time.Time) []modelProviderAPIKeyRecord {
 	previousByID := map[string]modelProviderAPIKeyRecord{}
 	for _, item := range previous {
 		previousByID[item.ID] = item
@@ -48,34 +48,37 @@ func inputKeysToRecords(inputs []ModelProviderAPIKeyInput, previous []modelProvi
 		base.UpdatedAt = now
 		out = append(out, base)
 	}
-	if len(out) == 0 && !isMaskedSecret(legacyAPIKey) {
-		out = append(out, modelProviderAPIKeyRecord{ID: "main", Name: "主 key", APIKey: strings.TrimSpace(legacyAPIKey), Enabled: true, Priority: 1, CreatedAt: now, UpdatedAt: now})
-	}
 	return out
 }
 
-func upsertLegacyAPIKeyRecord(keys []modelProviderAPIKeyRecord, apiKey string, now time.Time) []modelProviderAPIKeyRecord {
-	if strings.TrimSpace(apiKey) == "" {
+func upsertProviderAPIKey(keys []modelProviderAPIKeyRecord, selectedKeyID string, apiKey string, now time.Time) []modelProviderAPIKeyRecord {
+	apiKey = strings.TrimSpace(apiKey)
+	if apiKey == "" || isMaskedSecret(apiKey) {
 		return keys
 	}
+	selectedKeyID = normalizeProviderKeyID(selectedKeyID)
 	if len(keys) == 0 {
-		return []modelProviderAPIKeyRecord{{ID: "main", Name: "主 key", APIKey: strings.TrimSpace(apiKey), Enabled: true, Priority: 1, CreatedAt: now, UpdatedAt: now}}
+		if selectedKeyID == "" {
+			selectedKeyID = "main"
+		}
+		return []modelProviderAPIKeyRecord{{ID: selectedKeyID, Name: "主 key", APIKey: apiKey, Enabled: true, Priority: 1, CreatedAt: now, UpdatedAt: now}}
 	}
-	selected := keys[0].ID
-	for _, key := range keys {
-		if key.Enabled {
-			selected = key.ID
-			break
+	if selectedKeyID == "" {
+		if selected, ok := firstEnabledProviderKey(keys); ok {
+			selectedKeyID = selected.ID
+		} else {
+			selectedKeyID = keys[0].ID
 		}
 	}
-	for i := range keys {
-		if keys[i].ID == selected {
-			keys[i].APIKey = strings.TrimSpace(apiKey)
-			keys[i].UpdatedAt = now
-			return keys
+	for index := range keys {
+		if keys[index].ID != selectedKeyID {
+			continue
 		}
+		keys[index].APIKey = apiKey
+		keys[index].UpdatedAt = now
+		return keys
 	}
-	return keys
+	return append(keys, modelProviderAPIKeyRecord{ID: selectedKeyID, Name: selectedKeyID, APIKey: apiKey, Enabled: true, Priority: len(keys) + 1, CreatedAt: now, UpdatedAt: now})
 }
 
 func normalizeProviderAPIKeyRecords(keys []modelProviderAPIKeyRecord, now time.Time) []modelProviderAPIKeyRecord {
@@ -164,9 +167,6 @@ func publicSelectedKey(record modelProviderRecord) (modelProviderAPIKeyRecord, b
 }
 
 func providerHasAnyAPIKey(record modelProviderRecord) bool {
-	if strings.TrimSpace(record.APIKey) != "" {
-		return true
-	}
 	for _, key := range record.APIKeys {
 		if strings.TrimSpace(key.APIKey) != "" {
 			return true

@@ -1,4 +1,3 @@
-/* Migrated from legacy-overrides.css. Keep import order stable. */
 /* Legacy visual overrides preserved during CSS normalization.
    New rules should go into tokens/layout/chat/settings/overlays/mobile/data modules instead. */
 /* Final visual guards: keep chat layout stable after feature-specific CSS imports. */

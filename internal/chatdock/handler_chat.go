@@ -1,12 +1,13 @@
 package chatdock
 
 import (
-	"chatdock/internal/chatdock/model"
 	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+
+	"chatdock/internal/chatdock/model"
 )
 
 func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +55,11 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	session = a.maybeGenerateSessionTitle(r.Context(), workspaceID, input.SessionID, cfg)
+	if renamed, titleErr := a.maybeGenerateSessionTitle(r.Context(), workspaceID, input.SessionID, cfg); titleErr != nil {
+		logError("session_title_generation_failed", titleErr, logFields{"request_id": requestIDFromRequest(r), "session_id": input.SessionID})
+	} else {
+		session = renamed
+	}
 	writeJSONResponse(w, http.StatusOK, model.ChatResponse{Answer: answer, Session: session})
 }
 
@@ -85,7 +90,9 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
-	_ = writeSSE(w, flusher, "job_started", job)
+	if err := writeSSE(w, flusher, "job_started", job); err != nil {
+		return
+	}
 	streamChatJobEvents(r, w, flusher, a, a.workspaceIDFromRequest(r), job.ID, 0)
 }
 

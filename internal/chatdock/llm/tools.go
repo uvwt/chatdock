@@ -3,14 +3,15 @@ package llm
 import (
 	"bufio"
 	"bytes"
-	"chatdock/internal/chatdock/mcp"
-	"chatdock/internal/chatdock/model"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+
+	"chatdock/internal/chatdock/mcp"
+	"chatdock/internal/chatdock/model"
 )
 
 type ModelToolCall struct {
@@ -72,25 +73,10 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 			return strings.TrimSpace(visibleAnswer.String()), nil
 		}
 
-		messages = append(messages, map[string]any{"role": "assistant", "content": resp.Content, "tool" + "_calls": encodeModelToolCalls(resp.ToolCalls)})
-		toolMessages := make([]map[string]any, 0, len(resp.ToolCalls))
-		modelMessages := make([]map[string]any, 0)
-		for index, tc := range resp.ToolCalls {
-			args := decodeToolArguments(tc.Function.Arguments)
-			_ = emit("tool_call_start", map[string]any{"tool": tc.Function.Name, "arguments": args})
-			result, err := call(tc.Function.Name, args)
-			payload := map[string]any{"ok": err == nil, "tool": tc.Function.Name, "result": result}
-			if err != nil {
-				payload["error"] = err.Error()
-			}
-			id := tc.ID
-			if id == "" {
-				id = fmt.Sprintf("call_%d", index)
-			}
-			eventPayload := sanitizeToolPayload(payload)
-			_ = emit("tool_call_result", eventPayload)
-			toolMessages = append(toolMessages, map[string]any{"role": "tool", "tool" + "_call_id": id, "name": tc.Function.Name, "content": mcp.CompactJSON(eventPayload)})
-			modelMessages = append(modelMessages, toolModelMessagesFromPayload(payload)...)
+		messages = append(messages, assistantToolCallMessage(resp))
+		toolMessages, modelMessages, err := executeModelToolCalls(resp.ToolCalls, call, emit)
+		if err != nil {
+			return strings.TrimSpace(visibleAnswer.String()), err
 		}
 		messages = append(messages, toolMessages...)
 		messages = append(messages, modelMessages...)
@@ -121,27 +107,60 @@ func (c *ChatClient) completeWithMCPToolsBlocking(ctx context.Context, cfg model
 			}
 			return answer, nil
 		}
-		messages = append(messages, map[string]any{"role": "assistant", "content": resp.Content, "tool" + "_calls": encodeModelToolCalls(resp.ToolCalls)})
-		toolMessages := make([]map[string]any, 0, len(resp.ToolCalls))
-		modelMessages := make([]map[string]any, 0)
-		for index, tc := range resp.ToolCalls {
-			args := decodeToolArguments(tc.Function.Arguments)
-			result, err := call(tc.Function.Name, args)
-			payload := map[string]any{"ok": err == nil, "tool": tc.Function.Name, "result": result}
-			if err != nil {
-				payload["error"] = err.Error()
-			}
-			id := tc.ID
-			if id == "" {
-				id = fmt.Sprintf("call_%d", index)
-			}
-			eventPayload := sanitizeToolPayload(payload)
-			toolMessages = append(toolMessages, map[string]any{"role": "tool", "tool" + "_call_id": id, "name": tc.Function.Name, "content": mcp.CompactJSON(eventPayload)})
-			modelMessages = append(modelMessages, toolModelMessagesFromPayload(payload)...)
+		messages = append(messages, assistantToolCallMessage(resp))
+		toolMessages, modelMessages, err := executeModelToolCalls(resp.ToolCalls, call, nil)
+		if err != nil {
+			return "", err
 		}
 		messages = append(messages, toolMessages...)
 		messages = append(messages, modelMessages...)
 	}
+}
+
+func assistantToolCallMessage(response ModelChatResponse) map[string]any {
+	return map[string]any{
+		"role":       "assistant",
+		"content":    response.Content,
+		"tool_calls": encodeModelToolCalls(response.ToolCalls),
+	}
+}
+
+func executeModelToolCalls(calls []ModelToolCall, call func(string, map[string]any) (any, error), emit func(string, any) error) ([]map[string]any, []map[string]any, error) {
+	toolMessages := make([]map[string]any, 0, len(calls))
+	modelMessages := make([]map[string]any, 0)
+	for index, toolCall := range calls {
+		args := decodeToolArguments(toolCall.Function.Arguments)
+		if emit != nil {
+			if err := emit("tool_call_start", map[string]any{"tool": toolCall.Function.Name, "arguments": args}); err != nil {
+				return nil, nil, err
+			}
+		}
+
+		result, callErr := call(toolCall.Function.Name, args)
+		payload := map[string]any{"ok": callErr == nil, "tool": toolCall.Function.Name, "result": result}
+		if callErr != nil {
+			payload["error"] = callErr.Error()
+		}
+		eventPayload := sanitizeToolPayload(payload)
+		if emit != nil {
+			if err := emit("tool_call_result", eventPayload); err != nil {
+				return nil, nil, err
+			}
+		}
+
+		callID := toolCall.ID
+		if callID == "" {
+			callID = fmt.Sprintf("call_%d", index)
+		}
+		toolMessages = append(toolMessages, map[string]any{
+			"role":         "tool",
+			"tool_call_id": callID,
+			"name":         toolCall.Function.Name,
+			"content":      mcp.CompactJSON(eventPayload),
+		})
+		modelMessages = append(modelMessages, toolModelMessagesFromPayload(payload)...)
+	}
+	return toolMessages, modelMessages, nil
 }
 
 func decodeToolArguments(raw string) map[string]any {
@@ -471,7 +490,7 @@ func (c *ChatClient) completeChatWithRawMessages(ctx context.Context, cfg model.
 	choice, _ := choices[0].(map[string]any)
 	message, _ := choice["message"].(map[string]any)
 	content, _ := message["content"].(string)
-	return ModelChatResponse{Content: content, ToolCalls: decodeModelToolCalls(message["tool"+"_calls"])}, nil
+	return ModelChatResponse{Content: content, ToolCalls: decodeModelToolCalls(message["tool_calls"])}, nil
 }
 
 func encodeModelToolCalls(calls []ModelToolCall) []map[string]any {

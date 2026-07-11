@@ -2,8 +2,6 @@ package chatdock
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"time"
 
 	"chatdock/internal/chatdock/llm"
@@ -21,23 +19,10 @@ type activeToolRun struct {
 func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string, jobID string, sessionID string, cfg model.ModelConfig, history []model.Message, emit func(string, any) error) (string, error) {
 	history = a.prepareVisionAttachmentURLs(history)
 	history = a.appendAgentDockRuntimeContext(ctx, history)
-	// 真实工具全集只保存在服务端；首轮只暴露“搜索 / 查看详情 / 执行”三个轻量入口。
-	// 这样模型仍能按需发现和调用工具，但普通请求不再每轮携带几十个完整 schema。
-	allTools := builtinChatDockTools()
-	mcpCfg, mcpErr := a.activeMCPConfig(workspaceID)
-	mcpReady := mcpErr == nil && len(mcpCfg.Servers) > 0
-	if mcpReady {
-		mcpTools, err := a.mcpClient.ListTools(ctx, mcpCfg)
-		if err != nil {
-			mcpReady = false
-			if emit != nil {
-				if emitErr := emit("tool_setup_error", map[string]any{"message": err.Error()}); emitErr != nil {
-					return "", emitErr
-				}
-			}
-		} else {
-			allTools = append(allTools, mcpTools...)
-		}
+
+	allTools, mcpConfig, mcpReady, err := a.loadConversationTools(ctx, workspaceID, emit)
+	if err != nil {
+		return "", err
 	}
 	if len(allTools) == 0 {
 		if emit != nil {
@@ -45,6 +30,7 @@ func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string,
 		}
 		return a.client.Complete(ctx, cfg, history)
 	}
+
 	visibleTools := builtinToolDiscoveryTools()
 	if emit != nil {
 		if err := emit("tool_setup_ready", map[string]any{"mode": "discovery", "tool_count": len(allTools), "exposed_tool_count": len(visibleTools), "builtin_tool_count": len(builtinChatDockTools())}); err != nil {
@@ -54,7 +40,33 @@ func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string,
 	catalog := newToolCatalog(allTools)
 	describedTools := map[string]bool{}
 	recorder := &activeToolRun{LastArgs: map[string]any{}, StartedAt: map[string]time.Time{}}
-	recordingEmit := func(event string, value any) error {
+	recordingEmit := a.toolRunEmitter(workspaceID, sessionID, recorder, emit)
+	runRealTool := func(name string, args map[string]any) (any, error) {
+		return a.callConversationTool(ctx, workspaceID, sessionID, mcpConfig, mcpReady, name, args, recordingEmit)
+	}
+
+	preflightEmit := recordingEmit
+	toolEmit := recordingEmit
+	if emit == nil {
+		preflightEmit = nil
+		toolEmit = nil
+	}
+	preflight := a.runConversationPreflight(ctx, history, catalog, runRealTool, preflightEmit)
+	history = appendPreflightContext(history, preflight)
+
+	answer, runErr := a.client.CompleteWithMCPToolsEvents(ctx, cfg, history, visibleTools, func(name string, args map[string]any) (any, error) {
+		return a.callDiscoveryTool(ctx, workspaceID, catalog, describedTools, runRealTool, name, args)
+	}, toolEmit, func() ([]map[string]any, error) {
+		return a.consumeChatJobGuidance(jobID, emit)
+	})
+	if finishErr := a.finishRecordedToolRun(recorder, runErr, emit); finishErr != nil && runErr == nil {
+		runErr = finishErr
+	}
+	return answer, runErr
+}
+
+func (a *App) toolRunEmitter(workspaceID string, sessionID string, recorder *activeToolRun, emit func(string, any) error) func(string, any) error {
+	return func(event string, value any) error {
 		if event == "tool_call_start" || event == "tool_call_result" {
 			if err := a.recordToolRunEvent(workspaceID, sessionID, recorder, event, value, emit); err != nil {
 				return err
@@ -65,115 +77,24 @@ func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string,
 		}
 		return nil
 	}
-	runRealTool := func(name string, args map[string]any) (any, error) {
-		if isBuiltinScheduledTaskTool(name) {
-			return a.callBuiltinScheduledTaskTool(ctx, workspaceID, name, args)
-		}
-		if isBuiltinImageTool(name) {
-			return a.callBuiltinImageTool(ctx, name, args)
-		}
-		if isBuiltinModelProviderTool(name) {
-			return a.callBuiltinModelProviderTool(ctx, workspaceID, name, args)
-		}
-		if !mcpReady {
-			return nil, fmt.Errorf("MCP tool is not available: %s", name)
-		}
-		if mcpToolNeedsConfirmation(mcpCfg, name) {
-			if err := a.requestMCPConfirmation(ctx, sessionID, name, args, recordingEmit); err != nil {
-				return nil, err
-			}
-			return a.mcpClient.CallToolAfterConfirmation(ctx, mcpCfg, name, args)
-		}
-		return a.mcpClient.CallTool(ctx, mcpCfg, name, args)
+}
+
+func (a *App) finishRecordedToolRun(recorder *activeToolRun, runErr error, emit func(string, any) error) error {
+	if !recorder.Created {
+		return nil
 	}
-	preflightEmit := recordingEmit
-	if emit == nil {
-		preflightEmit = nil
+	status := "success"
+	if runErr != nil {
+		status = "failed"
 	}
-	preflight := a.runConversationPreflight(ctx, history, catalog, runRealTool, preflightEmit)
-	history = appendPreflightContext(history, preflight)
-	toolEmit := recordingEmit
-	if emit == nil {
-		// 非流式 /api/chat 不需要把最终回答改成流式请求；工具仍会执行，只是不记录前端运行事件。
-		toolEmit = nil
+	run, err := a.store.FinishMCPRun(recorder.RunID, status, "tool run finished", runErr)
+	if err != nil {
+		return err
 	}
-	consumeGuidance := func() ([]map[string]any, error) {
-		if strings.TrimSpace(jobID) == "" {
-			return nil, nil
-		}
-		items := a.drainChatJobGuidance(jobID)
-		if len(items) == 0 {
-			return nil, nil
-		}
-		messages := make([]map[string]any, 0, len(items))
-		for _, item := range items {
-			content := "用户在你生成过程中追加了引导，请在当前任务和已完成工具结果基础上调整后续回答，不要丢弃已有工具结果。\n\n" + item.Message
-			messages = append(messages, map[string]any{"role": "user", "content": content})
-			if emit != nil {
-				if err := emit("guidance_injected", item); err != nil {
-					return messages, err
-				}
-			}
-		}
-		return messages, nil
+	if emit != nil {
+		return emit("run_finish", run)
 	}
-	answer, runErr := a.client.CompleteWithMCPToolsEvents(ctx, cfg, history, visibleTools, func(name string, args map[string]any) (any, error) {
-		switch name {
-		case builtinToolSearchTools:
-			return a.searchToolCatalog(ctx, workspaceID, catalog, args), nil
-		case builtinToolDescribeTools:
-			result, names := catalog.Describe(args)
-			for _, toolName := range names {
-				describedTools[toolName] = true
-			}
-			return result, nil
-		case builtinToolExecuteDiscovered:
-			if parseErr := stringArg(args, "_parse_error"); parseErr != "" {
-				raw := strings.TrimSpace(stringArg(args, "_raw_arguments"))
-				if raw != "" {
-					raw = truncateRunes(raw, 360)
-				}
-				return nil, fmt.Errorf("chatdock_tool_execute 参数 JSON 解析失败：%s。正确格式是 {\"name\":\"工具 full_name\",\"arguments\":{...}}，name 必须是顶层字段；不要把超长命令/脚本写坏 JSON。原始参数片段：%s", parseErr, raw)
-			}
-			target, err := requiredStringArg(args, "name")
-			if err != nil {
-				return nil, fmt.Errorf("chatdock_tool_execute 缺少顶层 name。正确格式是 {\"name\":\"DockMini__exec_command\",\"arguments\":{\"cmd\":\"...\"}}；name 不是目标工具 arguments 里的字段")
-			}
-			targetTool, ok := catalog.Get(target)
-			if !ok {
-				return nil, fmt.Errorf("tool not found: %s", target)
-			}
-			if !describedTools[target] {
-				return nil, fmt.Errorf("tool schema not loaded: call %s with names=[%q] before executing it", builtinToolDescribeTools, target)
-			}
-			targetArgs, ok := args["arguments"].(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("chatdock_tool_execute 缺少顶层 arguments 对象。正确格式是 {\"name\":%q,\"arguments\":{...}}", target)
-			}
-			if err := validateToolArguments(targetTool.InputSchema, targetArgs); err != nil {
-				return nil, err
-			}
-			result, err := runRealTool(target, targetArgs)
-			return map[string]any{"tool": target, "result": result}, err
-		default:
-			// 兼容历史上下文或未来直接暴露真实工具的情况；当前正常路径会通过 chatdock_tool_execute 进入这里。
-			if _, ok := catalog.Get(name); !ok {
-				return nil, fmt.Errorf("unknown tool: %s", name)
-			}
-			return runRealTool(name, args)
-		}
-	}, toolEmit, consumeGuidance)
-	if recorder.Created {
-		status := "success"
-		if runErr != nil {
-			status = "failed"
-		}
-		run, err := a.store.FinishMCPRun(recorder.RunID, status, "tool run finished", runErr)
-		if err == nil && emit != nil {
-			_ = emit("run_finish", run)
-		}
-	}
-	return answer, runErr
+	return nil
 }
 
 func (a *App) recordToolRunEvent(workspaceID string, sessionID string, recorder *activeToolRun, event string, value any, emit func(string, any) error) error {
@@ -187,7 +108,9 @@ func (a *App) recordToolRunEvent(workspaceID string, sessionID string, recorder 
 		recorder.RunID = run.ID
 		recorder.Created = true
 		if emit != nil {
-			_ = emit("run_start", run)
+			if err := emit("run_start", run); err != nil {
+				return err
+			}
 		}
 	}
 	now := time.Now()
@@ -200,7 +123,9 @@ func (a *App) recordToolRunEvent(workspaceID string, sessionID string, recorder 
 			return err
 		}
 		if emit != nil {
-			_ = emit("run_event", created)
+			if err := emit("run_event", created); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
@@ -223,7 +148,9 @@ func (a *App) recordToolRunEvent(workspaceID string, sessionID string, recorder 
 		return err
 	}
 	if emit != nil {
-		_ = emit("run_event", created)
+		if err := emit("run_event", created); err != nil {
+			return err
+		}
 	}
 	return nil
 }

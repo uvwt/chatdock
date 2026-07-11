@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -37,79 +38,97 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	name := cleanUploadName(header.Filename)
-	id := model.NewID()
-	sessionID := strings.TrimSpace(r.FormValue("session_id"))
 	workspaceID := a.workspaceIDFromRequest(r)
-	prompt := workspaceID
-	uploadDir := filepath.Join(a.cfg.DataDir, "uploads", safeFileComponent(prompt))
-	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
-	}
-	storagePath := filepath.Join(uploadDir, id+"_"+name)
-	out, err := os.Create(storagePath)
+	name := cleanUploadName(header.Filename)
+	upload, err := a.persistUploadedFile(workspaceID, model.NewID(), name, header.Header.Get("Content-Type"), file)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
+		status := http.StatusInternalServerError
+		if errors.Is(err, errEmptyUpload) {
+			status = http.StatusBadRequest
+		}
+		writeError(w, status, err)
 		return
 	}
-	hash := sha256.New()
-	written, copyErr := io.Copy(out, io.TeeReader(file, hash))
-	closeErr := out.Close()
-	if copyErr != nil {
-		_ = os.Remove(storagePath)
-		writeError(w, http.StatusInternalServerError, copyErr)
-		return
-	}
-	if closeErr != nil {
-		_ = os.Remove(storagePath)
-		writeError(w, http.StatusInternalServerError, closeErr)
-		return
-	}
-	if written <= 0 {
-		_ = os.Remove(storagePath)
-		writeError(w, http.StatusBadRequest, fmt.Errorf("文件为空"))
-		return
-	}
-
-	mimeType := llm.FirstNonEmptyString(header.Header.Get("Content-Type"), mime.TypeByExtension(strings.ToLower(filepath.Ext(name))), "application/octet-stream")
-	sha := hex.EncodeToString(hash.Sum(nil))
-	if blob, ok, err := a.store.AttachmentBlobBySHA256(sha); err == nil && ok && strings.TrimSpace(blob.StoragePath) != "" {
-		_ = os.Remove(storagePath)
-		storagePath = blob.StoragePath
-		written = blob.Size
-		mimeType = llm.FirstNonEmptyString(mimeType, blob.MIMEType)
-	} else if err != nil {
-		_ = os.Remove(storagePath)
-		writeError(w, http.StatusInternalServerError, err)
-		return
-	}
-	text, status, extractErr := extractAttachmentText(storagePath, name, mimeType)
+	text, status, extractErr := extractAttachmentText(upload.StoragePath, name, upload.MIMEType)
 	if extractErr != nil && strings.TrimSpace(text) == "" {
 		status = "stored"
 	}
 	record := model.AttachmentRecord{
 		Attachment: model.Attachment{
-			ID:        id,
+			ID:        upload.ID,
 			Name:      name,
-			MIMEType:  mimeType,
-			Size:      written,
+			MIMEType:  upload.MIMEType,
+			Size:      upload.Size,
 			Status:    status,
 			HasText:   strings.TrimSpace(text) != "",
 			TextBytes: len([]byte(text)),
 			CreatedAt: time.Now(),
 		},
-		Prompt:      prompt,
-		SessionID:   sessionID,
-		StoragePath: storagePath,
-		SHA256:      sha,
+		Prompt:      workspaceID,
+		SessionID:   strings.TrimSpace(r.FormValue("session_id")),
+		StoragePath: upload.StoragePath,
+		SHA256:      upload.SHA256,
 		TextContent: text,
 	}
 	if err := a.store.SaveAttachment(workspaceID, record); err != nil {
+		if upload.OwnsStorage {
+			_ = os.Remove(upload.StoragePath)
+		}
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSONResponse(w, http.StatusOK, model.FileUploadResponse{Attachment: record.Attachment})
+}
+
+var errEmptyUpload = errors.New("文件为空")
+
+type persistedUpload struct {
+	ID          string
+	StoragePath string
+	MIMEType    string
+	SHA256      string
+	Size        int64
+	OwnsStorage bool
+}
+
+func (a *App) persistUploadedFile(workspaceID string, id string, name string, contentType string, source io.Reader) (persistedUpload, error) {
+	uploadDir := filepath.Join(a.cfg.DataDir, "uploads", safeFileComponent(workspaceID))
+	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
+		return persistedUpload{}, err
+	}
+	storagePath := filepath.Join(uploadDir, id+"_"+name)
+	out, err := os.Create(storagePath)
+	if err != nil {
+		return persistedUpload{}, err
+	}
+	hash := sha256.New()
+	written, copyErr := io.Copy(out, io.TeeReader(source, hash))
+	closeErr := out.Close()
+	if copyErr != nil {
+		_ = os.Remove(storagePath)
+		return persistedUpload{}, copyErr
+	}
+	if closeErr != nil {
+		_ = os.Remove(storagePath)
+		return persistedUpload{}, closeErr
+	}
+	if written <= 0 {
+		_ = os.Remove(storagePath)
+		return persistedUpload{}, errEmptyUpload
+	}
+
+	mimeType := llm.FirstNonEmptyString(contentType, mime.TypeByExtension(strings.ToLower(filepath.Ext(name))), "application/octet-stream")
+	sha := hex.EncodeToString(hash.Sum(nil))
+	blob, ok, err := a.store.AttachmentBlobBySHA256(sha)
+	if err != nil {
+		_ = os.Remove(storagePath)
+		return persistedUpload{}, err
+	}
+	if ok && strings.TrimSpace(blob.StoragePath) != "" {
+		_ = os.Remove(storagePath)
+		return persistedUpload{ID: id, StoragePath: blob.StoragePath, MIMEType: llm.FirstNonEmptyString(mimeType, blob.MIMEType), SHA256: sha, Size: blob.Size}, nil
+	}
+	return persistedUpload{ID: id, StoragePath: storagePath, MIMEType: mimeType, SHA256: sha, Size: written, OwnsStorage: true}, nil
 }
 
 func (a *App) handleDownloadFile(w http.ResponseWriter, r *http.Request) {

@@ -10,9 +10,6 @@ const appCss = read('web/src/app.css').trim().split(/\n/).filter(Boolean);
 const nonImportLines = appCss.filter(line => !line.startsWith('@import'));
 if (nonImportLines.length) failures.push('web/src/app.css must stay import-only; move real rules into web/src/styles/*.css');
 
-
-const legacyLines = read('web/src/styles/legacy-overrides.css').trim().split(/\n/).filter(Boolean);
-if (legacyLines.length > 3) failures.push('web/src/styles/legacy-overrides.css must stay an empty compatibility layer; migrate rules into semantic style files');
 const settingsCss = read('web/src/styles/settings.css').trim().split(/\n/).filter(Boolean);
 const settingsCssNonImportLines = settingsCss.filter(line => !line.startsWith('@import'));
 if (settingsCssNonImportLines.length) failures.push('web/src/styles/settings.css must stay import-only; move real rules into web/src/styles/settings/*.css');
@@ -75,11 +72,16 @@ const cssResiduals = [
   '.task-actions, .task-actions',
   '.task-toggle, .task-toggle',
 ];
-for (const file of ['web/src/styles/settings.css', 'web/src/styles/layout.css', 'web/src/styles/legacy-overrides.css']) {
+for (const file of ['web/src/styles/settings.css', 'web/src/styles/layout.css']) {
   const content = read(file);
   for (const residual of cssResiduals) {
     if (content.includes(residual)) failures.push(`${file} contains duplicated residual selector: ${residual}`);
   }
+}
+
+const providerFormSource = read('web/src/lib/modelProviderForm.js');
+for (const stale of ['provider.apiKeys', 'key.apiKey', 'key.apiKeyMasked', 'item?.apiKey', 'provider.keyStrategy', 'provider.selectedKeyID']) {
+  if (app.includes(stale) || providerFormSource.includes(stale)) failures.push(`model provider frontend contract must use snake_case only: ${stale}`);
 }
 
 const providerForm = await import('../web/src/lib/modelProviderForm.js');

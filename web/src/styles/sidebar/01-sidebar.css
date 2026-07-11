@@ -1,4 +1,3 @@
-/* Migrated from legacy-overrides.css. Keep import order stable. */
 /* 2026-07-04 折叠侧栏最终保护：72px 侧栏只保留图标，禁止按钮越界压到主区域。 */
 @media (min-width: 721px) {
   #app.app.sidebar-collapsed aside {

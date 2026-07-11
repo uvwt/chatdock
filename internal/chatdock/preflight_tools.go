@@ -68,78 +68,86 @@ func decideConversationPreflight(history []model.Message) conversationPreflightD
 	return conversationPreflightDecision{Reason: "plain_chat"}
 }
 
+type preflightCallResult struct {
+	kind  string
+	tool  string
+	value any
+	err   error
+}
+
 func (a *App) runConversationPreflight(ctx context.Context, history []model.Message, catalog toolCatalog, runTool func(string, map[string]any) (any, error), emit func(string, any) error) conversationPreflightResult {
 	result := conversationPreflightResult{Decision: decideConversationPreflight(history)}
-	if !result.Decision.NeedsMemory && !result.Decision.NeedsTaskTemplate {
-		return result
-	}
-	if runTool == nil {
+	if (!result.Decision.NeedsMemory && !result.Decision.NeedsTaskTemplate) || runTool == nil {
 		return result
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 	query := preflightQuery(history)
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	var emitMu sync.Mutex
-	safeEmit := func(event string, value any) error {
-		if emit == nil {
-			return nil
-		}
-		emitMu.Lock()
-		defer emitMu.Unlock()
-		return emit(event, value)
-	}
+	results := make(chan preflightCallResult, 2)
+	safeEmit := serializedPreflightEmitter(emit)
+	pending := 0
 
 	if result.Decision.NeedsMemory {
 		if tool, ok := findCatalogTool(catalog, []string{"recall_bootstrap", "recall_search", "notes_search"}); ok {
-			result.MemoryTool = tool.FullName
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				args := preflightMemoryArgs(tool.Name, query)
-				value, err := callPreflightTool(ctx, tool.FullName, args, runTool, safeEmit)
-				mu.Lock()
-				defer mu.Unlock()
-				if err != nil {
-					result.MemoryError = err.Error()
-					return
-				}
-				result.MemoryResult = value
-			}()
+			pending++
+			go runMemoryPreflight(ctx, tool, query, runTool, safeEmit, results)
 		} else {
 			result.MemoryError = "memory tool not found"
 		}
 	}
-
 	if result.Decision.NeedsTaskTemplate {
 		if tool, ok := findCatalogTool(catalog, []string{"workflow_template_manage"}); ok {
-			result.TaskTemplateTool = tool.FullName
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				args := map[string]any{
-					"action": "match",
-					"goal":   query,
-					"device": "DockMini",
-				}
-				value, err := callPreflightTool(ctx, tool.FullName, args, runTool, safeEmit)
-				mu.Lock()
-				defer mu.Unlock()
-				if err != nil {
-					result.TaskTemplateError = err.Error()
-					return
-				}
-				result.TaskTemplateResult = value
-			}()
+			pending++
+			go runTaskTemplatePreflight(ctx, tool, query, runTool, safeEmit, results)
 		} else {
 			result.TaskTemplateError = "workflow_template_manage tool not found"
 		}
 	}
-
-	wg.Wait()
+	for range pending {
+		applyPreflightCallResult(&result, <-results)
+	}
 	return result
+}
+
+func serializedPreflightEmitter(emit func(string, any) error) func(string, any) error {
+	if emit == nil {
+		return nil
+	}
+	var mu sync.Mutex
+	return func(event string, value any) error {
+		mu.Lock()
+		defer mu.Unlock()
+		return emit(event, value)
+	}
+}
+
+func runMemoryPreflight(ctx context.Context, tool catalogTool, query string, runTool func(string, map[string]any) (any, error), emit func(string, any) error, results chan<- preflightCallResult) {
+	value, err := callPreflightTool(ctx, tool.FullName, preflightMemoryArgs(tool.Name, query), runTool, emit)
+	results <- preflightCallResult{kind: "memory", tool: tool.FullName, value: value, err: err}
+}
+
+func runTaskTemplatePreflight(ctx context.Context, tool catalogTool, query string, runTool func(string, map[string]any) (any, error), emit func(string, any) error, results chan<- preflightCallResult) {
+	args := map[string]any{"action": "match", "goal": query, "device": "DockMini"}
+	value, err := callPreflightTool(ctx, tool.FullName, args, runTool, emit)
+	results <- preflightCallResult{kind: "task_template", tool: tool.FullName, value: value, err: err}
+}
+
+func applyPreflightCallResult(result *conversationPreflightResult, call preflightCallResult) {
+	errorText := ""
+	if call.err != nil {
+		errorText = call.err.Error()
+	}
+	switch call.kind {
+	case "memory":
+		result.MemoryTool = call.tool
+		result.MemoryResult = call.value
+		result.MemoryError = errorText
+	case "task_template":
+		result.TaskTemplateTool = call.tool
+		result.TaskTemplateResult = call.value
+		result.TaskTemplateError = errorText
+	}
 }
 
 func appendPreflightContext(history []model.Message, result conversationPreflightResult) []model.Message {

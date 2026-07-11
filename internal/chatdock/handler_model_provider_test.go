@@ -2,13 +2,14 @@ package chatdock
 
 import (
 	"bytes"
-	"chatdock/internal/chatdock/model"
-	"chatdock/internal/chatdock/store"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"chatdock/internal/chatdock/model"
+	"chatdock/internal/chatdock/store"
 )
 
 func TestModelProviderTestUsesRequestConfig(t *testing.T) {

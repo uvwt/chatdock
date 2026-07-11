@@ -87,7 +87,7 @@ make frontend-test   # 运行前端纯逻辑测试
 make check           # fmt-check + frontend-lint + frontend-test + bundle-check + vet + test + build
 ```
 
-`make check` 会先运行前端结构守卫、CSS 健康预算、前端纯逻辑测试，生成前端 dist，并执行：`fmt-check`、`go vet ./...`、`go test ./...`、`go build`。前端守卫会确保 `app.css` 和 `styles/settings.css` 都只作为 import 入口，配置页数据加载保留在 `useSettingsData`，附件上传下载保留在 `useAttachments`，聊天展示/工具事件详情不回流到 `App.jsx`，历史样式只允许保留空兼容层。仓库还包含 GitHub Actions 最小 CI，覆盖 CSS 健康预算、前端测试、前端构建、Go 测试、vet、commit message 格式和 `git diff --check`。如果只想调试磁盘静态目录，可以设置 `CHATDOCK_WEB=/path/to/web/dist` 覆盖内嵌资源。
+`make check` 会先运行前端结构守卫、CSS 健康预算、前端纯逻辑测试，生成前端 dist，并执行：`fmt-check`、`go vet ./...`、`go test ./...`、`go build`。前端守卫会确保 `app.css` 和 `styles/settings.css` 都只作为 import 入口，配置页数据加载保留在 `useSettingsData`，附件上传下载保留在 `useAttachments`，聊天展示/工具事件详情不回流到 `App.jsx`，并阻止样式重新堆回入口文件。仓库还包含 GitHub Actions 最小 CI，覆盖 CSS 健康预算、前端测试、前端构建、Go 测试、vet、commit message 格式和 `git diff --check`。如果只想调试磁盘静态目录，可以设置 `CHATDOCK_WEB=/path/to/web/dist` 覆盖内嵌资源。
 
 ## 数据存储
 

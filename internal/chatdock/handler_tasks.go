@@ -1,10 +1,11 @@
 package chatdock
 
 import (
-	"chatdock/internal/chatdock/model"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"chatdock/internal/chatdock/model"
 )
 
 func scheduledTaskIDFromRequest(r *http.Request) string {

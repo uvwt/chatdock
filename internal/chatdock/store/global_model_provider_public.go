@@ -26,8 +26,6 @@ func publicModelProvider(record modelProviderRecord) ModelProvider {
 	selectedMasked := ""
 	if key, ok := publicSelectedKey(record); ok {
 		selectedMasked = maskSecret(key.APIKey)
-	} else {
-		selectedMasked = maskSecret(record.APIKey)
 	}
 	return ModelProvider{
 		ID:            record.ID,

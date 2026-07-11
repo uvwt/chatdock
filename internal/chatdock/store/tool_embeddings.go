@@ -1,9 +1,9 @@
 package store
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -40,7 +40,9 @@ func (s *Store) ToolEmbeddings(workspaceID string, model string) (map[string]Too
 			item.Embedding = decodeEmbeddingBlob(blob)
 		}
 		if len(item.Embedding) == 0 && strings.TrimSpace(raw) != "" {
-			_ = json.Unmarshal([]byte(raw), &item.Embedding)
+			if err := json.Unmarshal([]byte(raw), &item.Embedding); err != nil {
+				return nil, fmt.Errorf("decode tool embedding %s: %w", item.FullName, err)
+			}
 		}
 		if len(item.Embedding) == 0 {
 			continue
@@ -101,8 +103,11 @@ func (s *Store) migrateToolEmbeddingBlobs() error {
 	}
 	for _, it := range items {
 		var vector []float64
-		if err := json.Unmarshal([]byte(it.raw), &vector); err != nil || len(vector) == 0 {
-			continue
+		if err := json.Unmarshal([]byte(it.raw), &vector); err != nil {
+			return fmt.Errorf("decode legacy tool embedding %s: %w", it.fullName, err)
+		}
+		if len(vector) == 0 {
+			return fmt.Errorf("legacy tool embedding %s is empty", it.fullName)
 		}
 		if _, err := s.db.Exec(`UPDATE tool_embeddings SET embedding_blob = ? WHERE workspace_id = ? AND full_name = ? AND embedding_model = ?`, encodeEmbeddingBlob(vector), it.workspaceID, it.fullName, it.model); err != nil {
 			return err
@@ -115,11 +120,11 @@ func encodeEmbeddingBlob(values []float64) []byte {
 	if len(values) == 0 {
 		return nil
 	}
-	buf := bytes.NewBuffer(make([]byte, 0, len(values)*4))
-	for _, value := range values {
-		_ = binary.Write(buf, binary.LittleEndian, float32(value))
+	blob := make([]byte, len(values)*4)
+	for index, value := range values {
+		binary.LittleEndian.PutUint32(blob[index*4:], math.Float32bits(float32(value)))
 	}
-	return buf.Bytes()
+	return blob
 }
 
 func decodeEmbeddingBlob(raw []byte) []float64 {

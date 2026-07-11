@@ -1,9 +1,10 @@
 package store
 
 import (
-	"chatdock/internal/chatdock/model"
 	"strings"
 	"testing"
+
+	"chatdock/internal/chatdock/model"
 )
 
 func TestStoreSessionRenameAndExport(t *testing.T) {

@@ -168,7 +168,9 @@ func mapValue(value any) map[string]any {
 		return map[string]any{}
 	}
 	data := map[string]any{}
-	_ = json.Unmarshal(raw, &data)
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return map[string]any{}
+	}
 	return data
 }
 

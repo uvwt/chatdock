@@ -1,14 +1,16 @@
 package chatdock
 
 import (
-	"chatdock/internal/chatdock/mcp"
-	"chatdock/internal/chatdock/model"
-	storepkg "chatdock/internal/chatdock/store"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
+
+	"chatdock/internal/chatdock/mcp"
+	"chatdock/internal/chatdock/model"
+	storepkg "chatdock/internal/chatdock/store"
 )
 
 type MCPConfirmation struct {
@@ -27,6 +29,8 @@ type MCPConfirmation struct {
 type MCPConfirmationResolveRequest struct {
 	Approve bool `json:"approve"`
 }
+
+var errMCPConfirmationNotActive = errors.New("mcp confirmation is not active")
 
 func mcpToolNeedsConfirmation(cfg mcp.MCPConfig, fullName string) bool {
 	serverName, toolName := mcp.SplitToolFullName(fullName)
@@ -56,7 +60,8 @@ func (a *App) requestMCPConfirmation(ctx context.Context, sessionID string, tool
 
 	if emit != nil {
 		if err := emit("tool_confirmation_required", confirmation); err != nil {
-			return err
+			_, finishErr := a.finishMCPConfirmation(confirmation.ID, "cancelled", false)
+			return errors.Join(err, finishErr)
 		}
 	}
 
@@ -64,14 +69,17 @@ func (a *App) requestMCPConfirmation(ctx context.Context, sessionID string, tool
 	select {
 	case approved = <-confirmation.decision:
 	case <-ctx.Done():
-		a.finishMCPConfirmation(confirmation.ID, "cancelled", false)
-		return ctx.Err()
+		_, finishErr := a.finishMCPConfirmation(confirmation.ID, "cancelled", false)
+		return errors.Join(ctx.Err(), finishErr)
 	case <-time.After(10 * time.Minute):
-		a.finishMCPConfirmation(confirmation.ID, "expired", false)
-		return fmt.Errorf("mcp tool confirmation expired: %s", tool)
+		expiredErr := fmt.Errorf("mcp tool confirmation expired: %s", tool)
+		_, finishErr := a.finishMCPConfirmation(confirmation.ID, "expired", false)
+		return errors.Join(expiredErr, finishErr)
 	}
 	if emit != nil {
-		_ = emit("tool_confirmation_resolved", map[string]any{"id": confirmation.ID, "tool": tool, "approved": approved})
+		if err := emit("tool_confirmation_resolved", map[string]any{"id": confirmation.ID, "tool": tool, "approved": approved}); err != nil {
+			return err
+		}
 	}
 	if !approved {
 		return fmt.Errorf("mcp tool denied by user: %s", tool)
@@ -80,28 +88,30 @@ func (a *App) requestMCPConfirmation(ctx context.Context, sessionID string, tool
 }
 
 func (a *App) finishMCPConfirmation(id string, status string, approved bool) (MCPConfirmation, error) {
+	id = strings.TrimSpace(id)
 	a.confirmMu.Lock()
 	defer a.confirmMu.Unlock()
-	item, ok := a.confirmations[strings.TrimSpace(id)]
+	item, ok := a.confirmations[id]
 	if !ok {
-		return MCPConfirmation{}, fmt.Errorf("mcp confirmation not found")
+		return MCPConfirmation{}, fmt.Errorf("%w: %s", errMCPConfirmationNotActive, id)
 	}
 	if item.Status != "pending" {
+		delete(a.confirmations, id)
 		return *item, nil
 	}
-	now := time.Now()
-	item.Status = status
-	item.ResolvedAt = &now
-	persisted, err := a.store.ResolveMCPConfirmation(item.ID, status, approved, now)
-	if err == nil {
-		item.Status = persisted.Status
-		item.ResolvedAt = persisted.ResolvedAt
+	persisted, err := a.store.ResolveMCPConfirmation(item.ID, status, approved, time.Now())
+	if err != nil {
+		return MCPConfirmation{}, err
 	}
+	item.Status = persisted.Status
+	item.ResolvedAt = persisted.ResolvedAt
 	select {
 	case item.decision <- approved:
 	default:
 	}
-	return *item, nil
+	resolved := *item
+	delete(a.confirmations, id)
+	return resolved, nil
 }
 
 func (a *App) listMCPConfirmations(workspaceID string) ([]storepkg.MCPConfirmationRecord, error) {
@@ -128,15 +138,19 @@ func (a *App) handleResolveMCPConfirmation(w http.ResponseWriter, r *http.Reques
 		status = "approved"
 	}
 	item, err := a.finishMCPConfirmation(r.PathValue("id"), status, input.Approve)
-	if err != nil {
-		// 重启后 pending confirmation 不再有等待中的 goroutine，但仍应能从 SQLite 中完成状态流转。
-		if persisted, storeErr := a.store.ResolveMCPConfirmation(r.PathValue("id"), status, input.Approve, time.Now()); storeErr == nil {
-			writeJSONResponse(w, http.StatusOK, map[string]any{"confirmation": persisted})
-			return
-		}
-
-		writeError(w, http.StatusNotFound, err)
+	if err == nil {
+		writeJSONResponse(w, http.StatusOK, map[string]any{"confirmation": item})
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, map[string]any{"confirmation": item})
+	if !errors.Is(err, errMCPConfirmationNotActive) {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	// 重启后 pending confirmation 不再有等待中的 goroutine，但仍应能从 SQLite 中完成状态流转。
+	persisted, storeErr := a.store.ResolveMCPConfirmation(r.PathValue("id"), status, input.Approve, time.Now())
+	if storeErr != nil {
+		writeError(w, http.StatusNotFound, storeErr)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, map[string]any{"confirmation": persisted})
 }

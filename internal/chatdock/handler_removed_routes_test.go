@@ -1,12 +1,13 @@
 package chatdock
 
 import (
-	"chatdock/internal/chatdock/model"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"chatdock/internal/chatdock/model"
 )
 
 func TestRemovedSettingsRunAndAgentRoutes(t *testing.T) {

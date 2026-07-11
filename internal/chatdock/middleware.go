@@ -91,9 +91,7 @@ func (a *App) authMiddleware(next http.Handler) http.Handler {
 		}
 		got := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
 		if got != token {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			_, _ = w.Write([]byte(`{"error":"unauthorized","request_id":"` + requestIDFromRequest(r) + `"}`))
+			writeJSONResponse(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized", "request_id": requestIDFromRequest(r)})
 			return
 		}
 		next.ServeHTTP(w, r)

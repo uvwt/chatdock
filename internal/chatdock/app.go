@@ -66,7 +66,11 @@ func (a *App) ListenAndServe() error {
 	if err != nil {
 		return fmt.Errorf("listen %s failed: %w", a.cfg.Addr, err)
 	}
-	defer func() { _ = a.Close() }()
+	defer func() {
+		if closeErr := a.Close(); closeErr != nil {
+			logError("app_close_failed", closeErr, logFields{"addr": a.cfg.Addr})
+		}
+	}()
 
 	log.Printf("ChatDock listening on %s", displayListenURL(a.cfg.Addr))
 	log.Printf("ChatDock data dir: %s", a.cfg.DataDir)

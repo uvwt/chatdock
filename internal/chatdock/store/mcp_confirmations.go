@@ -119,7 +119,9 @@ func scanMCPConfirmationRow(row interface{ Scan(dest ...any) error }) (MCPConfir
 		return MCPConfirmationRecord{}, err
 	}
 	if strings.TrimSpace(argsRaw) != "" {
-		_ = json.Unmarshal([]byte(argsRaw), &item.Arguments)
+		if err := json.Unmarshal([]byte(argsRaw), &item.Arguments); err != nil {
+			return MCPConfirmationRecord{}, fmt.Errorf("decode MCP confirmation %s arguments: %w", item.ID, err)
+		}
 	}
 	item.RequestedAt = parseDBTimeZero(requestedRaw)
 	if strings.TrimSpace(resolvedRaw) != "" {

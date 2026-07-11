@@ -47,7 +47,10 @@ func compactMessageEvent(sessionID string, messageID string, messageIndex int, e
 	if len(event.Details) > 0 {
 		details = compactToolEventDetails(event.Details)
 	} else if strings.TrimSpace(event.Meta) != "" {
-		_ = json.Unmarshal([]byte(event.Meta), &details)
+		decoded := map[string]any{}
+		if err := json.Unmarshal([]byte(event.Meta), &decoded); err == nil {
+			details = decoded
+		}
 	}
 	details["lazy"] = true
 	details["session_id"] = sessionID

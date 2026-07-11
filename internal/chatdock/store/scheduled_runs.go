@@ -35,45 +35,68 @@ func (s *Store) FinishScheduledTaskRun(workspaceID string, taskID string, runID 
 	finishedAt := time.Now()
 	answer = strings.TrimSpace(answer)
 	sessionID = strings.TrimSpace(sessionID)
-	var result model.ScheduledTaskRunResponse
-	if sessionID != "" {
-		session, ok, err := s.sessionForWorkspaceLocked(workspaceID, sessionID)
-		if err != nil {
-			return model.ScheduledTaskRunResponse{}, err
-		}
-		if !ok {
-			return model.ScheduledTaskRunResponse{}, model.ErrSessionNotFound
-		}
-		if !assistantAlreadySaved {
-			assistantContent := answer
-			if runErr != nil {
-				assistantContent = "运行失败：" + strings.TrimSpace(runErr.Error())
-			} else if assistantContent == "" {
-				assistantContent = "模型没有返回内容。"
-			}
-			session.Messages = append(session.Messages, model.Message{ID: model.NewID(), Role: "assistant", Content: assistantContent, CreatedAt: finishedAt})
-			session.UpdatedAt = finishedAt
-			if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
-				return model.ScheduledTaskRunResponse{}, err
-			}
-		}
-		result.Session = cloneSession(session)
-	}
-	tasks, err := s.loadScheduledTasksForWorkspaceLocked(workspaceID)
+	session, err := s.finishScheduledTaskSessionLocked(workspaceID, sessionID, answer, runErr, assistantAlreadySaved, finishedAt)
 	if err != nil {
 		return model.ScheduledTaskRunResponse{}, err
 	}
-	index := -1
-	for i, task := range tasks {
+	task, err := s.scheduledTaskByIDLocked(workspaceID, taskID)
+	if err != nil {
+		return model.ScheduledTaskRunResponse{}, err
+	}
+	task, status, errorText := finishScheduledTaskState(task, sessionID, startedAt, finishedAt, manual, runErr)
+	record := normalizeScheduledRunRecordForDB(model.ScheduledTaskRunRecord{
+		ID: runID, TaskID: task.ID, TaskTitle: task.Title, Prompt: task.Prompt, Output: answer,
+		Status: status, Error: errorText, Manual: manual, SessionID: sessionID,
+		StartedAt: startedAt, FinishedAt: &finishedAt,
+	})
+	if err := s.saveScheduledTaskCompletionLocked(workspaceID, task, record); err != nil {
+		return model.ScheduledTaskRunResponse{}, err
+	}
+	return model.ScheduledTaskRunResponse{Task: task, Run: &record, Session: cloneSession(session)}, nil
+}
+
+func (s *Store) finishScheduledTaskSessionLocked(workspaceID string, sessionID string, answer string, runErr error, assistantAlreadySaved bool, finishedAt time.Time) (*model.Session, error) {
+	if sessionID == "" {
+		return nil, nil
+	}
+	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, model.ErrSessionNotFound
+	}
+	if assistantAlreadySaved {
+		return session, nil
+	}
+	assistantContent := answer
+	if runErr != nil {
+		assistantContent = "运行失败：" + strings.TrimSpace(runErr.Error())
+	} else if assistantContent == "" {
+		assistantContent = "模型没有返回内容。"
+	}
+	session.Messages = append(session.Messages, model.Message{ID: model.NewID(), Role: "assistant", Content: assistantContent, CreatedAt: finishedAt})
+	session.UpdatedAt = finishedAt
+	if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
+		return nil, err
+	}
+	return session, nil
+}
+
+func (s *Store) scheduledTaskByIDLocked(workspaceID string, taskID string) (model.ScheduledTask, error) {
+	tasks, err := s.loadScheduledTasksForWorkspaceLocked(workspaceID)
+	if err != nil {
+		return model.ScheduledTask{}, err
+	}
+	for _, task := range tasks {
 		if task.ID == taskID {
-			index = i
-			break
+			return task, nil
 		}
 	}
-	if index < 0 {
-		return model.ScheduledTaskRunResponse{}, fmt.Errorf("scheduled task not found: %s", taskID)
-	}
-	task := tasks[index]
+	return model.ScheduledTask{}, fmt.Errorf("scheduled task not found: %s", taskID)
+}
+
+func finishScheduledTaskState(task model.ScheduledTask, sessionID string, startedAt time.Time, finishedAt time.Time, manual bool, runErr error) (model.ScheduledTask, string, string) {
 	task.ContextMode = normalizeScheduledTaskContextMode(task.ContextMode)
 	task.Running = false
 	task.SessionID = sessionID
@@ -84,24 +107,29 @@ func (s *Store) FinishScheduledTaskRun(workspaceID string, taskID string, runID 
 	if runErr != nil {
 		status = "failed"
 		errorText = runErr.Error()
-		task.LastStatus = "failed"
-		task.LastError = errorText
-	} else {
-		task.LastStatus = "success"
-		task.LastError = ""
 	}
+	task.LastStatus = status
+	task.LastError = errorText
 	if !manual {
 		task = advanceScheduledTask(task, startedAt)
 	}
-	record, err := s.appendScheduledTaskRunRecordLocked(workspaceID, model.ScheduledTaskRunRecord{ID: runID, TaskID: task.ID, TaskTitle: task.Title, Prompt: task.Prompt, Output: answer, Status: status, Error: errorText, Manual: manual, SessionID: sessionID, StartedAt: startedAt, FinishedAt: &finishedAt})
+	return task, status, errorText
+}
+
+func (s *Store) saveScheduledTaskCompletionLocked(workspaceID string, task model.ScheduledTask, record model.ScheduledTaskRunRecord) error {
+	tx, err := s.db.Begin()
 	if err != nil {
-		return model.ScheduledTaskRunResponse{}, err
+		return err
 	}
-	tasks[index] = task
-	if err := s.saveScheduledTasksForWorkspaceLocked(workspaceID, tasks); err != nil {
-		return model.ScheduledTaskRunResponse{}, err
+	defer func() { _ = tx.Rollback() }()
+	if err := upsertScheduledTaskTx(tx, workspaceID, normalizeScheduledTaskForDB(task)); err != nil {
+		return err
 	}
-	result.Task = task
-	result.Run = &record
-	return result, nil
+	if err := upsertScheduledTaskRunTx(tx, workspaceID, record); err != nil {
+		return err
+	}
+	if err := touchWorkspace(tx, workspaceID, time.Now()); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

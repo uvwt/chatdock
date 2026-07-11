@@ -14,24 +14,20 @@ func normalizeModelProviderRecord(record modelProviderRecord) modelProviderRecor
 	record.Name = strings.TrimSpace(record.Name)
 	record.Type = strings.TrimSpace(record.Type)
 	record.BaseURL = strings.TrimSpace(record.BaseURL)
-	record.APIKey = strings.TrimSpace(record.APIKey)
+	legacyAPIKey := strings.TrimSpace(record.LegacyAPIKey)
+	record.LegacyAPIKey = ""
 	record.DefaultModel = strings.TrimSpace(record.DefaultModel)
 	record.Models = normalizeProviderModelNames(record.Models, record.DefaultModel)
 	record.KeyStrategy = normalizeProviderKeyStrategy(record.KeyStrategy)
 	record.SelectedKeyID = normalizeProviderKeyID(record.SelectedKeyID)
-	if len(record.APIKeys) == 0 && record.APIKey != "" {
-		record.APIKeys = []modelProviderAPIKeyRecord{{ID: "main", Name: "主 key", APIKey: record.APIKey, Enabled: true, Priority: 1, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt}}
+	if len(record.APIKeys) == 0 && legacyAPIKey != "" {
+		record.APIKeys = []modelProviderAPIKeyRecord{{ID: "main", Name: "主 key", APIKey: legacyAPIKey, Enabled: true, Priority: 1, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt}}
 	}
 	record.APIKeys = normalizeProviderAPIKeyRecords(record.APIKeys, now)
 	if record.SelectedKeyID == "" {
 		if key, ok := firstEnabledProviderKey(record.APIKeys); ok {
 			record.SelectedKeyID = key.ID
 		}
-	}
-	if selected, ok := keyByID(record.APIKeys, record.SelectedKeyID); ok {
-		record.APIKey = selected.APIKey
-	} else if key, ok := firstEnabledProviderKey(record.APIKeys); ok {
-		record.APIKey = key.APIKey
 	}
 	if record.Type == "" {
 		record.Type = "openai-compatible"

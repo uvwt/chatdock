@@ -2,13 +2,14 @@ package chatdock
 
 import (
 	"bytes"
-	"chatdock/internal/chatdock/model"
 	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"chatdock/internal/chatdock/model"
 )
 
 func TestBuiltinScheduledTaskToolCRUD(t *testing.T) {

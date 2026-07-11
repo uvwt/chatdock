@@ -1,11 +1,12 @@
 package chatdock
 
 import (
-	"chatdock/internal/chatdock/mcp"
-	"chatdock/internal/chatdock/model"
 	"fmt"
 	"net/http"
 	"strings"
+
+	"chatdock/internal/chatdock/mcp"
+	"chatdock/internal/chatdock/model"
 )
 
 func (a *App) handleGetMCPConfig(w http.ResponseWriter, r *http.Request) {

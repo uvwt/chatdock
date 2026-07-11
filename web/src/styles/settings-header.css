@@ -1,4 +1,3 @@
-/* Migrated from legacy-overrides.css. Keep import order stable. */
 /* 2026-07-04 配置中心头部按钮：返回/刷新按钮改成截图中的左侧白底描边样式。 */
 .settings-page .settings-header {
   justify-content: flex-start !important;

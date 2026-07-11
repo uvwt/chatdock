@@ -129,9 +129,7 @@ func normalizeScheduledRunRecordForDB(record model.ScheduledTaskRunRecord) model
 	return record
 }
 
-func upsertScheduledTaskTx(tx interface {
-	Exec(string, ...any) (sql.Result, error)
-}, prompt string, task model.ScheduledTask) error {
+func upsertScheduledTaskTx(tx sqlWriter, prompt string, task model.ScheduledTask) error {
 	prompt = strings.TrimSpace(prompt)
 	if prompt == "" {
 		prompt = defaultWorkspaceID
@@ -255,7 +253,7 @@ func boolInt(value bool) int {
 	return 0
 }
 
-func deleteScheduledTasksExceptWorkspaceLocked(db *sql.DB, prompt string, keep map[string]bool) error {
+func deleteScheduledTasksExceptWorkspaceLocked(db sqlQueryWriter, prompt string, keep map[string]bool) error {
 	rows, err := db.Query(`SELECT id FROM scheduled_tasks WHERE workspace_id = ?`, prompt)
 	if err != nil {
 		return err

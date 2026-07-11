@@ -1,8 +1,6 @@
 package llm
 
 import (
-	"chatdock/internal/chatdock/mcp"
-	"chatdock/internal/chatdock/model"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,6 +9,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"chatdock/internal/chatdock/mcp"
+	"chatdock/internal/chatdock/model"
 )
 
 func TestStripThinkingContent(t *testing.T) {

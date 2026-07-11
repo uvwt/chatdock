@@ -36,8 +36,22 @@ func (s *Store) insertWorkspaceLocked(name string, now time.Time) error {
 }
 
 func (s *Store) touchWorkspaceLocked(name string, now time.Time) error {
-	_, err := s.db.Exec(`UPDATE workspaces SET updated_at = ? WHERE name = ?`, formatDBTime(now), name)
-	return err
+	return touchWorkspace(s.db, name, now)
+}
+
+func touchWorkspace(writer sqlWriter, name string, now time.Time) error {
+	result, err := writer.Exec(`UPDATE workspaces SET updated_at = ? WHERE name = ?`, formatDBTime(now), name)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected != 1 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (s *Store) getWorkspaceRawLocked(prompt string, key string) (string, bool, error) {

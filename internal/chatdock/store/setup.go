@@ -25,9 +25,6 @@ func (s *Store) SetupStatus() (SetupStatus, error) {
 		if strings.TrimSpace(provider.BaseURL) != "" && strings.TrimSpace(provider.DefaultModel) != "" && provider.Enabled {
 			hasProvider = true
 		}
-		if strings.TrimSpace(provider.APIKey) != "" {
-			hasKey = true
-		}
 		for _, key := range provider.APIKeys {
 			if strings.TrimSpace(key.APIKey) != "" && key.Enabled {
 				hasKey = true

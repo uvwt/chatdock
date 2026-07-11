@@ -2,12 +2,13 @@ package chatdock
 
 import (
 	"bytes"
-	"chatdock/internal/chatdock/model"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"chatdock/internal/chatdock/model"
 )
 
 func TestChatAPIWritesSingleJSONResponse(t *testing.T) {

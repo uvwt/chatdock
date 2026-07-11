@@ -1,7 +1,10 @@
 package store
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"chatdock/internal/chatdock/model"
@@ -48,13 +51,9 @@ func (s *Store) ListScheduledTaskRuns(workspaceID string, taskID string, limit i
 }
 
 func sortScheduledTaskRunRecords(records []model.ScheduledTaskRunRecord) {
-	for i := 0; i < len(records); i++ {
-		for j := i + 1; j < len(records); j++ {
-			if records[j].StartedAt.After(records[i].StartedAt) {
-				records[i], records[j] = records[j], records[i]
-			}
-		}
-	}
+	sort.Slice(records, func(i, j int) bool {
+		return records[i].StartedAt.After(records[j].StartedAt)
+	})
 }
 
 func trimScheduledTaskRunRecords(records []model.ScheduledTaskRunRecord, perTaskLimit int, totalLimit int) []model.ScheduledTaskRunRecord {
@@ -90,7 +89,7 @@ func (s *Store) latestSuccessfulScheduledTaskRunLocked(workspaceID string, taskI
 	row := s.db.QueryRow(query, workspaceID, taskID)
 	record, err := scanScheduledTaskRun(row)
 	if err != nil {
-		if strings.Contains(err.Error(), "no rows") {
+		if errors.Is(err, sql.ErrNoRows) {
 			return model.ScheduledTaskRunRecord{}, false, nil
 		}
 		return model.ScheduledTaskRunRecord{}, false, err

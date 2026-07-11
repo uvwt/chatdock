@@ -2,6 +2,7 @@ package chatdock
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -9,20 +10,29 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func (a *App) maybeGenerateSessionTitle(ctx context.Context, workspaceID string, sessionID string, cfg model.ModelConfig) *model.Session {
+func (a *App) maybeGenerateSessionTitle(ctx context.Context, workspaceID string, sessionID string, cfg model.ModelConfig) (*model.Session, error) {
 	session, ok, err := a.store.GetSession(workspaceID, sessionID)
-	if err != nil || !ok || !shouldGenerateSessionTitle(session) {
-		return session
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, model.ErrSessionNotFound
+	}
+	if !shouldGenerateSessionTitle(session) {
+		return session, nil
 	}
 	title, err := a.generateSessionTitle(ctx, cfg, session)
-	if err != nil || title == "" {
-		return session
+	if err != nil {
+		return session, fmt.Errorf("generate session title: %w", err)
+	}
+	if title == "" {
+		return session, nil
 	}
 	renamed, err := a.store.RenameSession(workspaceID, sessionID, title)
 	if err != nil {
-		return session
+		return session, fmt.Errorf("rename session: %w", err)
 	}
-	return renamed
+	return renamed, nil
 }
 
 func (a *App) generateSessionTitle(ctx context.Context, cfg model.ModelConfig, session *model.Session) (string, error) {

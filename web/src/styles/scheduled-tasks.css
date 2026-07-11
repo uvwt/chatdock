@@ -1,4 +1,3 @@
-/* Scheduled task sidebar and run-list rules migrated out of legacy-overrides.css. */
 /* 2026-07-05: keep mobile scheduled tasks from pushing the whole sidebar off-screen. */
 .sidebar-section-count {
   margin-left: auto;

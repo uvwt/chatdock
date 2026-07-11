@@ -2,6 +2,8 @@ package chatdock
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"testing"
 
 	"chatdock/internal/chatdock/mcp"
@@ -71,5 +73,46 @@ func TestConversationPreflightUsesWorkflowTemplateManageMatch(t *testing.T) {
 	}
 	if calledArgs["action"] != "match" || calledArgs["goal"] == "" || calledArgs["task_type"] != nil {
 		t.Fatalf("unexpected preflight args: %#v", calledArgs)
+	}
+}
+
+func TestConversationPreflightRunsMemoryAndTemplateWithoutSharedStateRaces(t *testing.T) {
+	catalog := newToolCatalog([]mcp.MCPTool{
+		{Server: "DockMini", Name: "recall_bootstrap", FullName: "DockMini__recall_bootstrap"},
+		{Server: "DockMini", Name: "workflow_template_manage", FullName: "DockMini__workflow_template_manage"},
+	})
+	var mu sync.Mutex
+	calls := map[string]map[string]any{}
+	result := (&App{}).runConversationPreflight(context.Background(), []model.Message{{Role: "user", Content: "按这个逻辑改 ChatDock 代码"}}, catalog, func(name string, args map[string]any) (any, error) {
+		mu.Lock()
+		calls[name] = args
+		mu.Unlock()
+		return map[string]any{"tool": name}, nil
+	}, nil)
+
+	if result.MemoryError != "" || result.TaskTemplateError != "" {
+		t.Fatalf("unexpected preflight errors: %+v", result)
+	}
+	if result.MemoryTool != "DockMini__recall_bootstrap" || result.TaskTemplateTool != "DockMini__workflow_template_manage" {
+		t.Fatalf("unexpected selected tools: %+v", result)
+	}
+	if len(calls) != 2 {
+		t.Fatalf("expected both preflight calls, got %#v", calls)
+	}
+}
+
+func TestConversationPreflightReturnsEmitterFailureInMatchingBranch(t *testing.T) {
+	catalog := newToolCatalog([]mcp.MCPTool{
+		{Server: "DockMini", Name: "recall_bootstrap", FullName: "DockMini__recall_bootstrap"},
+		{Server: "DockMini", Name: "workflow_template_manage", FullName: "DockMini__workflow_template_manage"},
+	})
+	emitErr := errors.New("persist preflight event")
+	result := (&App{}).runConversationPreflight(context.Background(), []model.Message{{Role: "user", Content: "按这个逻辑改 ChatDock 代码"}}, catalog, func(name string, args map[string]any) (any, error) {
+		return map[string]any{"tool": name}, nil
+	}, func(event string, value any) error {
+		return emitErr
+	})
+	if result.MemoryError != emitErr.Error() || result.TaskTemplateError != emitErr.Error() {
+		t.Fatalf("expected emitter error in both branches: %+v", result)
 	}
 }

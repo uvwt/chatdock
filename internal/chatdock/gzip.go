@@ -2,6 +2,7 @@ package chatdock
 
 import (
 	"compress/gzip"
+	"errors"
 	"net/http"
 	"strings"
 )
@@ -12,6 +13,7 @@ type gzipResponseWriter struct {
 	status     int
 	enabled    bool
 	decided    bool
+	flushErr   error
 }
 
 func (w *gzipResponseWriter) WriteHeader(status int) {
@@ -41,7 +43,9 @@ func (w *gzipResponseWriter) Write(data []byte) (int, error) {
 
 func (w *gzipResponseWriter) Flush() {
 	if w.enabled && w.gzipWriter != nil {
-		_ = w.gzipWriter.Flush()
+		if err := w.gzipWriter.Flush(); err != nil && w.flushErr == nil {
+			w.flushErr = err
+		}
 	}
 	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
 		flusher.Flush()
@@ -50,9 +54,9 @@ func (w *gzipResponseWriter) Flush() {
 
 func (w *gzipResponseWriter) Close() error {
 	if w.enabled && w.gzipWriter != nil {
-		return w.gzipWriter.Close()
+		return errors.Join(w.flushErr, w.gzipWriter.Close())
 	}
-	return nil
+	return w.flushErr
 }
 
 func gzipMiddleware(next http.Handler) http.Handler {
@@ -63,7 +67,11 @@ func gzipMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		gw := &gzipResponseWriter{ResponseWriter: w}
-		defer gw.Close()
+		defer func() {
+			if err := gw.Close(); err != nil {
+				logError("gzip_response_close_failed", err, logFields{"request_id": requestIDFromRequest(r), "path": r.URL.Path})
+			}
+		}()
 		next.ServeHTTP(gw, r)
 	})
 }

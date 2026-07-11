@@ -1,10 +1,11 @@
 package store
 
 import (
+	"testing"
+
 	"chatdock/internal/chatdock/llm"
 	"chatdock/internal/chatdock/mcp"
 	"chatdock/internal/chatdock/model"
-	"testing"
 )
 
 func TestStoreMCPRunsAndAgentTasks(t *testing.T) {
@@ -108,6 +109,46 @@ func TestStoreChatJobEventsPersistAndFinish(t *testing.T) {
 	}
 	if finished.Status != "success" || finished.Answer != "answer" || finished.Reasoning != "reason" || finished.FinishedAt == nil {
 		t.Fatalf("unexpected finished job: %#v", finished)
+	}
+	_, events, err = store.ChatJobEventsAfter("default", job.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("finished job should compact streaming deltas: %#v", events)
+	}
+	if _, err := store.FinishChatJob("missing", "success", "", "", nil); err == nil {
+		t.Fatal("missing chat job must not finish successfully")
+	}
+}
+
+func TestInterruptChatJobPersistsCancellationEvent(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	session, err := store.CreateSession("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := store.CreateChatJob("default", session.ID, "req_cancel")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancelled, err := store.InterruptChatJob("default", job.ID, "stop now")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cancelled.Status != "interrupted" || cancelled.Error != "stop now" {
+		t.Fatalf("unexpected interrupted job: %#v", cancelled)
+	}
+	_, events, err := store.ChatJobEventsAfter("default", job.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 1 || events[0].Event != "job_cancelled" || events[0].Seq != 1 {
+		t.Fatalf("unexpected cancellation events: %#v", events)
 	}
 }
 

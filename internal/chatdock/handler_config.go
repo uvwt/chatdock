@@ -1,8 +1,9 @@
 package chatdock
 
 import (
-	"chatdock/internal/chatdock/model"
 	"net/http"
+
+	"chatdock/internal/chatdock/model"
 )
 
 func (a *App) handleGetConfig(w http.ResponseWriter, r *http.Request) {

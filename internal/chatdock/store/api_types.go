@@ -87,7 +87,6 @@ type ModelProviderInput struct {
 	Name          string                     `json:"name"`
 	Type          string                     `json:"type,omitempty"`
 	BaseURL       string                     `json:"base_url"`
-	APIKey        string                     `json:"api_key,omitempty"`
 	DefaultModel  string                     `json:"default_model"`
 	Models        []string                   `json:"models,omitempty"`
 	TimeoutMS     int                        `json:"timeout_ms,omitempty"`

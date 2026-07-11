@@ -1,17 +1,28 @@
 package store
 
 import (
-	"chatdock/internal/chatdock/model"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"chatdock/internal/chatdock/model"
 )
 
 // SQLite 初始化和旧 JSON 数据迁移放在一起，便于先读懂 Store 启动流程，
 // 也避免把迁移细节混进会话/工作空间的业务方法里。
+
+type sqlWriter interface {
+	Exec(string, ...any) (sql.Result, error)
+}
+
+type sqlQueryWriter interface {
+	sqlWriter
+	Query(string, ...any) (*sql.Rows, error)
+}
 
 func (s *Store) initSQLite() error {
 	bootstrap := []string{
@@ -99,13 +110,16 @@ var legacyWorkspaceIndexNames = []string{
 	"idx_tool_embeddings_prompt_model",
 }
 
-func (s *Store) migrateSQLiteWorkspaceSchema() error {
+func (s *Store) migrateSQLiteWorkspaceSchema() (err error) {
 	// 只兼容旧数据迁移，不兼容旧 schema：启动时把历史 prompt 表/列原地改成 workspace 命名，
 	// 后续业务 SQL 只读写 workspace_id，不再保留 prompt 双读或 fallback。
 	if _, err := s.db.Exec(`PRAGMA foreign_keys = OFF`); err != nil {
 		return err
 	}
-	defer s.db.Exec(`PRAGMA foreign_keys = ON`)
+	defer func() {
+		_, enableErr := s.db.Exec(`PRAGMA foreign_keys = ON`)
+		err = errors.Join(err, enableErr)
+	}()
 
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -262,9 +276,10 @@ func (s *Store) importLegacyDefaultFiles() error {
 }
 
 func (s *Store) importPromptDir(name string, dir string) error {
+	originalName := name
 	name, err := normalizeWorkspaceID(name)
 	if err != nil {
-		return nil
+		return fmt.Errorf("migrate legacy workspace %q: %w", originalName, err)
 	}
 	if err := s.ensureWorkspaceLocked(name); err != nil {
 		return err
@@ -312,8 +327,11 @@ func (s *Store) importSessionFile(prompt string, path string) error {
 		return err
 	}
 	var session model.Session
-	if err := json.Unmarshal(raw, &session); err != nil || session.ID == "" {
-		return nil
+	if err := json.Unmarshal(raw, &session); err != nil {
+		return fmt.Errorf("decode legacy session %s: %w", path, err)
+	}
+	if strings.TrimSpace(session.ID) == "" {
+		return fmt.Errorf("legacy session %s has empty id", path)
 	}
 	return s.saveSessionForWorkspaceLocked(prompt, &session)
 }

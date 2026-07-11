@@ -2,12 +2,13 @@ package chatdock
 
 import (
 	"bytes"
-	"chatdock/internal/chatdock/model"
-	storepkg "chatdock/internal/chatdock/store"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"chatdock/internal/chatdock/model"
+	storepkg "chatdock/internal/chatdock/store"
 )
 
 func TestProductizedAPIs(t *testing.T) {

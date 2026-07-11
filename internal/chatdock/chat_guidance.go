@@ -61,10 +61,12 @@ func (a *App) enqueueChatJobGuidance(workspaceID string, jobID string, message s
 		return chatJobGuidance{}, fmt.Errorf("chat job is not running")
 	}
 	item := chatJobGuidance{ID: model.NewID(), JobID: jobID, Message: message, CreatedAt: time.Now()}
+	if _, err := a.store.AddChatJobEvent(jobID, "guidance_queued", item); err != nil {
+		return chatJobGuidance{}, err
+	}
 	a.jobMu.Lock()
 	a.jobGuidance[jobID] = append(a.jobGuidance[jobID], item)
 	a.jobMu.Unlock()
-	_, _ = a.store.AddChatJobEvent(jobID, "guidance_queued", item)
 	return item, nil
 }
 

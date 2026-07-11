@@ -77,17 +77,38 @@ func (s *Store) AddChatJobEvent(jobID string, event string, data any) (ChatJobEv
 	if _, err := s.getChatJobByIDLocked(jobID); err != nil {
 		return ChatJobEvent{}, err
 	}
-	var seq int
-	if err := s.db.QueryRow(`SELECT COALESCE(MAX(seq), 0) + 1 FROM chat_job_events WHERE job_id = ?`, jobID).Scan(&seq); err != nil {
-		return ChatJobEvent{}, err
-	}
-	now := time.Now()
-	raw := compactJSONForDB(data)
-	_, err := s.db.Exec(`INSERT INTO chat_job_events(job_id, seq, event, data_json, created_at) VALUES(?, ?, ?, ?, ?)`, jobID, seq, event, raw, formatDBTime(now))
+	tx, err := s.db.Begin()
 	if err != nil {
 		return ChatJobEvent{}, err
 	}
-	_, _ = s.db.Exec(`UPDATE chat_jobs SET updated_at = ? WHERE id = ?`, formatDBTime(now), jobID)
+	defer func() { _ = tx.Rollback() }()
+	created, err := addChatJobEventTx(tx, jobID, event, data, time.Now())
+	if err != nil {
+		return ChatJobEvent{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return ChatJobEvent{}, err
+	}
+	return created, nil
+}
+
+func addChatJobEventTx(tx *sql.Tx, jobID string, event string, data any, now time.Time) (ChatJobEvent, error) {
+	var seq int
+	if err := tx.QueryRow(`SELECT COALESCE(MAX(seq), 0) + 1 FROM chat_job_events WHERE job_id = ?`, jobID).Scan(&seq); err != nil {
+		return ChatJobEvent{}, err
+	}
+	if _, err := tx.Exec(`INSERT INTO chat_job_events(job_id, seq, event, data_json, created_at) VALUES(?, ?, ?, ?, ?)`, jobID, seq, event, compactJSONForDB(data), formatDBTime(now)); err != nil {
+		return ChatJobEvent{}, err
+	}
+	result, err := tx.Exec(`UPDATE chat_jobs SET updated_at = ? WHERE id = ?`, formatDBTime(now), jobID)
+	if err != nil {
+		return ChatJobEvent{}, err
+	}
+	if affected, err := result.RowsAffected(); err != nil {
+		return ChatJobEvent{}, err
+	} else if affected != 1 {
+		return ChatJobEvent{}, sql.ErrNoRows
+	}
 	return ChatJobEvent{JobID: jobID, Seq: seq, Event: event, Data: data, CreatedAt: now}, nil
 }
 
@@ -96,14 +117,11 @@ func (s *Store) FinishChatJob(jobID string, status string, answer string, reason
 	defer s.mu.Unlock()
 
 	jobID = strings.TrimSpace(jobID)
-	existing, _ := s.getChatJobByIDLocked(jobID)
-	status = strings.TrimSpace(status)
-	if status == "" {
-		status = "success"
+	existing, err := s.getChatJobByIDLocked(jobID)
+	if err != nil {
+		return ChatJob{}, err
 	}
-	if status != "success" && status != "failed" && status != "interrupted" {
-		status = "failed"
-	}
+	status = normalizeChatJobFinishStatus(status)
 	errorText := ""
 	if runErr != nil {
 		errorText = runErr.Error()
@@ -115,25 +133,38 @@ func (s *Store) FinishChatJob(jobID string, status string, answer string, reason
 		}
 	}
 	now := time.Now()
-	_, err := s.db.Exec(`UPDATE chat_jobs SET status = ?, answer = ?, reasoning = ?, error = ?, finished_at = ?, updated_at = ? WHERE id = ?`, status, answer, strings.TrimSpace(reasoning), errorText, formatDBTime(now), formatDBTime(now), jobID)
+	tx, err := s.db.Begin()
 	if err != nil {
 		return ChatJob{}, err
 	}
-	if status != "running" {
-		if err := s.compactFinishedChatJobEventsLocked(jobID); err != nil {
-			return ChatJob{}, err
-		}
+	defer func() { _ = tx.Rollback() }()
+	result, err := tx.Exec(`UPDATE chat_jobs SET status = ?, answer = ?, reasoning = ?, error = ?, finished_at = ?, updated_at = ? WHERE id = ?`, status, answer, strings.TrimSpace(reasoning), errorText, formatDBTime(now), formatDBTime(now), jobID)
+	if err != nil {
+		return ChatJob{}, err
+	}
+	if affected, err := result.RowsAffected(); err != nil {
+		return ChatJob{}, err
+	} else if affected != 1 {
+		return ChatJob{}, sql.ErrNoRows
+	}
+	if _, err := tx.Exec(`DELETE FROM chat_job_events WHERE job_id = ? AND event IN ('delta', 'reasoning_delta')`, jobID); err != nil {
+		return ChatJob{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return ChatJob{}, err
 	}
 	return s.getChatJobByIDLocked(jobID)
 }
 
-func (s *Store) compactFinishedChatJobEventsLocked(jobID string) error {
-	jobID = strings.TrimSpace(jobID)
-	if jobID == "" {
-		return nil
+func normalizeChatJobFinishStatus(status string) string {
+	switch strings.TrimSpace(status) {
+	case "success", "failed", "interrupted":
+		return strings.TrimSpace(status)
+	case "":
+		return "success"
+	default:
+		return "failed"
 	}
-	_, err := s.db.Exec(`DELETE FROM chat_job_events WHERE job_id = ? AND event IN ('delta', 'reasoning_delta')`, jobID)
-	return err
 }
 
 func (s *Store) ListChatJobs(workspaceID string, sessionID string, runningOnly bool, limit int) ([]ChatJob, error) {
@@ -219,8 +250,24 @@ func (s *Store) InterruptChatJob(workspaceID string, jobID string, reason string
 		reason = "用户已停止生成。"
 	}
 	now := time.Now()
-	_, err = s.db.Exec(`UPDATE chat_jobs SET status = 'interrupted', error = ?, finished_at = ?, updated_at = ? WHERE id = ?`, strings.TrimSpace(reason), formatDBTime(now), formatDBTime(now), jobID)
+	tx, err := s.db.Begin()
 	if err != nil {
+		return ChatJob{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	result, err := tx.Exec(`UPDATE chat_jobs SET status = 'interrupted', error = ?, finished_at = ?, updated_at = ? WHERE id = ?`, strings.TrimSpace(reason), formatDBTime(now), formatDBTime(now), jobID)
+	if err != nil {
+		return ChatJob{}, err
+	}
+	if affected, err := result.RowsAffected(); err != nil {
+		return ChatJob{}, err
+	} else if affected != 1 {
+		return ChatJob{}, sql.ErrNoRows
+	}
+	if _, err := addChatJobEventTx(tx, jobID, "job_cancelled", map[string]any{"message": reason}, now); err != nil {
+		return ChatJob{}, err
+	}
+	if err := tx.Commit(); err != nil {
 		return ChatJob{}, err
 	}
 	return s.getChatJobByIDLocked(jobID)
@@ -299,7 +346,9 @@ func scanChatJobEvents(rows *sql.Rows) ([]ChatJobEvent, error) {
 		}
 		var data any
 		if strings.TrimSpace(row.DataJSON) != "" {
-			_ = json.Unmarshal([]byte(row.DataJSON), &data)
+			if err := json.Unmarshal([]byte(row.DataJSON), &data); err != nil {
+				return nil, fmt.Errorf("decode chat job %s event %d data: %w", row.JobID, row.Seq, err)
+			}
 		}
 		events = append(events, ChatJobEvent{JobID: row.JobID, Seq: row.Seq, Event: row.Event, Data: data, CreatedAt: parseDBTime(createdRaw)})
 	}

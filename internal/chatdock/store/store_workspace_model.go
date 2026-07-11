@@ -95,8 +95,7 @@ func (s *Store) upsertProviderFromConfigLocked(workspaceID string, cfg model.Mod
 			continue
 		}
 		records[i].BaseURL = strings.TrimSpace(cfg.BaseURL)
-		records[i].APIKey = strings.TrimSpace(cfg.APIKey)
-		records[i].APIKeys = upsertLegacyAPIKeyRecord(records[i].APIKeys, cfg.APIKey, now)
+		records[i].APIKeys = upsertProviderAPIKey(records[i].APIKeys, records[i].SelectedKeyID, cfg.APIKey, now)
 		records[i].DefaultModel = strings.TrimSpace(cfg.Model)
 		records[i].Models = normalizeProviderModelNames(cfg.Models, cfg.Model)
 		records[i].Enabled = strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != ""
@@ -104,7 +103,7 @@ func (s *Store) upsertProviderFromConfigLocked(workspaceID string, cfg model.Mod
 		records[i] = normalizeModelProviderRecord(records[i])
 		return s.saveModelProviderRecordsLocked(records)
 	}
-	record := normalizeModelProviderRecord(modelProviderRecord{ID: id, Name: providerDisplayName(workspaceID, cfg), Type: "openai-compatible", BaseURL: strings.TrimSpace(cfg.BaseURL), APIKey: strings.TrimSpace(cfg.APIKey), DefaultModel: strings.TrimSpace(cfg.Model), Models: normalizeProviderModelNames(cfg.Models, cfg.Model), TimeoutMS: 120000, Enabled: strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != "", CreatedAt: now, UpdatedAt: now})
+	record := normalizeModelProviderRecord(modelProviderRecord{ID: id, Name: providerDisplayName(workspaceID, cfg), Type: "openai-compatible", BaseURL: strings.TrimSpace(cfg.BaseURL), APIKeys: upsertProviderAPIKey(nil, "", cfg.APIKey, now), DefaultModel: strings.TrimSpace(cfg.Model), Models: normalizeProviderModelNames(cfg.Models, cfg.Model), TimeoutMS: 120000, Enabled: strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != "", CreatedAt: now, UpdatedAt: now})
 	records = append(records, record)
 	return s.saveModelProviderRecordsLocked(records)
 }

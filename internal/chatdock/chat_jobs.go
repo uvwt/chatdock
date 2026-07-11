@@ -74,122 +74,25 @@ func (a *App) cancelChatJob(workspaceID string, jobID string) (storepkg.ChatJob,
 	if cancel != nil {
 		cancel()
 	}
-	job, err := a.store.InterruptChatJob(workspaceID, jobID, "用户已停止生成。")
-	if err == nil {
-		_, _ = a.store.AddChatJobEvent(jobID, "job_cancelled", map[string]any{"message": "用户已停止生成。"})
-	}
-	return job, err
+	return a.store.InterruptChatJob(workspaceID, jobID, "用户已停止生成。")
 }
 
 func (a *App) runChatJob(ctx context.Context, workspaceID string, jobID string, sessionID string, cfg model.ModelConfig, history []model.Message) {
 	defer a.unregisterChatJobCancel(jobID)
 	defer a.clearChatJobGuidance(jobID)
-	var answer strings.Builder
-	var reasoning strings.Builder
-	var parts messagePartsRecorder
-	var checkpointMessageID string
-	var lastCheckpoint time.Time
-	lastCheckpointChars := 0
-	var pendingDelta llm.StreamDelta
-	var pendingDeltaChars int
-	lastDeltaFlush := time.Now()
-	flushDeltaEvent := func(force bool) error {
-		if pendingDelta.Content == "" && pendingDelta.ReasoningContent == "" {
-			return nil
-		}
-		if !force && pendingDeltaChars < 512 && time.Since(lastDeltaFlush) < 250*time.Millisecond {
-			return nil
-		}
-		delta := pendingDelta
-		pendingDelta = llm.StreamDelta{}
-		pendingDeltaChars = 0
-		lastDeltaFlush = time.Now()
-		_, err := a.store.AddChatJobEvent(jobID, "delta", delta)
-		return err
-	}
-	saveCheckpoint := func(force bool) error {
-		currentAnswer := answer.String()
-		currentReasoning := reasoning.String()
-		if !force && len(currentAnswer)-lastCheckpointChars < 512 && time.Since(lastCheckpoint) < time.Second {
-			return nil
-		}
-		if strings.TrimSpace(currentAnswer) == "" && strings.TrimSpace(currentReasoning) == "" && len(parts.parts) == 0 && len(parts.events) == 0 {
-			return nil
-		}
-		_, messageID, err := a.store.UpsertAssistantMessageCheckpoint(workspaceID, sessionID, checkpointMessageID, currentAnswer, currentReasoning, parts.parts, parts.events)
-		if err != nil {
-			return err
-		}
-		checkpointMessageID = messageID
-		lastCheckpoint = time.Now()
-		lastCheckpointChars = len(currentAnswer)
-		return nil
-	}
-	emit := func(event string, value any) error {
-		parts.record(event, value)
-		if event == "delta" {
-			if delta, ok := value.(llm.StreamDelta); ok {
-				if delta.Content != "" {
-					answer.WriteString(delta.Content)
-					pendingDelta.Content += delta.Content
-					pendingDeltaChars += len(delta.Content)
-				}
-				if delta.ReasoningContent != "" {
-					reasoning.WriteString(delta.ReasoningContent)
-					pendingDelta.ReasoningContent += delta.ReasoningContent
-					pendingDeltaChars += len(delta.ReasoningContent)
-				}
-				if err := saveCheckpoint(false); err != nil {
-					return err
-				}
-				return flushDeltaEvent(false)
-			}
-		}
-		if err := flushDeltaEvent(true); err != nil {
-			return err
-		}
-		_, err := a.store.AddChatJobEvent(jobID, event, value)
-		return err
-	}
 
-	finalAnswer, runErr := a.completeWithRecordedTools(ctx, workspaceID, jobID, sessionID, cfg, history, emit)
-	if err := flushDeltaEvent(true); err != nil && runErr == nil {
+	recorder := newAssistantOutputRecorder(a, workspaceID, sessionID, jobID)
+	finalAnswer, runErr := a.completeWithRecordedTools(ctx, workspaceID, jobID, sessionID, cfg, history, recorder.emit)
+	if err := recorder.flushDeltaEvent(true); err != nil && runErr == nil {
 		runErr = err
 	}
-	if strings.TrimSpace(finalAnswer) != "" && strings.TrimSpace(finalAnswer) != strings.TrimSpace(answer.String()) {
-		answer.Reset()
-		answer.WriteString(finalAnswer)
-	}
-	status := "success"
-	if isClientCanceled(ctx, runErr) {
-		status = "interrupted"
-		if runErr == nil {
-			runErr = ctx.Err()
-		}
-	} else if runErr != nil {
-		status = "failed"
-	}
-	if err := saveCheckpoint(true); err != nil {
+	recorder.useFinalAnswer(finalAnswer)
+	status, runErr := chatJobCompletionStatus(ctx, runErr)
+	if err := recorder.saveCheckpoint(true); err != nil {
 		status = "failed"
 		runErr = err
 	}
-	finishedJob, finishErr := a.store.FinishChatJob(jobID, status, answer.String(), reasoning.String(), runErr)
-	fields := logFields{"request_id": requestIDFromContext(ctx), "job_id": jobID, "session_id": sessionID, "status": status, "provider_id": cfg.ProviderID, "model": cfg.Model}
-	if finishErr != nil {
-		logError("chat_job_finish_failed", finishErr, fields)
-		return
-	}
-	fields["duration_ms"] = time.Since(finishedJob.StartedAt).Milliseconds()
-	if runErr != nil {
-		logError("chat_job_failed", runErr, fields)
-	} else {
-		logInfo("chat_job_finished", fields)
-		go func() {
-			titleCtx, cancel := context.WithTimeout(withRequestID(context.Background(), requestIDFromContext(ctx)), 20*time.Second)
-			defer cancel()
-			_ = a.maybeGenerateSessionTitle(titleCtx, workspaceID, sessionID, cfg)
-		}()
-	}
+	a.finishChatJob(ctx, workspaceID, sessionID, jobID, status, cfg, recorder, runErr)
 }
 
 func (a *App) handleCreateChatJob(w http.ResponseWriter, r *http.Request) {
@@ -254,7 +157,9 @@ func streamChatJobEvents(r *http.Request, w http.ResponseWriter, flusher http.Fl
 	for {
 		job, events, err := a.store.ChatJobEventsAfter(workspaceID, jobID, after)
 		if err != nil {
-			_ = writeSSE(w, flusher, "error", map[string]string{"message": err.Error()})
+			if writeErr := writeSSE(w, flusher, "error", map[string]string{"message": err.Error()}); writeErr != nil {
+				return
+			}
 			return
 		}
 		for _, event := range events {
@@ -269,12 +174,20 @@ func streamChatJobEvents(r *http.Request, w http.ResponseWriter, flusher http.Fl
 				endPayload["session"] = compactSessionToolEventDetails(session)
 			}
 			if job.Status == "failed" {
-				_ = writeSSE(w, flusher, "error", chatStreamErrorPayload(job, llm.FirstNonEmptyString(job.Error, "chat job failed")))
-				_ = writeSSE(w, flusher, "message_end", endPayload)
+				if err := writeSSE(w, flusher, "error", chatStreamErrorPayload(job, llm.FirstNonEmptyString(job.Error, "chat job failed"))); err != nil {
+					return
+				}
+				if err := writeSSE(w, flusher, "message_end", endPayload); err != nil {
+					return
+				}
 				return
 			}
-			_ = writeSSE(w, flusher, "message_end", endPayload)
-			_ = writeSSE(w, flusher, "done", endPayload)
+			if err := writeSSE(w, flusher, "message_end", endPayload); err != nil {
+				return
+			}
+			if err := writeSSE(w, flusher, "done", endPayload); err != nil {
+				return
+			}
 			return
 		}
 		select {

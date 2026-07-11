@@ -2,12 +2,13 @@ package chatdock
 
 import (
 	"bytes"
-	"chatdock/internal/chatdock/model"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"chatdock/internal/chatdock/model"
 )
 
 func TestSessionRenameAndExportAPI(t *testing.T) {

@@ -32,17 +32,26 @@ func (s *Store) SaveAttachment(workspaceID string, record model.AttachmentRecord
 		record.CreatedAt = time.Now()
 	}
 	record.Prompt = workspaceID
-	if strings.TrimSpace(record.SHA256) != "" {
-		_, _ = s.db.Exec(`INSERT INTO attachment_blobs(sha256, storage_path, size, mime_type, ref_count, created_at) VALUES(?, ?, ?, ?, 0, ?) ON CONFLICT(sha256) DO UPDATE SET ref_count = attachment_blobs.ref_count`, record.SHA256, record.StoragePath, record.Size, record.MIMEType, formatDBTime(record.CreatedAt))
-	}
-	_, err = s.db.Exec(`INSERT INTO attachments(workspace_id, id, session_id, message_id, filename, mime_type, size, storage_path, sha256, text_content, status, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, record.Prompt, record.ID, record.SessionID, record.MessageID, record.Name, record.MIMEType, record.Size, record.StoragePath, record.SHA256, record.TextContent, record.Status, formatDBTime(record.CreatedAt))
+
+	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
+	defer func() { _ = tx.Rollback() }()
 	if strings.TrimSpace(record.SHA256) != "" {
-		_, _ = s.db.Exec(`UPDATE attachment_blobs SET ref_count = (SELECT COUNT(*) FROM attachments WHERE sha256 = ?) WHERE sha256 = ?`, record.SHA256, record.SHA256)
+		if _, err := tx.Exec(`INSERT INTO attachment_blobs(sha256, storage_path, size, mime_type, ref_count, created_at) VALUES(?, ?, ?, ?, 0, ?) ON CONFLICT(sha256) DO UPDATE SET ref_count = attachment_blobs.ref_count`, record.SHA256, record.StoragePath, record.Size, record.MIMEType, formatDBTime(record.CreatedAt)); err != nil {
+			return err
+		}
 	}
-	return nil
+	if _, err := tx.Exec(`INSERT INTO attachments(workspace_id, id, session_id, message_id, filename, mime_type, size, storage_path, sha256, text_content, status, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, record.Prompt, record.ID, record.SessionID, record.MessageID, record.Name, record.MIMEType, record.Size, record.StoragePath, record.SHA256, record.TextContent, record.Status, formatDBTime(record.CreatedAt)); err != nil {
+		return err
+	}
+	if strings.TrimSpace(record.SHA256) != "" {
+		if _, err := tx.Exec(`UPDATE attachment_blobs SET ref_count = (SELECT COUNT(*) FROM attachments WHERE sha256 = ?) WHERE sha256 = ?`, record.SHA256, record.SHA256); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func (s *Store) AttachmentBlobBySHA256(sha string) (AttachmentBlob, bool, error) {

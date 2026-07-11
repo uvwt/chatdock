@@ -2,7 +2,6 @@ package chatdock
 
 import (
 	"bytes"
-	"chatdock/internal/chatdock/model"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"chatdock/internal/chatdock/model"
 )
 
 func TestSPAFallbackAndBackendBoundary(t *testing.T) {

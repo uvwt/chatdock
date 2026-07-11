@@ -1,6 +1,8 @@
 package store
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -210,10 +212,20 @@ func (s *Store) DeleteSession(workspaceID string, id string) (bool, error) {
 	} else if !ok {
 		return false, nil
 	}
-	if _, err := s.db.Exec(`DELETE FROM sessions WHERE workspace_id = ? AND id = ?`, workspaceID, strings.TrimSpace(id)); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
 		return false, err
 	}
-	_ = s.touchWorkspaceLocked(workspaceID, time.Now())
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.Exec(`DELETE FROM sessions WHERE workspace_id = ? AND id = ?`, workspaceID, strings.TrimSpace(id)); err != nil {
+		return false, err
+	}
+	if _, err := tx.Exec(`UPDATE workspaces SET updated_at = ? WHERE name = ?`, formatDBTime(time.Now()), workspaceID); err != nil {
+		return false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
@@ -273,7 +285,7 @@ func (s *Store) SessionWorkspace(id string) (string, bool, error) {
 	var workspaceID string
 	err := s.db.QueryRow(`SELECT workspace_id FROM sessions WHERE id = ? ORDER BY updated_at DESC LIMIT 1`, id).Scan(&workspaceID)
 	if err != nil {
-		if strings.Contains(err.Error(), "no rows") {
+		if errors.Is(err, sql.ErrNoRows) {
 			return "", false, nil
 		}
 		return "", false, err

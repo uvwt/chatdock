@@ -1,7 +1,6 @@
 package chatdock
 
 import (
-	"chatdock/internal/chatdock/model"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"chatdock/internal/chatdock/model"
 )
 
 func (a *App) handleListSessions(w http.ResponseWriter, r *http.Request) {
@@ -164,7 +165,9 @@ func (a *App) handleExportSession(w http.ResponseWriter, r *http.Request) {
 		filename := safeDownloadName(session.Title, session.ID) + ".md"
 		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
-		_, _ = io.WriteString(w, sessionToMarkdown(session))
+		if _, err := io.WriteString(w, sessionToMarkdown(session)); err != nil {
+			logError("session_export_write_failed", err, logFields{"request_id": requestIDFromRequest(r), "session_id": session.ID, "format": "markdown"})
+		}
 		return
 	}
 	if format == "json" {

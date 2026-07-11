@@ -2,7 +2,6 @@ package chatdock
 
 import (
 	"bytes"
-	"chatdock/internal/chatdock/model"
 	"encoding/json"
 	"io"
 	"mime/multipart"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"chatdock/internal/chatdock/model"
 )
 
 func TestUploadAttachmentInjectsTextIntoModelContext(t *testing.T) {

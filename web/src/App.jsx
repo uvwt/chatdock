@@ -3,16 +3,17 @@ import { EmptyState, MessageView } from './components/chat.jsx';
 import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
 import { DialogHost, LoginPage, Markdown, QuickPalette, WorkspacePicker } from './components/base.jsx';
 import { SettingsPanel } from './components/settings.jsx';
-import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtDuration, fmtTime, normalizeSettingsModule, runStatusLabel, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
-import { attachmentLooksLikeImage, contextPreviewText, finalAssistantMessageFromSession, readableChatError, scheduledTaskContextLabel, scheduledTaskRunsText, streamErrorMessage, streamStatusText } from './lib/chatPresentation.js';
+import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtTime, normalizeSettingsModule, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
+import { attachmentLooksLikeImage, contextPreviewText, finalAssistantMessageFromSession, readableChatError, scheduledTaskContextLabel, scheduledTaskRunsText, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, guideChatJob, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
 import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessionToolEvent, fetchSessions, pinSession, renameSession, searchSessions, updateSessionModel } from './lib/sessionApi.js';
 import { createModelProvider as createModelProviderRequest, createWorkspaceRecord, deleteModelProvider as deleteModelProviderRequest, deleteScheduledTaskRecord, deleteWorkspaceRecord, fetchProviderModels as fetchProviderModelsRequest, fetchWorkspacePromptPreview, fetchScheduledTaskRuns, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest, updateModelProvider as updateModelProviderRequest } from './lib/settingsApi.js';
 import { useAttachments } from './hooks/useAttachments.js';
-import { appendInlineReasoningPart, appendInlineTextPart, appendToolStartEvent, mergeToolResultEvent } from './lib/toolEvents.js';
-import { providerChoiceID, providerKeyInputsFromRows, providerKeyRows, providerLabel, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
+import { chatStreamAssistantAfterEvent, chatStreamStatsAfterEvent, projectsChatStreamAssistant } from './lib/chatStreamEvents.js';
+import { appendInlineReasoningPart, appendInlineTextPart } from './lib/toolEvents.js';
+import { providerChoiceID, providerKeyRows, providerLabel, providerPayloadForModelAppend, providerPayloadFromFormValues, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
 import { useSettingsData } from './hooks/useSettingsData.js';
 import { buildQuickActions } from './lib/quickActions.js';
 import { scheduledTaskSessionRows, visibleSessionRows } from './lib/sessionPresentation.js';
@@ -692,10 +693,13 @@ export default function App() {
     if (event === 'job_started') {
       activeJobIDRef.current = data.id || '';
       setActiveJobID(data.id || '');
-    } else if (event === 'delta') {
+      return;
+    }
+
+    setStreamStats(prev => chatStreamStatsAfterEvent(prev, event, data, pausedRef.current));
+    if (event === 'delta') {
       const reasoning = data.reasoning_content || '';
       const content = data.content || '';
-      setStreamStats(prev => ({ ...prev, state: pausedRef.current ? 'paused' : 'streaming', chars: prev.chars + content.length + reasoning.length }));
       if (pausedRef.current) {
         pendingReasoningRef.current += reasoning;
         pendingDeltaRef.current += content;
@@ -703,57 +707,18 @@ export default function App() {
         appendReasoning(reasoning);
         appendAnswer(content);
       }
-    } else if (event === 'tool_setup_ready') {
-      setStreamStats(prev => ({ ...prev, events: prev.events + 1 }));
-      appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'tool', text: data.mode === 'discovery' ? ('已准备可用工具索引：' + (data.tool_count || 0) + ' 个工具') : ('MCP 已接入：' + (data.tool_count || 0) + ' 个工具'), details: { event, data } }] }));
-    } else if (event === 'tool_setup_error') {
-      setStreamStats(prev => ({ ...prev, events: prev.events + 1, error: data.message || 'MCP 工具未接入' }));
-      appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'tool', text: '⚠️ MCP 未接入：' + (data.message || '工具初始化失败'), details: { event, data } }] }));
-    } else if (event === 'tool_call_start') {
-      setStreamStats(prev => ({ ...prev, events: prev.events + 1, tools: prev.tools + 1 }));
-      appendToActiveAssistant(m => appendToolStartEvent(m, event, data));
-    } else if (event === 'tool_call_result') {
-      setStreamStats(prev => ({ ...prev, events: prev.events + 1 }));
-      appendToActiveAssistant(m => mergeToolResultEvent(m, event, data));
-    } else if (event === 'tool_confirmation_required') {
-      setStreamStats(prev => ({ ...prev, events: prev.events + 1, state: 'paused' }));
-      appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'confirm', text: '⏳ 等待确认工具：' + (data.tool || 'MCP 工具'), meta: '确认后模型会继续执行；拒绝则把拒绝结果返回给模型。', confirmation: data, status: 'pending', details: { event, tool: data.tool || '', arguments: data.arguments || {}, data } }] }));
-    } else if (event === 'tool_confirmation_resolved') {
-      setStreamStats(prev => ({ ...prev, events: prev.events + 1, state: 'streaming' }));
-      appendToActiveAssistant(m => ({ ...m, events: (m.events || []).map(item => item.confirmation?.id === data.id ? { ...item, status: 'resolved', text: (data.approved ? '✅ 已允许工具：' : '⛔ 已拒绝工具：') + (data.tool || item.confirmation?.tool || 'MCP 工具') } : item) }));
-    } else if (event === 'job_cancelled') {
-      setStreamStats(prev => ({ ...prev, events: prev.events + 1, state: 'stopping' }));
-      appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'tool', text: '⏹️ 已请求停止生成', details: { event, data } }] }));
-    } else if (event === 'guidance_queued') {
-      setStreamStats(prev => ({ ...prev, events: prev.events + 1 }));
-      appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'guide', phase: 'running', text: '🧭 已收到引导，等待下一轮模型调用', meta: data.message || '', details: { event, data } }] }));
-    } else if (event === 'guidance_injected') {
-      setStreamStats(prev => ({ ...prev, events: prev.events + 1 }));
-      appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'guide', phase: 'done', text: '🧭 已将引导加入下一轮模型上下文', meta: data.message || '', details: { event, data } }] }));
-    } else if (event === 'run_event') {
-      setStreamStats(prev => ({ ...prev, events: prev.events + 1 }));
-      if (data.kind !== 'tool_call' && data.kind !== 'tool_result') {
-        const meta = [runStatusLabel(data.status || ''), data.server, data.action, fmtDuration(data.duration_ms)].filter(Boolean).join(' · ');
-        appendToActiveAssistant(m => ({ ...m, events: [...(m.events || []), { kind: 'run', text: '🧭 ' + (data.summary || data.tool || 'MCP 工具事件'), meta, details: { event, tool: data.tool || '', arguments: data.arguments, result: data.result, error: data.error || '', duration_ms: data.duration_ms, data } }] }));
-      }
-    } else if (event === 'run_finish') {
-    } else if (event === 'message_end') {
+      return;
+    }
+
+    if (projectsChatStreamAssistant(event, data)) {
+      appendToActiveAssistant(message => chatStreamAssistantAfterEvent(message, event, data));
+    }
+    if (event === 'message_end' || event === 'done') {
       activeJobIDRef.current = '';
       setActiveJobID('');
-      if (data.status === 'failed') {
-        setStreamStats(prev => ({ ...prev, state: 'error' }));
-      } else if (data.status === 'interrupted') {
-        setStreamStats(prev => ({ ...prev, state: 'done' }));
-      }
-    } else if (event === 'done') {
+    }
+    if (event === 'done') {
       setFinalSession(data.session);
-      activeJobIDRef.current = '';
-      setActiveJobID('');
-      setStreamStats(prev => ({ ...prev, state: 'done' }));
-    } else if (event === 'error') {
-      const message = streamErrorMessage(data);
-      setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
-      appendToActiveAssistant(m => ({ ...m, error: data, answer: m.answer || '', events: [...(m.events || []), { kind: 'error', phase: 'error', text: '⚠️ ' + message, details: { event, error: message, data } }] }));
     }
   }, [appendAnswer, appendReasoning, appendToActiveAssistant]);
 
@@ -866,6 +831,76 @@ export default function App() {
     else localStorage.removeItem(draftKey);
   }, [busy, draftKey, input]);
 
+  const runChatCompletion = useCallback(async ({
+    sessionID,
+    message = '',
+    attachmentIDs = [],
+    regenerate = false,
+    fallbackTitle = '新会话',
+    hasImageAttachments = false,
+  }) => {
+    setBusy(true);
+    setStreamPaused(false);
+    setStreamStats({ state: 'connecting', started_at: Date.now(), chars: 0, events: 0, tools: 0, error: '' });
+    pausedRef.current = false;
+    pendingDeltaRef.current = '';
+    pendingReasoningRef.current = '';
+    const abort = new AbortController();
+    abortRef.current = abort;
+    activeJobSessionRef.current = sessionID;
+    forceScrollRef.current = true;
+    stickToBottomRef.current = true;
+    try {
+      setStreamStats(prev => ({ ...prev, state: 'streaming' }));
+      let finalSession = null;
+      await streamChat({
+        authHeaders,
+        signal: abort.signal,
+        sessionID,
+        message,
+        attachmentIDs,
+        providerID: selectedModelProvider?.choice_id || '',
+        model: selectedChatModel,
+        regenerate,
+        onEvent: (event, data) => {
+          if (currentRef.current === sessionID) handleChatStreamEvent(event, data, session => { finalSession = session; });
+        },
+      });
+      if (finalSession) {
+        pendingDeltaRef.current = '';
+        pendingReasoningRef.current = '';
+        if (currentRef.current === sessionID) {
+          finishActiveAssistant(finalSession);
+          setCurrentTitle(finalSession.title || fallbackTitle);
+        }
+        loadSessions().catch(() => { });
+      }
+    } catch (error) {
+      if (abort.signal.aborted) {
+        if (!detachedControllersRef.current.has(abort)) {
+          appendReasoning(pendingReasoningRef.current);
+          appendAnswer(pendingDeltaRef.current);
+          appendAnswer('\n\n【已中断】');
+        }
+        await loadSessions().catch(() => { });
+      } else {
+        const message = readableChatError(error, hasImageAttachments);
+        setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
+        appendToActiveAssistant(currentMessage => ({ ...currentMessage, error: { message }, answer: currentMessage.answer || '' }));
+      }
+    } finally {
+      detachedControllersRef.current.delete(abort);
+      if (abortRef.current === abort) {
+        setBusy(false);
+        abortRef.current = null;
+        activeJobIDRef.current = '';
+        activeJobSessionRef.current = '';
+        setActiveJobID('');
+        setStreamPaused(false);
+      }
+    }
+  }, [appendAnswer, appendReasoning, appendToActiveAssistant, authHeaders, finishActiveAssistant, handleChatStreamEvent, loadSessions, selectedChatModel, selectedModelProvider]);
+
   const sendMsg = useCallback(async (overrideText) => {
     if (busy) return;
     const text = (overrideText ?? input).trim();
@@ -886,128 +921,31 @@ export default function App() {
     }
     let sessionID = current;
     if (!sessionID) {
-      const s = await createPersistedSession({ refreshList: false });
-      if (!s) return;
-      sessionID = s.id;
+      const session = await createPersistedSession({ refreshList: false });
+      if (!session) return;
+      sessionID = session.id;
     }
     localStorage.removeItem(draftKey);
     setInput('');
-    setBusy(true);
-    setStreamPaused(false);
-    setStreamStats({ state: 'connecting', started_at: Date.now(), chars: 0, events: 0, tools: 0, error: '' });
-    pausedRef.current = false;
-    pendingDeltaRef.current = '';
-    pendingReasoningRef.current = '';
-    const abort = new AbortController();
-    abortRef.current = abort;
-    activeJobSessionRef.current = sessionID;
-    forceScrollRef.current = true;
-    stickToBottomRef.current = true;
-    setMessages(prev => [...prev, { role: 'user', content: text, attachments: attachmentsForMessage }, { role: 'assistant-stream', answer: '', reasoning: '', events: [] }]);
-    try {
-      clearAttachments();
-      setStreamStats(prev => ({ ...prev, state: 'streaming' }));
-      let finalSession = null;
-      await streamChat({
-        authHeaders, signal: abort.signal, sessionID, message: text, attachmentIDs, providerID: selectedModelProvider?.choice_id || '', model: selectedChatModel, onEvent: (event, data) => {
-          if (currentRef.current === sessionID) handleChatStreamEvent(event, data, s => { finalSession = s; });
-        }
-      });
-      if (finalSession) {
-        pendingDeltaRef.current = '';
-        pendingReasoningRef.current = '';
-        if (currentRef.current === sessionID) {
-          finishActiveAssistant(finalSession);
-          setCurrentTitle(finalSession.title || currentTitle || '新会话');
-        }
-        loadSessions().catch(() => { });
-      }
-    } catch (e) {
-      if (abort.signal.aborted) {
-        if (!detachedControllersRef.current.has(abort)) {
-          appendReasoning(pendingReasoningRef.current);
-          appendAnswer(pendingDeltaRef.current);
-          appendAnswer('\n\n【已中断】');
-        }
-        await loadSessions().catch(() => { });
-      } else {
-        const message = readableChatError(e, attachmentsForMessage.some(attachmentLooksLikeImage));
-        setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
-        appendToActiveAssistant(m => ({ ...m, error: { message }, answer: m.answer || '' }));
-      }
-    } finally {
-      if (abortRef.current === abort || activeJobSessionRef.current === sessionID) {
-        setBusy(false);
-        if (abortRef.current === abort) abortRef.current = null;
-        activeJobIDRef.current = '';
-        activeJobSessionRef.current = '';
-        setActiveJobID('');
-        setStreamPaused(false);
-      }
-    }
-  }, [authHeaders, busy, selectedModelBaseURL, selectedChatModel, selectedModelProvider, current, currentTitle, draftKey, input, pendingAttachmentIDs, pendingAttachments, readyAttachments, uploadingFiles, clearAttachments, createPersistedSession, loadSessions, appendAnswer, appendReasoning, appendToActiveAssistant, handleChatStreamEvent, finishActiveAssistant, openSettings, showToast]);
+    setMessages(prev => [...prev,
+      { role: 'user', content: text, attachments: attachmentsForMessage },
+      { role: 'assistant-stream', answer: '', reasoning: '', events: [] },
+    ]);
+    clearAttachments();
+    await runChatCompletion({
+      sessionID,
+      message: text,
+      attachmentIDs,
+      fallbackTitle: currentTitle || '新会话',
+      hasImageAttachments: attachmentsForMessage.some(attachmentLooksLikeImage),
+    });
+  }, [busy, clearAttachments, createPersistedSession, current, currentTitle, draftKey, input, openSettings, pendingAttachmentIDs, pendingAttachments, readyAttachments, runChatCompletion, selectedChatModel, selectedModelBaseURL, showToast, uploadingFiles]);
 
 
   const regenerateEditedReply = useCallback(async (sessionID, baseMessages, title) => {
-    setBusy(true);
-    setStreamPaused(false);
-    setStreamStats({ state: 'connecting', started_at: Date.now(), chars: 0, events: 0, tools: 0, error: '' });
-    pausedRef.current = false;
-    pendingDeltaRef.current = '';
-    pendingReasoningRef.current = '';
-    const abort = new AbortController();
-    abortRef.current = abort;
-    activeJobSessionRef.current = sessionID;
-    forceScrollRef.current = true;
-    stickToBottomRef.current = true;
     setMessages([...(baseMessages || []), { role: 'assistant-stream', answer: '', reasoning: '', events: [] }]);
-    try {
-      setStreamStats(prev => ({ ...prev, state: 'streaming' }));
-      let finalSession = null;
-      await streamChat({
-        authHeaders,
-        signal: abort.signal,
-        sessionID,
-        message: '',
-        attachmentIDs: [],
-        providerID: selectedModelProvider?.choice_id || '',
-        model: selectedChatModel,
-        regenerate: true,
-        onEvent: (event, data) => {
-          if (currentRef.current === sessionID) handleChatStreamEvent(event, data, s => { finalSession = s; });
-        }
-      });
-      if (finalSession) {
-        pendingDeltaRef.current = '';
-        pendingReasoningRef.current = '';
-        if (currentRef.current === sessionID) {
-          finishActiveAssistant(finalSession);
-          setCurrentTitle(finalSession.title || title || '新会话');
-        }
-        loadSessions().catch(() => { });
-      }
-    } catch (e) {
-      if (abort.signal.aborted) {
-        appendReasoning(pendingReasoningRef.current);
-        appendAnswer(pendingDeltaRef.current);
-        appendAnswer('\n\n【已中断】');
-        await loadSessions().catch(() => { });
-      } else {
-        const message = readableChatError(e);
-        setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
-        appendToActiveAssistant(m => ({ ...m, error: { message }, answer: m.answer || '' }));
-      }
-    } finally {
-      if (abortRef.current === abort || activeJobSessionRef.current === sessionID) {
-        setBusy(false);
-        if (abortRef.current === abort) abortRef.current = null;
-        activeJobIDRef.current = '';
-        activeJobSessionRef.current = '';
-        setActiveJobID('');
-        setStreamPaused(false);
-      }
-    }
-  }, [authHeaders, selectedModelProvider, selectedChatModel, handleChatStreamEvent, finishActiveAssistant, loadSessions, appendReasoning, appendAnswer, appendToActiveAssistant]);
+    await runChatCompletion({ sessionID, regenerate: true, fallbackTitle: title || '新会话' });
+  }, [runChatCompletion]);
 
   const editUserMessage = useCallback(async ({ messageIndex, messageID, content }) => {
     if (busy) {
@@ -1205,37 +1143,24 @@ export default function App() {
       showToast('请先选择供应商，再添加候选模型', 'error');
       return;
     }
-    const models = uniqueModelNames([...(provider.models || []), name]);
-    await updateModelProviderRequest(api, provider.id, {
-      name: provider.name || provider.id,
-      base_url: provider.base_url || '',
-      api_key: '********',
-      default_model: provider.default_model || name,
-      models,
-      enabled: provider.enabled !== false,
-      key_strategy: provider.key_strategy || provider.keyStrategy,
-      selected_key_id: provider.selected_key_id || provider.selectedKeyID || '',
-      api_keys: (provider.api_keys || provider.apiKeys || []).map(key => ({
-        ...key,
-        api_key: key.api_key || '********',
-      })),
-    });
+    const payload = providerPayloadForModelAppend(provider, name);
+    await updateModelProviderRequest(api, provider.id, payload);
     setConfig(c => ({
       ...c,
       provider_id: provider.id,
       base_url: provider.base_url || c.base_url || '',
       has_api_key: !!provider.has_api_key,
       model: name,
-      models,
+      models: payload.models,
     }));
     await Promise.allSettled([loadModelProviders(), loadWorkspaces()]);
     showToast((provider.models || []).includes(name) ? '候选模型已在可用列表：' + name : '已加入可用模型列表：' + name, 'success');
-  }, [api, candidateProviderID, config.provider_id, loadConfig, loadModelProviders, loadWorkspaces, providers, showToast]);
+  }, [api, candidateProviderID, config.provider_id, loadModelProviders, loadWorkspaces, providers, showToast]);
 
   const editModelProvider = useCallback(async (existing = null) => {
     const modelText = uniqueModelNames([...(existing?.models || []), existing?.default_model].filter(Boolean)).join('\n');
     const keyRows = providerKeyRows(existing);
-    const selectedKeyID = existing?.selected_key_id || existing?.selectedKeyID || keyRows[0]?.id || 'main';
+    const selectedKeyID = existing?.selected_key_id || keyRows[0]?.id || 'main';
     const values = await showDialog({
       variant: 'provider-modal provider-modal-simple',
       title: existing ? '编辑模型供应商' : '新增模型供应商',
@@ -1246,27 +1171,14 @@ export default function App() {
         { name: 'base_url', label: 'Base URL', value: existing?.base_url || '', required: true, placeholder: 'https://example.com/v1' },
         { name: 'default_model', label: '默认模型', value: existing?.default_model || '', required: true, placeholder: '例如：gpt-4o-mini / deepseek-v4-pro' },
         { name: 'selected_key_id', label: '当前 Key', type: 'hidden', value: selectedKeyID },
-        { name: 'key_strategy', label: 'Key 策略', type: 'hidden', value: existing?.key_strategy || existing?.keyStrategy || 'auto' },
+        { name: 'key_strategy', label: 'Key 策略', type: 'hidden', value: existing?.key_strategy || 'auto' },
         { name: 'api_keys', label: 'Key 列表', type: 'provider_keys', value: keyRows, hint: '只需要填 Key 名称和 Key。ID 与优先级自动生成；当前 Key 用单选按钮切换；已保存 Key 只隐藏中间字段。' },
         { name: 'models', label: '可用模型（每行一个）', type: 'textarea', rows: 4, value: modelText || (existing?.default_model || ''), hint: '这里是真正会出现在聊天模型选择器里的模型。候选模型需要逐个加入。' },
         { name: 'enabled', label: '状态', type: 'select', value: existing && existing.enabled === false ? 'false' : 'true', options: [{ value: 'true', label: '启用' }, { value: 'false', label: '停用' }] },
       ]
     });
     if (!values) return;
-    const apiKeys = providerKeyInputsFromRows(values.api_keys, '');
-    const selectedFromDraft = String(values.selected_key_id || '').trim();
-    const defaultModel = String(values.default_model || '').trim();
-    const payload = {
-      name: String(values.name || '').trim(),
-      base_url: String(values.base_url || '').trim(),
-      api_key: '',
-      default_model: defaultModel,
-      models: uniqueModelNames(values.models || defaultModel),
-      enabled: values.enabled !== 'false',
-      key_strategy: values.key_strategy || 'auto',
-      selected_key_id: selectedFromDraft || (apiKeys?.[0]?.id || ''),
-      api_keys: apiKeys || undefined,
-    };
+    const payload = providerPayloadFromFormValues(values);
     if (existing) await updateModelProviderRequest(api, existing.id, payload);
     else await createModelProviderRequest(api, payload);
     await Promise.allSettled([loadModelProviders(), loadConfig(), loadSetupStatus(), loadWorkspaces()]);

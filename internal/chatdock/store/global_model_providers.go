@@ -33,7 +33,7 @@ type modelProviderRecord struct {
 	Name          string                      `json:"name"`
 	Type          string                      `json:"type"`
 	BaseURL       string                      `json:"base_url"`
-	APIKey        string                      `json:"api_key,omitempty"`
+	LegacyAPIKey  string                      `json:"api_key,omitempty"`
 	DefaultModel  string                      `json:"default_model"`
 	Models        []string                    `json:"models,omitempty"`
 	TimeoutMS     int                         `json:"timeout_ms"`
@@ -85,7 +85,7 @@ func (s *Store) ensureGlobalModelProvidersLocked() error {
 			Name:         providerDisplayName(workspaceID, cfg),
 			Type:         "openai-compatible",
 			BaseURL:      strings.TrimSpace(cfg.BaseURL),
-			APIKey:       strings.TrimSpace(cfg.APIKey),
+			APIKeys:      upsertProviderAPIKey(nil, "", cfg.APIKey, now),
 			DefaultModel: strings.TrimSpace(cfg.Model),
 			Models:       normalizeProviderModelNames(cfg.Models, cfg.Model),
 			TimeoutMS:    120000,
@@ -149,7 +149,6 @@ func (s *Store) CreateModelProvider(input ModelProviderInput) (ModelProvider, er
 		Name:         strings.TrimSpace(input.Name),
 		Type:         strings.TrimSpace(input.Type),
 		BaseURL:      strings.TrimSpace(input.BaseURL),
-		APIKey:       strings.TrimSpace(input.APIKey),
 		DefaultModel: strings.TrimSpace(input.DefaultModel),
 		Models:       normalizeProviderModelNames(input.Models, input.DefaultModel),
 		TimeoutMS:    input.TimeoutMS,
@@ -162,7 +161,7 @@ func (s *Store) CreateModelProvider(input ModelProviderInput) (ModelProvider, er
 	}
 	record.KeyStrategy = input.KeyStrategy
 	record.SelectedKeyID = input.SelectedKeyID
-	record.APIKeys = inputKeysToRecords(input.APIKeys, nil, input.APIKey, now)
+	record.APIKeys = inputKeysToRecords(input.APIKeys, nil, now)
 	record = normalizeModelProviderRecord(record)
 	if err := validateModelProviderRecord(record); err != nil {
 		return ModelProvider{}, err
@@ -196,9 +195,6 @@ func (s *Store) UpdateModelProvider(id string, input ModelProviderInput) (ModelP
 		record.Name = strings.TrimSpace(input.Name)
 		record.Type = strings.TrimSpace(input.Type)
 		record.BaseURL = strings.TrimSpace(input.BaseURL)
-		if !isMaskedSecret(input.APIKey) {
-			record.APIKey = strings.TrimSpace(input.APIKey)
-		}
 		record.DefaultModel = strings.TrimSpace(input.DefaultModel)
 		record.Models = normalizeProviderModelNames(input.Models, input.DefaultModel)
 		record.TimeoutMS = input.TimeoutMS
@@ -206,9 +202,7 @@ func (s *Store) UpdateModelProvider(id string, input ModelProviderInput) (ModelP
 		record.KeyStrategy = strings.TrimSpace(input.KeyStrategy)
 		record.SelectedKeyID = normalizeProviderKeyID(input.SelectedKeyID)
 		if input.APIKeys != nil {
-			record.APIKeys = inputKeysToRecords(input.APIKeys, record.APIKeys, record.APIKey, now)
-		} else if !isMaskedSecret(input.APIKey) {
-			record.APIKeys = upsertLegacyAPIKeyRecord(record.APIKeys, strings.TrimSpace(input.APIKey), now)
+			record.APIKeys = inputKeysToRecords(input.APIKeys, record.APIKeys, now)
 		}
 		record.UpdatedAt = now
 		record = normalizeModelProviderRecord(record)
@@ -401,7 +395,7 @@ func (s *Store) ModelProviderKeyConfigs(id, selectedKeyID, modelName string, all
 			return ModelProviderKeyConfig{KeyID: key.ID, KeyName: key.Name, Config: model.NormalizeModelConfig(model.ModelConfig{ProviderID: record.ID, BaseURL: record.BaseURL, APIKey: key.APIKey, Model: modelForTest, Models: append([]string(nil), record.Models...)})}
 		}
 		if len(record.APIKeys) == 0 {
-			return []ModelProviderKeyConfig{{Config: model.NormalizeModelConfig(model.ModelConfig{ProviderID: record.ID, BaseURL: record.BaseURL, APIKey: strings.TrimSpace(record.APIKey), Model: modelForTest, Models: append([]string(nil), record.Models...)})}}, publicModelProvider(record), nil
+			return []ModelProviderKeyConfig{{Config: model.NormalizeModelConfig(model.ModelConfig{ProviderID: record.ID, BaseURL: record.BaseURL, Model: modelForTest, Models: append([]string(nil), record.Models...)})}}, publicModelProvider(record), nil
 		}
 		if selectedKeyID != "" {
 			for _, key := range record.APIKeys {
