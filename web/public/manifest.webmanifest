@@ -8,6 +8,6 @@
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "icons": [
-    {"src": "/chatdock-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+    {"src": "/chatdock-mark.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
   ]
 }

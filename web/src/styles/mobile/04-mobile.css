@@ -332,6 +332,10 @@
     border-radius: 14px !important;
   }
 
+  #app.app .top-actions .mobile-new-toggle {
+    border-radius: 14px !important;
+  }
+
   #title {
     font-size: 20px !important;
   }

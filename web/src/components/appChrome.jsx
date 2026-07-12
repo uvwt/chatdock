@@ -9,7 +9,7 @@ export function Topbar({ busy, cloneCurrent, copyCurrentMarkdown, current, curre
     <div className="top-actions">
       <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)} title="快捷指令（⌘/Ctrl K）"><span className="action-icon" aria-hidden="true">✦</span><span className="action-label">快捷</span></button>
       <button className="secondary config-toggle" onClick={() => openSettings()} title="配置中心"><span className="action-icon" aria-hidden="true">⚙</span><span className="action-label">配置</span></button>
-      <button className="secondary session-actions-toggle mobile-new-toggle" onClick={newSession} aria-label="新会话" title="新会话"><span className="new-icon" aria-hidden="true">＋</span></button>
+      <button className="secondary session-actions-toggle mobile-new-toggle" onClick={newSession} aria-label="新会话" title="新会话"><svg className="mobile-new-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg></button>
       <button className="theme-toggle" onClick={() => setThemeState(theme === 'day' ? 'night' : 'day')}><span className="action-icon" aria-hidden="true">{theme === 'day' ? '☀' : '☾'}</span><span className="action-label">{theme === 'day' ? '白天' : '夜晚'}</span></button>
       <button className="secondary" onClick={renameCurrent} disabled={!current || busy}>重命名</button>
       <button className="secondary" onClick={copyCurrentMarkdown} disabled={!current}>复制全文</button>

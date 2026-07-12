@@ -229,15 +229,6 @@
     font-size: 17px !important;
   }
 
-  .settings-page .settings-header-actions button.secondary:last-child {
-    width: 36px !important;
-    min-width: 36px !important;
-  }
-
-  .settings-page .settings-header-actions button.secondary:last-child::before {
-    font-size: 17px !important;
-  }
-
   .settings-page .module-tabs {
     width: 156px !important;
     top: 18px !important;
