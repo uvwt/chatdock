@@ -151,8 +151,11 @@ func (a *App) handleChatJobEvents(w http.ResponseWriter, r *http.Request) {
 }
 
 func streamChatJobEvents(r *http.Request, w http.ResponseWriter, flusher http.Flusher, a *App, workspaceID string, jobID string, after int) {
+	const heartbeatInterval = 15 * time.Second
+
 	ticker := time.NewTicker(300 * time.Millisecond)
 	defer ticker.Stop()
+	lastWriteAt := time.Now()
 	for {
 		job, events, err := a.store.ChatJobEventsAfter(workspaceID, jobID, after)
 		if err != nil {
@@ -162,10 +165,11 @@ func streamChatJobEvents(r *http.Request, w http.ResponseWriter, flusher http.Fl
 			return
 		}
 		for _, event := range events {
-			if err := writeSSE(w, flusher, event.Event, event.Data); err != nil {
+			if err := writeSSEWithID(w, flusher, event.Seq, event.Event, event.Data); err != nil {
 				return
 			}
 			after = event.Seq
+			lastWriteAt = time.Now()
 		}
 		if job.Status != "running" {
 			endPayload := map[string]any{"status": job.Status, "job": job, "request_id": job.RequestID}
@@ -188,6 +192,12 @@ func streamChatJobEvents(r *http.Request, w http.ResponseWriter, flusher http.Fl
 				return
 			}
 			return
+		}
+		if time.Since(lastWriteAt) >= heartbeatInterval {
+			if err := writeSSEHeartbeat(w, flusher); err != nil {
+				return
+			}
+			lastWriteAt = time.Now()
 		}
 		select {
 		case <-r.Context().Done():

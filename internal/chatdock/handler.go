@@ -47,14 +47,31 @@ func writeError(w http.ResponseWriter, status int, err error) {
 }
 
 func writeSSE(w http.ResponseWriter, flusher http.Flusher, event string, value any) error {
+	return writeSSEWithID(w, flusher, 0, event, value)
+}
+
+func writeSSEWithID(w http.ResponseWriter, flusher http.Flusher, id int, event string, value any) error {
 	raw, err := json.Marshal(value)
 	if err != nil {
 		return err
+	}
+	if id > 0 {
+		if _, err := fmt.Fprintf(w, "id: %d\n", id); err != nil {
+			return err
+		}
 	}
 	if _, err := fmt.Fprintf(w, "event: %s\n", event); err != nil {
 		return err
 	}
 	if _, err := fmt.Fprintf(w, "data: %s\n\n", raw); err != nil {
+		return err
+	}
+	flusher.Flush()
+	return nil
+}
+
+func writeSSEHeartbeat(w http.ResponseWriter, flusher http.Flusher) error {
+	if _, err := io.WriteString(w, ": heartbeat\n\n"); err != nil {
 		return err
 	}
 	flusher.Flush()
