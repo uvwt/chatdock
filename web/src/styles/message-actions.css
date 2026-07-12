@@ -159,6 +159,20 @@
   padding-bottom: 18px !important;
 }
 
+@media (max-width: 720px) {
+  #app.app .msg-actions {
+    gap: 8px !important;
+  }
+
+  #app.app .msg-actions button {
+    flex-basis: 40px !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+  }
+}
+
 /* 2026-07-04 桌面输入框单行保护：模型选择器按真实宽度占位，避免和“继续”重叠。 */
 @media (min-width: 721px) {
   #app.app .composer {

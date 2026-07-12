@@ -107,10 +107,10 @@
   #app.app #sessions .session:focus-within .session-menu-trigger,
   #app.app #sessions .session.menu-open .session-menu-trigger {
     right: 10px !important;
-    width: 32px !important;
-    height: 32px !important;
-    min-width: 32px !important;
-    min-height: 32px !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
   }
 
   #app.app #sessions .session-row-menu {
