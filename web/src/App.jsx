@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState, MessageView } from './components/chat.jsx';
 import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
-import { TaskPanel } from './components/taskPanel.jsx';
+import { CurrentSessionTask, TaskPanel } from './components/taskPanel.jsx';
 import { DialogHost, LoginPage, Markdown, QuickPalette, WorkspacePicker } from './components/base.jsx';
 import { SettingsPanel } from './components/settings.jsx';
 import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtTime, normalizeSettingsModule, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
@@ -13,6 +13,7 @@ import { branchSession, cloneSession, createSessionRecord, deleteSession, editSe
 import { createModelProvider as createModelProviderRequest, createWorkspaceRecord, deleteModelProvider as deleteModelProviderRequest, deleteScheduledTaskRecord, deleteWorkspaceRecord, fetchProviderModels as fetchProviderModelsRequest, fetchWorkspacePromptPreview, fetchScheduledTaskRuns, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest, updateModelProvider as updateModelProviderRequest } from './lib/settingsApi.js';
 import { useAttachments } from './hooks/useAttachments.js';
 import { useAgentTasks } from './hooks/useAgentTasks.js';
+import { useCurrentSessionTask } from './hooks/useCurrentSessionTask.js';
 import { chatStreamAssistantAfterEvent, chatStreamStatsAfterEvent, projectsChatStreamAssistant } from './lib/chatStreamEvents.js';
 import { appendInlineReasoningPart, appendInlineTextPart } from './lib/toolEvents.js';
 import { providerChoiceID, providerKeyRows, providerLabel, providerPayloadForModelAppend, providerPayloadFromFormValues, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
@@ -36,10 +37,7 @@ export default function App() {
   const [selectedWorkspaceID, setSelectedWorkspaceID] = useState(() => localStorage.getItem('chatdock.workspaceID') || 'default');
   const [quickPaletteOpen, setQuickPaletteOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
-  const [taskPanelOpen, setTaskPanelOpen] = useState(() => {
-    const saved = localStorage.getItem('chatdock.taskPanelOpen');
-    return saved == null ? window.matchMedia('(min-width: 1181px)').matches : saved === '1';
-  });
+  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const [chatModel, setChatModel] = useState({ provider_id: '', model: '' });
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
 
@@ -121,10 +119,6 @@ export default function App() {
     document.body.classList.toggle('theme-night', theme !== 'day');
     localStorage.setItem('chatdock.theme', theme);
   }, [theme]);
-
-  useEffect(() => {
-    localStorage.setItem('chatdock.taskPanelOpen', taskPanelOpen ? '1' : '0');
-  }, [taskPanelOpen]);
 
   useEffect(() => {
     document.body.classList.toggle('auth-page-visible', !!authPage);
@@ -224,7 +218,9 @@ export default function App() {
     loadMCPStatus,
   } = useSettingsData(api);
 
-  const agentTasks = useAgentTasks(api, !!setupStatus && !setupStatus.needs_setup);
+  const taskDataEnabled = !!setupStatus && !setupStatus.needs_setup;
+  const agentTasks = useAgentTasks(api, taskDataEnabled);
+  const currentSessionTask = useCurrentSessionTask(api, current, taskDataEnabled);
   const closeTaskPanel = useCallback(() => {
     agentTasks.setExpandedTaskID('');
     setTaskPanelOpen(false);
@@ -1518,6 +1514,10 @@ export default function App() {
         />
         <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!workspaceSummaries.length} setInput={setInput} modelReady={modelReady} />}</div>
         {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息">↓</button> : null}
+        <CurrentSessionTask
+          error={currentSessionTask.error} loading={currentSessionTask.loading} onRefresh={currentSessionTask.refresh}
+          task={currentSessionTask.task} taskID={currentSessionTask.taskID}
+        />
         <ComposerBar
           busy={busy} createPersistedSession={createPersistedSession} current={current} downloadAttachment={downloadAttachment}
           fileInputRef={fileInputRef} guideActiveJob={guideActiveJob} handleFileSelect={handleFileSelect}

@@ -3,11 +3,48 @@ import { activeAgentTaskCount, agentTaskProgress, agentTaskStatusMeta, agentTask
 
 export function TaskPanelToggle({ open, tasks, onClick }) {
   const activeCount = activeAgentTaskCount(tasks);
-  return <button type="button" className={'secondary task-panel-toggle ' + (open ? 'active' : '')} onClick={onClick} aria-label={open ? '关闭任务面板' : '打开任务面板'} aria-expanded={open ? 'true' : 'false'} title={open ? '关闭任务面板' : '打开任务面板'}>
+  return <button type="button" className={'secondary task-panel-toggle ' + (open ? 'active' : '')} onClick={onClick} aria-label={open ? '关闭全部任务' : '打开全部任务'} aria-expanded={open ? 'true' : 'false'} title={open ? '关闭全部任务' : '打开全部任务'}>
     <svg className="task-panel-toggle-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></svg>
     <span className="task-panel-toggle-label">任务</span>
     {activeCount > 0 ? <span className="task-panel-toggle-count">{activeCount > 99 ? '99+' : activeCount}</span> : null}
   </button>;
+}
+
+export function CurrentSessionTask({ error, loading, onRefresh, task, taskID }) {
+  const [expanded, setExpanded] = React.useState(false);
+  React.useEffect(() => setExpanded(false), [taskID]);
+  if (!taskID) return null;
+
+  if (!task && loading) {
+    return <section className="current-session-task loading" aria-label="当前会话任务加载中">
+      <span className="current-session-task-kicker">当前会话任务</span>
+      <span className="current-session-task-loading-bar" />
+    </section>;
+  }
+
+  if (!task && error) {
+    return <section className="current-session-task error" aria-label="当前会话任务读取失败">
+      <div><span className="current-session-task-kicker">当前会话任务</span><strong>任务状态暂时不可用</strong></div>
+      <button type="button" className="secondary small" onClick={() => onRefresh({ initial: true })}>重试</button>
+    </section>;
+  }
+
+  if (!task) return null;
+  const progress = agentTaskProgress(task);
+  const status = agentTaskStatusMeta(task.status);
+  const currentStep = task.current_step;
+  return <section className={'current-session-task ' + status.tone + (expanded ? ' expanded' : '')} aria-label="当前会话任务">
+    <button type="button" className="current-session-task-summary" onClick={() => setExpanded(value => !value)} aria-expanded={expanded ? 'true' : 'false'}>
+      <span className="current-session-task-kicker">当前会话任务</span>
+      <span className={'current-session-task-status ' + status.tone}><span aria-hidden="true" />{status.label}</span>
+      <strong>{task.title}</strong>
+      <span className="current-session-task-step">{task.blocker || currentStep?.title || task.summary || '等待下一步'}</span>
+      <span className="current-session-task-progress"><span style={{ width: `${progress.percent}%` }} /></span>
+      <span className="current-session-task-count">{progress.text}</span>
+      <span className="current-session-task-chevron" aria-hidden="true">{expanded ? '⌃' : '⌄'}</span>
+    </button>
+    {expanded ? <TaskCardDetail task={task} loading={loading} error={error} /> : null}
+  </section>;
 }
 
 export function TaskPanel({ detailError, detailLoading, error, expandedTaskID, lastUpdatedAt, loading, onClose, onExpand, onRefresh, taskDetail, tasks }) {
@@ -16,7 +53,7 @@ export function TaskPanel({ detailError, detailLoading, error, expandedTaskID, l
   return <section className="agent-task-panel" aria-label="AgentDock 任务面板">
     <header className="agent-task-panel-head">
       <div>
-        <div className="agent-task-panel-title-row"><h2>任务</h2><span className="agent-task-live"><span aria-hidden="true" />实时</span></div>
+        <div className="agent-task-panel-title-row"><h2>全部任务</h2><span className="agent-task-live"><span aria-hidden="true" />实时</span></div>
         <p>{activeTasks.length ? `${activeTasks.length} 个任务正在推进` : '当前没有进行中的任务'}</p>
       </div>
       <div className="agent-task-panel-actions">

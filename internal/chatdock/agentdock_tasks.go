@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"chatdock/internal/chatdock/model"
 )
 
 const agentDockTaskResponseLimit = 2 * 1024 * 1024
@@ -43,6 +45,106 @@ func (a *App) handleGetAgentTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.proxyAgentDockTasks(w, r, "/internal/runtime/tasks/"+url.PathEscape(taskID), nil)
+}
+
+func (a *App) handleGetSessionAgentTask(w http.ResponseWriter, r *http.Request) {
+	sessionID := strings.TrimSpace(r.PathValue("id"))
+	if sessionID == "" {
+		writeJSONResponse(w, http.StatusBadRequest, map[string]any{"code": "SESSION_ID_REQUIRED", "error": "会话 ID 不能为空"})
+		return
+	}
+
+	workspaceID := a.workspaceIDFromRequest(r)
+	session, ok, err := a.store.GetSession(workspaceID, sessionID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if !ok {
+		writeError(w, http.StatusNotFound, model.ErrSessionNotFound)
+		return
+	}
+
+	taskID, err := a.latestSessionAgentTaskID(workspaceID, session)
+	if err != nil {
+		writeJSONResponse(w, http.StatusInternalServerError, map[string]any{"code": "SESSION_TASK_LOOKUP_FAILED", "error": err.Error()})
+		return
+	}
+	if taskID == "" {
+		writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true, "task": nil})
+		return
+	}
+	a.proxyAgentDockTasks(w, r, "/internal/runtime/tasks/"+url.PathEscape(taskID), nil)
+}
+
+func (a *App) latestSessionAgentTaskID(workspaceID string, session *model.Session) (string, error) {
+	for messageIndex := len(session.Messages) - 1; messageIndex >= 0; messageIndex-- {
+		events := session.Messages[messageIndex].Events
+		for eventIndex := len(events) - 1; eventIndex >= 0; eventIndex-- {
+			event := events[eventIndex]
+			if event.Kind != "tool" || !looksLikeTaskManageEvent(event) {
+				continue
+			}
+			fullEvent, err := a.store.SessionMessageEventByID(workspaceID, session.ID, event.ID)
+			if err != nil {
+				return "", fmt.Errorf("读取会话任务事件失败: %w", err)
+			}
+			if taskID := sessionTaskIDFromEvent(fullEvent); taskID != "" {
+				return taskID, nil
+			}
+		}
+	}
+	return "", nil
+}
+
+func looksLikeTaskManageEvent(event model.MessageEvent) bool {
+	text := strings.ToLower(strings.TrimSpace(event.Meta + " " + event.Text))
+	return strings.Contains(text, "task_manage")
+}
+
+func sessionTaskIDFromEvent(event model.MessageEvent) string {
+	details := event.Details
+	data := mapValue(details["data"])
+	tool := firstMessagePartNonEmpty(stringValue(details["tool"]), stringValue(data["tool"]))
+	outerArgs := mapValue(details["arguments"])
+	if len(outerArgs) == 0 {
+		outerArgs = mapValue(data["arguments"])
+	}
+	outerResult := mapValue(details["result"])
+	if len(outerResult) == 0 {
+		outerResult = mapValue(data["result"])
+	}
+
+	actualTool := tool
+	actualArgs := outerArgs
+	actualResult := outerResult
+	if tool == "chatdock_tool_execute" {
+		actualTool = firstMessagePartNonEmpty(stringValue(outerArgs["name"]), stringValue(outerResult["tool"]))
+		actualArgs = mapValue(outerArgs["arguments"])
+		actualResult = mapValue(outerResult["result"])
+	}
+	if !isTaskManageTool(actualTool) || !isSessionTaskAction(stringValue(actualArgs["action"])) {
+		return ""
+	}
+	return firstMessagePartNonEmpty(
+		stringValue(actualResult["task_id"]),
+		stringValue(mapValue(actualResult["task_summary"])["id"]),
+		stringValue(actualArgs["task_id"]),
+	)
+}
+
+func isTaskManageTool(name string) bool {
+	name = strings.TrimSpace(name)
+	return name == "task_manage" || strings.HasSuffix(name, ".task_manage") || strings.HasSuffix(name, "__task_manage")
+}
+
+func isSessionTaskAction(action string) bool {
+	switch strings.TrimSpace(action) {
+	case "create", "checkpoint", "block", "resume", "final_review", "complete":
+		return true
+	default:
+		return false
+	}
 }
 
 func (a *App) proxyAgentDockTasks(w http.ResponseWriter, r *http.Request, runtimePath string, query url.Values) {

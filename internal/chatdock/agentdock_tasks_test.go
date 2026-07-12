@@ -90,6 +90,110 @@ func TestAgentDockTaskProxyValidationAndConfigurationErrors(t *testing.T) {
 	}
 }
 
+func TestSessionAgentTaskReturnsLatestAssociatedTask(t *testing.T) {
+	seenPath := ""
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":   true,
+			"task": map[string]any{"id": "tsk_current", "title": "Current task", "status": "active"},
+		})
+	}))
+	defer upstream.Close()
+
+	app := newAgentTaskTestApp(t, model.ServerConfig{AgentDockContextURL: upstream.URL + "/context"})
+	session, err := app.store.CreateSession("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = app.store.AppendAssistantMessageWithParts("default", session.ID, "working", "", nil, []model.MessageEvent{
+		taskManageProxyEvent("create", "tsk_old"),
+		taskManageProxyEvent("checkpoint", "tsk_current"),
+		taskManageProxyEvent("get", "tsk_read_only"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/sessions/"+session.ID+"/agent-task", nil)
+	resp := httptest.NewRecorder()
+	app.routes().ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("session task status = %d body=%s", resp.Code, resp.Body.String())
+	}
+	var payload struct {
+		Task struct {
+			ID string `json:"id"`
+		} `json:"task"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Task.ID != "tsk_current" || seenPath != "/internal/runtime/tasks/tsk_current" {
+		t.Fatalf("unexpected session task id=%q upstream=%q", payload.Task.ID, seenPath)
+	}
+}
+
+func TestSessionAgentTaskReturnsNullWithoutAssociatedTask(t *testing.T) {
+	app := newAgentTaskTestApp(t, model.ServerConfig{})
+	session, err := app.store.CreateSession("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/sessions/"+session.ID+"/agent-task", nil)
+	resp := httptest.NewRecorder()
+	app.routes().ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK || resp.Body.String() != "{\"ok\":true,\"task\":null}\n" {
+		t.Fatalf("unexpected empty session task response status=%d body=%s", resp.Code, resp.Body.String())
+	}
+}
+
+func TestSessionTaskIDFromDirectTaskManageEvent(t *testing.T) {
+	event := model.MessageEvent{Details: map[string]any{
+		"tool":      "DockMini.task_manage",
+		"arguments": map[string]any{"action": "checkpoint", "task_id": "tsk_direct"},
+		"result":    map[string]any{"task_id": "tsk_direct"},
+	}}
+	if got := sessionTaskIDFromEvent(event); got != "tsk_direct" {
+		t.Fatalf("direct task id = %q", got)
+	}
+	event.Details["arguments"] = map[string]any{"action": "get", "task_id": "tsk_read_only"}
+	if got := sessionTaskIDFromEvent(event); got != "" {
+		t.Fatalf("read-only task lookup must not bind session, got %q", got)
+	}
+}
+
+func taskManageProxyEvent(action, taskID string) model.MessageEvent {
+	arguments := map[string]any{"action": action}
+	if action != "create" {
+		arguments["task_id"] = taskID
+	}
+	outerArguments := map[string]any{"name": "DockMini__task_manage", "arguments": arguments}
+	outerResult := map[string]any{
+		"tool":   "DockMini__task_manage",
+		"result": map[string]any{"task_id": taskID},
+	}
+	return model.MessageEvent{
+		Kind:  "tool",
+		Phase: "done",
+		Text:  "调用完成：chatdock_tool_execute",
+		Meta:  "DockMini__task_manage",
+		Details: map[string]any{
+			"event":     "tool_call_result",
+			"tool":      "chatdock_tool_execute",
+			"ok":        true,
+			"arguments": outerArguments,
+			"result":    outerResult,
+			"data": map[string]any{
+				"tool":      "chatdock_tool_execute",
+				"arguments": outerArguments,
+				"result":    outerResult,
+			},
+		},
+	}
+}
+
 func TestAgentDockRuntimeURLUsesContextOriginAndPrefix(t *testing.T) {
 	got, err := agentDockRuntimeURL("https://example.test/agentdock/context", "/internal/runtime/tasks", url.Values{"limit": {"20"}})
 	if err != nil {
