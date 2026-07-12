@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -45,6 +46,33 @@ func (a *App) handleGetAgentTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.proxyAgentDockTasks(w, r, "/internal/runtime/tasks/"+url.PathEscape(taskID), nil)
+}
+
+type blockAgentTaskRequest struct {
+	Summary string `json:"summary"`
+}
+
+func (a *App) handleBlockAgentTask(w http.ResponseWriter, r *http.Request) {
+	taskID := strings.TrimSpace(r.PathValue("id"))
+	if taskID == "" {
+		writeJSONResponse(w, http.StatusBadRequest, map[string]any{"code": "TASK_ID_REQUIRED", "error": "任务 ID 不能为空"})
+		return
+	}
+	var input blockAgentTaskRequest
+	if err := readJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	input.Summary = strings.TrimSpace(input.Summary)
+	if input.Summary == "" {
+		writeJSONResponse(w, http.StatusBadRequest, map[string]any{"code": "BLOCK_SUMMARY_REQUIRED", "error": "阻塞原因不能为空"})
+		return
+	}
+	if len([]rune(input.Summary)) > 500 {
+		writeJSONResponse(w, http.StatusBadRequest, map[string]any{"code": "BLOCK_SUMMARY_TOO_LONG", "error": "阻塞原因不能超过 500 个字符"})
+		return
+	}
+	a.proxyAgentDockTaskRequest(w, r, http.MethodPost, "/internal/runtime/tasks/"+url.PathEscape(taskID)+"/block", nil, input)
 }
 
 func (a *App) handleGetSessionAgentTask(w http.ResponseWriter, r *http.Request) {
@@ -148,6 +176,10 @@ func isSessionTaskAction(action string) bool {
 }
 
 func (a *App) proxyAgentDockTasks(w http.ResponseWriter, r *http.Request, runtimePath string, query url.Values) {
+	a.proxyAgentDockTaskRequest(w, r, http.MethodGet, runtimePath, query, nil)
+}
+
+func (a *App) proxyAgentDockTaskRequest(w http.ResponseWriter, r *http.Request, method, runtimePath string, query url.Values, requestBody any) {
 	contextURL := strings.TrimSpace(a.cfg.AgentDockContextURL)
 	if contextURL == "" {
 		writeJSONResponse(w, http.StatusServiceUnavailable, map[string]any{"code": "AGENTDOCK_NOT_CONFIGURED", "error": "AgentDock 任务接口尚未配置"})
@@ -156,14 +188,16 @@ func (a *App) proxyAgentDockTasks(w http.ResponseWriter, r *http.Request, runtim
 
 	ctx, cancel := context.WithTimeout(r.Context(), 4*time.Second)
 	defer cancel()
-	payload, upstreamStatus, err := fetchAgentDockRuntimeJSON(ctx, contextURL, a.cfg.AgentDockContextToken, runtimePath, query)
+	payload, upstreamStatus, err := requestAgentDockRuntimeJSON(ctx, contextURL, a.cfg.AgentDockContextToken, method, runtimePath, query, requestBody)
 	if err != nil {
-		writeJSONResponse(w, http.StatusBadGateway, map[string]any{"code": "AGENTDOCK_TASKS_UNAVAILABLE", "error": "读取 AgentDock 任务失败：" + err.Error()})
+		writeJSONResponse(w, http.StatusBadGateway, map[string]any{"code": "AGENTDOCK_TASKS_UNAVAILABLE", "error": "访问 AgentDock 任务失败：" + err.Error()})
 		return
 	}
 	if upstreamStatus < 200 || upstreamStatus >= 300 {
 		status := http.StatusBadGateway
-		if upstreamStatus == http.StatusNotFound {
+		if upstreamStatus == http.StatusBadRequest {
+			status = http.StatusBadRequest
+		} else if upstreamStatus == http.StatusNotFound {
 			status = http.StatusNotFound
 		}
 		message := "AgentDock 任务接口返回异常"
@@ -176,16 +210,27 @@ func (a *App) proxyAgentDockTasks(w http.ResponseWriter, r *http.Request, runtim
 	writeJSONResponse(w, http.StatusOK, payload)
 }
 
-func fetchAgentDockRuntimeJSON(ctx context.Context, contextURL, token, runtimePath string, query url.Values) (map[string]any, int, error) {
+func requestAgentDockRuntimeJSON(ctx context.Context, contextURL, token, method, runtimePath string, query url.Values, requestBody any) (map[string]any, int, error) {
 	target, err := agentDockRuntimeURL(contextURL, runtimePath, query)
 	if err != nil {
 		return nil, 0, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	var body io.Reader
+	if requestBody != nil {
+		encoded, err := json.Marshal(requestBody)
+		if err != nil {
+			return nil, 0, fmt.Errorf("编码 AgentDock 任务请求失败: %w", err)
+		}
+		body = bytes.NewReader(encoded)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, target, body)
 	if err != nil {
 		return nil, 0, err
 	}
 	req.Header.Set("Accept", "application/json")
+	if requestBody != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	if token = strings.TrimSpace(token); token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -214,7 +259,7 @@ func agentDockRuntimeURL(contextURL, runtimePath string, query url.Values) (stri
 		return "", fmt.Errorf("AgentDock Context URL 必须是完整的 HTTP 地址")
 	}
 
-	// Context 与只读 Runtime API 由同一个 AgentDock 服务提供；复用现有配置，
+	// Context 与任务 Runtime API 由同一个 AgentDock 服务提供；复用现有配置，
 	// 避免为了任务面板再维护一套地址和 Token。
 	prefix := strings.TrimSuffix(target.Path, "/")
 	if strings.HasSuffix(prefix, "/context") {

@@ -305,14 +305,38 @@
   background: #94a3b8;
 }
 
-.agent-task-expand {
+.agent-task-card-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 5px;
-  margin-top: 8px;
-  color: var(--gpt-muted-2);
-  font-size: 10px;
+  gap: 7px;
+  padding: 0 13px 11px;
 }
+
+.agent-task-card-action {
+  min-height: 28px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 720;
+}
+
+.agent-task-card-action.expand {
+  border-color: var(--gpt-border);
+  background: transparent;
+  color: var(--gpt-muted-2);
+}
+
+.agent-task-card-action.block {
+  border-color: rgba(245, 158, 11, .32);
+  background: rgba(245, 158, 11, .09);
+  color: #fbbf24;
+}
+
+.agent-task-card-action.block:hover:not(:disabled) {
+  border-color: rgba(245, 158, 11, .52);
+  background: rgba(245, 158, 11, .16);
+}
+.agent-task-card-action.block:disabled { opacity: .58; }
 
 .agent-task-detail {
   padding: 0 13px 14px;
@@ -601,6 +625,12 @@ body.theme-light .agent-task-card:hover {
 
 body.theme-light .agent-task-card.expanded {
   background: rgba(16, 163, 127, .045);
+}
+
+body.theme-light .agent-task-card-action.block {
+  border-color: rgba(217, 119, 6, .32);
+  background: rgba(245, 158, 11, .08);
+  color: #b45309;
 }
 
 body.theme-light .agent-task-step-symbol {

@@ -7,6 +7,7 @@ import { SettingsPanel } from './components/settings.jsx';
 import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtTime, normalizeSettingsModule, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
 import { attachmentLooksLikeImage, contextPreviewText, finalAssistantMessageFromSession, readableChatError, scheduledTaskContextLabel, scheduledTaskRunsText, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
+import { blockAgentTask as blockAgentTaskRequest } from './lib/agentTaskApi.js';
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, guideChatJob, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
 import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessionToolEvent, fetchSessions, pinSession, renameSession, searchSessions, updateSessionModel } from './lib/sessionApi.js';
@@ -38,6 +39,7 @@ export default function App() {
   const [quickPaletteOpen, setQuickPaletteOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
+  const [blockingAgentTaskID, setBlockingAgentTaskID] = useState('');
   const [chatModel, setChatModel] = useState({ provider_id: '', model: '' });
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
 
@@ -229,6 +231,34 @@ export default function App() {
     if (taskPanelOpen) agentTasks.setExpandedTaskID('');
     setTaskPanelOpen(!taskPanelOpen);
   }, [agentTasks.setExpandedTaskID, taskPanelOpen]);
+
+  const blockAgentTaskFromPanel = useCallback(async (task) => {
+    if (!task?.id || task.status !== 'active' || blockingAgentTaskID) return;
+    const values = await showDialog({
+      title: '阻塞任务',
+      message: `阻塞「${task.title || task.id}」后，任务会暂停推进，直到通过 task_manage resume 恢复。`,
+      confirmText: '确认阻塞',
+      danger: true,
+      fields: [{ name: 'summary', label: '阻塞原因', type: 'textarea', rows: 3, value: '', required: true }],
+    });
+    if (!values) return;
+    const summary = String(values.summary || '').trim();
+    if (!summary) return;
+
+    setBlockingAgentTaskID(task.id);
+    try {
+      await blockAgentTaskRequest(api, task.id, summary);
+      await Promise.allSettled([
+        agentTasks.refresh({ initial: true }),
+        currentSessionTask.refresh({ initial: true }),
+      ]);
+      showToast(`任务「${task.title || task.id}」已阻塞`, 'success');
+    } catch (err) {
+      showToast('阻塞任务失败：' + (err.message || '未知错误'), 'error');
+    } finally {
+      setBlockingAgentTaskID('');
+    }
+  }, [agentTasks.refresh, api, blockingAgentTaskID, currentSessionTask.refresh, showDialog, showToast]);
 
   const {
     pendingAttachments,
@@ -1531,9 +1561,9 @@ export default function App() {
       {taskPanelOpen ? <>
         <div className="agent-task-panel-mask" onClick={closeTaskPanel} />
         <TaskPanel
-          detailError={agentTasks.detailError} detailLoading={agentTasks.detailLoading} error={agentTasks.error}
+          blockingTaskID={blockingAgentTaskID} detailError={agentTasks.detailError} detailLoading={agentTasks.detailLoading} error={agentTasks.error}
           expandedTaskID={agentTasks.expandedTaskID} lastUpdatedAt={agentTasks.lastUpdatedAt} loading={agentTasks.loading}
-          onClose={closeTaskPanel} onExpand={agentTasks.setExpandedTaskID} onRefresh={agentTasks.refresh}
+          onBlock={blockAgentTaskFromPanel} onClose={closeTaskPanel} onExpand={agentTasks.setExpandedTaskID} onRefresh={agentTasks.refresh}
           taskDetail={agentTasks.taskDetail} tasks={agentTasks.tasks}
         />
       </> : null}

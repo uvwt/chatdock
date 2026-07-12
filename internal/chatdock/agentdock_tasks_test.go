@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"chatdock/internal/chatdock/model"
@@ -66,6 +67,69 @@ func TestAgentDockTaskProxyUsesRuntimeAPIAndBearerToken(t *testing.T) {
 	detailUpstream := <-seen
 	if detailUpstream.URL.Path != "/internal/runtime/tasks/tsk_123" {
 		t.Fatalf("unexpected detail upstream path: %s", detailUpstream.URL.Path)
+	}
+}
+
+func TestAgentDockTaskBlockProxy(t *testing.T) {
+	type blockRequest struct {
+		Method      string
+		Path        string
+		Auth        string
+		ContentType string
+		Summary     string
+	}
+	seen := make(chan blockRequest, 1)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var input blockAgentTaskRequest
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			t.Errorf("decode upstream block body: %v", err)
+		}
+		seen <- blockRequest{Method: r.Method, Path: r.URL.Path, Auth: r.Header.Get("Authorization"), ContentType: r.Header.Get("Content-Type"), Summary: input.Summary}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok": true, "action": "block", "task_id": "tsk_123",
+			"task_summary": map[string]any{"id": "tsk_123", "status": "blocked", "blocker": input.Summary},
+		})
+	}))
+	defer upstream.Close()
+
+	app := newAgentTaskTestApp(t, model.ServerConfig{
+		AgentDockContextURL:   upstream.URL + "/context",
+		AgentDockContextToken: "agent-secret",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/agent-tasks/tsk_123/block", strings.NewReader(`{"summary":"等待用户确认"}`))
+	resp := httptest.NewRecorder()
+	app.routes().ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("block status = %d body=%s", resp.Code, resp.Body.String())
+	}
+	request := <-seen
+	if request.Method != http.MethodPost || request.Path != "/internal/runtime/tasks/tsk_123/block" || request.Summary != "等待用户确认" {
+		t.Fatalf("unexpected upstream block request: %#v", request)
+	}
+	if request.Auth != "Bearer agent-secret" || request.ContentType != "application/json" {
+		t.Fatalf("unexpected upstream headers: %#v", request)
+	}
+}
+
+func TestAgentDockTaskBlockValidation(t *testing.T) {
+	app := newAgentTaskTestApp(t, model.ServerConfig{})
+	for _, test := range []struct {
+		name string
+		body string
+		code string
+	}{
+		{name: "empty", body: `{"summary":"  "}`, code: "BLOCK_SUMMARY_REQUIRED"},
+		{name: "too long", body: `{"summary":"` + strings.Repeat("长", 501) + `"}`, code: "BLOCK_SUMMARY_TOO_LONG"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/agent-tasks/tsk_123/block", strings.NewReader(test.body))
+			resp := httptest.NewRecorder()
+			app.routes().ServeHTTP(resp, req)
+			if resp.Code != http.StatusBadRequest || !strings.Contains(resp.Body.String(), `"code":"`+test.code+`"`) {
+				t.Fatalf("status=%d code=%s body=%s", resp.Code, test.code, resp.Body.String())
+			}
+		})
 	}
 }
 
