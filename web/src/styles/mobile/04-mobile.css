@@ -296,56 +296,6 @@
   .tool-event-actions:empty {
     display: none !important;
   }
-
-  .composer:has(.stream-control) {
-    grid-template-columns: 48px minmax(0, 1fr) 46px 46px !important;
-  }
-
-  .composer:has(.stream-control) #send {
-    display: none !important;
-  }
-
-  .composer .stream-control {
-    width: 46px !important;
-    height: 46px !important;
-    min-width: 46px !important;
-    min-height: 46px !important;
-    padding: 0 !important;
-    border-radius: 999px !important;
-    box-shadow: none !important;
-    font-size: 0 !important;
-  }
-
-  .composer .stream-control::before {
-    content: none !important;
-    display: none !important;
-  }
-
-  .composer .stream-control.secondary {
-    grid-column: 3 !important;
-    background: #f1f5f9 !important;
-    color: #0f172a !important;
-  }
-
-  .composer .stream-control.danger {
-    grid-column: 4 !important;
-    background: #fee2e2 !important;
-    color: #b91c1c !important;
-  }
-
-  .composer .stream-control.secondary::after {
-    content: "Ⅱ";
-    font-size: 18px;
-    font-weight: 850;
-    line-height: 1;
-  }
-
-  .composer .stream-control.danger::after {
-    content: "■";
-    font-size: 15px;
-    font-weight: 850;
-    line-height: 1;
-  }
 }
 
 
@@ -497,15 +447,53 @@
     background: #ffffff !important;
   }
 
-  .composer:has(.stream-control) {
-    grid-template-columns: 42px minmax(76px, 96px) minmax(0, 1fr) 42px 42px !important;
+  /* 生成中只保留真正可用的控件，避免发送、引导和中断在窄屏上重叠。 */
+  .composer.composer-streaming {
+    grid-template-columns: minmax(0, 1fr) 58px 42px !important;
   }
 
-  .composer:has(.stream-control) .stream-control.secondary {
-    grid-column: 4 !important;
+  .composer-streaming .attach-control,
+  .composer-streaming .model-picker,
+  .composer-streaming #send {
+    display: none !important;
   }
 
-  .composer:has(.stream-control) .stream-control.danger {
-    grid-column: 5 !important;
+  .composer-streaming textarea {
+    grid-column: 1 !important;
+  }
+
+  .composer-streaming .guide-control {
+    grid-column: 2 !important;
+    width: 58px !important;
+    min-width: 58px !important;
+    padding: 0 10px !important;
+    border-radius: 14px !important;
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    font-size: 13px !important;
+    font-weight: 750 !important;
+  }
+
+  .composer-streaming .stop-control {
+    grid-column: 3 !important;
+    border-radius: 14px !important;
+    background: #fee2e2 !important;
+    color: #b91c1c !important;
+    font-size: 0 !important;
+  }
+
+  .composer-streaming .guide-control::before,
+  .composer-streaming .guide-control::after,
+  .composer-streaming .stop-control::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  .composer-streaming .stop-control::before {
+    content: "■" !important;
+    display: block !important;
+    color: #b91c1c !important;
+    font-size: 14px !important;
+    transform: none !important;
   }
 }

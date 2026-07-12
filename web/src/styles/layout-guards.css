@@ -256,10 +256,22 @@
 #app.app .model-picker-trigger {
   align-self: center !important;
   box-sizing: border-box !important;
-  display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   line-height: 1 !important;
+}
+
+#app.app .quick-control,
+#app.app .stream-control,
+#app.app .model-picker-trigger {
+  display: inline-flex !important;
+}
+
+@media (min-width: 721px) {
+  #app.app .attach-control,
+  #app.app #send {
+    display: inline-flex !important;
+  }
 }
 
 #app.app .model-picker,
@@ -288,8 +300,7 @@
   font-size: 0 !important;
 }
 
-#app.app #send::before,
-#app.app .stream-control::before {
+#app.app #send::before {
   display: block !important;
   line-height: 1 !important;
   transform: translateY(-1px) !important;
@@ -299,6 +310,9 @@
   #app.app .composer {
     align-items: center !important;
     min-height: 56px !important;
+  }
+
+  #app.app .composer:not(.composer-streaming) {
     grid-template-columns: 42px minmax(76px, 96px) minmax(0, 1fr) 44px !important;
   }
 
@@ -317,18 +331,21 @@
   }
 
   #app.app #send,
-  #app.app .stream-control {
+  #app.app .stop-control {
     width: 42px !important;
     height: 42px !important;
     min-width: 42px !important;
     min-height: 42px !important;
+  }
+
+  #app.app .composer:not(.composer-streaming) #send,
+  #app.app .stream-control {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
   }
 
-  #app.app #send::before,
-  #app.app .stream-control::before {
+  #app.app #send::before {
     font-size: 26px !important;
     transform: translateY(-1px) !important;
   }
