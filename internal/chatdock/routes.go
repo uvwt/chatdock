@@ -33,6 +33,8 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/mcp/tools", a.handleListMCPTools)
 	mux.HandleFunc("GET /api/mcp/status", a.handleMCPStatus)
 	mux.HandleFunc("GET /api/mcp/test", a.handleTestMCPServer)
+	mux.HandleFunc("GET /api/agent-tasks", a.handleListAgentTasks)
+	mux.HandleFunc("GET /api/agent-tasks/{id}", a.handleGetAgentTask)
 	mux.HandleFunc("GET /api/mcp/confirmations", a.handleListMCPConfirmations)
 	mux.HandleFunc("POST /api/mcp/confirmations/{id}/resolve", a.handleResolveMCPConfirmation)
 	mux.HandleFunc("POST /api/mcp/call", a.handleCallMCPTool)
