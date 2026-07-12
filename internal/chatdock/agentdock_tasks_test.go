@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"chatdock/internal/chatdock/model"
@@ -70,25 +69,19 @@ func TestAgentDockTaskProxyUsesRuntimeAPIAndBearerToken(t *testing.T) {
 	}
 }
 
-func TestAgentDockTaskBlockProxy(t *testing.T) {
-	type blockRequest struct {
-		Method      string
-		Path        string
-		Auth        string
-		ContentType string
-		Summary     string
+func TestAgentDockTaskDeleteProxy(t *testing.T) {
+	type deleteRequest struct {
+		Method string
+		Path   string
+		Auth   string
 	}
-	seen := make(chan blockRequest, 1)
+	seen := make(chan deleteRequest, 1)
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var input blockAgentTaskRequest
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			t.Errorf("decode upstream block body: %v", err)
-		}
-		seen <- blockRequest{Method: r.Method, Path: r.URL.Path, Auth: r.Header.Get("Authorization"), ContentType: r.Header.Get("Content-Type"), Summary: input.Summary}
+		seen <- deleteRequest{Method: r.Method, Path: r.URL.Path, Auth: r.Header.Get("Authorization")}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"ok": true, "action": "block", "task_id": "tsk_123",
-			"task_summary": map[string]any{"id": "tsk_123", "status": "blocked", "blocker": input.Summary},
+			"ok": true, "action": "delete", "task_id": "tsk_123",
+			"deleted_task": map[string]any{"id": "tsk_123", "title": "Delete me"},
 		})
 	}))
 	defer upstream.Close()
@@ -97,39 +90,17 @@ func TestAgentDockTaskBlockProxy(t *testing.T) {
 		AgentDockContextURL:   upstream.URL + "/context",
 		AgentDockContextToken: "agent-secret",
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/agent-tasks/tsk_123/block", strings.NewReader(`{"summary":"等待用户确认"}`))
 	resp := httptest.NewRecorder()
-	app.routes().ServeHTTP(resp, req)
+	app.routes().ServeHTTP(resp, httptest.NewRequest(http.MethodDelete, "/api/agent-tasks/tsk_123", nil))
 	if resp.Code != http.StatusOK {
-		t.Fatalf("block status = %d body=%s", resp.Code, resp.Body.String())
+		t.Fatalf("delete status = %d body=%s", resp.Code, resp.Body.String())
 	}
 	request := <-seen
-	if request.Method != http.MethodPost || request.Path != "/internal/runtime/tasks/tsk_123/block" || request.Summary != "等待用户确认" {
-		t.Fatalf("unexpected upstream block request: %#v", request)
+	if request.Method != http.MethodDelete || request.Path != "/internal/runtime/tasks/tsk_123" {
+		t.Fatalf("unexpected upstream delete request: %#v", request)
 	}
-	if request.Auth != "Bearer agent-secret" || request.ContentType != "application/json" {
-		t.Fatalf("unexpected upstream headers: %#v", request)
-	}
-}
-
-func TestAgentDockTaskBlockValidation(t *testing.T) {
-	app := newAgentTaskTestApp(t, model.ServerConfig{})
-	for _, test := range []struct {
-		name string
-		body string
-		code string
-	}{
-		{name: "empty", body: `{"summary":"  "}`, code: "BLOCK_SUMMARY_REQUIRED"},
-		{name: "too long", body: `{"summary":"` + strings.Repeat("长", 501) + `"}`, code: "BLOCK_SUMMARY_TOO_LONG"},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/api/agent-tasks/tsk_123/block", strings.NewReader(test.body))
-			resp := httptest.NewRecorder()
-			app.routes().ServeHTTP(resp, req)
-			if resp.Code != http.StatusBadRequest || !strings.Contains(resp.Body.String(), `"code":"`+test.code+`"`) {
-				t.Fatalf("status=%d code=%s body=%s", resp.Code, test.code, resp.Body.String())
-			}
-		})
+	if request.Auth != "Bearer agent-secret" {
+		t.Fatalf("unexpected upstream authorization: %#v", request)
 	}
 }
 
@@ -196,6 +167,33 @@ func TestSessionAgentTaskReturnsLatestAssociatedTask(t *testing.T) {
 	}
 	if payload.Task.ID != "tsk_current" || seenPath != "/internal/runtime/tasks/tsk_current" {
 		t.Fatalf("unexpected session task id=%q upstream=%q", payload.Task.ID, seenPath)
+	}
+}
+
+func TestSessionAgentTaskReturnsNullWhenAssociatedTaskWasDeleted(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "code": "TASK_NOT_FOUND", "error": "task not found"})
+	}))
+	defer upstream.Close()
+
+	app := newAgentTaskTestApp(t, model.ServerConfig{AgentDockContextURL: upstream.URL + "/context"})
+	session, err := app.store.CreateSession("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = app.store.AppendAssistantMessageWithParts("default", session.ID, "working", "", nil, []model.MessageEvent{
+		taskManageProxyEvent("create", "tsk_deleted"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp := httptest.NewRecorder()
+	app.routes().ServeHTTP(resp, httptest.NewRequest(http.MethodGet, "/api/sessions/"+session.ID+"/agent-task", nil))
+	if resp.Code != http.StatusOK || resp.Body.String() != "{\"ok\":true,\"task\":null}\n" {
+		t.Fatalf("unexpected deleted session task response status=%d body=%s", resp.Code, resp.Body.String())
 	}
 }
 

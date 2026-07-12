@@ -326,17 +326,17 @@
   color: var(--gpt-muted-2);
 }
 
-.agent-task-card-action.block {
-  border-color: rgba(245, 158, 11, .32);
-  background: rgba(245, 158, 11, .09);
-  color: #fbbf24;
+.agent-task-card-action.delete {
+  border-color: rgba(239, 68, 68, .32);
+  background: rgba(239, 68, 68, .09);
+  color: #f87171;
 }
 
-.agent-task-card-action.block:hover:not(:disabled) {
-  border-color: rgba(245, 158, 11, .52);
-  background: rgba(245, 158, 11, .16);
+.agent-task-card-action.delete:hover:not(:disabled) {
+  border-color: rgba(239, 68, 68, .52);
+  background: rgba(239, 68, 68, .16);
 }
-.agent-task-card-action.block:disabled { opacity: .58; }
+.agent-task-card-action.delete:disabled { opacity: .58; }
 
 .agent-task-detail {
   padding: 0 13px 14px;
@@ -627,10 +627,10 @@ body.theme-light .agent-task-card.expanded {
   background: rgba(16, 163, 127, .045);
 }
 
-body.theme-light .agent-task-card-action.block {
-  border-color: rgba(217, 119, 6, .32);
-  background: rgba(245, 158, 11, .08);
-  color: #b45309;
+body.theme-light .agent-task-card-action.delete {
+  border-color: rgba(220, 38, 38, .28);
+  background: rgba(239, 68, 68, .07);
+  color: #b91c1c;
 }
 
 body.theme-light .agent-task-step-symbol {

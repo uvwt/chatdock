@@ -47,7 +47,7 @@ export function CurrentSessionTask({ error, loading, onRefresh, task, taskID }) 
   </section>;
 }
 
-export function TaskPanel({ blockingTaskID, detailError, detailLoading, error, expandedTaskID, lastUpdatedAt, loading, onBlock, onClose, onExpand, onRefresh, taskDetail, tasks }) {
+export function TaskPanel({ deletingTaskID, detailError, detailLoading, error, expandedTaskID, lastUpdatedAt, loading, onClose, onDelete, onExpand, onRefresh, taskDetail, tasks }) {
   const activeTasks = tasks.filter(task => task.status !== 'completed');
   const completedTasks = tasks.filter(task => task.status === 'completed').slice(0, 6);
   return <section className="agent-task-panel" aria-label="AgentDock 任务面板">
@@ -68,10 +68,10 @@ export function TaskPanel({ blockingTaskID, detailError, detailLoading, error, e
       {loading && !tasks.length ? <TaskPanelLoading /> : null}
       {!loading && !tasks.length && !error ? <div className="agent-task-empty"><span className="agent-task-empty-icon" aria-hidden="true">✓</span><b>任务列表为空</b><p>AgentDock 创建多步骤任务后，会在这里实时显示进度。</p></div> : null}
       {activeTasks.length ? <TaskSection title="进行中" count={activeTasks.length}>
-        {activeTasks.map(task => <TaskCard key={task.id} task={task} blocking={blockingTaskID === task.id} expanded={expandedTaskID === task.id} detail={taskDetail} detailLoading={detailLoading} detailError={detailError} onBlock={onBlock} onExpand={onExpand} />)}
+        {activeTasks.map(task => <TaskCard key={task.id} task={task} deleting={deletingTaskID === task.id} expanded={expandedTaskID === task.id} detail={taskDetail} detailLoading={detailLoading} detailError={detailError} onDelete={onDelete} onExpand={onExpand} />)}
       </TaskSection> : null}
       {completedTasks.length ? <TaskSection title="最近完成" count={completedTasks.length} muted>
-        {completedTasks.map(task => <TaskCard key={task.id} task={task} blocking={false} expanded={expandedTaskID === task.id} detail={taskDetail} detailLoading={detailLoading} detailError={detailError} onBlock={onBlock} onExpand={onExpand} />)}
+        {completedTasks.map(task => <TaskCard key={task.id} task={task} deleting={deletingTaskID === task.id} expanded={expandedTaskID === task.id} detail={taskDetail} detailLoading={detailLoading} detailError={detailError} onDelete={onDelete} onExpand={onExpand} />)}
       </TaskSection> : null}
     </div>
 
@@ -89,7 +89,7 @@ function TaskSection({ children, count, muted = false, title }) {
   </section>;
 }
 
-function TaskCard({ blocking, detail, detailError, detailLoading, expanded, onBlock, onExpand, task }) {
+function TaskCard({ deleting, detail, detailError, detailLoading, expanded, onDelete, onExpand, task }) {
   const view = expanded && detail?.id === task.id ? detail : task;
   const progress = agentTaskProgress(view);
   const status = agentTaskStatusMeta(view.status);
@@ -106,7 +106,7 @@ function TaskCard({ blocking, detail, detailError, detailLoading, expanded, onBl
     </button>
     <div className="agent-task-card-actions">
       <button type="button" className="agent-task-card-action expand" onClick={() => onExpand(task.id)} aria-expanded={expanded ? 'true' : 'false'}>{expanded ? '收起步骤' : '查看步骤'} <span aria-hidden="true">{expanded ? '⌃' : '⌄'}</span></button>
-      {view.status === 'active' ? <button type="button" className="agent-task-card-action block" onClick={() => onBlock(task)} disabled={blocking} aria-label={`阻塞任务 ${view.title}`}>{blocking ? '阻塞中…' : '阻塞'}</button> : null}
+      <button type="button" className="agent-task-card-action delete" onClick={() => onDelete(task)} disabled={deleting} aria-label={`删除任务 ${view.title}`}>{deleting ? '删除中…' : '删除'}</button>
     </div>
     {expanded ? <TaskCardDetail task={view} loading={detailLoading} error={detailError} /> : null}
   </article>;

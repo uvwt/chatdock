@@ -35,7 +35,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/mcp/test", a.handleTestMCPServer)
 	mux.HandleFunc("GET /api/agent-tasks", a.handleListAgentTasks)
 	mux.HandleFunc("GET /api/agent-tasks/{id}", a.handleGetAgentTask)
-	mux.HandleFunc("POST /api/agent-tasks/{id}/block", a.handleBlockAgentTask)
+	mux.HandleFunc("DELETE /api/agent-tasks/{id}", a.handleDeleteAgentTask)
 	mux.HandleFunc("GET /api/sessions/{id}/agent-task", a.handleGetSessionAgentTask)
 	mux.HandleFunc("GET /api/mcp/confirmations", a.handleListMCPConfirmations)
 	mux.HandleFunc("POST /api/mcp/confirmations/{id}/resolve", a.handleResolveMCPConfirmation)
