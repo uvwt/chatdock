@@ -42,7 +42,7 @@ func (a *App) agentDockRuntimeContext(ctx context.Context) string {
 	if err != nil || strings.TrimSpace(text) == "" {
 		return stale
 	}
-	text = compactPreflightText(text, 12000)
+	text = compactRuntimeContextText(text, 12000)
 	a.agentDockContextMu.Lock()
 	a.agentDockContext = text
 	a.agentDockContextUntil = now.Add(5 * time.Minute)
@@ -79,4 +79,13 @@ func fetchAgentDockRuntimeContext(ctx context.Context, url string, token string)
 		return payload.Context, nil
 	}
 	return payload.Summary, nil
+}
+
+func compactRuntimeContextText(text string, limit int) string {
+	text = strings.TrimSpace(text)
+	runes := []rune(text)
+	if len(runes) <= limit {
+		return text
+	}
+	return string(runes[:limit]) + "..."
 }

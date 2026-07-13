@@ -72,8 +72,8 @@ func buildChatContextMessages(cfg model.ModelConfig, history []model.Message) []
 		}
 	}
 
-	// ChatDock 运行时注入的 Capability Context / Preflight Context 都是 system 消息。
-	// 它们必须稳定出现在用户消息之前，也不能被“最近 N 条消息”裁剪掉。
+	// ChatDock 运行时注入的 Capability Context 是 system 消息。
+	// 它必须稳定出现在用户消息之前，也不能被“最近 N 条消息”裁剪掉。
 	for _, item := range historySystems {
 		messages = append(messages, chatContextMessage{Role: item.Role, Content: item.Content, ModelAttachments: item.ModelAttachments})
 	}

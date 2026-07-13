@@ -266,7 +266,7 @@ func appendMCPToolUseHint(messages []map[string]any, tools []mcp.MCPTool) []map[
 	if len(tools) == 0 {
 		return messages
 	}
-	hint := map[string]any{"role": "system", "content": "ChatDock MCP 工具已接入。若只看到工具搜索、查看详情和执行入口，先按用户目标查找可用工具，再查看目标工具参数，最后执行；不要猜测未查看的工具参数。用户要求管理定时任务、查询外部环境、读取记忆/任务、操作文件或明确要求使用工具时，优先调用合适工具，拿到结果后再回答；不要声称没有工具权限。"}
+	hint := map[string]any{"role": "system", "content": "ChatDock MCP 工具已接入。是否调用工具由你根据用户请求自主判断；需要使用工具时，若只看到工具搜索、查看详情和执行入口，先按用户目标查找可用工具，再查看目标工具参数，最后执行，不要猜测未查看的工具参数，也不要声称没有工具权限。"}
 	out := make([]map[string]any, 0, len(messages)+1)
 	inserted := false
 	for _, msg := range messages {

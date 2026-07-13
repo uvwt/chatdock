@@ -37,7 +37,7 @@ scheduler.go                    定时任务扫描与触发
 attachments.go                  附件上传、落盘、公开签名图片 URL
 model_providers.go              模型供应商测试、候选模型和 API handler
 system_status.go / data_status.go 系统状态和数据健康状态
-preflight_tools.go              工具预检和 AgentDock 上下文提示
+agentdock_context.go            AgentDock 能力上下文读取和注入
 runs.go / session_*.go          工具运行记录、会话标题、搜索和懒加载事件
 ```
 

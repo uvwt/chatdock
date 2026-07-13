@@ -105,6 +105,13 @@ func findPinnedCatalogTool(catalog toolCatalog, candidate string) (mcp.MCPTool, 
 	return mcp.MCPTool{}, false
 }
 
+func toolNameMatches(fullName, name, candidate string) bool {
+	fullName = strings.ToLower(strings.TrimSpace(fullName))
+	name = strings.ToLower(strings.TrimSpace(name))
+	candidate = strings.ToLower(strings.TrimSpace(candidate))
+	return name == candidate || fullName == candidate || strings.HasSuffix(fullName, "__"+candidate) || strings.HasSuffix(fullName, "_"+candidate)
+}
+
 var pinnedToolSearchCandidates = []string{"exec_command", "skill_read", "skill_run", "workflow_template_manage", "task_manage"}
 
 func keywordToolScores(catalog toolCatalog, query string) map[string]int {

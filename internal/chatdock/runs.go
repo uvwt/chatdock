@@ -45,16 +45,10 @@ func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string,
 		return a.callConversationTool(ctx, workspaceID, sessionID, mcpConfig, mcpReady, name, args, recordingEmit)
 	}
 
-	preflightEmit := recordingEmit
 	toolEmit := recordingEmit
 	if emit == nil {
-		preflightEmit = nil
 		toolEmit = nil
 	}
-	preflight := a.runConversationPreflight(ctx, history, catalog, func(preflightCtx context.Context, name string, args map[string]any) (any, error) {
-		return a.callConversationTool(preflightCtx, workspaceID, sessionID, mcpConfig, mcpReady, name, args, recordingEmit)
-	}, preflightEmit)
-	history = appendPreflightContext(history, preflight)
 
 	answer, runErr := a.client.CompleteWithMCPToolsEvents(ctx, cfg, history, visibleTools, func(name string, args map[string]any) (any, error) {
 		return a.callDiscoveryTool(ctx, workspaceID, catalog, describedTools, runRealTool, name, args)

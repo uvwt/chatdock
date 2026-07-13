@@ -145,6 +145,9 @@ func TestCompleteWithMCPToolsEventsStreamsWhenNoToolCall(t *testing.T) {
 		if _, ok := body["tools"]; !ok {
 			t.Fatal("streaming request should still include tools")
 		}
+		if body["tool_choice"] != "auto" {
+			t.Fatalf("tool-aware request should leave tool choice to the model, got %#v", body["tool_choice"])
+		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		flusher := w.(http.Flusher)
 		for _, token := range []string{"流", "式"} {
@@ -389,8 +392,12 @@ func TestCompleteWithMCPToolsEventsHasNoFixedRoundCap(t *testing.T) {
 func TestAppendMCPToolUseHint(t *testing.T) {
 	messages := []map[string]any{{"role": "system", "content": "base"}, {"role": "user", "content": "hi"}}
 	out := appendMCPToolUseHint(messages, []mcp.MCPTool{{Name: "read", FullName: "agentdock__read"}})
-	if len(out) != 2 || out[0]["role"] != "system" || !strings.Contains(out[0]["content"].(string), "MCP") || !strings.Contains(out[0]["content"].(string), "base") {
+	content, _ := out[0]["content"].(string)
+	if len(out) != 2 || out[0]["role"] != "system" || !strings.Contains(content, "MCP") || !strings.Contains(content, "base") {
 		t.Fatalf("expected MCP system hint merged with existing system prompt, got %#v", out)
+	}
+	if !strings.Contains(content, "自主判断") {
+		t.Fatalf("expected tool hint to preserve model autonomy, got %q", content)
 	}
 }
 
