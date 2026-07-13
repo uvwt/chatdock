@@ -138,11 +138,18 @@ function ToolEvents({ events = [], onResolveConfirmation, onInspectToolEvent }) 
 function ErrorNotice({ error }) {
   const message = String(error?.message || error || '').trim();
   if (!message) return null;
+  const raw = String(error?.raw || '').trim();
+  const code = String(error?.code || '').trim();
   const requestID = String(error?.request_id || '').trim();
   return <div className="chat-error-card" role="alert">
     <b>响应中断</b>
     <span>{message}</span>
     {requestID ? <small>请求 ID：{requestID}</small> : null}
+    {raw ? <details className="chat-error-details">
+      <summary>查看原始错误</summary>
+      {code ? <small>错误码：{code}{error?.retryable ? ' · 可重试' : ''}</small> : null}
+      <pre>{raw}</pre>
+    </details> : null}
   </div>;
 }
 

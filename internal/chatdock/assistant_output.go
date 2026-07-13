@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"chatdock/internal/chatdock/llm"
+	"chatdock/internal/chatdock/model"
 )
 
 type assistantOutputRecorder struct {
@@ -19,6 +20,7 @@ type assistantOutputRecorder struct {
 
 	checkpointMessageID string
 	assistantSaved      bool
+	messageError        *model.MessageError
 	lastCheckpoint      time.Time
 	lastCheckpointChars int
 	pendingDelta        llm.StreamDelta
@@ -98,10 +100,10 @@ func (r *assistantOutputRecorder) saveCheckpoint(force bool) error {
 	if !force && len(currentAnswer)-r.lastCheckpointChars < 512 && time.Since(r.lastCheckpoint) < time.Second {
 		return nil
 	}
-	if strings.TrimSpace(currentAnswer) == "" && strings.TrimSpace(currentReasoning) == "" && len(r.parts.parts) == 0 && len(r.parts.events) == 0 {
+	if strings.TrimSpace(currentAnswer) == "" && strings.TrimSpace(currentReasoning) == "" && len(r.parts.parts) == 0 && len(r.parts.events) == 0 && r.messageError == nil {
 		return nil
 	}
-	_, messageID, err := r.app.store.UpsertAssistantMessageCheckpoint(r.workspaceID, r.sessionID, r.checkpointMessageID, currentAnswer, currentReasoning, r.parts.parts, r.parts.events)
+	_, messageID, err := r.app.store.UpsertAssistantMessageCheckpoint(r.workspaceID, r.sessionID, r.checkpointMessageID, currentAnswer, currentReasoning, r.parts.parts, r.parts.events, r.messageError)
 	if err != nil {
 		return err
 	}
@@ -110,6 +112,11 @@ func (r *assistantOutputRecorder) saveCheckpoint(force bool) error {
 	r.lastCheckpoint = time.Now()
 	r.lastCheckpointChars = len(currentAnswer)
 	return nil
+}
+
+func (r *assistantOutputRecorder) setError(messageError model.MessageError) {
+	errorCopy := messageError
+	r.messageError = &errorCopy
 }
 
 func (r *assistantOutputRecorder) useFinalAnswer(finalAnswer string) {

@@ -173,7 +173,7 @@ func (s *Store) AppendAssistantMessageWithParts(workspaceID string, sessionID st
 	return cloneSession(session), nil
 }
 
-func (s *Store) UpsertAssistantMessageCheckpoint(workspaceID string, sessionID string, messageID string, content string, reasoning string, parts []model.MessagePart, events []model.MessageEvent) (*model.Session, string, error) {
+func (s *Store) UpsertAssistantMessageCheckpoint(workspaceID string, sessionID string, messageID string, content string, reasoning string, parts []model.MessagePart, events []model.MessageEvent, messageError *model.MessageError) (*model.Session, string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, sessionID)
@@ -206,6 +206,11 @@ func (s *Store) UpsertAssistantMessageCheckpoint(workspaceID string, sessionID s
 	message.Reasoning = strings.TrimSpace(reasoning)
 	message.Parts = cloneMessageParts(parts)
 	message.Events = cloneMessageEvents(events)
+	message.Error = nil
+	if messageError != nil {
+		errorCopy := *messageError
+		message.Error = &errorCopy
+	}
 	if message.CreatedAt.IsZero() {
 		message.CreatedAt = now
 	}

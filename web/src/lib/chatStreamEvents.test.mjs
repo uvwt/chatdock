@@ -54,12 +54,14 @@ test('run protocol events only project meaningful non-tool records', () => {
   assert.match(next.events[0].meta, /成功/);
 });
 
-test('error event updates both stats and assistant message', () => {
-  const data = { message: '模型不可用' };
+test('error event updates both stats and preserves raw details on the assistant message', () => {
+  const data = { message: '模型不可用', raw: 'dial tcp: connection refused', code: 'UPSTREAM_UNAVAILABLE', request_id: 'req_stream' };
   const stats = chatStreamStatsAfterEvent(idleStats(), 'error', data);
   assert.equal(stats.state, 'error');
   assert.match(stats.error, /模型不可用/);
   const message = chatStreamAssistantAfterEvent({ answer: '', events: [] }, 'error', data);
   assert.equal(message.events[0].phase, 'error');
   assert.match(message.events[0].text, /模型不可用/);
+  assert.equal(message.error.raw, 'dial tcp: connection refused');
+  assert.equal(message.error.request_id, 'req_stream');
 });

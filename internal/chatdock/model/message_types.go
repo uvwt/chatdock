@@ -7,11 +7,22 @@ type Message struct {
 	Role             string             `json:"role"`
 	Content          string             `json:"content"`
 	Reasoning        string             `json:"reasoning,omitempty"`
+	Error            *MessageError      `json:"error,omitempty"`
 	Parts            []MessagePart      `json:"parts,omitempty"`
 	Events           []MessageEvent     `json:"events,omitempty"`
 	Attachments      []Attachment       `json:"attachments,omitempty"`
 	ModelAttachments []AttachmentRecord `json:"-"`
 	CreatedAt        time.Time          `json:"created_at"`
+}
+
+// MessageError 将面向用户的提示和底层原始错误分开保存。
+// 原始错误只在用户主动展开详情时展示，避免污染消息正文和后续模型上下文。
+type MessageError struct {
+	Message   string `json:"message"`
+	Raw       string `json:"raw,omitempty"`
+	Code      string `json:"code,omitempty"`
+	RequestID string `json:"request_id,omitempty"`
+	Retryable bool   `json:"retryable,omitempty"`
 }
 
 type MessagePart struct {

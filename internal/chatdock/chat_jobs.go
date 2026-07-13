@@ -91,11 +91,35 @@ func (a *App) runChatJob(ctx context.Context, workspaceID string, jobID string, 
 	}
 	recorder.useFinalAnswer(finalAnswer)
 	status, runErr := chatJobCompletionStatus(ctx, runErr)
+	if status == "failed" && runErr != nil {
+		recorder.setError(newMessageError(requestIDFromContext(ctx), runErr.Error()))
+	}
 	if err := recorder.saveCheckpoint(true); err != nil {
 		status = "failed"
 		runErr = err
 	}
 	a.finishChatJob(ctx, workspaceID, sessionID, jobID, status, cfg, recorder, runErr)
+}
+
+func newMessageError(requestID string, rawMessage string) model.MessageError {
+	rawMessage = strings.TrimSpace(rawMessage)
+	return model.MessageError{
+		Message:   publicChatErrorMessage(rawMessage),
+		Raw:       rawMessage,
+		Code:      chatErrorCode(rawMessage),
+		RequestID: strings.TrimSpace(requestID),
+		Retryable: isRetryableChatError(rawMessage),
+	}
+}
+
+func (a *App) persistSessionChatError(workspaceID string, sessionID string, requestID string, runErr error) {
+	if runErr == nil || strings.TrimSpace(sessionID) == "" {
+		return
+	}
+	messageError := newMessageError(requestID, runErr.Error())
+	if _, _, err := a.store.UpsertAssistantMessageCheckpoint(workspaceID, sessionID, "", "", "", nil, nil, &messageError); err != nil && !errors.Is(err, model.ErrSessionNotFound) {
+		logError("chat_error_persist_failed", err, logFields{"request_id": requestID, "session_id": sessionID, "workspace_id": workspaceID})
+	}
 }
 
 func (a *App) handleCreateChatJob(w http.ResponseWriter, r *http.Request) {
@@ -208,13 +232,14 @@ func streamChatJobEvents(r *http.Request, w http.ResponseWriter, flusher http.Fl
 }
 
 func chatStreamErrorPayload(job storepkg.ChatJob, rawMessage string) map[string]any {
-	message := publicChatErrorMessage(rawMessage)
+	messageError := newMessageError(job.RequestID, rawMessage)
 	return map[string]any{
 		"type":       "error",
-		"code":       chatErrorCode(rawMessage),
-		"message":    message,
-		"request_id": job.RequestID,
-		"retryable":  isRetryableChatError(rawMessage),
+		"code":       messageError.Code,
+		"message":    messageError.Message,
+		"raw":        messageError.Raw,
+		"request_id": messageError.RequestID,
+		"retryable":  messageError.Retryable,
 		"status":     "failed",
 	}
 }

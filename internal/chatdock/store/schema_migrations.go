@@ -21,6 +21,7 @@ var sqliteSchemaMigrations = []sqliteSchemaMigration{
 	{Version: 4, Name: "sessions_provider_id", Statements: []string{`ALTER TABLE sessions ADD COLUMN provider_id TEXT NOT NULL DEFAULT ''`}},
 	{Version: 5, Name: "sessions_model", Statements: []string{`ALTER TABLE sessions ADD COLUMN model TEXT NOT NULL DEFAULT ''`}},
 	{Version: 6, Name: "tool_embeddings_embedding_blob", Statements: []string{`ALTER TABLE tool_embeddings ADD COLUMN embedding_blob BLOB NOT NULL DEFAULT x''`}},
+	{Version: 7, Name: "session_messages_error_json", Statements: []string{`ALTER TABLE session_messages ADD COLUMN error_json TEXT NOT NULL DEFAULT ''`}},
 }
 
 func (s *Store) ensureSQLiteSchemaUpdates() error {

@@ -50,6 +50,23 @@ func TestBuildChatMessagesCustomModeLimitsContext(t *testing.T) {
 	}
 }
 
+func TestBuildChatMessagesSkipsPersistedErrorOnlyMessage(t *testing.T) {
+	cfg := model.ModelConfig{SystemPrompt: "sys", ContextMode: model.ContextModeCustom, MaxContextMessages: 10}
+	history := []model.Message{
+		{Role: "user", Content: "第一次请求"},
+		{Role: "assistant", Error: &model.MessageError{Message: "模型调用失败", Raw: "connection refused"}},
+		{Role: "user", Content: "继续处理"},
+	}
+
+	got := BuildChatMessages(cfg, history)
+	if len(got) != 3 {
+		t.Fatalf("error-only assistant message should stay out of model context: %#v", got)
+	}
+	if got[1]["content"] != "第一次请求" || got[2]["content"] != "继续处理" {
+		t.Fatalf("unexpected model context after filtering persisted error: %#v", got)
+	}
+}
+
 func TestBuildChatMessagesHoistsRuntimeSystemContext(t *testing.T) {
 	cfg := model.ModelConfig{SystemPrompt: "base system", ContextMode: model.ContextModeCustom, MaxContextMessages: 1}
 	history := []model.Message{

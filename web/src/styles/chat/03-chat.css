@@ -480,6 +480,38 @@
   font-size: 12px;
 }
 
+.chat-error-details {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(239, 68, 68, .2);
+}
+
+.chat-error-details summary {
+  width: max-content;
+  cursor: pointer;
+  color: #fca5a5;
+  font-size: 13px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.chat-error-details[open] summary {
+  margin-bottom: 8px;
+}
+
+.chat-error-details pre {
+  max-height: 280px;
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, .72);
+  color: #e2e8f0;
+  font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 body.theme-light .chat-error-card {
   background: #fff7f7;
   border-color: #fecaca;
@@ -487,4 +519,17 @@ body.theme-light .chat-error-card {
 
 body.theme-light .chat-error-card b {
   color: #b91c1c;
+}
+
+body.theme-light .chat-error-details {
+  border-top-color: #fecaca;
+}
+
+body.theme-light .chat-error-details summary {
+  color: #b91c1c;
+}
+
+body.theme-light .chat-error-details pre {
+  background: #fff;
+  color: #1e293b;
 }

@@ -15,11 +15,6 @@ export function attachmentLooksLikeImage(item) {
   return String(item?.mime_type || item?.type || '').toLowerCase().startsWith('image/');
 }
 
-export function appendRequestID(message, requestID) {
-  requestID = String(requestID || '').trim();
-  return requestID ? message + '\n请求 ID：' + requestID : message;
-}
-
 export function readableChatError(error, hasImageAttachment = false) {
   const raw = String(error?.message || error || '').trim();
   if (!raw) return '模型调用失败。';
@@ -36,12 +31,21 @@ export function readableChatError(error, hasImageAttachment = false) {
       if (message) return String(message);
     } catch { }
   }
-  return appendRequestID(raw.replace(/^model api failed:\s*/i, ''), error?.request_id);
+  return raw.replace(/^model api failed:\s*/i, '');
 }
 
 export function streamErrorMessage(data = {}) {
-  const message = String(data.message || '模型响应中断。').trim();
-  return appendRequestID(message, data.request_id);
+  return String(data.message || '模型响应中断。').trim();
+}
+
+export function chatErrorDetails(error, message = readableChatError(error)) {
+  return {
+    message,
+    raw: String(error?.raw || error?.message || error || '').trim(),
+    code: String(error?.code || '').trim(),
+    request_id: String(error?.request_id || '').trim(),
+    retryable: Boolean(error?.retryable),
+  };
 }
 
 export function finalAssistantMessageFromSession(session) {

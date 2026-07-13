@@ -1,6 +1,10 @@
 package store
 
-import "testing"
+import (
+	"database/sql"
+	"path/filepath"
+	"testing"
+)
 
 func TestSQLiteSchemaMigrationRollsBackDDLAndRecordTogether(t *testing.T) {
 	store, err := NewStore(t.TempDir())
@@ -51,5 +55,51 @@ func TestSQLiteSchemaMigrationRecordsAlreadyAppliedDDL(t *testing.T) {
 	}
 	if recordCount != 1 {
 		t.Fatalf("migration record count = %d, want 1", recordCount)
+	}
+}
+
+func TestSQLiteSchemaMigrationAddsMessageErrorColumnToExistingDatabase(t *testing.T) {
+	dataDir := t.TempDir()
+	db, err := sql.Open("sqlite3", filepath.Join(dataDir, "chatdock.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`CREATE TABLE session_messages (
+		workspace_id TEXT NOT NULL,
+		session_id TEXT NOT NULL,
+		message_index INTEGER NOT NULL,
+		id TEXT NOT NULL,
+		role TEXT NOT NULL,
+		content TEXT NOT NULL,
+		reasoning TEXT NOT NULL DEFAULT '',
+		attachments_json TEXT NOT NULL DEFAULT '[]',
+		created_at TEXT NOT NULL,
+		PRIMARY KEY(workspace_id, session_id, message_index)
+	)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	store, err := NewStore(dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	hasColumn, err := sqliteColumnExists(store.db, "session_messages", "error_json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasColumn {
+		t.Fatal("session_messages.error_json was not added")
+	}
+	applied, err := store.sqliteSchemaMigrationApplied(7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !applied {
+		t.Fatal("session_messages_error_json migration was not recorded")
 	}
 }

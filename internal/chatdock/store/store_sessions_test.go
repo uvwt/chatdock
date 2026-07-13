@@ -444,3 +444,69 @@ func TestPrepareChatClassifiesValidationAndPersistenceErrors(t *testing.T) {
 		t.Fatalf("persistence error was misclassified as validation: %v", err)
 	}
 }
+
+func TestStoreAssistantErrorPersistsAcrossReload(t *testing.T) {
+	dataDir := t.TempDir()
+	store, err := NewStore(dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := store.CreateSession(defaultWorkspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := &model.MessageError{
+		Message:   "模型调用失败：上游模型服务返回错误。",
+		Raw:       `model api failed: {"error":{"message":"upstream unavailable"}}`,
+		Code:      "CHAT_STREAM_FAILED",
+		RequestID: "req_test_error",
+		Retryable: true,
+	}
+	saved, messageID, err := store.UpsertAssistantMessageCheckpoint(defaultWorkspaceID, session.ID, "", "", "", nil, nil, expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if messageID == "" || len(saved.Messages) != 1 || saved.Messages[0].Error == nil {
+		t.Fatalf("assistant error message was not created: %#v", saved.Messages)
+	}
+	if got := saved.Messages[0].Error; *got != *expected {
+		t.Fatalf("unexpected saved error: got=%#v want=%#v", got, expected)
+	}
+
+	// 返回值必须是深拷贝，避免前端或调用方修改响应后污染内存中的会话。
+	saved.Messages[0].Error.Raw = "mutated"
+	loaded, ok, err := store.GetSession(defaultWorkspaceID, session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || loaded.Messages[0].Error == nil || loaded.Messages[0].Error.Raw != expected.Raw {
+		t.Fatalf("session error clone was mutated: %#v", loaded)
+	}
+	summaries, err := store.ListSessions(defaultWorkspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(summaries) != 1 || summaries[0].Preview != expected.Message || summaries[0].LastRole != "assistant" {
+		t.Fatalf("error message missing from session summary: %#v", summaries)
+	}
+
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := NewStore(dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	persisted, ok, err := reopened.GetSession(defaultWorkspaceID, session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(persisted.Messages) != 1 || persisted.Messages[0].Error == nil {
+		t.Fatalf("assistant error did not survive reload: %#v", persisted)
+	}
+	if got := persisted.Messages[0].Error; *got != *expected {
+		t.Fatalf("unexpected persisted error: got=%#v want=%#v", got, expected)
+	}
+}

@@ -115,16 +115,16 @@ func loadSessionHeadersFromTables(db *sql.DB, prompt string) (map[string]*model.
 }
 
 func loadSessionMessagesFromTables(db *sql.DB, prompt string, sessions map[string]*model.Session) error {
-	rows, err := db.Query(`SELECT session_id, message_index, id, role, content, reasoning, attachments_json, created_at FROM session_messages WHERE workspace_id = ? ORDER BY session_id, message_index`, prompt)
+	rows, err := db.Query(`SELECT session_id, message_index, id, role, content, reasoning, error_json, attachments_json, created_at FROM session_messages WHERE workspace_id = ? ORDER BY session_id, message_index`, prompt)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var sessionID, attachmentsRaw, createdAt string
+		var sessionID, errorRaw, attachmentsRaw, createdAt string
 		var index int
 		var msg model.Message
-		if err := rows.Scan(&sessionID, &index, &msg.ID, &msg.Role, &msg.Content, &msg.Reasoning, &attachmentsRaw, &createdAt); err != nil {
+		if err := rows.Scan(&sessionID, &index, &msg.ID, &msg.Role, &msg.Content, &msg.Reasoning, &errorRaw, &attachmentsRaw, &createdAt); err != nil {
 			return err
 		}
 		if index < 0 {
@@ -135,6 +135,13 @@ func loadSessionMessagesFromTables(db *sql.DB, prompt string, sessions map[strin
 			return fmt.Errorf("message %s references missing session %s", msg.ID, sessionID)
 		}
 		msg.CreatedAt = parseDBTimeZero(createdAt)
+		if strings.TrimSpace(errorRaw) != "" && strings.TrimSpace(errorRaw) != "null" {
+			var messageError model.MessageError
+			if err := json.Unmarshal([]byte(errorRaw), &messageError); err != nil {
+				return fmt.Errorf("decode session %s message %d error: %w", sessionID, index, err)
+			}
+			msg.Error = &messageError
+		}
 		if strings.TrimSpace(attachmentsRaw) != "" {
 			if err := json.Unmarshal([]byte(attachmentsRaw), &msg.Attachments); err != nil {
 				return fmt.Errorf("decode session %s message %d attachments: %w", sessionID, index, err)
@@ -276,7 +283,15 @@ func upsertSessionMessageTx(tx sqlWriter, prompt string, session *model.Session,
 	if err != nil {
 		return fmt.Errorf("encode session %s message %d attachments: %w", session.ID, messageIndex, err)
 	}
-	if _, err := tx.Exec(`INSERT INTO session_messages(workspace_id, session_id, message_index, id, role, content, reasoning, attachments_json, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`, prompt, session.ID, messageIndex, msg.ID, msg.Role, msg.Content, msg.Reasoning, string(attachmentsRaw), formatScheduleDBTime(msg.CreatedAt)); err != nil {
+	errorRaw := ""
+	if msg.Error != nil {
+		encodedError, err := json.Marshal(msg.Error)
+		if err != nil {
+			return fmt.Errorf("encode session %s message %d error: %w", session.ID, messageIndex, err)
+		}
+		errorRaw = string(encodedError)
+	}
+	if _, err := tx.Exec(`INSERT INTO session_messages(workspace_id, session_id, message_index, id, role, content, reasoning, error_json, attachments_json, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, prompt, session.ID, messageIndex, msg.ID, msg.Role, msg.Content, msg.Reasoning, errorRaw, string(attachmentsRaw), formatScheduleDBTime(msg.CreatedAt)); err != nil {
 		return err
 	}
 	eventIDs, err := upsertSessionMessageEventsTx(tx, prompt, session.ID, messageIndex, msg)

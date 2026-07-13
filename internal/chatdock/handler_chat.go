@@ -36,6 +36,7 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 
 	answer, err := a.completeWithOptionalTools(r.Context(), workspaceID, input.SessionID, cfg, history)
 	if err != nil {
+		a.persistSessionChatError(workspaceID, input.SessionID, requestIDFromRequest(r), err)
 		writeError(w, http.StatusBadGateway, err)
 		return
 	}

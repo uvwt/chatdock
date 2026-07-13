@@ -5,7 +5,7 @@ import { CurrentSessionTask, TaskPanel } from './components/taskPanel.jsx';
 import { DialogHost, LoginPage, Markdown, QuickPalette, WorkspacePicker } from './components/base.jsx';
 import { SettingsPanel } from './components/settings.jsx';
 import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtTime, normalizeSettingsModule, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
-import { attachmentLooksLikeImage, contextPreviewText, finalAssistantMessageFromSession, readableChatError, scheduledTaskContextLabel, scheduledTaskRunsText, streamStatusText } from './lib/chatPresentation.js';
+import { attachmentLooksLikeImage, chatErrorDetails, contextPreviewText, finalAssistantMessageFromSession, readableChatError, scheduledTaskContextLabel, scheduledTaskRunsText, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
 import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js';
 import { createJsonApi } from './lib/http.js';
@@ -742,7 +742,17 @@ export default function App() {
     setMessages(prev => prev.map((m, index) => {
       if (index !== prev.length - 1 || m.role !== 'assistant-stream') return m;
       const content = finalAssistant?.content || m.answer || '';
-      return {...m, role: 'assistant', content, answer: content, reasoning: finalAssistant?.reasoning || m.reasoning || '', created_at: finalAssistant?.created_at || m.created_at};
+      return {
+        ...m,
+        role: 'assistant',
+        content,
+        answer: content,
+        reasoning: finalAssistant?.reasoning || m.reasoning || '',
+        parts: finalAssistant?.parts || m.parts,
+        events: finalAssistant?.events || m.events,
+        error: finalAssistant?.error || m.error,
+        created_at: finalAssistant?.created_at || m.created_at,
+      };
     }));
   }, []);
 
@@ -773,9 +783,7 @@ export default function App() {
     if (event === 'message_end' || event === 'done') {
       activeJobIDRef.current = '';
       setActiveJobID('');
-    }
-    if (event === 'done') {
-      setFinalSession(data.session);
+      if (data.session) setFinalSession(data.session);
     }
   }, [appendAnswer, appendReasoning, appendToActiveAssistant]);
 
@@ -813,7 +821,7 @@ export default function App() {
         if (!abort.signal.aborted && !stopped) {
           const message = readableChatError(e);
           setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
-          appendToActiveAssistant(m => ({ ...m, error: { message }, answer: m.answer || '' }));
+          appendToActiveAssistant(m => ({ ...m, error: chatErrorDetails(e, message), answer: m.answer || '' }));
         }
       } finally {
         if (!stopped) {
@@ -943,7 +951,7 @@ export default function App() {
       } else {
         const message = readableChatError(error, hasImageAttachments);
         setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
-        appendToActiveAssistant(currentMessage => ({ ...currentMessage, error: { message }, answer: currentMessage.answer || '' }));
+        appendToActiveAssistant(currentMessage => ({ ...currentMessage, error: chatErrorDetails(error, message), answer: currentMessage.answer || '' }));
       }
     } finally {
       detachedControllersRef.current.delete(abort);

@@ -12,6 +12,9 @@ func sessionPreview(session *model.Session) (string, string) {
 	}
 	msg := session.Messages[len(session.Messages)-1]
 	content := strings.Join(strings.Fields(msg.Content), " ")
+	if content == "" && msg.Error != nil {
+		content = strings.Join(strings.Fields(msg.Error.Message), " ")
+	}
 	runes := []rune(content)
 	if len(runes) > 120 {
 		content = string(runes[:120]) + "…"
@@ -36,6 +39,10 @@ func cloneMessages(messages []model.Message) []model.Message {
 		out[i].ModelAttachments = append([]model.AttachmentRecord(nil), messages[i].ModelAttachments...)
 		out[i].Parts = cloneMessageParts(messages[i].Parts)
 		out[i].Events = cloneMessageEvents(messages[i].Events)
+		if messages[i].Error != nil {
+			errorCopy := *messages[i].Error
+			out[i].Error = &errorCopy
+		}
 	}
 	return out
 }

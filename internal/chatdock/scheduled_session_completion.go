@@ -17,6 +17,9 @@ func (a *App) completeScheduledSessionWithRecordedEvents(ctx context.Context, wo
 	finalAnswer, runErr := a.completeWithRecordedTools(ctx, workspaceID, "", sessionID, cfg, history, recorder.emit)
 	recorder.useFinalAnswer(finalAnswer)
 	recorder.ensureFailureAnswer(runErr)
+	if runErr != nil {
+		recorder.setError(newMessageError(requestIDFromContext(ctx), runErr.Error()))
+	}
 	if err := recorder.saveCheckpoint(true); err != nil && runErr == nil {
 		runErr = err
 	}
