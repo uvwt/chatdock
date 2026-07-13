@@ -259,6 +259,8 @@ func publicChatErrorMessage(raw string) string {
 		return "模型响应中断：无法连接上游模型服务。"
 	case strings.Contains(lower, "401") || strings.Contains(lower, "unauthorized"):
 		return "模型调用失败：模型供应商鉴权失败，请检查 API Key。"
+	case strings.Contains(lower, "400") || strings.Contains(lower, "invalidparameter") || strings.Contains(lower, "invalid request body"):
+		return "模型调用失败：请求参数不受当前模型供应商支持。"
 	case strings.Contains(lower, "429") || strings.Contains(lower, "rate limit"):
 		return "模型调用失败：请求过于频繁或额度受限。"
 	case strings.Contains(lower, "model api failed"):
@@ -277,6 +279,8 @@ func chatErrorCode(raw string) string {
 		return "UPSTREAM_UNAVAILABLE"
 	case strings.Contains(lower, "401") || strings.Contains(lower, "unauthorized"):
 		return "UPSTREAM_UNAUTHORIZED"
+	case strings.Contains(lower, "400") || strings.Contains(lower, "invalidparameter") || strings.Contains(lower, "invalid request body"):
+		return "UPSTREAM_BAD_REQUEST"
 	case strings.Contains(lower, "429") || strings.Contains(lower, "rate limit"):
 		return "UPSTREAM_RATE_LIMITED"
 	default:

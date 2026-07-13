@@ -289,7 +289,6 @@ func (c *ChatClient) streamChatWithRawMessages(ctx context.Context, cfg model.Mo
 		body["tools"] = tools
 		body["tool_choice"] = "auto"
 	}
-	applyModelRequestParams(body, cfg)
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return ModelChatResponse{}, err
@@ -457,7 +456,6 @@ func (c *ChatClient) completeChatWithRawMessages(ctx context.Context, cfg model.
 		body["tools"] = tools
 		body["tool_choice"] = "auto"
 	}
-	applyModelRequestParams(body, cfg)
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return ModelChatResponse{}, err

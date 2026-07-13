@@ -14,6 +14,16 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
+func assertNoThinkingControlFields(t *testing.T, body map[string]any) {
+	t.Helper()
+	if _, ok := body["chat_template_kwargs"]; ok {
+		t.Fatalf("request must not send non-standard chat_template_kwargs: %#v", body)
+	}
+	if _, ok := body["enable_thinking"]; ok {
+		t.Fatalf("request must not send enable_thinking: %#v", body)
+	}
+}
+
 func TestStripThinkingContent(t *testing.T) {
 	got := StripThinkingContent("hello <think>secret</think> world")
 	if got != "hello  world" {
@@ -35,6 +45,28 @@ func TestThinkingFilterAcrossChunks(t *testing.T) {
 	got += f.Flush()
 	if got != "hello  ok" {
 		t.Fatalf("unexpected stream filter output: %q", got)
+	}
+}
+
+func TestCompleteDoesNotSendThinkingControlFields(t *testing.T) {
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		assertNoThinkingControlFields(t, body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"OK"}}]}`))
+	}))
+	defer modelServer.Close()
+
+	client := NewChatClient()
+	answer, err := client.Complete(context.Background(), model.ModelConfig{BaseURL: modelServer.URL, Model: "fake"}, []model.Message{{Role: "user", Content: "hello"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if answer != "OK" {
+		t.Fatalf("unexpected answer: %q", answer)
 	}
 }
 
@@ -111,6 +143,7 @@ func TestStreamRawMessagesEmitsIncrementalDeltas(t *testing.T) {
 		if body["stream"] != true {
 			t.Fatalf("expected stream request, got %#v", body["stream"])
 		}
+		assertNoThinkingControlFields(t, body)
 		flusher, ok := w.(http.Flusher)
 		if !ok {
 			t.Fatal("test server does not support flush")
@@ -165,6 +198,7 @@ func TestCompleteWithMCPToolsEventsStreamsWhenNoToolCall(t *testing.T) {
 		if body["tool_choice"] != "auto" {
 			t.Fatalf("tool-aware request should leave tool choice to the model, got %#v", body["tool_choice"])
 		}
+		assertNoThinkingControlFields(t, body)
 		w.Header().Set("Content-Type", "text/event-stream")
 		flusher := w.(http.Flusher)
 		for _, token := range []string{"流", "式"} {

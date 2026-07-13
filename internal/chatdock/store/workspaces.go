@@ -29,7 +29,7 @@ func listWorkspacesWith(reader sqlQueryer, active string) (WorkspaceResponse, er
 			return WorkspaceResponse{}, err
 		}
 		ready := workspaceReadinessFromConfig(workspace.Name, cfg)
-		items = append(items, Workspace{ID: workspace.Name, Name: workspace.Name, Description: workspaceDescription(workspace.Name), Icon: "message-circle", ProviderID: cfg.ProviderID, Model: cfg.Model, Models: append([]string(nil), cfg.Models...), SystemPrompt: cfg.SystemPrompt, ContextLimit: cfg.MaxContextMessages, Temperature: cfg.Temperature, HideThinking: cfg.HideThinking, EnableReasoning: cfg.EnableThinking, Ready: ready.Ready, ReadinessReason: ready.Reason, TaskCount: len(tasks), SessionCount: workspace.Count, Active: workspace.Active, Archived: false, CreatedAt: workspace.CreatedAt, UpdatedAt: workspace.UpdatedAt})
+		items = append(items, Workspace{ID: workspace.Name, Name: workspace.Name, Description: workspaceDescription(workspace.Name), Icon: "message-circle", ProviderID: cfg.ProviderID, Model: cfg.Model, Models: append([]string(nil), cfg.Models...), SystemPrompt: cfg.SystemPrompt, ContextLimit: cfg.MaxContextMessages, Temperature: cfg.Temperature, HideThinking: cfg.HideThinking, Ready: ready.Ready, ReadinessReason: ready.Reason, TaskCount: len(tasks), SessionCount: workspace.Count, Active: workspace.Active, Archived: false, CreatedAt: workspace.CreatedAt, UpdatedAt: workspace.UpdatedAt})
 	}
 	return WorkspaceResponse{Active: activeWorkspaceFromSummaries(workspaceSummaries), Workspaces: items}, nil
 }

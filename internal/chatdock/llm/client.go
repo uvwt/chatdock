@@ -21,13 +21,6 @@ func NewChatClient() *ChatClient {
 	return &ChatClient{httpClient: &http.Client{Timeout: 120 * time.Second}}
 }
 
-func applyModelRequestParams(body map[string]any, cfg model.ModelConfig) {
-	// Qwen3 / llama.cpp / LM Studio compatible servers usually read this through
-	// the chat template renderer. This is the actual thinking switch; do not fake it
-	// by mutating the system prompt.
-	body["chat_template_kwargs"] = map[string]any{"enable_thinking": cfg.EnableThinking}
-}
-
 func (c *ChatClient) Complete(ctx context.Context, cfg model.ModelConfig, history []model.Message) (string, error) {
 	messages := BuildChatMessagesAny(cfg, history)
 	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/chat/completions"
@@ -38,7 +31,6 @@ func (c *ChatClient) Complete(ctx context.Context, cfg model.ModelConfig, histor
 		"temperature": cfg.Temperature,
 		"stream":      false,
 	}
-	applyModelRequestParams(body, cfg)
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return "", err

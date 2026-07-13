@@ -10,7 +10,6 @@ type ModelConfig struct {
 	ContextMode        string   `json:"context_mode,omitempty"`
 	MaxContextMessages int      `json:"max_context_messages"`
 	Temperature        float64  `json:"temperature"`
-	EnableThinking     bool     `json:"enable_thinking"`
 	HideThinking       bool     `json:"hide_thinking"`
 	EmbeddingBaseURL   string   `json:"embedding_base_url,omitempty"`
 	EmbeddingAPIKey    string   `json:"embedding_api_key,omitempty"`
@@ -27,7 +26,6 @@ type PublicModelConfig struct {
 	ContextMode        string   `json:"context_mode,omitempty"`
 	MaxContextMessages int      `json:"max_context_messages"`
 	Temperature        float64  `json:"temperature"`
-	EnableThinking     bool     `json:"enable_thinking"`
 	HideThinking       bool     `json:"hide_thinking"`
 	EmbeddingBaseURL   string   `json:"embedding_base_url,omitempty"`
 	HasEmbeddingAPIKey bool     `json:"has_embedding_api_key"`

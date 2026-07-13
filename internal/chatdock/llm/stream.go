@@ -25,7 +25,6 @@ func (c *ChatClient) StreamRawMessages(ctx context.Context, cfg model.ModelConfi
 		"temperature": cfg.Temperature,
 		"stream":      true,
 	}
-	applyModelRequestParams(body, cfg)
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return "", err

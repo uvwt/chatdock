@@ -35,3 +35,15 @@ func TestChatStreamErrorPayloadIncludesRawDetails(t *testing.T) {
 		t.Fatalf("unexpected stream error metadata: %#v", payload)
 	}
 }
+
+func TestNewMessageErrorMarksBadRequestAsNotRetryable(t *testing.T) {
+	raw := `model api failed: 400 Bad Request: {"error":{"code":"InvalidParameter","message":"Invalid request body"}}`
+	got := newMessageError("req_bad_request", raw)
+
+	if got.Message != "模型调用失败：请求参数不受当前模型供应商支持。" {
+		t.Fatalf("unexpected public message: %q", got.Message)
+	}
+	if got.Code != "UPSTREAM_BAD_REQUEST" || got.Retryable {
+		t.Fatalf("bad request must not be marked retryable: %#v", got)
+	}
+}

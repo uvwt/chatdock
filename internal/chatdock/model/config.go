@@ -19,7 +19,6 @@ func DefaultModelConfig() ModelConfig {
 		ContextMode:        ContextModeAuto,
 		MaxContextMessages: 12,
 		Temperature:        0.7,
-		EnableThinking:     false,
 		HideThinking:       false,
 		EmbeddingModel:     "BAAI/bge-m3",
 	}
@@ -73,7 +72,6 @@ func ToPublicModelConfig(cfg ModelConfig) PublicModelConfig {
 		ContextMode:        cfg.ContextMode,
 		MaxContextMessages: cfg.MaxContextMessages,
 		Temperature:        cfg.Temperature,
-		EnableThinking:     cfg.EnableThinking,
 		HideThinking:       cfg.HideThinking,
 		EmbeddingBaseURL:   cfg.EmbeddingBaseURL,
 		HasEmbeddingAPIKey: strings.TrimSpace(cfg.EmbeddingAPIKey) != "",

@@ -108,7 +108,6 @@ type Workspace struct {
 	ContextLimit    int       `json:"context_limit"`
 	Temperature     float64   `json:"temperature"`
 	HideThinking    bool      `json:"hide_thinking"`
-	EnableReasoning bool      `json:"enable_reasoning"`
 	Ready           bool      `json:"ready"`
 	ReadinessReason string    `json:"readiness_reason,omitempty"`
 	TaskCount       int       `json:"task_count"`

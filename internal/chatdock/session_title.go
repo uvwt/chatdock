@@ -47,7 +47,6 @@ func (a *App) generateSessionTitle(ctx context.Context, cfg model.ModelConfig, s
 	titleCfg.ContextMode = model.ContextModeCustom
 	titleCfg.MaxContextMessages = 4
 	titleCfg.Temperature = 0.2
-	titleCfg.EnableThinking = false
 	titleCfg.HideThinking = true
 
 	userText := firstUserTitleContext(session.Messages[0])

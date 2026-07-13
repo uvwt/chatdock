@@ -9,7 +9,6 @@ ChatDock 是一个自用的轻量 AI 对话中控台，目标是：提示词可�
 - OpenAI Chat Completions 兼容接口。
 - 可配置 Base URL / API Key / Model / System Prompt。
 - 可配置最近上下文消息数，用来控制 token 消耗。
-- 可通过 `chat_template_kwargs.enable_thinking` 控制模型思考开关。
 - 可隐藏 `<think>...</think>` 思考内容。
 - 工作空间：每个空间独立保存模型配置、MCP 配置、自动化任务和会话。
 - 自动化任务：每个工作空间可维护一组本地定时提示，支持一次性、每日、间隔执行，并把运行结果写入任务运行记录和关联会话。

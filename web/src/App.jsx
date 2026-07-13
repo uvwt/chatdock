@@ -1141,7 +1141,6 @@ export default function App() {
       context_mode: config.context_mode || 'auto',
       max_context_messages: Number(config.max_context_messages || 12),
       temperature: Number(config.temperature || 0.7),
-      enable_thinking: !!config.enable_thinking,
       hide_thinking: !!config.hide_thinking,
       embedding_base_url: config.embedding_base_url,
       embedding_api_key: config.embedding_api_key,
@@ -1184,7 +1183,6 @@ export default function App() {
         context_mode: config.context_mode || 'auto',
         max_context_messages: Number(config.max_context_messages || 12),
         temperature: Number(config.temperature || 0.7),
-        enable_thinking: !!config.enable_thinking,
         hide_thinking: !!config.hide_thinking,
       });
       showToast(data.ok ? '模型连接正常：' + (data.model || '') : '模型连接失败：' + (data.error || 'unknown'), data.ok ? 'success' : 'error');
@@ -1201,7 +1199,6 @@ export default function App() {
         context_mode: config.context_mode || 'auto',
         max_context_messages: Number(config.max_context_messages || 12),
         temperature: Number(config.temperature || 0.7),
-        enable_thinking: !!config.enable_thinking,
         hide_thinking: !!config.hide_thinking,
       });
       const models = data.candidate_models || data.models || [];
