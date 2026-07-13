@@ -113,6 +113,12 @@ func TestOnceScheduledTaskRescheduleRequiresRunAt(t *testing.T) {
 func TestScheduledTaskRunWritesConversationDetails(t *testing.T) {
 	var requestCount atomic.Int32
 	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestNumber := requestCount.Add(1)
+		if requestNumber == 3 {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = fmt.Fprint(w, `{"choices":[{"message":{"content":"定时任务执行结果"}}]}`)
+			return
+		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		flusher, ok := w.(http.Flusher)
 		if !ok {
@@ -122,7 +128,7 @@ func TestScheduledTaskRunWritesConversationDetails(t *testing.T) {
 			_, _ = fmt.Fprintf(w, "data: %s\n\n", payload)
 			flusher.Flush()
 		}
-		switch requestCount.Add(1) {
+		switch requestNumber {
 		case 1:
 			send(`{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"` + builtinToolSearchTools + `","arguments":"{\"query\":\"定时任务\"}"}}]}}]}`)
 		case 2:
@@ -170,5 +176,22 @@ func TestScheduledTaskRunWritesConversationDetails(t *testing.T) {
 	}
 	if len(assistant.Parts) == 0 {
 		t.Fatalf("scheduled run should persist message parts")
+	}
+	if result.Session.Title != "定时任务执行结果" {
+		t.Fatalf("scheduled run should use AI generated session title, got %q", result.Session.Title)
+	}
+	summaries, err := app.store.ListSessions("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(summaries) != 0 {
+		t.Fatalf("scheduled session should not appear in normal session list: %#v", summaries)
+	}
+	searchResults, err := app.store.SearchSessions("default", "定时任务", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(searchResults) != 0 {
+		t.Fatalf("scheduled session should not appear in normal session search: %#v", searchResults)
 	}
 }

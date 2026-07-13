@@ -77,5 +77,10 @@ func (a *App) executeScheduledTask(ctx context.Context, workspaceID string, id s
 	if runErr != nil {
 		return result, runErr
 	}
+	if renamed, titleErr := a.maybeGenerateSessionTitle(ctx, workspaceID, run.SessionID, run.Config); titleErr != nil {
+		logError("session_title_generation_failed", titleErr, logFields{"session_id": run.SessionID})
+	} else {
+		result.Session = renamed
+	}
 	return result, nil
 }

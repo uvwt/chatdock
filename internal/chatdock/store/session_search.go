@@ -41,8 +41,15 @@ func (s *Store) SearchSessions(workspaceID string, query string, limit int) ([]S
 	if err != nil {
 		return nil, err
 	}
+	scheduledSessionIDs, err := s.scheduledSessionIDsLocked(workspaceID)
+	if err != nil {
+		return nil, err
+	}
 	results := make([]SessionSearchResult, 0)
 	for _, session := range sessions {
+		if _, scheduled := scheduledSessionIDs[session.ID]; scheduled {
+			continue
+		}
 		lastRole, preview := sessionPreview(session)
 		bestScore, field, snippet := matchSessionText(session.Title, "标题", needle, query)
 		if score, f, snip := matchSessionText(preview, "摘要", needle, query); score > bestScore {

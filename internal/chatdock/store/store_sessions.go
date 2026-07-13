@@ -24,8 +24,15 @@ func (s *Store) ListSessions(workspaceID string) ([]model.SessionSummary, error)
 	if err != nil {
 		return nil, err
 	}
+	scheduledSessionIDs, err := s.scheduledSessionIDsLocked(workspaceID)
+	if err != nil {
+		return nil, err
+	}
 	items := make([]model.SessionSummary, 0, len(sessions))
 	for _, session := range sessions {
+		if _, scheduled := scheduledSessionIDs[session.ID]; scheduled {
+			continue
+		}
 		lastRole, preview := sessionPreview(session)
 		items = append(items, model.SessionSummary{ID: session.ID, Title: session.Title, Pinned: session.Pinned, ProviderID: session.ProviderID, Model: session.Model, Preview: preview, LastRole: lastRole, CreatedAt: session.CreatedAt, UpdatedAt: session.UpdatedAt, Count: len(session.Messages)})
 	}

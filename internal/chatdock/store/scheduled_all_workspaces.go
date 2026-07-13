@@ -74,6 +74,8 @@ func (s *Store) prepareScheduledTaskRunLocked(workspaceID string, id string, man
 	if err != nil {
 		return model.ScheduledTaskRun{}, err
 	}
+	// 所有定时任务模式都立即记录当前会话，确保运行中的会话也不会混入普通会话列表。
+	task.SessionID = session.ID
 	task.Running = true
 	task.UpdatedAt = now
 	if err := s.saveScheduledTaskStartLocked(workspaceID, task, session); err != nil {
@@ -116,7 +118,7 @@ func (s *Store) prepareScheduledTaskContextLocked(workspaceID string, cfg model.
 		}
 		return updatedTask, session, cloneMessages(session.Messages), nil
 	case model.ScheduledTaskContextLastResult:
-		session := newScheduledTaskRunSession(cfg, task, userMessage, now)
+		session := newScheduledTaskRunSession(cfg, userMessage, now)
 		previous, ok, err := s.latestSuccessfulScheduledTaskRunLocked(workspaceID, task.ID)
 		if err != nil {
 			return task, nil, nil, err
@@ -126,14 +128,14 @@ func (s *Store) prepareScheduledTaskContextLocked(workspaceID string, cfg model.
 		}
 		return task, session, history, nil
 	default:
-		return task, newScheduledTaskRunSession(cfg, task, userMessage, now), history, nil
+		return task, newScheduledTaskRunSession(cfg, userMessage, now), history, nil
 	}
 }
 
 func (s *Store) prepareScheduledTaskSessionLocked(workspaceID string, task model.ScheduledTask, userMessage model.Message, now time.Time) (*model.Session, model.ScheduledTask, error) {
 	var session *model.Session
 	if strings.TrimSpace(task.SessionID) == "" {
-		session = &model.Session{ID: model.NewID(), Title: "定时任务：" + task.Title, CreatedAt: now, UpdatedAt: now, Messages: []model.Message{}}
+		session = &model.Session{ID: model.NewID(), Title: makeTitle(userMessage.Content), CreatedAt: now, UpdatedAt: now, Messages: []model.Message{}}
 		task.SessionID = session.ID
 	} else {
 		var ok bool
@@ -151,12 +153,8 @@ func (s *Store) prepareScheduledTaskSessionLocked(workspaceID string, task model
 	return session, task, nil
 }
 
-func newScheduledTaskRunSession(cfg model.ModelConfig, task model.ScheduledTask, userMessage model.Message, now time.Time) *model.Session {
-	title := "定时任务：" + task.Title
-	if task.ContextMode != model.ScheduledTaskContextSession {
-		title += " · " + now.Format("01-02 15:04")
-	}
-	return &model.Session{ID: model.NewID(), Title: title, ProviderID: cfg.ProviderID, Model: cfg.Model, CreatedAt: now, UpdatedAt: now, Messages: []model.Message{userMessage}}
+func newScheduledTaskRunSession(cfg model.ModelConfig, userMessage model.Message, now time.Time) *model.Session {
+	return &model.Session{ID: model.NewID(), Title: makeTitle(userMessage.Content), ProviderID: cfg.ProviderID, Model: cfg.Model, CreatedAt: now, UpdatedAt: now, Messages: []model.Message{userMessage}}
 }
 
 func (s *Store) saveScheduledTaskStartLocked(workspaceID string, task model.ScheduledTask, session *model.Session) error {
