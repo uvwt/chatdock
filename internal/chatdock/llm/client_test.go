@@ -70,6 +70,39 @@ func TestCompleteDoesNotSendThinkingControlFields(t *testing.T) {
 	}
 }
 
+func TestEncodeModelToolCallsNormalizesInvalidArgumentsForHistory(t *testing.T) {
+	calls := []ModelToolCall{
+		{ID: "call_bad", Type: "function", Function: ModelToolCallFunc{Name: "broken_tool", Arguments: `{"value":"ok"`}},
+		{ID: "call_good", Type: "function", Function: ModelToolCallFunc{Name: "valid_tool", Arguments: `{"value":"ok"}`}},
+		{ID: "call_empty", Type: "function", Function: ModelToolCallFunc{Name: "empty_tool", Arguments: ""}},
+	}
+
+	encoded := encodeModelToolCalls(calls)
+	if len(encoded) != 3 {
+		t.Fatalf("unexpected encoded calls: %#v", encoded)
+	}
+	argumentsAt := func(index int) string {
+		function, ok := encoded[index]["function"].(map[string]any)
+		if !ok {
+			t.Fatalf("encoded call %d has no function object: %#v", index, encoded[index])
+		}
+		arguments, ok := function["arguments"].(string)
+		if !ok {
+			t.Fatalf("encoded call %d has no arguments string: %#v", index, function)
+		}
+		return arguments
+	}
+	if got := argumentsAt(0); got != "{}" {
+		t.Fatalf("invalid arguments must be replaced before request history is sent: %q", got)
+	}
+	if got := argumentsAt(1); got != `{"value":"ok"}` {
+		t.Fatalf("valid arguments changed unexpectedly: %q", got)
+	}
+	if got := argumentsAt(2); got != "{}" {
+		t.Fatalf("empty arguments must be normalized to an object: %q", got)
+	}
+}
+
 func TestBuildChatMessagesCustomModeLimitsContext(t *testing.T) {
 	cfg := model.ModelConfig{SystemPrompt: "sys", ContextMode: model.ContextModeCustom, MaxContextMessages: 2}
 	history := []model.Message{{Role: "user", Content: "a"}, {Role: "assistant", Content: "b"}, {Role: "tool", Content: "ignored"}, {Role: "user", Content: "c"}}

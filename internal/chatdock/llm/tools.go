@@ -494,7 +494,14 @@ func (c *ChatClient) completeChatWithRawMessages(ctx context.Context, cfg model.
 func encodeModelToolCalls(calls []ModelToolCall) []map[string]any {
 	out := make([]map[string]any, 0, len(calls))
 	for _, call := range calls {
-		out = append(out, map[string]any{"id": call.ID, "type": firstNonEmptyString(call.Type, "function"), "function": map[string]any{"name": call.Function.Name, "arguments": call.Function.Arguments}})
+		arguments := strings.TrimSpace(call.Function.Arguments)
+		// 模型流式输出可能在工具参数尚未闭合时提前结束。执行阶段仍保留原始值并返回
+		// 解析错误，但写回 assistant.tool_calls 的历史参数必须是合法 JSON；否则严格校验
+		// 请求体的供应商会直接拒绝后续整轮对话。
+		if arguments == "" || !json.Valid([]byte(arguments)) {
+			arguments = "{}"
+		}
+		out = append(out, map[string]any{"id": call.ID, "type": firstNonEmptyString(call.Type, "function"), "function": map[string]any{"name": call.Function.Name, "arguments": arguments}})
 	}
 	return out
 }
