@@ -211,6 +211,9 @@ func publicImageTransport() *http.Transport {
 }
 
 func resolvePublicHostIPs(parent context.Context, host string) ([]net.IP, error) {
+	if err := parent.Err(); err != nil {
+		return nil, err
+	}
 	host = strings.TrimSpace(host)
 	if host == "" {
 		return nil, fmt.Errorf("url host is required")
@@ -229,6 +232,12 @@ func resolvePublicHostIPs(parent context.Context, host string) ([]net.IP, error)
 	defer cancel()
 	ips, err := net.DefaultResolver.LookupIP(ctx, "ip", lower)
 	if err != nil {
+		// Go 在不同系统解析器上可能返回不包装 context.Canceled 的
+		// *net.DNSError（例如 "operation was canceled"）。对外统一返回
+		// context 语义，避免调用方和跨平台测试依赖错误字符串。
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		return nil, err
 	}
 	if len(ips) == 0 {
