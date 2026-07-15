@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,8 @@ import (
 
 	"chatdock/internal/chatdock/model"
 )
+
+var ErrEmptyModelContent = errors.New("empty model response content")
 
 type ChatClient struct {
 	httpClient *http.Client
@@ -73,6 +76,9 @@ func (c *ChatClient) Complete(ctx context.Context, cfg model.ModelConfig, histor
 	content := strings.TrimSpace(output.Choices[0].Message.Content)
 	if cfg.HideThinking {
 		content = StripThinkingContent(content)
+	}
+	if content == "" {
+		return "", ErrEmptyModelContent
 	}
 	return content, nil
 }

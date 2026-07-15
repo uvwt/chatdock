@@ -54,8 +54,7 @@ func (a *App) startSessionTitleGeneration(requestID string, workspaceID string, 
 
 	go func() {
 		defer a.backgroundWG.Done()
-		titleCtx, cancel := context.WithTimeout(withRequestID(a.lifecycleCtx, requestID), 20*time.Second)
-		defer cancel()
+		titleCtx := withRequestID(a.lifecycleCtx, requestID)
 		if _, err := a.maybeGenerateSessionTitle(titleCtx, workspaceID, sessionID, cfg); err != nil && !isClientCanceled(titleCtx, err) {
 			logError("session_title_generation_failed", err, logFields{"request_id": requestID, "session_id": sessionID})
 		}

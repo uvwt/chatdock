@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -67,6 +68,27 @@ func TestCompleteDoesNotSendThinkingControlFields(t *testing.T) {
 	}
 	if answer != "OK" {
 		t.Fatalf("unexpected answer: %q", answer)
+	}
+}
+
+func TestCompleteRejectsEmptyVisibleContent(t *testing.T) {
+	for name, content := range map[string]string{
+		"empty":      "",
+		"think only": "<think>只包含思考过程</think>",
+	} {
+		t.Run(name, func(t *testing.T) {
+			modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = fmt.Fprintf(w, `{"choices":[{"message":{"content":%q}}]}`, content)
+			}))
+			defer modelServer.Close()
+
+			client := NewChatClient()
+			_, err := client.Complete(context.Background(), model.ModelConfig{BaseURL: modelServer.URL, Model: "fake", HideThinking: true}, []model.Message{{Role: "user", Content: "hello"}})
+			if !errors.Is(err, ErrEmptyModelContent) {
+				t.Fatalf("empty visible content should fail with ErrEmptyModelContent, got %v", err)
+			}
+		})
 	}
 }
 

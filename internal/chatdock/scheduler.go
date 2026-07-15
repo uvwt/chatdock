@@ -77,7 +77,9 @@ func (a *App) executeScheduledTask(ctx context.Context, workspaceID string, id s
 	if runErr != nil {
 		return result, runErr
 	}
-	if renamed, titleErr := a.maybeGenerateSessionTitle(ctx, workspaceID, run.SessionID, run.Config); titleErr != nil {
+	// 定时任务正文完成后，标题生成不再依赖触发请求；手动运行页面断开时也应完成改名。
+	titleCtx := withRequestID(a.lifecycleCtx, requestIDFromContext(ctx))
+	if renamed, titleErr := a.maybeGenerateSessionTitle(titleCtx, workspaceID, run.SessionID, run.Config); titleErr != nil {
 		logError("session_title_generation_failed", titleErr, logFields{"session_id": run.SessionID})
 	} else {
 		result.Session = renamed

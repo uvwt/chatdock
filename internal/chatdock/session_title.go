@@ -2,12 +2,18 @@ package chatdock
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"chatdock/internal/chatdock/llm"
 	"chatdock/internal/chatdock/model"
+)
+
+const (
+	sessionTitleTimeout     = 40 * time.Second
+	sessionTitleMaxAttempts = 2
 )
 
 func (a *App) maybeGenerateSessionTitle(ctx context.Context, workspaceID string, sessionID string, cfg model.ModelConfig) (*model.Session, error) {
@@ -26,7 +32,7 @@ func (a *App) maybeGenerateSessionTitle(ctx context.Context, workspaceID string,
 		return session, fmt.Errorf("generate session title: %w", err)
 	}
 	if title == "" {
-		return session, nil
+		return session, fmt.Errorf("generate session title: %w", llm.ErrEmptyModelContent)
 	}
 	renamed, err := a.store.RenameSession(workspaceID, sessionID, title)
 	if err != nil {
@@ -39,7 +45,7 @@ func (a *App) generateSessionTitle(ctx context.Context, cfg model.ModelConfig, s
 	if len(session.Messages) < 2 {
 		return "", nil
 	}
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, sessionTitleTimeout)
 	defer cancel()
 
 	titleCfg := cfg
@@ -52,11 +58,23 @@ func (a *App) generateSessionTitle(ctx context.Context, cfg model.ModelConfig, s
 	userText := firstUserTitleContext(session.Messages[0])
 	assistantText := compactTitleContext(session.Messages[1].Content, 1200)
 	prompt := "根据下面首轮对话生成一个简短会话标题。\n\n用户：" + userText + "\n\n助手：" + assistantText
-	raw, err := a.client.Complete(ctx, titleCfg, []model.Message{{Role: "user", Content: prompt}})
-	if err != nil {
-		return "", err
+	var lastErr error
+	for attempt := 0; attempt < sessionTitleMaxAttempts; attempt++ {
+		raw, err := a.client.Complete(ctx, titleCfg, []model.Message{{Role: "user", Content: prompt}})
+		if err != nil {
+			lastErr = err
+			if !errors.Is(err, llm.ErrEmptyModelContent) {
+				return "", err
+			}
+			continue
+		}
+		title := cleanGeneratedSessionTitle(raw)
+		if title != "" {
+			return title, nil
+		}
+		lastErr = llm.ErrEmptyModelContent
 	}
-	return cleanGeneratedSessionTitle(raw), nil
+	return "", lastErr
 }
 
 func shouldGenerateSessionTitle(session *model.Session) bool {

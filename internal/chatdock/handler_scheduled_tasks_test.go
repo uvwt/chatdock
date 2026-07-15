@@ -116,6 +116,11 @@ func TestScheduledTaskRunWritesConversationDetails(t *testing.T) {
 		requestNumber := requestCount.Add(1)
 		if requestNumber == 3 {
 			w.Header().Set("Content-Type", "application/json")
+			_, _ = fmt.Fprint(w, `{"choices":[{"message":{"content":""}}]}`)
+			return
+		}
+		if requestNumber == 4 {
+			w.Header().Set("Content-Type", "application/json")
 			_, _ = fmt.Fprint(w, `{"choices":[{"message":{"content":"定时任务执行结果"}}]}`)
 			return
 		}
@@ -179,6 +184,9 @@ func TestScheduledTaskRunWritesConversationDetails(t *testing.T) {
 	}
 	if result.Session.Title != "定时任务执行结果" {
 		t.Fatalf("scheduled run should use AI generated session title, got %q", result.Session.Title)
+	}
+	if got := requestCount.Load(); got != 4 {
+		t.Fatalf("scheduled title should retry once after empty model content, requests=%d", got)
 	}
 	summaries, err := app.store.ListSessions("default")
 	if err != nil {
