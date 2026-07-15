@@ -212,6 +212,19 @@ func scanScheduledTaskRun(scanner interface{ Scan(...any) error }) (model.Schedu
 	return record, nil
 }
 
+func scanScheduledTaskRunWithSessionTitle(scanner interface{ Scan(...any) error }) (model.ScheduledTaskRunRecord, error) {
+	var record model.ScheduledTaskRunRecord
+	var manual int
+	var startedAt, finishedAt string
+	if err := scanner.Scan(&record.ID, &record.TaskID, &record.TaskTitle, &record.Prompt, &record.Output, &record.Status, &record.Error, &manual, &record.SessionID, &startedAt, &finishedAt, &record.DurationMS, &record.SessionTitle); err != nil {
+		return model.ScheduledTaskRunRecord{}, err
+	}
+	record.Manual = manual != 0
+	record.StartedAt = parseDBTimeZero(startedAt)
+	record.FinishedAt = parseOptionalDBTime(finishedAt)
+	return record, nil
+}
+
 func formatScheduleDBTime(t time.Time) string {
 	if t.IsZero() {
 		return ""

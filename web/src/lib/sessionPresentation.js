@@ -7,7 +7,7 @@ export function scheduledTaskSessionRows({ selectedScheduledTaskID, selectedSche
   return (selectedScheduledTaskRuns || []).filter(run => run.session_id && !seen.has(run.session_id)).map(run => {
     seen.add(run.session_id);
     const session = byID.get(run.session_id);
-    const runTitle = session?.title || run.task_title || selectedScheduledTask?.title || '定时任务';
+    const runTitle = session?.title || run.session_title || run.task_title || selectedScheduledTask?.title || '定时任务';
     if (session) return { ...session, title: runTitle, preview: '', scheduled_run: run };
     return { id: run.session_id, title: runTitle + ' · ' + fmtTime(run.started_at), preview: '', last_role: run.status === 'failed' ? 'error' : 'assistant', count: 1, updated_at: run.finished_at || run.started_at, scheduled_run: run };
   });

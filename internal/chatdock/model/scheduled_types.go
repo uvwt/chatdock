@@ -60,18 +60,19 @@ type ScheduledTaskRunResponse struct {
 }
 
 type ScheduledTaskRunRecord struct {
-	ID         string     `json:"id"`
-	TaskID     string     `json:"task_id"`
-	TaskTitle  string     `json:"task_title,omitempty"`
-	Prompt     string     `json:"prompt,omitempty"`
-	Output     string     `json:"output,omitempty"`
-	Status     string     `json:"status"`
-	Error      string     `json:"error,omitempty"`
-	Manual     bool       `json:"manual"`
-	SessionID  string     `json:"session_id,omitempty"`
-	StartedAt  time.Time  `json:"started_at"`
-	FinishedAt *time.Time `json:"finished_at,omitempty"`
-	DurationMS int64      `json:"duration_ms,omitempty"`
+	ID           string     `json:"id"`
+	TaskID       string     `json:"task_id"`
+	TaskTitle    string     `json:"task_title,omitempty"`
+	SessionTitle string     `json:"session_title,omitempty"`
+	Prompt       string     `json:"prompt,omitempty"`
+	Output       string     `json:"output,omitempty"`
+	Status       string     `json:"status"`
+	Error        string     `json:"error,omitempty"`
+	Manual       bool       `json:"manual"`
+	SessionID    string     `json:"session_id,omitempty"`
+	StartedAt    time.Time  `json:"started_at"`
+	FinishedAt   *time.Time `json:"finished_at,omitempty"`
+	DurationMS   int64      `json:"duration_ms,omitempty"`
 }
 
 type ScheduledTaskRunRecordResponse struct {

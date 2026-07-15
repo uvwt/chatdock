@@ -29,7 +29,16 @@ func (s *Store) ListScheduledTaskRuns(workspaceID string, taskID string, limit i
 	if err != nil {
 		return model.ScheduledTaskRunRecordResponse{}, err
 	}
-	query := `SELECT ` + scheduledTaskRunColumns() + ` FROM scheduled_task_runs WHERE workspace_id = ? AND task_id = ? ORDER BY started_at DESC LIMIT ?`
+	query := `SELECT ` + scheduledTaskRunColumns() + `,
+		COALESCE((
+			SELECT title
+			FROM sessions
+			WHERE sessions.workspace_id = scheduled_task_runs.workspace_id
+			  AND sessions.id = scheduled_task_runs.session_id
+		), '')
+		FROM scheduled_task_runs
+		WHERE workspace_id = ? AND task_id = ?
+		ORDER BY started_at DESC LIMIT ?`
 	rows, err := s.db.Query(query, workspaceID, taskID, limit)
 	if err != nil {
 		return model.ScheduledTaskRunRecordResponse{}, err
@@ -37,7 +46,7 @@ func (s *Store) ListScheduledTaskRuns(workspaceID string, taskID string, limit i
 	defer rows.Close()
 	out := make([]model.ScheduledTaskRunRecord, 0, limit)
 	for rows.Next() {
-		record, err := scanScheduledTaskRun(rows)
+		record, err := scanScheduledTaskRunWithSessionTitle(rows)
 		if err != nil {
 			return model.ScheduledTaskRunRecordResponse{}, err
 		}
