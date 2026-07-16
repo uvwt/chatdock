@@ -1,7 +1,6 @@
 package chatdock
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -9,56 +8,26 @@ import (
 )
 
 const (
-	builtinToolSearchTools       = "chatdock_tools_search"
-	builtinToolDescribeTools     = "chatdock_tools_describe"
-	builtinToolExecuteDiscovered = "chatdock_tool_execute"
-	builtinToolServerDiscovery   = "chatdock"
+	builtinToolSearchTools     = "chatdock_tools_search"
+	builtinToolServerDiscovery = "chatdock"
 )
 
-func builtinToolDiscoveryTools() []mcp.MCPTool {
-	return []mcp.MCPTool{
-		{
-			Server:      builtinToolServerDiscovery,
-			Name:        "tools_search",
-			FullName:    builtinToolSearchTools,
-			Title:       "查找可用工具",
-			Description: "按用户目标或关键词查找当前可用工具。先用它找候选工具，再用 chatdock_tools_describe 获取具体参数。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
-				"query": map[string]any{"type": "string", "description": "用户目标、关键词或能力名称，例如：记忆 搜索、浏览器 截图、定时任务、VPS 部署"},
-				"limit": map[string]any{"type": "integer", "description": "最多返回多少个候选工具，默认 8，最大 20"},
-			}, "required": []string{"query"}},
-		},
-		{
-			Server:      builtinToolServerDiscovery,
-			Name:        "tools_describe",
-			FullName:    builtinToolDescribeTools,
-			Title:       "查看工具详情",
-			Description: "获取一个或多个候选工具的完整参数 schema。调用真实工具前必须先查看对应工具详情。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
-				"names": map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "要查看详情的工具 full_name 列表"},
-			}, "required": []string{"names"}},
-		},
-		{
-			Server:      builtinToolServerDiscovery,
-			Name:        "tool_execute",
-			FullName:    builtinToolExecuteDiscovered,
-			Title:       "执行已查看工具",
-			Description: "执行已经通过 chatdock_tools_describe 查看过详情的工具。参数必须是顶层对象：{\"name\":\"工具 full_name\",\"arguments\":{...}}。注意 name 是 chatdock_tool_execute 的顶层字段，不是 arguments 里面的字段；arguments 才是传给目标工具的参数。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
-				"name":      map[string]any{"type": "string", "description": "必填。要执行的工具 full_name，例如 DockMini__exec_command。必须放在 chatdock_tool_execute 参数顶层。"},
-				"arguments": map[string]any{"type": "object", "description": "必填。传给目标工具的参数对象，必须符合工具详情里的 schema。不要把 name 放到这里。"},
-			}, "required": []string{"name", "arguments"}},
-		},
+func builtinToolSearchTool() mcp.MCPTool {
+	return mcp.MCPTool{
+		Server:      builtinToolServerDiscovery,
+		Name:        "tools_search",
+		FullName:    builtinToolSearchTools,
+		Title:       "查找按需工具",
+		Description: "按用户目标或关键词查找当前按需加载的 MCP 工具。命中的真实工具会在下一轮直接加入工具列表，无需查看详情或通过代理工具执行。",
+		InputSchema: map[string]any{"type": "object", "properties": map[string]any{
+			"query": map[string]any{"type": "string", "description": "用户目标、关键词或能力名称"},
+			"limit": map[string]any{"type": "integer", "description": "最多加载多少个候选工具，默认 8，最大 20"},
+		}, "required": []string{"query"}},
 	}
 }
 
 func isBuiltinToolDiscoveryTool(name string) bool {
-	switch name {
-	case builtinToolSearchTools, builtinToolDescribeTools, builtinToolExecuteDiscovered:
-		return true
-	default:
-		return false
-	}
+	return name == builtinToolSearchTools
 }
 
 type toolCatalog struct {
@@ -81,46 +50,6 @@ func newToolCatalog(tools []mcp.MCPTool) toolCatalog {
 		catalog.byName[name] = tool
 	}
 	return catalog
-}
-
-func (c toolCatalog) Search(args map[string]any) map[string]any {
-	query := strings.TrimSpace(stringArg(args, "query"))
-	limit := intArgWithDefault(args, "limit", 8, 1, 20)
-	matches := c.search(query, limit)
-	items := make([]map[string]any, 0, len(matches))
-	for _, tool := range matches {
-		items = append(items, map[string]any{
-			"name":        tool.FullName,
-			"server":      tool.Server,
-			"title":       firstNonEmpty(tool.Title, tool.Name),
-			"description": compactToolDescription(tool.Description),
-		})
-	}
-	return map[string]any{"query": query, "count": len(items), "tools": items, "next": "调用 chatdock_tools_describe，传入候选工具的 name，获取参数 schema；然后用 chatdock_tool_execute 执行。"}
-}
-
-func (c toolCatalog) Describe(args map[string]any) (map[string]any, []string) {
-	names := toolNamesFromArgs(args)
-	items := make([]map[string]any, 0, len(names))
-	missing := make([]string, 0)
-	described := make([]string, 0, len(names))
-	for _, name := range names {
-		tool, ok := c.byName[name]
-		if !ok {
-			missing = append(missing, name)
-			continue
-		}
-		described = append(described, name)
-		items = append(items, map[string]any{
-			"name":         tool.FullName,
-			"server":       tool.Server,
-			"title":        firstNonEmpty(tool.Title, tool.Name),
-			"description":  tool.Description,
-			"input_schema": tool.InputSchema,
-			"execute_with": builtinToolExecuteDiscovered,
-		})
-	}
-	return map[string]any{"tools": items, "missing": missing, "next": "调用 chatdock_tool_execute，name 使用工具 full_name，arguments 按 input_schema 填写。"}, described
 }
 
 func (c toolCatalog) Get(name string) (mcp.MCPTool, bool) {
@@ -177,34 +106,6 @@ func (c toolCatalog) search(query string, limit int) []mcp.MCPTool {
 		out = append(out, item.tool)
 	}
 	return out
-}
-
-func toolNamesFromArgs(args map[string]any) []string {
-	value, ok := args["names"]
-	if !ok || value == nil {
-		if name := strings.TrimSpace(stringArg(args, "name")); name != "" {
-			return []string{name}
-		}
-		return nil
-	}
-	var names []string
-	switch v := value.(type) {
-	case []any:
-		for _, item := range v {
-			if name := strings.TrimSpace(fmt.Sprint(item)); name != "" {
-				names = append(names, name)
-			}
-		}
-	case []string:
-		names = append(names, v...)
-	case string:
-		for _, item := range strings.FieldsFunc(v, func(r rune) bool { return r == ',' || r == '\n' || r == ' ' || r == '\t' }) {
-			if name := strings.TrimSpace(item); name != "" {
-				names = append(names, name)
-			}
-		}
-	}
-	return names
 }
 
 func intArgWithDefault(args map[string]any, key string, fallback, minValue, maxValue int) int {

@@ -577,13 +577,13 @@ func TestCompleteWithMCPToolsEventsInjectsGuidanceAfterPlainStream(t *testing.T)
 	answer, err := client.CompleteWithMCPToolsEvents(context.Background(), cfg, []model.Message{{Role: "user", Content: "hi"}}, tools, func(string, map[string]any) (any, error) {
 		t.Fatal("tool should not be called")
 		return nil, nil
-	}, func(string, any) error { return nil }, func() ([]map[string]any, error) {
+	}, func(string, any) error { return nil }, MCPToolLoopOptions{AfterToolRound: func() ([]map[string]any, error) {
 		if used {
 			return nil, nil
 		}
 		used = true
 		return []map[string]any{{"role": "user", "content": "改成更短"}}, nil
-	})
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}

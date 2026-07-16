@@ -48,7 +48,7 @@
 }
 .settings-page .mcp-tool-policy-row {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) auto !important;
+  grid-template-columns: minmax(0, 1fr) minmax(124px, 156px) auto !important;
   align-items: center !important;
   gap: 10px !important;
   min-height: 42px !important;
@@ -76,6 +76,18 @@
   margin-top: 2px !important;
   color: #8a94a6 !important;
   font-size: 11px !important;
+}
+.settings-page .mcp-tool-exposure {
+  display: grid !important;
+  gap: 3px !important;
+  color: #6b7280 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+.settings-page .mcp-tool-exposure select {
+  min-height: 30px !important;
+  padding: 0 28px 0 9px !important;
+  font-size: 12px !important;
 }
 .settings-page .mcp-tool-policy-actions {
   display: inline-grid !important;

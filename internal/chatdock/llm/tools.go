@@ -30,14 +30,29 @@ type ModelChatResponse struct {
 	ToolCalls []ModelToolCall
 }
 
+type MCPToolLoopOptions struct {
+	RefreshTools   func() []mcp.MCPTool
+	AfterToolRound func() ([]map[string]any, error)
+}
+
 func (c *ChatClient) CompleteWithMCPTools(ctx context.Context, cfg model.ModelConfig, history []model.Message, tools []mcp.MCPTool, call func(string, map[string]any) (any, error)) (string, error) {
 	return c.CompleteWithMCPToolsEvents(ctx, cfg, history, tools, call, nil)
 }
 
-func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.ModelConfig, history []model.Message, tools []mcp.MCPTool, call func(string, map[string]any) (any, error), emit func(string, any) error, afterToolRound ...func() ([]map[string]any, error)) (string, error) {
+func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.ModelConfig, history []model.Message, tools []mcp.MCPTool, call func(string, map[string]any) (any, error), emit func(string, any) error, options ...MCPToolLoopOptions) (string, error) {
 	messages := BuildChatMessagesAny(cfg, history)
 	messages = appendMCPToolUseHint(messages, tools)
-	openAITools := MCPToolsToOpenAITools(tools)
+	loopOptions := MCPToolLoopOptions{}
+	if len(options) > 0 {
+		loopOptions = options[0]
+	}
+	currentTools := func() []map[string]any {
+		if loopOptions.RefreshTools != nil {
+			return MCPToolsToOpenAITools(loopOptions.RefreshTools())
+		}
+		return MCPToolsToOpenAITools(tools)
+	}
+	openAITools := currentTools()
 	if len(openAITools) == 0 || call == nil {
 		if emit != nil {
 			return c.Stream(ctx, cfg, history, func(delta StreamDelta) error { return emit("delta", delta) })
@@ -46,7 +61,7 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 	}
 
 	if emit == nil {
-		return c.completeWithMCPToolsBlocking(ctx, cfg, messages, openAITools, call)
+		return c.completeWithMCPToolsBlocking(ctx, cfg, messages, currentTools, call)
 	}
 
 	var visibleAnswer strings.Builder
@@ -57,8 +72,8 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 		}
 		visibleAnswer.WriteString(resp.Content)
 		if len(resp.ToolCalls) == 0 {
-			if len(afterToolRound) > 0 && afterToolRound[0] != nil {
-				guidanceMessages, err := afterToolRound[0]()
+			if loopOptions.AfterToolRound != nil {
+				guidanceMessages, err := loopOptions.AfterToolRound()
 				if err != nil {
 					return strings.TrimSpace(visibleAnswer.String()), err
 				}
@@ -80,8 +95,8 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 		}
 		messages = append(messages, toolMessages...)
 		messages = append(messages, modelMessages...)
-		if len(afterToolRound) > 0 && afterToolRound[0] != nil {
-			guidanceMessages, err := afterToolRound[0]()
+		if loopOptions.AfterToolRound != nil {
+			guidanceMessages, err := loopOptions.AfterToolRound()
 			if err != nil {
 				return strings.TrimSpace(visibleAnswer.String()), err
 			}
@@ -89,13 +104,15 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 				messages = append(messages, guidanceMessages...)
 			}
 		}
+		openAITools = currentTools()
 		// 工具结果后仍然继续带 tools 流式请求。这样复杂任务可以多轮调用工具，
 		// 普通文本也不再被“非流式工具决策 + 二次流式回答”挡住首字。
 	}
 }
 
-func (c *ChatClient) completeWithMCPToolsBlocking(ctx context.Context, cfg model.ModelConfig, messages []map[string]any, openAITools []map[string]any, call func(string, map[string]any) (any, error)) (string, error) {
+func (c *ChatClient) completeWithMCPToolsBlocking(ctx context.Context, cfg model.ModelConfig, messages []map[string]any, currentTools func() []map[string]any, call func(string, map[string]any) (any, error)) (string, error) {
 	for {
+		openAITools := currentTools()
 		resp, err := c.completeChatWithRawMessages(ctx, cfg, messages, openAITools)
 		if err != nil {
 			return "", err
@@ -266,7 +283,7 @@ func appendMCPToolUseHint(messages []map[string]any, tools []mcp.MCPTool) []map[
 	if len(tools) == 0 {
 		return messages
 	}
-	hint := map[string]any{"role": "system", "content": "ChatDock MCP 工具已接入。是否调用工具由你根据用户请求自主判断；需要使用工具时，若只看到工具搜索、查看详情和执行入口，先按用户目标查找可用工具，再查看目标工具参数，最后执行，不要猜测未查看的工具参数，也不要声称没有工具权限。"}
+	hint := map[string]any{"role": "system", "content": "ChatDock MCP 工具已接入。是否调用工具由你根据用户请求自主判断；直接工具可以立即调用。若存在 chatdock_tools_search，说明还有按需工具：先按目标搜索，命中的真实工具会在下一轮直接出现，再按其 schema 直接调用。不要猜测尚未暴露的参数，也不要声称没有工具权限。"}
 	out := make([]map[string]any, 0, len(messages)+1)
 	inserted := false
 	for _, msg := range messages {

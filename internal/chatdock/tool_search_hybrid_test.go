@@ -8,72 +8,55 @@ import (
 	"chatdock/internal/chatdock/mcp"
 )
 
-func TestSearchToolCatalogAlwaysReturnsPinnedTools(t *testing.T) {
+func TestSearchToolCatalogReturnsOnlyMatchingTools(t *testing.T) {
 	catalog := newToolCatalog([]mcp.MCPTool{
-		{Server: "DockMini", Name: "exec_command", FullName: "DockMini__exec_command", Title: "执行命令"},
-		{Server: "DockMini", Name: "skill_read", FullName: "DockMini__skill_read", Title: "Skill 发现"},
-		{Server: "DockMini", Name: "skill_run", FullName: "DockMini__skill_run", Title: "Skill 执行"},
-		{Server: "DockMini", Name: "workflow_template_manage", FullName: "DockMini__workflow_template_manage", Title: "任务模板"},
-		{Server: "DockMini", Name: "task_manage", FullName: "DockMini__task_manage", Title: "任务模板"},
+		{Server: "calendar", Name: "events_list", FullName: "calendar__events_list", Title: "查询日历事件", Description: "读取指定日期的日历安排"},
+		{Server: "files", Name: "document_read", FullName: "files__document_read", Title: "读取文档", Description: "读取文本文件内容"},
 	})
 
-	result := searchToolCatalogWithApp(context.Background(), nil, "default", catalog, map[string]any{"query": "天气", "limit": 1})
+	result, matches := searchToolCatalogWithMatches(context.Background(), nil, "default", catalog, map[string]any{"query": "日历", "limit": 1})
+	items, ok := result["tools"].([]map[string]any)
+	if !ok || len(items) != 1 {
+		t.Fatalf("expected one search result, got %#v", result["tools"])
+	}
+	if items[0]["name"] != "calendar__events_list" || len(matches) != 1 || matches[0].FullName != "calendar__events_list" {
+		t.Fatalf("expected calendar tool to match, got items=%#v matches=%#v", items, matches)
+	}
+	if !strings.Contains(result["next"].(string), "直接调用") {
+		t.Fatalf("expected direct-call guidance, got %#v", result["next"])
+	}
+}
+
+func TestSearchToolCatalogDoesNotInjectUnmatchedTools(t *testing.T) {
+	catalog := newToolCatalog([]mcp.MCPTool{
+		{Server: "shell", Name: "command_run", FullName: "shell__command_run", Title: "执行命令"},
+		{Server: "tasks", Name: "task_create", FullName: "tasks__task_create", Title: "创建任务"},
+	})
+
+	result, matches := searchToolCatalogWithMatches(context.Background(), nil, "default", catalog, map[string]any{"query": "天气", "limit": 8})
 	items, ok := result["tools"].([]map[string]any)
 	if !ok {
 		t.Fatalf("unexpected tools payload: %#v", result["tools"])
 	}
-	assertToolSearchItem(t, items, "DockMini__exec_command")
-	assertToolSearchItem(t, items, "DockMini__skill_read")
-	assertToolSearchItem(t, items, "DockMini__skill_run")
-	assertToolSearchItem(t, items, "DockMini__workflow_template_manage")
-	assertToolSearchItem(t, items, "DockMini__task_manage")
-}
-
-func TestPinnedToolMatchesSupportSingleUnderscoreNames(t *testing.T) {
-	catalog := newToolCatalog([]mcp.MCPTool{
-		{Server: "DockMini", Name: "exec_command", FullName: "DockMini_exec_command", Title: "执行命令"},
-		{Server: "DockMini", Name: "skill_read", FullName: "DockMini_skill_read", Title: "Skill 发现"},
-		{Server: "DockMini", Name: "skill_run", FullName: "DockMini_skill_run", Title: "Skill 执行"},
-		{Server: "DockMini", Name: "workflow_template_manage", FullName: "DockMini_workflow_template_manage", Title: "任务模板"},
-		{Server: "DockMini", Name: "task_manage", FullName: "DockMini_task_manage", Title: "任务模板"},
-	})
-
-	matches := appendPinnedToolMatches(catalog, nil)
-
-	assertPinnedTool(t, matches, "DockMini_exec_command")
-	assertPinnedTool(t, matches, "DockMini_skill_read")
-	assertPinnedTool(t, matches, "DockMini_skill_run")
-	assertPinnedTool(t, matches, "DockMini_workflow_template_manage")
-	assertPinnedTool(t, matches, "DockMini_task_manage")
-}
-
-func TestPinnedToolSearchAliasesBoostExecCommandTerms(t *testing.T) {
-	tool := mcp.MCPTool{Name: "exec_command", FullName: "DockMini__exec_command"}
-	text := pinnedToolSearchAliases(tool)
-	if !strings.Contains(text, "执行命令") || !strings.Contains(text, "docker") || !strings.Contains(text, "go test") {
-		t.Fatalf("exec_command aliases should include command keywords: %q", text)
+	if len(items) != 0 || len(matches) != 0 {
+		t.Fatalf("unmatched tools must not be injected, got items=%#v matches=%#v", items, matches)
 	}
 }
 
-func assertToolSearchItem(t *testing.T, items []map[string]any, name string) {
-	t.Helper()
-	for _, item := range items {
-		if item["name"] == name {
-			return
+func TestToolSearchTextUsesDeclaredMetadataAndSchema(t *testing.T) {
+	tool := mcp.MCPTool{
+		Server:      "weather",
+		Name:        "forecast_get",
+		FullName:    "weather__forecast_get",
+		Title:       "天气预报",
+		Description: "查询未来天气",
+		InputSchema: map[string]any{"type": "object", "properties": map[string]any{"city": map[string]any{"type": "string"}}},
+	}
+
+	text := toolSearchText(tool)
+	for _, expected := range []string{"weather__forecast_get", "天气预报", "查询未来天气", "city"} {
+		if !strings.Contains(text, expected) {
+			t.Fatalf("tool search text should contain %q: %q", expected, text)
 		}
 	}
-	t.Fatalf("missing searched tool %s in %#v", name, items)
-}
-
-func assertPinnedTool(t *testing.T, matches []hybridToolMatch, name string) {
-	t.Helper()
-	for _, match := range matches {
-		if match.tool.FullName == name {
-			if !match.pinned {
-				t.Fatalf("%s should be marked pinned", name)
-			}
-			return
-		}
-	}
-	t.Fatalf("missing pinned tool %s in %#v", name, matches)
 }

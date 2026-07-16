@@ -8,6 +8,75 @@ import (
 	"chatdock/internal/chatdock/mcp"
 )
 
+type conversationToolSet struct {
+	visible      []mcp.MCPTool
+	visibleNames map[string]bool
+	allByName    map[string]mcp.MCPTool
+	onDemand     toolCatalog
+}
+
+func newConversationToolSet(allTools []mcp.MCPTool, cfg mcp.MCPConfig) *conversationToolSet {
+	set := &conversationToolSet{
+		visible:      make([]mcp.MCPTool, 0, len(allTools)+1),
+		visibleNames: map[string]bool{},
+		allByName:    map[string]mcp.MCPTool{},
+	}
+	onDemandTools := make([]mcp.MCPTool, 0)
+	for _, tool := range allTools {
+		if strings.TrimSpace(tool.FullName) == "" {
+			tool.FullName = mcp.ToolFullName(tool.Server, tool.Name)
+		}
+		if tool.FullName == "" {
+			continue
+		}
+		set.allByName[tool.FullName] = tool
+
+		server, configuredMCP := cfg.Servers[tool.Server]
+		if isBuiltinChatDockTool(tool.FullName) || !configuredMCP || server.ExposureForTool(tool.Name, tool.FullName) == mcp.ToolExposureDirect {
+			set.addVisible(tool)
+			continue
+		}
+		onDemandTools = append(onDemandTools, tool)
+	}
+	set.onDemand = newToolCatalog(onDemandTools)
+	if len(onDemandTools) > 0 {
+		set.addVisible(builtinToolSearchTool())
+	}
+	return set
+}
+
+func (s *conversationToolSet) addVisible(tool mcp.MCPTool) {
+	if tool.FullName == "" || s.visibleNames[tool.FullName] {
+		return
+	}
+	s.visible = append(s.visible, tool)
+	s.visibleNames[tool.FullName] = true
+}
+
+func (s *conversationToolSet) expose(tools []mcp.MCPTool) []string {
+	loaded := make([]string, 0, len(tools))
+	for _, tool := range tools {
+		if s.visibleNames[tool.FullName] {
+			continue
+		}
+		s.addVisible(tool)
+		loaded = append(loaded, tool.FullName)
+	}
+	return loaded
+}
+
+func (s *conversationToolSet) tools() []mcp.MCPTool {
+	return append([]mcp.MCPTool(nil), s.visible...)
+}
+
+func (s *conversationToolSet) visibleTool(name string) (mcp.MCPTool, bool) {
+	if !s.visibleNames[name] || name == builtinToolSearchTools {
+		return mcp.MCPTool{}, false
+	}
+	tool, ok := s.allByName[name]
+	return tool, ok
+}
+
 func (a *App) loadConversationTools(ctx context.Context, workspaceID string, emit func(string, any) error) ([]mcp.MCPTool, mcp.MCPConfig, bool, error) {
 	allTools := builtinChatDockTools()
 	mcpConfig, err := a.activeMCPConfig(workspaceID)
@@ -48,48 +117,20 @@ func (a *App) callConversationTool(ctx context.Context, workspaceID string, sess
 	return a.mcpClient.CallTool(ctx, mcpConfig, name, args)
 }
 
-func (a *App) callDiscoveryTool(ctx context.Context, workspaceID string, catalog toolCatalog, describedTools map[string]bool, runRealTool func(string, map[string]any) (any, error), name string, args map[string]any) (any, error) {
-	switch name {
-	case builtinToolSearchTools:
-		return a.searchToolCatalog(ctx, workspaceID, catalog, args), nil
-	case builtinToolDescribeTools:
-		result, names := catalog.Describe(args)
-		for _, toolName := range names {
-			describedTools[toolName] = true
-		}
+func (a *App) callVisibleConversationTool(ctx context.Context, workspaceID string, toolSet *conversationToolSet, runRealTool func(string, map[string]any) (any, error), name string, args map[string]any) (any, error) {
+	if name == builtinToolSearchTools {
+		result, matches := searchToolCatalogWithMatches(ctx, a, workspaceID, toolSet.onDemand, args)
+		result["loaded_tools"] = toolSet.expose(matches)
 		return result, nil
-	case builtinToolExecuteDiscovered:
-		return executeDiscoveredTool(catalog, describedTools, runRealTool, args)
-	default:
-		return nil, fmt.Errorf("unsupported discovery tool: %s; use %s after loading its schema with %s", name, builtinToolExecuteDiscovered, builtinToolDescribeTools)
 	}
-}
-
-func executeDiscoveredTool(catalog toolCatalog, describedTools map[string]bool, runRealTool func(string, map[string]any) (any, error), args map[string]any) (any, error) {
-	if parseErr := stringArg(args, "_parse_error"); parseErr != "" {
-		raw := truncateRunes(strings.TrimSpace(stringArg(args, "_raw_arguments")), 360)
-		return nil, fmt.Errorf("chatdock_tool_execute 参数 JSON 解析失败：%s。正确格式是 {\"name\":\"工具 full_name\",\"arguments\":{...}}，name 必须是顶层字段；不要把超长命令/脚本写坏 JSON。原始参数片段：%s", parseErr, raw)
-	}
-	target, err := requiredStringArg(args, "name")
-	if err != nil {
-		return nil, fmt.Errorf("chatdock_tool_execute 缺少顶层 name。正确格式是 {\"name\":\"DockMini__exec_command\",\"arguments\":{\"cmd\":\"...\"}}；name 不是目标工具 arguments 里的字段")
-	}
-	targetTool, ok := catalog.Get(target)
+	tool, ok := toolSet.visibleTool(name)
 	if !ok {
-		return nil, fmt.Errorf("tool not found: %s", target)
+		return nil, fmt.Errorf("tool is not exposed in this conversation: %s", name)
 	}
-	if !describedTools[target] {
-		return nil, fmt.Errorf("tool schema not loaded: call %s with names=[%q] before executing it", builtinToolDescribeTools, target)
-	}
-	targetArgs, ok := args["arguments"].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("chatdock_tool_execute 缺少顶层 arguments 对象。正确格式是 {\"name\":%q,\"arguments\":{...}}", target)
-	}
-	if err := validateToolArguments(targetTool.InputSchema, targetArgs); err != nil {
+	if err := validateToolArguments(tool.InputSchema, args); err != nil {
 		return nil, err
 	}
-	result, err := runRealTool(target, targetArgs)
-	return map[string]any{"tool": target, "result": result}, err
+	return runRealTool(name, args)
 }
 
 func (a *App) consumeChatJobGuidance(jobID string, emit func(string, any) error) ([]map[string]any, error) {

@@ -44,6 +44,25 @@ func (s MCPServerConfig) RequiresConfirmation(toolName, fullName string) bool {
 	return s.requiresConfirmation(toolName, fullName)
 }
 
+func (s MCPServerConfig) ExposureForTool(toolName, fullName string) ToolExposure {
+	// 未配置时默认按需加载，避免新接入的大型 MCP 一次性把全部 schema 塞给模型。
+	serverExposure := s.ToolExposure
+	if serverExposure == "" {
+		serverExposure = ToolExposureOnDemand
+	}
+	for _, key := range []string{strings.TrimSpace(toolName), strings.TrimSpace(fullName)} {
+		if key == "" {
+			continue
+		}
+		exposure, ok := s.ToolOverrides[key]
+		if !ok || exposure == "" || exposure == ToolExposureInherit {
+			continue
+		}
+		return exposure
+	}
+	return serverExposure
+}
+
 func (s MCPServerConfig) requiresConfirmation(toolName, fullName string) bool {
 	return matchesAny(toolName, fullName, s.ConfirmTools)
 }

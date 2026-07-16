@@ -181,6 +181,11 @@ function splitMCPToolList(value) {
   return String(value || '').split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
 }
 
+function normalizeMCPToolOverrides(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter(([name, exposure]) => name && ['direct', 'on_demand', 'inherit'].includes(exposure)));
+}
+
 function cleanMCPServerName(value) {
   return String(value || '').trim();
 }
@@ -226,6 +231,8 @@ function mcpServerToDraft(server = {}) {
     allow_tools: joinMCPToolList(server.allow_tools),
     deny_tools: joinMCPToolList(server.deny_tools),
     confirm_tools: joinMCPToolList(server.confirm_tools),
+    tool_exposure: ['direct', 'on_demand'].includes(server.tool_exposure) ? server.tool_exposure : 'on_demand',
+    tool_overrides: normalizeMCPToolOverrides(server.tool_overrides),
     timeout_ms: server.timeout_ms ? String(server.timeout_ms) : '',
     cache_ttl_ms: server.cache_ttl_ms ? String(server.cache_ttl_ms) : '',
   };
@@ -254,6 +261,9 @@ function cleanMCPServerDraft(draft) {
   if (allow.length) next.allow_tools = allow;
   if (deny.length) next.deny_tools = deny;
   if (confirm.length) next.confirm_tools = confirm;
+  next.tool_exposure = draft.tool_exposure === 'direct' ? 'direct' : 'on_demand';
+  const toolOverrides = Object.fromEntries(Object.entries(normalizeMCPToolOverrides(draft.tool_overrides)).filter(([, exposure]) => exposure !== 'inherit'));
+  if (Object.keys(toolOverrides).length) next.tool_overrides = toolOverrides;
   const timeout = Number(draft.timeout_ms || 0);
   const cacheTTL = Number(draft.cache_ttl_ms || 0);
   if (Number.isFinite(timeout) && timeout > 0) next.timeout_ms = Math.round(timeout);
@@ -262,11 +272,11 @@ function cleanMCPServerDraft(draft) {
 }
 
 function defaultMCPServerDraft() {
-  return {name: '', type: 'streamable-http', url: '', path: '', disabled: false, auth_type: 'none', token: '', token_env: '', allow_tools: '', deny_tools: '', confirm_tools: '', timeout_ms: '30000', cache_ttl_ms: ''};
+  return {name: '', type: 'streamable-http', url: '', path: '', disabled: false, auth_type: 'none', token: '', token_env: '', allow_tools: '', deny_tools: '', confirm_tools: '', tool_exposure: 'on_demand', tool_overrides: {}, timeout_ms: '30000', cache_ttl_ms: ''};
 }
 
 function normalizeMCPToolOptions(name, tools, draft) {
-  const selected = [...splitMCPToolList(draft.allow_tools), ...splitMCPToolList(draft.deny_tools), ...splitMCPToolList(draft.confirm_tools)].filter(item => item !== '*');
+  const selected = [...splitMCPToolList(draft.allow_tools), ...splitMCPToolList(draft.deny_tools), ...splitMCPToolList(draft.confirm_tools), ...Object.keys(normalizeMCPToolOverrides(draft.tool_overrides))].filter(item => item !== '*');
   const byName = new Map();
   (tools || []).forEach(tool => {
     const value = String(tool.full_name || tool.fullName || tool.name || '').trim();
@@ -308,6 +318,17 @@ function setAllowAllDraft(draft, enabled) {
   return {allow_tools: joinMCPToolList(Array.from(new Set(allow)))};
 }
 
+function toolExposureForValue(value, draft) {
+  return normalizeMCPToolOverrides(draft.tool_overrides)[value] || 'inherit';
+}
+
+function setToolExposureDraft(draft, value, exposure) {
+  const overrides = {...normalizeMCPToolOverrides(draft.tool_overrides)};
+  if (exposure === 'inherit') delete overrides[value];
+  else overrides[value] = exposure;
+  return {tool_overrides: overrides};
+}
+
 function MCPToolPolicyPicker({name, draft, tools, loading, onRefresh, onChange}) {
   const options = normalizeMCPToolOptions(name, tools, draft);
   const allowAll = splitMCPToolList(draft.allow_tools).includes('*');
@@ -316,8 +337,10 @@ function MCPToolPolicyPicker({name, draft, tools, loading, onRefresh, onChange})
     <label className="mcp-tool-allow-all"><input type="checkbox" checked={allowAll} onChange={e => onChange(setAllowAllDraft(draft, e.target.checked))} /> 允许全部工具</label>
     {options.length ? <div className="mcp-tool-policy-list">{options.map(tool => {
       const policy = toolPolicyForValue(tool.value, draft);
+      const exposure = toolExposureForValue(tool.value, draft);
       return <div className="mcp-tool-policy-row" key={tool.value}>
         <div className="mcp-tool-policy-name"><b>{tool.title || tool.name}</b><span>{tool.value}{tool.configuredOnly ? ' · 配置项' : ''}</span></div>
+        <label className="mcp-tool-exposure">加载方式<select value={exposure} onChange={e => onChange(setToolExposureDraft(draft, tool.value, e.target.value))}><option value="inherit">跟随默认</option><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select></label>
         <div className="mcp-tool-policy-actions" role="group" aria-label={tool.value + ' 权限'}>
           {[
             ['default', allowAll ? '默认允许' : '默认'],
@@ -427,7 +450,9 @@ function ToolsModule({ mcpStatus, mcpConfig, setMcpConfig, saveMCPConfig, loadMC
       <div className="mcp-form-grid">
         <label>连接类型<select value={draft.type} onChange={e => update({type: e.target.value})}><option value="streamable-http">HTTP / Streamable HTTP</option></select></label>
         <label>状态<select value={draft.disabled ? 'disabled' : 'enabled'} onChange={e => update({disabled: e.target.value === 'disabled'})}><option value="enabled">启用</option><option value="disabled">禁用</option></select></label>
+        <label>工具默认加载<select value={draft.tool_exposure} onChange={e => update({tool_exposure: e.target.value})}><option value="on_demand">按需加载</option><option value="direct">直接加载</option></select></label>
       </div>
+      <div className="hint">按需加载只在搜索命中后向模型加入真实工具；单个工具可以在下方工具列表覆盖默认方式。</div>
       <label>MCP HTTP 地址<input value={draft.url} onChange={e => update({url: e.target.value})} placeholder="http://host.docker.internal:18766/mcp" /></label>
       <div className="hint">ChatDock 生产环境跑在 Docker 里，127.0.0.1 会连到容器自己；访问电脑上的 AgentDock 应填 http://host.docker.internal:18766/mcp，且 URL 里不能有空格。</div>
       {urlHasLocalhost || urlHasSpace ? <div className="mcp-inline-warning"><b>当前地址可能连不上</b><span>{urlHasSpace ? 'URL 里有空格；' : ''}{urlHasLocalhost ? 'Docker 内不能用 127.0.0.1 访问宿主机。' : ''}</span><button className="secondary small" onClick={() => update({url: dockerHostMCPURL(draft.url)})}>改成 Docker 宿主机地址</button></div> : null}

@@ -86,7 +86,7 @@ func TestBuiltinScheduledTaskToolsExposeOnlyCRUD(t *testing.T) {
 	}
 }
 
-func TestChatUsesDiscoveryToolsForBuiltinScheduledTaskWithoutMCP(t *testing.T) {
+func TestChatExposesBuiltinScheduledTaskDirectlyWithoutMCP(t *testing.T) {
 	requestCount := 0
 	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
@@ -109,18 +109,10 @@ func TestChatUsesDiscoveryToolsForBuiltinScheduledTaskWithoutMCP(t *testing.T) {
 					foundCreate = true
 				}
 			}
-			if !foundSearch || foundCreate {
-				t.Fatalf("first model request should expose discovery tools only: %#v", body["tools"])
+			if foundSearch || !foundCreate {
+				t.Fatalf("builtin tools should be exposed directly without discovery: %#v", body["tools"])
 			}
-			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"call_1","type":"function","function":{"name":"chatdock_tools_search","arguments":"{\"query\":\"定时任务\"}"}}]}}]}`))
-			return
-		}
-		if requestCount == 2 {
-			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"call_2","type":"function","function":{"name":"chatdock_tools_describe","arguments":"{\"names\":[\"chatdock_scheduled_task_create\"]}"}}]}}]}`))
-			return
-		}
-		if requestCount == 3 {
-			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"call_3","type":"function","function":{"name":"chatdock_tool_execute","arguments":"{\"name\":\"chatdock_scheduled_task_create\",\"arguments\":{\"title\":\"日报\",\"prompt\":\"总结今天\",\"schedule_type\":\"interval\",\"interval_minutes\":30}}"}}]}}]}`))
+			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"call_1","type":"function","function":{"name":"chatdock_scheduled_task_create","arguments":"{\"title\":\"日报\",\"prompt\":\"总结今天\",\"schedule_type\":\"interval\",\"interval_minutes\":30}"}}]}}]}`))
 			return
 		}
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"已创建日报定时任务。"}}]}`))
@@ -182,7 +174,7 @@ func TestValidateToolArgumentsRejectsSchemaTypeMismatch(t *testing.T) {
 	}
 }
 
-func TestChatDockToolExecuteRejectsInvalidArgumentsBeforeRunningTool(t *testing.T) {
+func TestDirectToolCallRejectsInvalidArgumentsBeforeRunningTool(t *testing.T) {
 	requestCount := 0
 	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
@@ -193,12 +185,8 @@ func TestChatDockToolExecuteRejectsInvalidArgumentsBeforeRunningTool(t *testing.
 		w.Header().Set("Content-Type", "application/json")
 		switch requestCount {
 		case 1:
-			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"call_1","type":"function","function":{"name":"chatdock_tools_search","arguments":"{\"query\":\"定时任务\"}"}}]}}]}`))
+			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"call_1","type":"function","function":{"name":"chatdock_scheduled_task_create","arguments":"{\"title\":\"日报\",\"prompt\":\"总结今天\",\"schedule_type\":\"interval\",\"enabled\":\"yes\"}"}}]}}]}`))
 		case 2:
-			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"call_2","type":"function","function":{"name":"chatdock_tools_describe","arguments":"{\"names\":[\"chatdock_scheduled_task_create\"]}"}}]}}]}`))
-		case 3:
-			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"call_3","type":"function","function":{"name":"chatdock_tool_execute","arguments":"{\"name\":\"chatdock_scheduled_task_create\",\"arguments\":{\"title\":\"日报\",\"prompt\":\"总结今天\",\"schedule_type\":\"interval\",\"enabled\":\"yes\"}}"}}]}}]}`))
-		case 4:
 			messages, _ := body["messages"].([]any)
 			last, _ := messages[len(messages)-1].(map[string]any)
 			content, _ := last["content"].(string)

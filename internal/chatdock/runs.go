@@ -31,14 +31,13 @@ func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string,
 		return a.client.Complete(ctx, cfg, history)
 	}
 
-	visibleTools := builtinToolDiscoveryTools()
+	toolSet := newConversationToolSet(allTools, mcpConfig)
+	visibleTools := toolSet.tools()
 	if emit != nil {
-		if err := emit("tool_setup_ready", map[string]any{"mode": "discovery", "tool_count": len(allTools), "exposed_tool_count": len(visibleTools), "builtin_tool_count": len(builtinChatDockTools())}); err != nil {
+		if err := emit("tool_setup_ready", map[string]any{"mode": "dynamic", "tool_count": len(allTools), "exposed_tool_count": len(visibleTools), "builtin_tool_count": len(builtinChatDockTools()), "on_demand_tool_count": len(toolSet.onDemand.tools)}); err != nil {
 			return "", err
 		}
 	}
-	catalog := newToolCatalog(allTools)
-	describedTools := map[string]bool{}
 	recorder := &activeToolRun{LastArgs: map[string]any{}, StartedAt: map[string]time.Time{}}
 	recordingEmit := a.toolRunEmitter(workspaceID, sessionID, recorder, emit)
 	runRealTool := func(name string, args map[string]any) (any, error) {
@@ -51,9 +50,12 @@ func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string,
 	}
 
 	answer, runErr := a.client.CompleteWithMCPToolsEvents(ctx, cfg, history, visibleTools, func(name string, args map[string]any) (any, error) {
-		return a.callDiscoveryTool(ctx, workspaceID, catalog, describedTools, runRealTool, name, args)
-	}, toolEmit, func() ([]map[string]any, error) {
-		return a.consumeChatJobGuidance(jobID, emit)
+		return a.callVisibleConversationTool(ctx, workspaceID, toolSet, runRealTool, name, args)
+	}, toolEmit, llm.MCPToolLoopOptions{
+		RefreshTools: toolSet.tools,
+		AfterToolRound: func() ([]map[string]any, error) {
+			return a.consumeChatJobGuidance(jobID, emit)
+		},
 	})
 	if finishErr := a.finishRecordedToolRun(recorder, runErr, emit); finishErr != nil && runErr == nil {
 		runErr = finishErr

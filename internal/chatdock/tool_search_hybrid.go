@@ -20,32 +20,35 @@ type hybridToolMatch struct {
 	keyword     int
 	semantic    float64
 	semanticHit bool
-	pinned      bool
 }
 
 func (a *App) searchToolCatalog(ctx context.Context, workspaceID string, catalog toolCatalog, args map[string]any) map[string]any {
-	return searchToolCatalogWithApp(ctx, a, workspaceID, catalog, args)
+	result, _ := searchToolCatalogWithMatches(ctx, a, workspaceID, catalog, args)
+	return result
 }
 
 func searchToolCatalogWithApp(ctx context.Context, app *App, workspaceID string, catalog toolCatalog, args map[string]any) map[string]any {
+	result, _ := searchToolCatalogWithMatches(ctx, app, workspaceID, catalog, args)
+	return result
+}
+
+func searchToolCatalogWithMatches(ctx context.Context, app *App, workspaceID string, catalog toolCatalog, args map[string]any) (map[string]any, []mcp.MCPTool) {
 	query := strings.TrimSpace(stringArg(args, "query"))
 	limit := intArgWithDefault(args, "limit", 8, 1, 20)
 	matches := hybridToolMatches(ctx, app, workspaceID, catalog, query, limit)
 	items := make([]map[string]any, 0, len(matches))
+	tools := make([]mcp.MCPTool, 0, len(matches))
 	for _, match := range matches {
 		item := map[string]any{"name": match.tool.FullName, "server": match.tool.Server, "title": firstNonEmpty(match.tool.Title, match.tool.Name), "description": compactToolDescription(match.tool.Description)}
-		if match.pinned && match.keyword == 0 && !match.semanticHit {
-			item["match_reason"] = "基础工具固定候选"
-		} else if match.pinned {
-			item["match_reason"] = "基础工具固定候选 + 搜索匹配"
-		} else if match.semanticHit {
+		if match.semanticHit {
 			item["match_reason"] = "关键词 + M3 向量混合匹配"
 		} else if match.keyword > 0 {
 			item["match_reason"] = "关键词匹配"
 		}
 		items = append(items, item)
+		tools = append(tools, match.tool)
 	}
-	return map[string]any{"query": query, "count": len(items), "tools": items, "search_mode": app.toolSearchMode(workspaceID), "next": "调用 chatdock_tools_describe，传入候选工具的 name，获取参数 schema；然后用 chatdock_tool_execute 执行。"}
+	return map[string]any{"query": query, "count": len(items), "tools": items, "search_mode": app.toolSearchMode(workspaceID), "next": "这些真实工具会在下一轮直接加入 tools；请直接调用目标工具。"}, tools
 }
 
 func hybridToolMatches(ctx context.Context, app *App, workspaceID string, catalog toolCatalog, query string, limit int) []hybridToolMatch {
@@ -73,46 +76,8 @@ func hybridToolMatches(ctx context.Context, app *App, workspaceID string, catalo
 	if len(matches) > limit {
 		matches = matches[:limit]
 	}
-	return appendPinnedToolMatches(catalog, matches)
-}
-
-func appendPinnedToolMatches(catalog toolCatalog, matches []hybridToolMatch) []hybridToolMatch {
-	existing := map[string]int{}
-	for index, match := range matches {
-		existing[match.tool.FullName] = index
-	}
-	for _, candidate := range pinnedToolSearchCandidates {
-		tool, ok := findPinnedCatalogTool(catalog, candidate)
-		if !ok {
-			continue
-		}
-		if index, ok := existing[tool.FullName]; ok {
-			matches[index].pinned = true
-			continue
-		}
-		matches = append(matches, hybridToolMatch{tool: tool, pinned: true})
-		existing[tool.FullName] = len(matches) - 1
-	}
 	return matches
 }
-
-func findPinnedCatalogTool(catalog toolCatalog, candidate string) (mcp.MCPTool, bool) {
-	for _, tool := range catalog.tools {
-		if toolNameMatches(tool.FullName, tool.Name, candidate) {
-			return tool, true
-		}
-	}
-	return mcp.MCPTool{}, false
-}
-
-func toolNameMatches(fullName, name, candidate string) bool {
-	fullName = strings.ToLower(strings.TrimSpace(fullName))
-	name = strings.ToLower(strings.TrimSpace(name))
-	candidate = strings.ToLower(strings.TrimSpace(candidate))
-	return name == candidate || fullName == candidate || strings.HasSuffix(fullName, "__"+candidate) || strings.HasSuffix(fullName, "_"+candidate)
-}
-
-var pinnedToolSearchCandidates = []string{"exec_command", "skill_read", "skill_run", "workflow_template_manage", "task_manage"}
 
 func keywordToolScores(catalog toolCatalog, query string) map[string]int {
 	query = strings.ToLower(strings.TrimSpace(query))
@@ -275,28 +240,7 @@ func (a *App) saveMissingToolEmbeddings(ctx context.Context, workspaceID string,
 
 func toolSearchText(tool mcp.MCPTool) string {
 	rawSchema, _ := json.Marshal(tool.InputSchema)
-	return strings.Join([]string{tool.FullName, tool.Server, tool.Name, tool.Title, tool.Description, pinnedToolSearchAliases(tool), string(rawSchema)}, "\n")
-}
-
-func pinnedToolSearchAliases(tool mcp.MCPTool) string {
-	switch {
-	case toolNameMatches(tool.FullName, tool.Name, "exec_command"):
-		return "命令 执行命令 shell terminal 终端 bash zsh command exec_command 运行命令 查看状态 git docker go test"
-	case toolNameMatches(tool.FullName, tool.Name, "skill_read"):
-		return "Skill 技能 skill 工具 技能发现 只读 inspect list 查看 Skill Runtime"
-	case toolNameMatches(tool.FullName, tool.Name, "skill_run"):
-		return "Skill 技能 skill 工具 执行 operation run Skill Runtime 调用技能"
-	case toolNameMatches(tool.FullName, tool.Name, "skill_package"):
-		return "Skill 技能 skill 包 生命周期 validate install rollback 安装 校验 回滚 Skill Runtime"
-	case toolNameMatches(tool.FullName, tool.Name, "skill_env_manage"):
-		return "Skill 技能 skill 环境变量 env registry secret plain verify 配置 Skill Runtime"
-	case toolNameMatches(tool.FullName, tool.Name, "workflow_template_manage"):
-		return "任务模板 workflow template match workflow_template_manage 模板匹配 多步骤流程 部署 排障 开发"
-	case toolNameMatches(tool.FullName, tool.Name, "task_manage"):
-		return "可恢复任务 task_manage create resume block final_review complete_after_review 多步骤流程 部署 排障 开发"
-	default:
-		return ""
-	}
+	return strings.Join([]string{tool.FullName, tool.Server, tool.Name, tool.Title, tool.Description, string(rawSchema)}, "\n")
 }
 
 func toolSourceHash(tool mcp.MCPTool) string {

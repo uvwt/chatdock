@@ -1,7 +1,6 @@
 package store
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -66,9 +65,8 @@ func (s *Store) SaveMCPConfig(workspaceID string, content string) (string, error
 	if content == "" {
 		content = DefaultMCPConfig()
 	}
-	var probe any
-	if err := json.Unmarshal([]byte(content), &probe); err != nil {
-		return "", fmt.Errorf("mcp config must be valid json: %w", err)
+	if _, err := mcp.ParseMCPConfig(content); err != nil {
+		return "", fmt.Errorf("invalid mcp config: %w", err)
 	}
 	pretty, err := prettyJSON(content)
 	if err != nil {

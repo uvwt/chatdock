@@ -43,3 +43,46 @@ func TestNormalizeBearerToken(t *testing.T) {
 		t.Fatalf("expected raw value to stay unchanged, got %q", got)
 	}
 }
+
+func TestToolExposureUsesServerDefaultAndPerToolOverrides(t *testing.T) {
+	server := MCPServerConfig{
+		ToolExposure: ToolExposureOnDemand,
+		ToolOverrides: map[string]ToolExposure{
+			"events_list":             ToolExposureDirect,
+			"calendar__events_delete": ToolExposureDirect,
+			"events_update":           ToolExposureInherit,
+		},
+	}
+
+	if got := server.ExposureForTool("events_list", "calendar__events_list"); got != ToolExposureDirect {
+		t.Fatalf("tool name override should win, got %q", got)
+	}
+	if got := server.ExposureForTool("events_delete", "calendar__events_delete"); got != ToolExposureDirect {
+		t.Fatalf("full name override should win, got %q", got)
+	}
+	if got := server.ExposureForTool("events_update", "calendar__events_update"); got != ToolExposureOnDemand {
+		t.Fatalf("inherit should use server default, got %q", got)
+	}
+	if got := (MCPServerConfig{}).ExposureForTool("events_list", "calendar__events_list"); got != ToolExposureOnDemand {
+		t.Fatalf("missing exposure should default to on_demand, got %q", got)
+	}
+	directServer := MCPServerConfig{
+		ToolExposure:  ToolExposureDirect,
+		ToolOverrides: map[string]ToolExposure{"events_delete": ToolExposureOnDemand},
+	}
+	if got := directServer.ExposureForTool("events_delete", "calendar__events_delete"); got != ToolExposureOnDemand {
+		t.Fatalf("on_demand override should hide a tool from a direct server, got %q", got)
+	}
+}
+
+func TestParseMCPConfigRejectsInvalidToolExposure(t *testing.T) {
+	tests := []string{
+		`{"servers":{"calendar":{"tool_exposure":"automatic"}}}`,
+		`{"servers":{"calendar":{"tool_overrides":{"events_list":"automatic"}}}}`,
+	}
+	for _, content := range tests {
+		if _, err := ParseMCPConfig(content); err == nil {
+			t.Fatalf("expected invalid exposure to fail: %s", content)
+		}
+	}
+}
