@@ -75,28 +75,13 @@ function ExecutionBlock({ block, streaming = false, onInspectToolEvent }) {
   const summary = executionBlockSummary(block, {streaming});
   const events = block.kind === 'tools' ? block.events : [];
   const reasoning = block.kind === 'reasoning' ? block.text : '';
-  const detailTitle = block.kind === 'reasoning' ? '思考详情' : '工具调用详情';
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const closeOnEscape = event => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
-  }, [open]);
-
-  function inspectEvent(event) {
-    setOpen(false);
-    requestAnimationFrame(() => onInspectToolEvent?.(event));
-  }
 
   const icon = block.kind === 'reasoning'
     ? '✦'
     : (summary.tone === 'running' ? '○' : (summary.tone === 'error' ? '!' : '✓'));
   const summaryLabel = [summary.label, summary.meta].filter(Boolean).join('，');
-  return <section className={`execution-summary kind-${block.kind} tone-${summary.tone}`}>
-    <button type="button" className="execution-summary-trigger" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-label={`${summaryLabel}，点击查看详情`}>
+  return <section className={`execution-summary kind-${block.kind} tone-${summary.tone}${open ? ' is-open' : ''}`}>
+    <button type="button" className="execution-summary-trigger" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label={`${summaryLabel}，点击${open ? '收起' : '展开'}详情`}>
       <span className="execution-summary-icon" aria-hidden="true">{icon}</span>
       <span className="execution-summary-copy">
         <b>{summary.label}</b>
@@ -104,24 +89,9 @@ function ExecutionBlock({ block, streaming = false, onInspectToolEvent }) {
       </span>
       <span className="execution-summary-chevron" aria-hidden="true">›</span>
     </button>
-    {open ? <div className="execution-detail-layer">
-      <button type="button" className="execution-detail-backdrop" onClick={() => setOpen(false)} aria-label="关闭执行详情" />
-      <section className="execution-detail-panel" role="dialog" aria-modal="true" aria-label={detailTitle}>
-        <header className="execution-detail-head">
-          <div><span>{detailTitle}</span>{summary.meta ? <b>{summary.meta}</b> : null}</div>
-          <button type="button" onClick={() => setOpen(false)} aria-label="关闭执行详情">×</button>
-        </header>
-        <div className="execution-detail-body">
-          {events.length ? <section className="execution-detail-section">
-            <h3>工具与步骤</h3>
-            <div className="execution-detail-tools">{events.map((event, index) => <ToolEventRow key={event.callKey || event.id || index} event={event} onInspectToolEvent={inspectEvent} />)}</div>
-          </section> : null}
-          {reasoning ? <section className="execution-detail-section execution-reasoning">
-            <h3>思考过程</h3>
-            <Markdown className="markdown" value={reasoning} />
-          </section> : null}
-        </div>
-      </section>
+    {open ? <div className="execution-inline-detail">
+      {events.length ? <div className="execution-inline-tools">{events.map((event, index) => <ToolEventRow key={event.callKey || event.id || index} event={event} onInspectToolEvent={onInspectToolEvent} />)}</div> : null}
+      {reasoning ? <div className="execution-inline-reasoning"><Markdown className="markdown" value={reasoning} /></div> : null}
     </div> : null}
   </section>;
 }

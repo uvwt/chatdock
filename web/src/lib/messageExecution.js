@@ -104,6 +104,15 @@ export function toolEventDisplayName(event) {
 
 export function toolEventMetaText(event) {
   const meta = String(event?.meta || '').replace(/^关键词：/, '').trim();
+  if (meta.startsWith('{')) {
+    try {
+      const value = JSON.parse(meta);
+      const keys = value && typeof value === 'object' ? Object.keys(value) : [];
+      if (keys.length && keys.every(key => ['tool', 'phase', 'status'].includes(key))) return '';
+    } catch {
+      // 非 JSON 文本继续按普通元信息展示。
+    }
+  }
   if (meta && toolNameKey(meta) !== toolNameKey(rawToolName(event))) return meta;
   const details = event?.details || {};
   const query = details.arguments?.query || details.data?.arguments?.query || details.data?.result?.query;

@@ -93,6 +93,7 @@ test('tool labels hide internal identifiers and duplicate metadata', () => {
 
   assert.equal(toolEventDisplayName(event), '读取文件');
   assert.equal(toolEventMetaText(event), '');
+  assert.equal(toolEventMetaText({meta: '{"tool":"DockMini__exec_command"}'}), '');
   assert.equal(toolEventDisplayName({text: 'DockMini__unknown_internal_tool'}), '调用工具');
   assert.deepEqual(
     executionBlockSummary({kind: 'tools', events: [event]}),
