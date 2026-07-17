@@ -71,17 +71,29 @@ function PendingConfirmations({ confirmations = [], onResolveConfirmation, onIns
 }
 
 function ExecutionBlock({ block, streaming = false, onInspectToolEvent }) {
-  const [open, setOpen] = useState(false);
+  const [manuallyOpen, setManuallyOpen] = useState(false);
   const summary = executionBlockSummary(block, {streaming});
   const events = block.kind === 'tools' ? block.events : [];
   const reasoning = block.kind === 'reasoning' ? block.text : '';
+  const open = streaming || manuallyOpen;
+
+  useEffect(() => {
+    // 流式阶段结束后自动恢复折叠，历史消息仍可在之后手动展开。
+    if (!streaming) setManuallyOpen(false);
+  }, [streaming]);
 
   const icon = block.kind === 'reasoning'
     ? '✦'
     : (summary.tone === 'running' ? '○' : (summary.tone === 'error' ? '!' : '✓'));
   const summaryLabel = [summary.label, summary.meta].filter(Boolean).join('，');
   return <section className={`execution-summary kind-${block.kind} tone-${summary.tone}${open ? ' is-open' : ''}`}>
-    <button type="button" className="execution-summary-trigger" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label={`${summaryLabel}，点击${open ? '收起' : '展开'}详情`}>
+    <button
+      type="button"
+      className="execution-summary-trigger"
+      onClick={() => { if (!streaming) setManuallyOpen(value => !value); }}
+      aria-expanded={open}
+      aria-label={streaming ? `${summaryLabel}，流式详情已展开` : `${summaryLabel}，点击${open ? '收起' : '展开'}详情`}
+    >
       <span className="execution-summary-icon" aria-hidden="true">{icon}</span>
       <span className="execution-summary-copy">
         <b>{summary.label}</b>
