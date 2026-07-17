@@ -83,6 +83,7 @@ func (a *App) ListenAndServe() error {
 	log.Printf("ChatDock listening on %s", displayListenURL(a.cfg.Addr))
 	log.Printf("ChatDock data dir: %s", a.cfg.DataDir)
 	a.startBackgroundWork(a.runScheduler)
+	a.startBackgroundWork(a.runChatJobEventCleanup)
 	a.startBackgroundWork(a.warmToolEmbeddingIndex)
 	if err := a.server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err

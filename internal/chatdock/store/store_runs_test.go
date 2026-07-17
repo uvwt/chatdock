@@ -2,6 +2,7 @@ package store
 
 import (
 	"testing"
+	"time"
 
 	"chatdock/internal/chatdock/llm"
 	"chatdock/internal/chatdock/mcp"
@@ -114,11 +115,77 @@ func TestStoreChatJobEventsPersistAndFinish(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(events) != 0 {
-		t.Fatalf("finished job should compact streaming deltas: %#v", events)
+	if len(events) != 1 || events[0].Event != "delta" {
+		t.Fatalf("finished job must retain streaming deltas until delayed cleanup: %#v", events)
 	}
 	if _, err := store.FinishChatJob("missing", "success", "", "", nil); err == nil {
 		t.Fatal("missing chat job must not finish successfully")
+	}
+}
+
+func TestPruneChatJobStreamingEventsKeepsRecentAndNonStreamingEvents(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	oldSession, err := store.CreateSession("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldJob, err := createChatJobForTest(t, store, "default", oldSession.ID, "req_old")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.AddChatJobEvent(oldJob.ID, "delta", llm.StreamDelta{Content: "old"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.AddChatJobEvent(oldJob.ID, "tool_setup_ready", map[string]any{"tool_count": 1}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.FinishChatJob(oldJob.ID, "success", "old", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.db.Exec(`UPDATE chat_jobs SET finished_at = ? WHERE id = ?`, formatDBTime(time.Now().Add(-48*time.Hour)), oldJob.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	recentSession, err := store.CreateSession("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	recentJob, err := createChatJobForTest(t, store, "default", recentSession.ID, "req_recent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.AddChatJobEvent(recentJob.ID, "delta", llm.StreamDelta{Content: "recent"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.FinishChatJob(recentJob.ID, "success", "recent", "", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	deleted, err := store.PruneChatJobStreamingEventsBefore(time.Now().Add(-24 * time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deleted != 1 {
+		t.Fatalf("expected one expired delta deleted, got %d", deleted)
+	}
+	_, oldEvents, err := store.ChatJobEventsAfter("default", oldJob.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(oldEvents) != 1 || oldEvents[0].Event != "tool_setup_ready" {
+		t.Fatalf("non-streaming events must survive cleanup: %#v", oldEvents)
+	}
+	_, recentEvents, err := store.ChatJobEventsAfter("default", recentJob.ID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recentEvents) != 1 || recentEvents[0].Event != "delta" {
+		t.Fatalf("recent streaming events must survive cleanup: %#v", recentEvents)
 	}
 }
 

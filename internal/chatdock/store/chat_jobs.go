@@ -132,13 +132,30 @@ func (s *Store) FinishChatJob(jobID string, status string, answer string, reason
 	} else if affected != 1 {
 		return ChatJob{}, sql.ErrNoRows
 	}
-	if _, err := tx.Exec(`DELETE FROM chat_job_events WHERE job_id = ? AND event IN ('delta', 'reasoning_delta')`, jobID); err != nil {
-		return ChatJob{}, err
-	}
 	if err := tx.Commit(); err != nil {
 		return ChatJob{}, err
 	}
 	return s.getChatJobByIDLocked(jobID)
+}
+
+func (s *Store) PruneChatJobStreamingEventsBefore(cutoff time.Time) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	result, err := s.db.Exec(`
+DELETE FROM chat_job_events
+WHERE event IN ('delta', 'reasoning_delta')
+  AND job_id IN (
+    SELECT id
+    FROM chat_jobs
+    WHERE status != 'running'
+      AND finished_at != ''
+      AND finished_at < ?
+  )`, formatDBTime(cutoff))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 func normalizeChatJobFinishStatus(status string) string {

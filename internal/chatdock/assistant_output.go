@@ -26,6 +26,8 @@ type assistantOutputRecorder struct {
 	pendingDelta        llm.StreamDelta
 	pendingDeltaChars   int
 	lastDeltaFlush      time.Time
+	flushedContent      bool
+	flushedReasoning    bool
 }
 
 func newAssistantOutputRecorder(app *App, workspaceID string, sessionID string, jobID string) *assistantOutputRecorder {
@@ -83,13 +85,23 @@ func (r *assistantOutputRecorder) flushDeltaEvent(force bool) error {
 	if r.pendingDelta.Content == "" && r.pendingDelta.ReasoningContent == "" {
 		return nil
 	}
-	if !force && r.pendingDeltaChars < 512 && time.Since(r.lastDeltaFlush) < 250*time.Millisecond {
+	// 首个正文和首个思考分片分别立即落库，避免模型已经开始输出，
+	// 前端却还要等待批量阈值或任务结束才能看到第一段内容。
+	firstVisibleKind := (r.pendingDelta.Content != "" && !r.flushedContent) ||
+		(r.pendingDelta.ReasoningContent != "" && !r.flushedReasoning)
+	if !force && !firstVisibleKind && r.pendingDeltaChars < 512 && time.Since(r.lastDeltaFlush) < 250*time.Millisecond {
 		return nil
 	}
 	delta := r.pendingDelta
 	r.pendingDelta = llm.StreamDelta{}
 	r.pendingDeltaChars = 0
 	r.lastDeltaFlush = time.Now()
+	if delta.Content != "" {
+		r.flushedContent = true
+	}
+	if delta.ReasoningContent != "" {
+		r.flushedReasoning = true
+	}
 	_, err := r.app.store.AddChatJobEvent(r.jobID, "delta", delta)
 	return err
 }
