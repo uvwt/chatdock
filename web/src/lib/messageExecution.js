@@ -22,7 +22,40 @@ function insertBeforeFirstText(blocks, block) {
   else blocks.splice(index, 0, block);
 }
 
-export function toolEventDisplayName(event) {
+// 执行摘要只展示用户能理解的动作名；内部工具标识仍保留在详情原始数据中。
+const TOOL_LABELS = {
+  agentdock_context: '加载设备上下文',
+  browser_act: '操作浏览器',
+  browser_session: '启动浏览器',
+  browser_snapshot: '截取页面',
+  desktop_screenshot: '截取屏幕',
+  exec_command: '执行命令',
+  file_edit: '修改文件',
+  file_publish: '发布文件',
+  git_read: '查看 Git',
+  git_write: '更新 Git',
+  list_dir: '查看目录',
+  list_files: '查看文件',
+  mcp_manage: '管理 MCP',
+  mcp_tool_inspect: '查看工具定义',
+  private_note_manage: '管理私密笔记',
+  read_file: '读取文件',
+  recall_bootstrap: '加载记忆上下文',
+  recall_maintain: '维护记忆',
+  recall_read: '读取记忆',
+  recall_search: '搜索记忆',
+  recall_write: '更新记忆',
+  search_text: '搜索文本',
+  session_act: '控制命令会话',
+  session_observe: '查看命令状态',
+  skill_package: '管理 Skill',
+  task_manage: '管理任务',
+  view_image: '查看图片',
+  workflow_template_manage: '管理任务模板',
+  write_file: '写入文件',
+};
+
+function rawToolName(event) {
   const details = event?.details || {};
   const data = details.data || {};
   return String(
@@ -37,9 +70,41 @@ export function toolEventDisplayName(event) {
   ).trim();
 }
 
+function toolNameKey(value) {
+  const normalized = String(value || '')
+    .replace(/^(正在|已)?调用工具[:：]\s*/, '')
+    .replace(/^调用(完成|失败)?[:：]\s*/, '')
+    .trim();
+  return normalized.split(/__|[./:]/).filter(Boolean).pop()?.toLowerCase() || '';
+}
+
+function fallbackToolLabel(key) {
+  if (/search|find/.test(key)) return '搜索信息';
+  if (/read|fetch|get/.test(key)) return '读取信息';
+  if (/list|inspect|status|show/.test(key)) return '查看状态';
+  if (/write|edit|update|patch|replace/.test(key)) return '更新内容';
+  if (/delete|remove/.test(key)) return '删除内容';
+  if (/create|add/.test(key)) return '创建内容';
+  if (/exec|run|command/.test(key)) return '执行命令';
+  if (/browser|page|screen/.test(key)) return '操作浏览器';
+  return '调用工具';
+}
+
+export function toolEventDisplayName(event) {
+  const raw = rawToolName(event);
+  const key = toolNameKey(raw);
+  if (!key) return '';
+  const readableText = raw
+    .replace(/^(正在|已)?调用工具[:：]\s*/, '')
+    .replace(/^调用(完成|失败)?[:：]\s*/, '')
+    .trim();
+  if (/\p{Script=Han}/u.test(readableText)) return readableText;
+  return TOOL_LABELS[key] || fallbackToolLabel(key);
+}
+
 export function toolEventMetaText(event) {
   const meta = String(event?.meta || '').replace(/^关键词：/, '').trim();
-  if (meta) return meta;
+  if (meta && toolNameKey(meta) !== toolNameKey(rawToolName(event))) return meta;
   const details = event?.details || {};
   const query = details.arguments?.query || details.data?.arguments?.query || details.data?.result?.query;
   return query ? String(query).trim() : '';
@@ -98,21 +163,11 @@ export function assistantMessageBlocks(message, { streaming = false, hideThinkin
   };
 }
 
-function reasoningPreview(text) {
-  const value = String(text || '')
-    .replace(/```[\s\S]*?```/g, '代码片段')
-    .replace(/[`#>*_~]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (value.length <= 56) return value;
-  return value.slice(0, 55).trimEnd() + '…';
-}
-
 export function executionBlockSummary(block, { streaming = false } = {}) {
   if (block?.kind === 'reasoning') {
     return {
       label: streaming ? '正在思考' : '思考过程',
-      meta: reasoningPreview(block.text) || (streaming ? '执行中' : '点击查看详情'),
+      meta: streaming ? '执行中' : '',
       tone: streaming ? 'running' : 'reasoning',
     };
   }
@@ -123,20 +178,21 @@ export function executionBlockSummary(block, { streaming = false } = {}) {
   const names = [...new Set(events.map(toolEventDisplayName).filter(Boolean))];
 
   if (streaming && running) {
+    const currentTool = toolEventDisplayName(running);
     return {
-      label: `正在调用 ${toolEventDisplayName(running)}`,
-      meta: events.length > 1 ? `本阶段 ${events.length} 项工具` : '执行中',
+      label: currentTool ? `正在${currentTool}` : '正在调用工具',
+      meta: events.length > 1 ? `本阶段 ${events.length} 项` : '',
       tone: 'running',
     };
   }
 
   const label = failed
-    ? '工具调用存在失败'
-    : (events.length === 1 ? `调用 ${names[0] || '工具'}` : `调用 ${events.length} 项工具`);
+    ? (events.length === 1 ? `${names[0] || '工具调用'}失败` : `${failed} 项工具失败`)
+    : (events.length === 1 ? (names[0] || '工具调用') : `执行 ${events.length} 项工具`);
   const nameSummary = names.slice(0, 2).join('、') + (names.length > 2 ? ' 等' : '');
   return {
     label,
-    meta: [nameSummary, failed ? `${failed} 项失败` : ''].filter(Boolean).join(' · '),
+    meta: events.length > 1 ? nameSummary : '',
     tone: failed ? 'error' : 'done',
   };
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assistantMessageBlocks, executionBlockSummary } from './messageExecution.js';
+import { assistantMessageBlocks, executionBlockSummary, toolEventDisplayName, toolEventMetaText } from './messageExecution.js';
 
 test('assistantMessageBlocks preserves reasoning, tools, and answer order', () => {
   const firstTool = {kind: 'tool', phase: 'done', text: '读取文件'};
@@ -73,14 +73,29 @@ test('assistantMessageBlocks falls back for incomplete historical parts', () => 
 test('executionBlockSummary reports reasoning, running, and failed blocks', () => {
   assert.deepEqual(
     executionBlockSummary({kind: 'reasoning', text: '检查配置和当前运行状态'}, {streaming: true}),
-    {label: '正在思考', meta: '检查配置和当前运行状态', tone: 'running'},
+    {label: '正在思考', meta: '执行中', tone: 'running'},
   );
   assert.deepEqual(
     executionBlockSummary({kind: 'tools', events: [{phase: 'running', text: '搜索资料'}]}, {streaming: true}),
-    {label: '正在调用 搜索资料', meta: '执行中', tone: 'running'},
+    {label: '正在搜索资料', meta: '', tone: 'running'},
   );
   assert.deepEqual(
     executionBlockSummary({kind: 'tools', events: [{phase: 'done', text: '读取'}, {phase: 'error', text: '写入'}]}),
-    {label: '工具调用存在失败', meta: '读取、写入 · 1 项失败', tone: 'error'},
+    {label: '1 项工具失败', meta: '读取、写入', tone: 'error'},
+  );
+});
+
+test('tool labels hide internal identifiers and duplicate metadata', () => {
+  const event = {
+    meta: 'DockMini__read_file',
+    details: {arguments: {name: 'DockMini__read_file'}},
+  };
+
+  assert.equal(toolEventDisplayName(event), '读取文件');
+  assert.equal(toolEventMetaText(event), '');
+  assert.equal(toolEventDisplayName({text: 'DockMini__unknown_internal_tool'}), '调用工具');
+  assert.deepEqual(
+    executionBlockSummary({kind: 'tools', events: [event]}),
+    {label: '读取文件', meta: '', tone: 'done'},
   );
 });

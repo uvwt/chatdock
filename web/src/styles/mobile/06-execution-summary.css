@@ -1,63 +1,69 @@
 @media (max-width: 720px) {
   .execution-summary {
     width: 100%;
-    margin: 8px 0 0;
+    margin: 0 !important;
   }
 
   .execution-summary + .execution-summary {
-    margin-top: 0;
+    margin-top: 0 !important;
   }
 
-  .execution-summary-trigger {
-    min-height: 36px;
-    grid-template-columns: 18px minmax(0, 1fr) 16px;
-    gap: 7px;
-    padding: 6px 4px;
-    border: 0;
-    border-top: 1px solid #eef2f7;
-    border-radius: 0;
-    background: transparent;
+  #app.app .msg.assistant .execution-summary-trigger {
+    min-height: 32px !important;
+    grid-template-columns: 16px minmax(0, 1fr) 12px !important;
+    gap: 6px !important;
+    padding: 3px 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
-  .execution-summary-trigger:hover:not(:disabled),
-  .execution-summary-trigger:active {
-    border-color: #e2e8f0;
-    background: transparent;
+  #app.app .msg.assistant .execution-summary-trigger:hover:not(:disabled),
+  #app.app .msg.assistant .execution-summary-trigger:active {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
   .execution-summary-icon {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     color: #10b981;
-    background: #ecfdf5;
-    font-size: 11px;
+    background: transparent;
+    font-size: 12px;
   }
 
-  .execution-summary.reasoning .execution-summary-icon {
+  .execution-summary.kind-reasoning .execution-summary-icon {
     color: #7c3aed;
-    background: #f5f3ff;
+    background: transparent;
   }
 
   .execution-summary-copy {
-    gap: 6px;
+    display: block;
   }
 
   .execution-summary-copy b {
-    flex: none;
-    max-width: 46%;
+    display: block;
+    max-width: none;
     color: #475569;
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.35;
   }
 
   .execution-summary-copy small {
-    color: #94a3b8;
-    font-size: 11px;
+    display: none;
   }
 
   .execution-summary-chevron {
     color: #94a3b8;
-    font-size: 16px;
+    font-size: 15px;
+  }
+
+  .execution-summary + .answer,
+  .execution-summary + .markdown {
+    margin-top: 8px !important;
   }
 
   .execution-detail-layer {

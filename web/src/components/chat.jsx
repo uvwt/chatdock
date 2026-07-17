@@ -94,12 +94,13 @@ function ExecutionBlock({ block, streaming = false, onInspectToolEvent }) {
   const icon = block.kind === 'reasoning'
     ? '✦'
     : (summary.tone === 'running' ? '○' : (summary.tone === 'error' ? '!' : '✓'));
-  return <section className={'execution-summary ' + block.kind + ' ' + summary.tone}>
-    <button type="button" className="execution-summary-trigger" onClick={() => setOpen(true)} aria-haspopup="dialog">
+  const summaryLabel = [summary.label, summary.meta].filter(Boolean).join('，');
+  return <section className={`execution-summary kind-${block.kind} tone-${summary.tone}`}>
+    <button type="button" className="execution-summary-trigger" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-label={`${summaryLabel}，点击查看详情`}>
       <span className="execution-summary-icon" aria-hidden="true">{icon}</span>
       <span className="execution-summary-copy">
         <b>{summary.label}</b>
-        <small>{summary.meta}</small>
+        {summary.meta ? <small>{summary.meta}</small> : null}
       </span>
       <span className="execution-summary-chevron" aria-hidden="true">›</span>
     </button>
@@ -107,7 +108,7 @@ function ExecutionBlock({ block, streaming = false, onInspectToolEvent }) {
       <button type="button" className="execution-detail-backdrop" onClick={() => setOpen(false)} aria-label="关闭执行详情" />
       <section className="execution-detail-panel" role="dialog" aria-modal="true" aria-label={detailTitle}>
         <header className="execution-detail-head">
-          <div><span>{detailTitle}</span><b>{summary.meta}</b></div>
+          <div><span>{detailTitle}</span>{summary.meta ? <b>{summary.meta}</b> : null}</div>
           <button type="button" onClick={() => setOpen(false)} aria-label="关闭执行详情">×</button>
         </header>
         <div className="execution-detail-body">

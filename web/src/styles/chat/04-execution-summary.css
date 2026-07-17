@@ -45,18 +45,18 @@
   font-weight: 850;
 }
 
-.execution-summary.running .execution-summary-icon {
+.execution-summary.tone-running .execution-summary-icon {
   color: var(--gpt-muted-2);
   background: color-mix(in srgb, var(--gpt-border) 70%, transparent);
   animation: execution-pulse 1.2s ease-in-out infinite;
 }
 
-.execution-summary.error .execution-summary-icon {
+.execution-summary.tone-error .execution-summary-icon {
   color: #ef4444;
   background: rgba(239, 68, 68, .12);
 }
 
-.execution-summary.reasoning .execution-summary-icon {
+.execution-summary.kind-reasoning .execution-summary-icon {
   color: #8b5cf6;
   background: color-mix(in srgb, #8b5cf6 13%, transparent);
 }
