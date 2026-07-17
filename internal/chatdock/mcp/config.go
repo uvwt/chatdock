@@ -9,7 +9,8 @@ import (
 )
 
 type MCPConfig struct {
-	Servers map[string]MCPServerConfig `json:"servers"`
+	BuiltinTools ToolExposureConfig         `json:"builtin_tools"`
+	Servers      map[string]MCPServerConfig `json:"servers"`
 }
 
 type ToolExposure string
@@ -32,6 +33,11 @@ type MCPServerConfig struct {
 	ToolOverrides map[string]ToolExposure `json:"tool_overrides"`
 	TimeoutMS     int                     `json:"timeout_ms"`
 	CacheTTLMS    int                     `json:"cache_ttl_ms"`
+}
+
+type ToolExposureConfig struct {
+	ToolExposure  ToolExposure            `json:"tool_exposure"`
+	ToolOverrides map[string]ToolExposure `json:"tool_overrides"`
 }
 
 type MCPAuthConfig struct {
@@ -66,7 +72,7 @@ type mcpJSONRPCError struct {
 }
 
 func DefaultMCPConfig() string {
-	return "{\n  \"servers\": {}\n}\n"
+	return "{\n  \"builtin_tools\": {\n    \"tool_exposure\": \"direct\"\n  },\n  \"servers\": {}\n}\n"
 }
 
 func ParseMCPConfig(content string) (MCPConfig, error) {
@@ -81,20 +87,33 @@ func ParseMCPConfig(content string) (MCPConfig, error) {
 	if cfg.Servers == nil {
 		cfg.Servers = map[string]MCPServerConfig{}
 	}
+	if err := validateToolExposureConfig("builtin tools", cfg.BuiltinTools, true); err != nil {
+		return MCPConfig{}, err
+	}
 	for serverName, server := range cfg.Servers {
-		if err := validateToolExposure(server.ToolExposure, true); err != nil {
-			return MCPConfig{}, fmt.Errorf("mcp server %s: %w", serverName, err)
-		}
-		for toolName, exposure := range server.ToolOverrides {
-			if strings.TrimSpace(toolName) == "" {
-				return MCPConfig{}, fmt.Errorf("mcp server %s: tool_overrides contains an empty tool name", serverName)
-			}
-			if err := validateToolExposure(exposure, false); err != nil {
-				return MCPConfig{}, fmt.Errorf("mcp server %s tool %s: %w", serverName, toolName, err)
-			}
+		if err := validateToolExposureConfig("mcp server "+serverName, ToolExposureConfig{
+			ToolExposure:  server.ToolExposure,
+			ToolOverrides: server.ToolOverrides,
+		}, true); err != nil {
+			return MCPConfig{}, err
 		}
 	}
 	return cfg, nil
+}
+
+func validateToolExposureConfig(label string, config ToolExposureConfig, allowEmptyDefault bool) error {
+	if err := validateToolExposure(config.ToolExposure, allowEmptyDefault); err != nil {
+		return fmt.Errorf("%s: %w", label, err)
+	}
+	for toolName, exposure := range config.ToolOverrides {
+		if strings.TrimSpace(toolName) == "" {
+			return fmt.Errorf("%s: tool_overrides contains an empty tool name", label)
+		}
+		if err := validateToolExposure(exposure, false); err != nil {
+			return fmt.Errorf("%s tool %s: %w", label, toolName, err)
+		}
+	}
+	return nil
 }
 
 func validateToolExposure(exposure ToolExposure, serverDefault bool) error {

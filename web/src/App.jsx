@@ -206,6 +206,8 @@ export default function App() {
     setWorkspacePromptPreview,
     mcpConfig,
     setMcpConfig,
+    builtinTools,
+    setBuiltinTools,
     config,
     setConfig,
     loadWorkspaceSummaries,
@@ -1296,9 +1298,10 @@ export default function App() {
     try { JSON.parse(mcpConfig || '{}'); } catch (e) { showToast('MCP 配置不是合法 JSON：' + e.message, 'error'); return; }
     const c = await saveMCPConfigRequest(api, mcpConfig);
     setMcpConfig(c.content || mcpConfig);
+    setBuiltinTools(c.builtin_tools || builtinTools);
     await loadMCPStatus().catch(() => { });
     showToast('MCP 配置已保存', 'success');
-  }, [api, loadMCPStatus, mcpConfig, showToast]);
+  }, [api, builtinTools, loadMCPStatus, mcpConfig, setBuiltinTools, showToast]);
 
   const testMCP = useCallback(async (serverName = '') => {
     try {
@@ -1515,7 +1518,7 @@ export default function App() {
       editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels}
       editScheduledTask={editScheduledTask} loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig}
       loadMCPStatus={loadMCPStatus} loadScheduledTasks={loadScheduledTasks} loadSystemStatus={loadSystemStatus}
-      mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers} workspacePromptPreview={workspacePromptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
+      builtinTools={builtinTools} mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers} workspacePromptPreview={workspacePromptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
       runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} openScheduledTaskSession={openScheduledTaskSession} runSetupWizard={runSetupWizard} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
       scheduledTasks={scheduledTasks} selectWorkspace={selectWorkspace} setConfig={setConfig} setMcpConfig={setMcpConfig} setTaskSearch={setTaskSearch}
       setupStatus={setupStatus} showWorkspacePromptPreview={showWorkspacePromptPreview} switchSettingsModule={switchSettingsModule}

@@ -18,7 +18,7 @@ func builtinToolSearchTool() mcp.MCPTool {
 		Name:        "tools_search",
 		FullName:    builtinToolSearchTools,
 		Title:       "查找按需工具",
-		Description: "按用户目标或关键词查找当前按需加载的 MCP 工具。命中的真实工具会在下一轮直接加入工具列表，无需查看详情或通过代理工具执行。",
+		Description: "按用户目标或关键词查找当前按需加载的 ChatDock 内置工具和 MCP 工具。命中的真实工具会在下一轮直接加入工具列表，无需查看详情或通过代理工具执行。",
 		InputSchema: map[string]any{"type": "object", "properties": map[string]any{
 			"query": map[string]any{"type": "string", "description": "用户目标、关键词或能力名称"},
 			"limit": map[string]any{"type": "integer", "description": "最多加载多少个候选工具，默认 8，最大 20"},

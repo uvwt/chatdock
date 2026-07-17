@@ -31,8 +31,17 @@ func newConversationToolSet(allTools []mcp.MCPTool, cfg mcp.MCPConfig) *conversa
 		}
 		set.allByName[tool.FullName] = tool
 
+		if isBuiltinChatDockTool(tool.FullName) {
+			if cfg.BuiltinTools.ExposureForTool(tool.Name, tool.FullName) == mcp.ToolExposureDirect {
+				set.addVisible(tool)
+			} else {
+				onDemandTools = append(onDemandTools, tool)
+			}
+			continue
+		}
+
 		server, configuredMCP := cfg.Servers[tool.Server]
-		if isBuiltinChatDockTool(tool.FullName) || !configuredMCP || server.ExposureForTool(tool.Name, tool.FullName) == mcp.ToolExposureDirect {
+		if !configuredMCP || server.ExposureForTool(tool.Name, tool.FullName) == mcp.ToolExposureDirect {
 			set.addVisible(tool)
 			continue
 		}

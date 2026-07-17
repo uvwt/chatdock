@@ -75,8 +75,29 @@ func TestToolExposureUsesServerDefaultAndPerToolOverrides(t *testing.T) {
 	}
 }
 
+func TestBuiltinToolExposureDefaultsToDirectAndSupportsOverrides(t *testing.T) {
+	if got := (ToolExposureConfig{}).ExposureForTool("scheduled_tasks_list", "chatdock_scheduled_tasks_list"); got != ToolExposureDirect {
+		t.Fatalf("missing builtin exposure should preserve direct loading, got %q", got)
+	}
+
+	config := ToolExposureConfig{
+		ToolExposure: ToolExposureOnDemand,
+		ToolOverrides: map[string]ToolExposure{
+			"chatdock_scheduled_task_create": ToolExposureDirect,
+		},
+	}
+	if got := config.ExposureForTool("scheduled_tasks_list", "chatdock_scheduled_tasks_list"); got != ToolExposureOnDemand {
+		t.Fatalf("builtin default should apply to tools without overrides, got %q", got)
+	}
+	if got := config.ExposureForTool("scheduled_task_create", "chatdock_scheduled_task_create"); got != ToolExposureDirect {
+		t.Fatalf("builtin full-name override should win, got %q", got)
+	}
+}
+
 func TestParseMCPConfigRejectsInvalidToolExposure(t *testing.T) {
 	tests := []string{
+		`{"builtin_tools":{"tool_exposure":"automatic"},"servers":{}}`,
+		`{"builtin_tools":{"tool_overrides":{"chatdock_scheduled_tasks_list":"automatic"}},"servers":{}}`,
 		`{"servers":{"calendar":{"tool_exposure":"automatic"}}}`,
 		`{"servers":{"calendar":{"tool_overrides":{"events_list":"automatic"}}}}`,
 	}

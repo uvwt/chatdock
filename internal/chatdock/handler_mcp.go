@@ -15,7 +15,7 @@ func (a *App) handleGetMCPConfig(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, model.MCPConfigResponse{Content: content})
+	writeJSONResponse(w, http.StatusOK, model.MCPConfigResponse{Content: content, BuiltinTools: builtinChatDockTools()})
 }
 
 func (a *App) handleSaveMCPConfig(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +29,7 @@ func (a *App) handleSaveMCPConfig(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, model.MCPConfigResponse{Content: content})
+	writeJSONResponse(w, http.StatusOK, model.MCPConfigResponse{Content: content, BuiltinTools: builtinChatDockTools()})
 }
 
 func (a *App) activeMCPConfig(workspaceID string) (mcp.MCPConfig, error) {

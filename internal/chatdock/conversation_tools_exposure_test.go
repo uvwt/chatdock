@@ -99,3 +99,50 @@ func TestSearchingOnDemandToolsExposesRealToolForDirectCall(t *testing.T) {
 		t.Fatalf("expected direct real tool call, got %q", called)
 	}
 }
+
+func TestConversationToolSetAppliesBuiltinDefaultAndToolOverride(t *testing.T) {
+	cfg := mcp.MCPConfig{BuiltinTools: mcp.ToolExposureConfig{
+		ToolExposure: mcp.ToolExposureOnDemand,
+		ToolOverrides: map[string]mcp.ToolExposure{
+			builtinToolCreateScheduledTask: mcp.ToolExposureDirect,
+		},
+	}}
+	set := newConversationToolSet(builtinScheduledTaskTools(), cfg)
+
+	if !set.visibleNames[builtinToolCreateScheduledTask] {
+		t.Fatal("direct builtin override should expose the real tool immediately")
+	}
+	if set.visibleNames[builtinToolListScheduledTasks] {
+		t.Fatal("builtin on_demand default should hide tools without overrides")
+	}
+	if !set.visibleNames[builtinToolSearchTools] {
+		t.Fatal("hidden builtin tools should expose the search entrypoint")
+	}
+}
+
+func TestSearchingOnDemandBuiltinToolExposesItForDirectCall(t *testing.T) {
+	cfg := mcp.MCPConfig{BuiltinTools: mcp.ToolExposureConfig{ToolExposure: mcp.ToolExposureOnDemand}}
+	set := newConversationToolSet(builtinScheduledTaskTools(), cfg)
+	app := &App{}
+	called := ""
+	runRealTool := func(name string, args map[string]any) (any, error) {
+		called = name
+		return args, nil
+	}
+
+	result, err := app.callVisibleConversationTool(context.Background(), "default", set, runRealTool, builtinToolSearchTools, map[string]any{"query": "查询定时任务"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, ok := result.(map[string]any)["loaded_tools"].([]string)
+	if !ok || len(loaded) == 0 {
+		t.Fatalf("search should expose a matched builtin tool, got %#v", result)
+	}
+
+	if _, err := app.callVisibleConversationTool(context.Background(), "default", set, runRealTool, builtinToolListScheduledTasks, map[string]any{}); err != nil {
+		t.Fatal(err)
+	}
+	if called != builtinToolListScheduledTasks {
+		t.Fatalf("expected direct builtin tool call after discovery, got %q", called)
+	}
+}

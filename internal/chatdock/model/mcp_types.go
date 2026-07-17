@@ -1,7 +1,8 @@
 package model
 
 type MCPConfigResponse struct {
-	Content string `json:"content"`
+	Content      string    `json:"content"`
+	BuiltinTools []MCPTool `json:"builtin_tools"`
 }
 
 type SaveMCPConfigRequest struct {

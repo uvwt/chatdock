@@ -57,6 +57,9 @@
   border-radius: 10px !important;
   background: #fbfbfc !important;
 }
+.settings-page .builtin-tool-exposure-row {
+  grid-template-columns: minmax(0, 1fr) minmax(124px, 156px) !important;
+}
 .settings-page .mcp-tool-policy-name {
   min-width: 0 !important;
 }

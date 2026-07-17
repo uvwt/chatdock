@@ -49,6 +49,7 @@ export function useSettingsData(api) {
   const [mcpStatus, setMcpStatus] = useState([]);
   const [workspacePromptPreview, setWorkspacePromptPreview] = useState('');
   const [mcpConfig, setMcpConfig] = useState('');
+  const [builtinTools, setBuiltinTools] = useState([]);
   const [config, setConfig] = useState(defaultConfig);
 
   const loadWorkspaceSummaries = useCallback(async () => {
@@ -73,7 +74,8 @@ export function useSettingsData(api) {
 
   const loadMCPConfig = useCallback(async () => {
     const c = await fetchMCPConfig(api);
-    setMcpConfig(c.content || '{\n  "servers": {}\n}\n');
+    setMcpConfig(c.content || '{\n  "builtin_tools": {\n    "tool_exposure": "direct"\n  },\n  "servers": {}\n}\n');
+    setBuiltinTools(c.builtin_tools || []);
   }, [api]);
 
   const loadSetupStatus = useCallback(async () => {
@@ -132,6 +134,8 @@ export function useSettingsData(api) {
     setWorkspacePromptPreview,
     mcpConfig,
     setMcpConfig,
+    builtinTools,
+    setBuiltinTools,
     config,
     setConfig,
     loadWorkspaceSummaries,

@@ -65,7 +65,7 @@ func TestStoreEffectiveMCPConfigFallsBackToDefaultWorkspace(t *testing.T) {
 	if _, err := store.CreateWorkspace(model.CreateWorkspaceRequest{Name: "model", SystemPrompt: "model workspace"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.SaveMCPConfig("model", `{"servers":{}}`); err != nil {
+	if _, err := store.SaveMCPConfig("model", `{"builtin_tools":{"tool_exposure":"on_demand","tool_overrides":{"chatdock_scheduled_task_create":"direct"}},"servers":{}}`); err != nil {
 		t.Fatal(err)
 	}
 	content, err := store.GetEffectiveMCPConfig("model")
@@ -78,6 +78,12 @@ func TestStoreEffectiveMCPConfigFallsBackToDefaultWorkspace(t *testing.T) {
 	}
 	if _, ok := cfg.Servers["agentdock"]; !ok {
 		t.Fatalf("expected default workspace MCP server fallback, got %s", content)
+	}
+	if got := cfg.BuiltinTools.ExposureForTool("scheduled_tasks_list", "chatdock_scheduled_tasks_list"); got != mcp.ToolExposureOnDemand {
+		t.Fatalf("expected workspace builtin default to survive server fallback, got %q", got)
+	}
+	if got := cfg.BuiltinTools.ExposureForTool("scheduled_task_create", "chatdock_scheduled_task_create"); got != mcp.ToolExposureDirect {
+		t.Fatalf("expected workspace builtin override to survive server fallback, got %q", got)
 	}
 }
 

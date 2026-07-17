@@ -22,7 +22,7 @@ export function SettingsPanel(props) {
   const {
     activeModule, busy, closeSettings, config, createWorkspace, dataStatus, deleteScheduledTask, deleteWorkspace, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
     editScheduledTask, loadDataStatus, loadMCPConfig, loadMCPStatus, loadScheduledTasks,
-    loadSystemStatus, logout, mcpConfig, mcpStatus, onCopy, providers, workspacePromptPreview, refreshProductState, refreshVisibleSettings, runScheduledTaskNow, viewScheduledTaskRuns, openScheduledTaskSession, runSetupWizard,
+    loadSystemStatus, logout, builtinTools, mcpConfig, mcpStatus, onCopy, providers, workspacePromptPreview, refreshProductState, refreshVisibleSettings, runScheduledTaskNow, viewScheduledTaskRuns, openScheduledTaskSession, runSetupWizard,
     saveConfig, saveMCPConfig, scheduledTasks, selectWorkspace, setConfig, setMcpConfig, setTaskSearch, setupStatus,
     showWorkspacePromptPreview, switchSettingsModule, systemStatus, taskSearch, testMCP, fetchMCPServerTools, testModelProvider, fetchProviderModels, availableModels, candidateProviderID, addCandidateModelToProvider, loadingModels, toggleScheduledTask,
     workspaces,
@@ -37,7 +37,7 @@ export function SettingsPanel(props) {
     <ModuleView name="workspace" activeModule={activeModule}><WorkspaceModule setupStatus={setupStatus} workspaces={workspaces} createWorkspace={createWorkspace} selectWorkspace={selectWorkspace} deleteWorkspace={deleteWorkspace} runSetupWizard={runSetupWizard} /></ModuleView>
     <ModuleView name="model" activeModule={activeModule}><ModelModule config={config} setConfig={setConfig} saveConfig={saveConfig} showWorkspacePromptPreview={showWorkspacePromptPreview} workspacePromptPreview={workspacePromptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>
     <ModuleView name="providers" activeModule={activeModule}><ProvidersModule config={config} setConfig={setConfig} providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} /></ModuleView>
-    <ModuleView name="tools" activeModule={activeModule}><ToolsModule mcpStatus={mcpStatus} mcpConfig={mcpConfig} setMcpConfig={setMcpConfig} saveMCPConfig={saveMCPConfig} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} /></ModuleView>
+    <ModuleView name="tools" activeModule={activeModule}><ToolsModule builtinTools={builtinTools} mcpStatus={mcpStatus} mcpConfig={mcpConfig} setMcpConfig={setMcpConfig} saveMCPConfig={saveMCPConfig} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} /></ModuleView>
     <ModuleView name="automation" activeModule={activeModule}><div className="settings-block-head"><label>自动化任务（当前工作空间）</label><button className="secondary small" onClick={() => editScheduledTask()}>新增任务</button></div><input className="session-search" placeholder="搜索任务" value={taskSearch} onChange={e => setTaskSearch(e.target.value)} /><div className="tasks-list">{filteredTasks.length ? filteredTasks.map(t => <TaskCard key={t.id} task={t} editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} toggleScheduledTask={toggleScheduledTask} runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} openScheduledTaskSession={openScheduledTaskSession} />) : <div className="hint">暂无定时任务。默认每次独立执行，运行结果写入任务记录；需要连续上下文时可在编辑中开启。</div>}</div><div className="settings-actions"><button className="secondary" onClick={() => loadScheduledTasks?.()}>刷新任务</button></div></ModuleView>
     <ModuleView name="data" activeModule={activeModule}><div className="settings-block-head"><label>数据状态</label><button className="secondary small" onClick={() => loadDataStatus?.()}>刷新数据状态</button></div><DataStatus dataStatus={dataStatus} onCopy={onCopy} /></ModuleView>
     <ModuleView name="security" activeModule={activeModule}><SecurityModule systemStatus={systemStatus} setupStatus={setupStatus} dataStatus={dataStatus} mcpStatus={mcpStatus} providers={providers} loadSystemStatus={loadSystemStatus} logout={logout} onCopy={onCopy} /></ModuleView>
@@ -275,6 +275,20 @@ function defaultMCPServerDraft() {
   return {name: '', type: 'streamable-http', url: '', path: '', disabled: false, auth_type: 'none', token: '', token_env: '', allow_tools: '', deny_tools: '', confirm_tools: '', tool_exposure: 'on_demand', tool_overrides: {}, timeout_ms: '30000', cache_ttl_ms: ''};
 }
 
+function builtinToolsToDraft(config = {}) {
+  return {
+    tool_exposure: ['direct', 'on_demand'].includes(config.tool_exposure) ? config.tool_exposure : 'direct',
+    tool_overrides: normalizeMCPToolOverrides(config.tool_overrides),
+  };
+}
+
+function cleanBuiltinToolsDraft(draft) {
+  const next = {tool_exposure: draft.tool_exposure === 'on_demand' ? 'on_demand' : 'direct'};
+  const overrides = Object.fromEntries(Object.entries(normalizeMCPToolOverrides(draft.tool_overrides)).filter(([, exposure]) => exposure !== 'inherit'));
+  if (Object.keys(overrides).length) next.tool_overrides = overrides;
+  return next;
+}
+
 function normalizeMCPToolOptions(name, tools, draft) {
   const selected = [...splitMCPToolList(draft.allow_tools), ...splitMCPToolList(draft.deny_tools), ...splitMCPToolList(draft.confirm_tools), ...Object.keys(normalizeMCPToolOverrides(draft.tool_overrides))].filter(item => item !== '*');
   const byName = new Map();
@@ -354,13 +368,25 @@ function MCPToolPolicyPicker({name, draft, tools, loading, onRefresh, onChange})
   </div>;
 }
 
-function ToolsModule({ mcpStatus, mcpConfig, setMcpConfig, saveMCPConfig, loadMCPConfig, loadMCPStatus, testMCP, fetchMCPServerTools }) {
+function BuiltinToolExposurePicker({draft, tools, onChange}) {
+  const options = normalizeMCPToolOptions('chatdock', tools, draft);
+  return <div className="mcp-tool-picker builtin-tool-picker">
+    <div className="mcp-tool-picker-head"><div><b>单工具加载方式</b><span>{options.length + ' 个内置工具'}</span></div></div>
+    <div className="mcp-tool-policy-list">{options.map(tool => <div className="mcp-tool-policy-row builtin-tool-exposure-row" key={tool.value}>
+      <div className="mcp-tool-policy-name"><b>{tool.title || tool.name}</b><span>{tool.value}</span></div>
+      <label className="mcp-tool-exposure">加载方式<select value={toolExposureForValue(tool.value, draft)} onChange={e => onChange(setToolExposureDraft(draft, tool.value, e.target.value))}><option value="inherit">跟随默认</option><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select></label>
+    </div>)}</div>
+  </div>;
+}
+
+function ToolsModule({ builtinTools, mcpStatus, mcpConfig, setMcpConfig, saveMCPConfig, loadMCPConfig, loadMCPStatus, testMCP, fetchMCPServerTools }) {
   const [newServer, setNewServer] = useState(defaultMCPServerDraft);
   const [renameDrafts, setRenameDrafts] = useState({});
   const [formError, setFormError] = useState('');
   const [serverTools, setServerTools] = useState({});
   const [loadingTools, setLoadingTools] = useState({});
   const parsed = useMemo(() => parseMCPConfigDraft(mcpConfig), [mcpConfig]);
+  const builtinDraft = builtinToolsToDraft(parsed.config.builtin_tools);
   const serverNames = Object.keys(parsed.config.servers || {}).sort();
   const statusByName = useMemo(() => Object.fromEntries((mcpStatus || []).map(s => [s.name, s])), [mcpStatus]);
 
@@ -392,6 +418,13 @@ function ToolsModule({ mcpStatus, mcpConfig, setMcpConfig, saveMCPConfig, loadMC
     replaceConfig(next => {
       const draft = {...mcpServerToDraft(next.servers[name]), ...patch};
       next.servers[name] = cleanMCPServerDraft(draft);
+    });
+  }
+
+  function patchBuiltinTools(patch) {
+    replaceConfig(next => {
+      const draft = {...builtinToolsToDraft(next.builtin_tools), ...patch};
+      next.builtin_tools = cleanBuiltinToolsDraft(draft);
     });
   }
 
@@ -480,6 +513,12 @@ function ToolsModule({ mcpStatus, mcpConfig, setMcpConfig, saveMCPConfig, loadMC
   };
 
   return <>
+    <section className="settings-section mcp-overview-section builtin-tools-section">
+      <div className="settings-section-head"><div><b>ChatDock 内置工具</b><span className="hint">定时任务、图片和模型供应商工具</span></div></div>
+      <div className="mcp-form-grid"><label>工具默认加载<select value={builtinDraft.tool_exposure} onChange={e => patchBuiltinTools({tool_exposure: e.target.value})}><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select></label></div>
+      <div className="hint">旧配置默认直接加载；改为按需后，仅在工具搜索命中时把真实内置工具加入当前会话。</div>
+      <BuiltinToolExposurePicker draft={builtinDraft} tools={builtinTools || []} onChange={patchBuiltinTools} />
+    </section>
     <section className="settings-section mcp-overview-section">
       <div className="settings-section-head"><div><b>MCP Server</b><span className="hint">连接状态和工具权限</span></div><button className="secondary small" onClick={() => loadMCPStatus?.()}>检测</button></div>
       <div id="mcpStatusCards" className="mcp-server-list">{mcpStatus.length ? mcpStatus.map(s => <div key={s.name} className="mcp-server-row"><div className="mcp-server-main"><b>{s.name}</b><span>{s.url || '未填写 HTTP 地址'}</span>{s.last_error ? <em>{s.last_error}</em> : null}</div><div className="mcp-server-meta"><span className={'badge ' + runStatusClass(s.last_status || 'unknown')}>{runStatusLabel(s.last_status || 'unknown')}</span><small>allow {s.allow_count} · deny {s.deny_count} · confirm {s.confirm_count}</small><button className="secondary small" onClick={() => testMCP(s.name)} disabled={s.disabled || !s.url}>测试</button></div></div>) : <div className="empty compact">尚未配置 MCP Server。</div>}</div>
