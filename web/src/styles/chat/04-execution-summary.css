@@ -3,6 +3,15 @@
   margin: 10px 0 2px;
 }
 
+.execution-summary + .execution-summary {
+  margin-top: 4px;
+}
+
+.execution-summary + .answer,
+.execution-summary + .markdown {
+  margin-top: 12px;
+}
+
 .execution-summary-trigger {
   width: 100%;
   min-height: 38px;
@@ -45,6 +54,11 @@
 .execution-summary.error .execution-summary-icon {
   color: #ef4444;
   background: rgba(239, 68, 68, .12);
+}
+
+.execution-summary.reasoning .execution-summary-icon {
+  color: #8b5cf6;
+  background: color-mix(in srgb, #8b5cf6 13%, transparent);
 }
 
 .execution-summary-copy {

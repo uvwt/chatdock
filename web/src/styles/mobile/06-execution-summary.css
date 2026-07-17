@@ -4,6 +4,10 @@
     margin: 8px 0 0;
   }
 
+  .execution-summary + .execution-summary {
+    margin-top: 0;
+  }
+
   .execution-summary-trigger {
     min-height: 36px;
     grid-template-columns: 18px minmax(0, 1fr) 16px;
@@ -29,11 +33,18 @@
     font-size: 11px;
   }
 
+  .execution-summary.reasoning .execution-summary-icon {
+    color: #7c3aed;
+    background: #f5f3ff;
+  }
+
   .execution-summary-copy {
     gap: 6px;
   }
 
   .execution-summary-copy b {
+    flex: none;
+    max-width: 46%;
     color: #475569;
     font-size: 12px;
     font-weight: 700;

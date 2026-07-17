@@ -1,7 +1,7 @@
 // Chat workbench, message rendering, empty state, and attachment chips.
 import React, { useEffect, useRef, useState } from 'react';
 import { fmtBytes } from '../lib/appUtils.js';
-import { executionSummary, splitAssistantMessage, toolEventDisplayName, toolEventMetaText } from '../lib/messageExecution.js';
+import { assistantMessageBlocks, executionBlockSummary, toolEventDisplayName, toolEventMetaText } from '../lib/messageExecution.js';
 import { Markdown } from './base.jsx';
 
 function MessageActions({ text, onCopy, onBranch, onEdit, user = false }) {
@@ -70,11 +70,12 @@ function PendingConfirmations({ confirmations = [], onResolveConfirmation, onIns
     </div>);
 }
 
-function ExecutionSummary({ events = [], reasoningParts = [], streaming = false, onInspectToolEvent }) {
+function ExecutionBlock({ block, streaming = false, onInspectToolEvent }) {
   const [open, setOpen] = useState(false);
-  const visible = events.length > 0 || reasoningParts.length > 0;
-  const summary = executionSummary({events, reasoningParts, streaming});
-  const reasoning = reasoningParts.join('\n\n');
+  const summary = executionBlockSummary(block, {streaming});
+  const events = block.kind === 'tools' ? block.events : [];
+  const reasoning = block.kind === 'reasoning' ? block.text : '';
+  const detailTitle = block.kind === 'reasoning' ? '思考详情' : '工具调用详情';
 
   useEffect(() => {
     if (!open) return undefined;
@@ -90,10 +91,12 @@ function ExecutionSummary({ events = [], reasoningParts = [], streaming = false,
     requestAnimationFrame(() => onInspectToolEvent?.(event));
   }
 
-  if (!visible) return null;
-  return <section className={'execution-summary ' + summary.tone}>
+  const icon = block.kind === 'reasoning'
+    ? '✦'
+    : (summary.tone === 'running' ? '○' : (summary.tone === 'error' ? '!' : '✓'));
+  return <section className={'execution-summary ' + block.kind + ' ' + summary.tone}>
     <button type="button" className="execution-summary-trigger" onClick={() => setOpen(true)} aria-haspopup="dialog">
-      <span className="execution-summary-icon" aria-hidden="true">{summary.tone === 'running' ? '○' : (summary.tone === 'error' ? '!' : '✓')}</span>
+      <span className="execution-summary-icon" aria-hidden="true">{icon}</span>
       <span className="execution-summary-copy">
         <b>{summary.label}</b>
         <small>{summary.meta}</small>
@@ -102,9 +105,9 @@ function ExecutionSummary({ events = [], reasoningParts = [], streaming = false,
     </button>
     {open ? <div className="execution-detail-layer">
       <button type="button" className="execution-detail-backdrop" onClick={() => setOpen(false)} aria-label="关闭执行详情" />
-      <section className="execution-detail-panel" role="dialog" aria-modal="true" aria-label="执行详情">
+      <section className="execution-detail-panel" role="dialog" aria-modal="true" aria-label={detailTitle}>
         <header className="execution-detail-head">
-          <div><span>执行详情</span><b>{summary.meta}</b></div>
+          <div><span>{detailTitle}</span><b>{summary.meta}</b></div>
           <button type="button" onClick={() => setOpen(false)} aria-label="关闭执行详情">×</button>
         </header>
         <div className="execution-detail-body">
@@ -142,14 +145,29 @@ function ErrorNotice({ error }) {
 }
 
 function AssistantContent({ message, streaming = false, hideThinking = false, onResolveConfirmation, onInspectToolEvent }) {
-  const { textParts, executionEvents, confirmations, reasoningParts } = splitAssistantMessage(message, {streaming, hideThinking});
+  const { blocks } = assistantMessageBlocks(message, {streaming, hideThinking});
+  const lastBlock = blocks[blocks.length - 1];
+  const activeExecutionIndex = streaming && (lastBlock?.kind === 'reasoning' || lastBlock?.kind === 'tools')
+    ? blocks.length - 1
+    : -1;
+
   return <>
-    {textParts.length
-      ? textParts.map((text, index) => <Markdown key={'text-' + index} className={streaming ? 'answer markdown' : undefined} value={text} />)
-      : (streaming ? <div className="answer" aria-live="polite" /> : null)}
+    {blocks.map((block, index) => {
+      if (block.kind === 'text') {
+        return <Markdown key={'text-' + index} className={streaming ? 'answer markdown' : undefined} value={block.text} />;
+      }
+      if (block.kind === 'confirmation') {
+        return <PendingConfirmations key={'confirm-' + index} confirmations={[block.event]} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />;
+      }
+      return <ExecutionBlock
+        key={block.kind + '-' + index}
+        block={block}
+        streaming={index === activeExecutionIndex}
+        onInspectToolEvent={onInspectToolEvent}
+      />;
+    })}
+    {!blocks.length && streaming ? <div className="answer" aria-live="polite" /> : null}
     <ErrorNotice error={message.error} />
-    <PendingConfirmations confirmations={confirmations} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
-    <ExecutionSummary events={executionEvents} reasoningParts={reasoningParts} streaming={streaming} onInspectToolEvent={onInspectToolEvent} />
   </>;
 }
 
@@ -203,7 +221,7 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEd
     </div>;
   }
   if (message.role === 'assistant') {
-    const copyText = splitAssistantMessage(message, {hideThinking: true}).textParts.join('\n\n');
+    const copyText = assistantMessageBlocks(message, {hideThinking: true}).textParts.join('\n\n');
     return <div className="msg assistant markdown" data-model-message="true">
       <AssistantContent message={message} hideThinking={hideThinking} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
       <MessageActions text={copyText} onCopy={onCopy} onBranch={onBranch ? () => onBranch(messageIndex) : null} />
