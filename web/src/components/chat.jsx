@@ -1,6 +1,7 @@
 // Chat workbench, message rendering, empty state, and attachment chips.
 import React, { useEffect, useRef, useState } from 'react';
 import { fmtBytes } from '../lib/appUtils.js';
+import { executionSummary, splitAssistantMessage, toolEventDisplayName, toolEventMetaText } from '../lib/messageExecution.js';
 import { Markdown } from './base.jsx';
 
 function MessageActions({ text, onCopy, onBranch, onEdit, user = false }) {
@@ -36,53 +37,6 @@ export function AttachmentList({ attachments, removable = false, onRemove, onDow
   </div>;
 }
 
-function ReasoningBlock({ value, streaming = false, hidden = false }) {
-  // 流式输出时实时展开；流式结束后自动收起，保留手动再次展开查看。
-  const [open, setOpen] = useState(!!streaming);
-  useEffect(() => {
-    setOpen(!!streaming);
-  }, [streaming]);
-  if (hidden || !value) return null;
-  const title = '思考过程';
-  return <section className={'reasoning ' + (open ? 'show' : 'collapsed')}>
-    <button type="button" className="reasoning-toggle" onClick={() => setOpen(v => !v)} aria-expanded={open}>
-      <span><b>{title}</b></span>
-      <span className="reasoning-chevron">{open ? '⌃' : '⌄'}</span>
-    </button>
-    {open ? <Markdown className="reasoning-content markdown" value={value} /> : null}
-  </section>;
-}
-
-
-function toolEventName(event) {
-  const details = event?.details || {};
-  const data = details.data || {};
-  // 展示真实名称；历史懒加载事件可能只有 event_id，没有预加载 details，不能因此隐藏整条记录。
-  return String(
-    details.arguments?.name || data.arguments?.name || data.result?.tool || details.tool || data.tool || event?.text || event?.meta || ''
-  ).trim();
-}
-
-function toolEventMetaText(event) {
-  const meta = String(event?.meta || '').replace(/^关键词：/, '').trim();
-  if (meta) return meta;
-  const details = event?.details || {};
-  const query = details.arguments?.query || details.data?.arguments?.query || details.data?.result?.query;
-  return query ? String(query).trim() : '';
-}
-
-function uniqueToolNames(events) {
-  const seen = new Set();
-  const names = [];
-  for (const event of events) {
-    const name = toolEventName(event);
-    if (!name || seen.has(name)) continue;
-    seen.add(name);
-    names.push(name);
-  }
-  return names;
-}
-
 function toolEventStatus(event) {
   if (event.phase === 'running') return {icon: '○', text: '运行中'};
   if (event.phase === 'error') return {icon: '×', text: '失败'};
@@ -91,7 +45,7 @@ function toolEventStatus(event) {
 
 function ToolEventRow({ event, onInspectToolEvent }) {
   const status = toolEventStatus(event);
-  const name = toolEventName(event);
+  const name = toolEventDisplayName(event);
   const meta = toolEventMetaText(event);
   return <button type="button" className={'tool-step-row ' + (event.phase ? 'phase-' + event.phase : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} disabled={!event.details}>
     <span className="tool-step-icon">{status.icon}</span>
@@ -103,25 +57,8 @@ function ToolEventRow({ event, onInspectToolEvent }) {
   </button>;
 }
 
-function ToolEvents({ events = [], onResolveConfirmation, onInspectToolEvent }) {
-  if (!events.length) return null;
-
-  const confirmations = events.filter(event => event.kind === 'confirm' && event.status !== 'resolved');
-  const normalEvents = events.filter(event => !(event.kind === 'confirm' && event.status !== 'resolved') && toolEventName(event));
-  const toolNames = uniqueToolNames(normalEvents);
-  const title = toolNames.length ? toolNames.slice(0, 3).join('、') + (toolNames.length > 3 ? ' 等' : '') : '运行步骤';
-
-  return <>
-    {normalEvents.length ? <section className="tool-steps-card inline">
-      <div className="tool-steps-head">
-        <span className="tool-steps-title">{title}</span>
-        <span className="tool-steps-count">{normalEvents.length} 次</span>
-      </div>
-      <div className="tool-steps-list">
-        {normalEvents.map((event, i) => <ToolEventRow key={i} event={event} onInspectToolEvent={onInspectToolEvent} />)}
-      </div>
-    </section> : null}
-    {confirmations.map((event, i) => <div key={'confirm-' + i} className={'tool-event ' + (event.details ? 'has-details' : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} role={event.details ? 'button' : undefined} tabIndex={event.details ? 0 : undefined} onKeyDown={e => { if (event.details && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onInspectToolEvent?.(event); } }}>
+function PendingConfirmations({ confirmations = [], onResolveConfirmation, onInspectToolEvent }) {
+  return confirmations.map((event, i) => <div key={'confirm-' + i} className={'tool-event ' + (event.details ? 'has-details' : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} role={event.details ? 'button' : undefined} tabIndex={event.details ? 0 : undefined} onKeyDown={e => { if (event.details && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onInspectToolEvent?.(event); } }}>
       <div className="tool-event-main">
         <div>{event.text}</div>
         {event.meta ? <div className="tool-event-meta">{event.meta}</div> : null}
@@ -130,8 +67,59 @@ function ToolEvents({ events = [], onResolveConfirmation, onInspectToolEvent }) 
         <button className="secondary small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, true)}>允许一次</button>
         <button className="danger small" type="button" onClick={() => onResolveConfirmation?.(event.confirmation.id, false)}>拒绝</button>
       </div>
-    </div>)}
-  </>;
+    </div>);
+}
+
+function ExecutionSummary({ events = [], reasoningParts = [], streaming = false, onInspectToolEvent }) {
+  const [open, setOpen] = useState(false);
+  const visible = events.length > 0 || reasoningParts.length > 0;
+  const summary = executionSummary({events, reasoningParts, streaming});
+  const reasoning = reasoningParts.join('\n\n');
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeOnEscape = event => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [open]);
+
+  function inspectEvent(event) {
+    setOpen(false);
+    requestAnimationFrame(() => onInspectToolEvent?.(event));
+  }
+
+  if (!visible) return null;
+  return <section className={'execution-summary ' + summary.tone}>
+    <button type="button" className="execution-summary-trigger" onClick={() => setOpen(true)} aria-haspopup="dialog">
+      <span className="execution-summary-icon" aria-hidden="true">{summary.tone === 'running' ? '○' : (summary.tone === 'error' ? '!' : '✓')}</span>
+      <span className="execution-summary-copy">
+        <b>{summary.label}</b>
+        <small>{summary.meta}</small>
+      </span>
+      <span className="execution-summary-chevron" aria-hidden="true">›</span>
+    </button>
+    {open ? <div className="execution-detail-layer">
+      <button type="button" className="execution-detail-backdrop" onClick={() => setOpen(false)} aria-label="关闭执行详情" />
+      <section className="execution-detail-panel" role="dialog" aria-modal="true" aria-label="执行详情">
+        <header className="execution-detail-head">
+          <div><span>执行详情</span><b>{summary.meta}</b></div>
+          <button type="button" onClick={() => setOpen(false)} aria-label="关闭执行详情">×</button>
+        </header>
+        <div className="execution-detail-body">
+          {events.length ? <section className="execution-detail-section">
+            <h3>工具与步骤</h3>
+            <div className="execution-detail-tools">{events.map((event, index) => <ToolEventRow key={event.callKey || event.id || index} event={event} onInspectToolEvent={inspectEvent} />)}</div>
+          </section> : null}
+          {reasoning ? <section className="execution-detail-section execution-reasoning">
+            <h3>思考过程</h3>
+            <Markdown className="markdown" value={reasoning} />
+          </section> : null}
+        </div>
+      </section>
+    </div> : null}
+  </section>;
 }
 
 
@@ -154,40 +142,15 @@ function ErrorNotice({ error }) {
 }
 
 function AssistantContent({ message, streaming = false, hideThinking = false, onResolveConfirmation, onInspectToolEvent }) {
-  const fallbackText = streaming ? (message.answer || '') : (message.content || message.answer || '');
-  const parts = Array.isArray(message.parts) ? message.parts : [];
-  if (!parts.length) {
-    return <>
-      <Markdown className={streaming ? 'answer markdown' : undefined} value={fallbackText} />
-      <ErrorNotice error={message.error} />
-      <ToolEvents events={message.events || []} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
-    </>;
-  }
-
-  const blocks = [];
-  let pendingEvents = [];
-  const flushEvents = (key) => {
-    if (!pendingEvents.length) return;
-    blocks.push(<ToolEvents key={'tools-' + key} events={pendingEvents} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />);
-    pendingEvents = [];
-  };
-  const lastPartIndex = parts.map((part, index) => ({ part, index })).reverse().find(item => item.part.text || item.part.event)?.index ?? -1;
-  parts.forEach((part, index) => {
-    if (part.kind === 'tool' && part.event) {
-      pendingEvents.push(part.event);
-      return;
-    }
-    flushEvents(index);
-    if (part.kind === 'text' && part.text) {
-      blocks.push(<Markdown key={'text-' + index} className={streaming ? 'answer markdown' : undefined} value={part.text} />);
-    } else if (part.kind === 'reasoning' && part.text) {
-      const reasoningActive = streaming && index === lastPartIndex;
-      blocks.push(<ReasoningBlock key={'reasoning-' + index} value={part.text} streaming={reasoningActive} hidden={hideThinking} />);
-    }
-  });
-  flushEvents('end');
-  if (message.error) blocks.push(<ErrorNotice key="stream-error" error={message.error} />);
-  return <>{blocks}</>;
+  const { textParts, executionEvents, confirmations, reasoningParts } = splitAssistantMessage(message, {streaming, hideThinking});
+  return <>
+    {textParts.length
+      ? textParts.map((text, index) => <Markdown key={'text-' + index} className={streaming ? 'answer markdown' : undefined} value={text} />)
+      : (streaming ? <div className="answer" aria-live="polite" /> : null)}
+    <ErrorNotice error={message.error} />
+    <PendingConfirmations confirmations={confirmations} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
+    <ExecutionSummary events={executionEvents} reasoningParts={reasoningParts} streaming={streaming} onInspectToolEvent={onInspectToolEvent} />
+  </>;
 }
 
 function UserMessageView({ message, messageIndex, onCopy, onEditUserMessage, onDownloadAttachment }) {
@@ -235,19 +198,15 @@ function UserMessageView({ message, messageIndex, onCopy, onEditUserMessage, onD
 export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEditUserMessage, onDownloadAttachment, hideThinking = true, onResolveConfirmation, onInspectToolEvent }) {
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
   if (message.role === 'assistant-stream') {
-    const hasInlineParts = Array.isArray(message.parts) && message.parts.length > 0;
     return <div className="msg assistant" data-model-message="true">
-      <ReasoningBlock value={message.reasoning} streaming={!message.answer} hidden={hideThinking || hasInlineParts} />
       <AssistantContent message={message} streaming hideThinking={hideThinking} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
     </div>;
   }
   if (message.role === 'assistant') {
-    const reasoning = hideThinking ? '' : message.reasoning;
-    const hasInlineParts = Array.isArray(message.parts) && message.parts.length > 0;
+    const copyText = splitAssistantMessage(message, {hideThinking: true}).textParts.join('\n\n');
     return <div className="msg assistant markdown" data-model-message="true">
-      <ReasoningBlock value={message.reasoning} hidden={hideThinking || hasInlineParts} />
       <AssistantContent message={message} hideThinking={hideThinking} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
-      <MessageActions text={[reasoning, message.content].filter(Boolean).join('\n\n')} onCopy={onCopy} onBranch={onBranch ? () => onBranch(messageIndex) : null} />
+      <MessageActions text={copyText} onCopy={onCopy} onBranch={onBranch ? () => onBranch(messageIndex) : null} />
     </div>;
   }
   const role = message.role || 'user';

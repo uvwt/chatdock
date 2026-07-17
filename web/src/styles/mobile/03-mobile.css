@@ -304,6 +304,10 @@
   }
 
   .messages {
+    --gpt-text: #111827;
+    --text-strong: #0f172a;
+    --gpt-muted: #475569;
+    --gpt-muted-2: #94a3b8;
     padding: 28px 18px calc(114px + env(safe-area-inset-bottom, 0px)) !important;
     background: #ffffff !important;
   }
