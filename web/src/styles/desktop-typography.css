@@ -1,0 +1,246 @@
+/* 桌面端统一排版基线：提高中文可读性，避免小字号与高字重叠加后显得发硬、发碎。 */
+@media (min-width: 861px) {
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.55;
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+  }
+
+  #app.app #title {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+
+  #app.app .brand-text {
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+
+  #app.app .sub {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  #app.app .workspace-picker-name {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  #app.app .workspace-picker-meta {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  #app.app .session-title {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    line-height: 1.45 !important;
+    letter-spacing: 0 !important;
+  }
+
+  #app.app .session-preview,
+  #app.app .session-meta {
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+  }
+
+  #app.app .sidebar-section-title,
+  #app.app .sidebar-settings-entry {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .settings-page {
+    font-size: 15px;
+    letter-spacing: 0;
+  }
+
+  .settings-page .settings-header h2 {
+    font-size: 26px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .settings-page .settings-header p {
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 1.55 !important;
+  }
+
+  .settings-page .module-tab {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .settings-page .module-group-label {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: .02em !important;
+  }
+
+  .settings-page .module-view-title span {
+    font-size: 24px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .settings-page .settings-section-head b,
+  .settings-page .settings-block-head label,
+  .settings-page .product-card-head b,
+  .settings-page .task-name,
+  .settings-page .mcp-form-head b,
+  .settings-page .model-quick-head b {
+    font-size: 16px !important;
+    font-weight: 650 !important;
+    line-height: 1.4 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .settings-page .hint,
+  .settings-page .product-meta,
+  .settings-page .task-desc,
+  .settings-page .stat-label,
+  .settings-page .settings-section-head p,
+  .settings-page .mcp-form-head span,
+  .settings-page .model-quick-head span,
+  .settings-page .model-summary-card span,
+  .settings-page .model-summary-card small {
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 1.65 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .settings-page .task-meta {
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    line-height: 1.6 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .settings-page label,
+  .settings-page .check-row {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    line-height: 1.45 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .settings-page input,
+  .settings-page textarea,
+  .settings-page select,
+  .settings-page .session-search {
+    font-size: 14px !important;
+    line-height: 1.45 !important;
+  }
+
+  .settings-page button,
+  .settings-page button.secondary,
+  .settings-page button.small,
+  .settings-page .settings-actions button,
+  .settings-page .product-actions button,
+  .settings-page .task-actions button,
+  .settings-page .model-option {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    line-height: 1.35 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .settings-page .badge,
+  .settings-page .automation-task-running {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .settings-page details > summary {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .settings-page .automation-task-title-wrap .task-name {
+    font-size: 17px !important;
+    font-weight: 650 !important;
+    line-height: 1.42 !important;
+  }
+
+  .settings-page .automation-task-card {
+    padding: 18px !important;
+  }
+
+  .settings-page .tasks-list {
+    gap: 16px !important;
+  }
+
+  .settings-page .automation-task-desc {
+    color: #596579 !important;
+    font-size: 15px !important;
+    line-height: 1.72 !important;
+  }
+
+  .settings-page .automation-task-meta-list .task-meta {
+    color: #667085 !important;
+    font-size: 13px !important;
+    line-height: 1.68 !important;
+  }
+
+  .settings-page .automation-task-toggle {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+  }
+
+  .settings-page .mcp-tool-picker-head b {
+    font-size: 16px !important;
+    font-weight: 650 !important;
+    line-height: 1.4 !important;
+  }
+
+  .settings-page .mcp-tool-picker-head span {
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 1.55 !important;
+  }
+
+  .settings-page .mcp-tool-policy-name b {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+  }
+
+  .settings-page .mcp-tool-policy-name span {
+    color: #667085 !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+  }
+
+  .settings-page .mcp-tool-exposure {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+  }
+
+  .settings-page .mcp-tool-exposure select {
+    font-size: 14px !important;
+  }
+
+  .settings-page .mcp-tool-policy-actions button {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+  }
+
+}
