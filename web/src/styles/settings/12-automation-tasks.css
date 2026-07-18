@@ -1,0 +1,231 @@
+/* 自动化任务卡片使用独立布局，避免通用 task 样式把正文和操作区挤在同一行。 */
+.settings-page .tasks-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+  align-items: start !important;
+}
+
+.settings-page .automation-task-card {
+  display: flex !important;
+  min-width: 0 !important;
+  flex-direction: column !important;
+  padding: 16px !important;
+  border-radius: 16px !important;
+  background: var(--settings-v5-card, #fff) !important;
+  overflow: visible !important;
+}
+
+.settings-page .automation-task-head {
+  display: flex !important;
+  flex-direction: row !important;
+  grid-template-columns: none !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  margin: 0 !important;
+}
+
+.settings-page .automation-task-title-wrap {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-page .automation-task-title-wrap .task-name {
+  min-width: 0;
+  font-size: 16px !important;
+  line-height: 1.35 !important;
+  overflow-wrap: anywhere;
+}
+
+.settings-page .automation-task-running {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #eef6ff;
+  color: #175cd3;
+  font-size: 11px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.settings-page .automation-task-head-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-page .automation-task-desc {
+  display: -webkit-box;
+  min-width: 0;
+  margin: 12px 0 0 !important;
+  overflow: hidden;
+  color: var(--set-muted, #667085) !important;
+  font-size: 13px !important;
+  line-height: 1.62 !important;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.settings-page .automation-task-notice,
+.settings-page .automation-task-error {
+  margin-top: 10px !important;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.settings-page .automation-task-error {
+  background: #fff5f5;
+}
+
+.settings-page .automation-task-meta-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--set-border, #e4e7ec);
+}
+
+.settings-page .automation-task-meta-list .task-meta {
+  margin: 0 !important;
+  color: var(--set-muted, #667085) !important;
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+  overflow-wrap: anywhere;
+}
+
+.settings-page .automation-task-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.settings-page .automation-task-toggle {
+  flex: 0 0 auto;
+  margin: 0 !important;
+  color: var(--set-text, #344054) !important;
+  font-size: 13px !important;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings-page .automation-task-toggle input {
+  margin: 0;
+}
+
+.settings-page .automation-task-primary-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 7px !important;
+  margin: 0 !important;
+  flex-wrap: nowrap !important;
+}
+
+.settings-page .automation-task-primary-actions button {
+  min-width: 78px;
+}
+
+.settings-page .automation-task-more {
+  position: relative;
+}
+
+.settings-page .automation-task-more > summary {
+  display: inline-flex;
+  width: 32px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--set-border, #d0d5dd);
+  border-radius: 9px;
+  background: #fff;
+  color: #475467;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 1px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.settings-page .automation-task-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-page .automation-task-more > summary:hover,
+.settings-page .automation-task-more[open] > summary {
+  border-color: #98a2b3;
+  background: #f8fafc;
+}
+
+.settings-page .automation-task-more > summary:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, .18);
+  outline-offset: 2px;
+}
+
+.settings-page .automation-task-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 7px);
+  right: 0;
+  display: grid;
+  min-width: 158px;
+  gap: 5px;
+  padding: 7px;
+  border: 1px solid var(--set-border, #e4e7ec);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, .14);
+}
+
+.settings-page .automation-task-menu button {
+  width: 100%;
+  min-height: 34px !important;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+@media (max-width: 860px) {
+  .settings-page .tasks-list {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .settings-page .automation-task-card {
+    padding: 14px !important;
+  }
+
+  .settings-page .automation-task-title-wrap {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .settings-page .automation-task-desc {
+    -webkit-line-clamp: 4;
+  }
+
+  .settings-page .automation-task-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-page .automation-task-primary-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .settings-page .automation-task-primary-actions button {
+    width: 100%;
+    min-width: 0;
+  }
+}

@@ -536,7 +536,49 @@ function scheduledTaskContextLabel(mode) {
 }
 
 function TaskCard({ task, editScheduledTask, deleteScheduledTask, toggleScheduledTask, runScheduledTaskNow, viewScheduledTaskRuns, openScheduledTaskSession }) {
-  return <div className="task-card"><div className="task-head"><div><div className="task-name">{task.title || '未命名任务'}{task.running ? ' · 运行中' : ''}</div><div className="task-desc">{(task.prompt || '').slice(0, 120) || '无提示内容'}</div></div><div className="task-actions"><span className={'badge ' + taskStatusClass(task)}>{taskStatusLabel(task)}</span><button className="secondary small" disabled={task.running} onClick={() => runScheduledTaskNow(task.id)}>立即运行</button><button className="secondary small" onClick={() => viewScheduledTaskRuns(task.id)}>查看记录</button>{task.session_id ? <button className="secondary small" onClick={() => openScheduledTaskSession(task.session_id)}>打开最近</button> : null}<button className="secondary small" onClick={() => editScheduledTask(task.id)}>编辑</button><button className="danger small" onClick={() => deleteScheduledTask(task.id)}>删除</button></div></div><label className="task-toggle"><input type="checkbox" checked={!!task.enabled} onChange={e => toggleScheduledTask(task.id, e.target.checked)} /> 启用</label><div className="task-meta">{scheduleSummary(task)}</div><div className="task-meta">上下文：{scheduledTaskContextLabel(task.context_mode || 'stateless')}{task.context_mode === 'session' && task.session_id ? ' · 会话 ' + task.session_id : ''}</div>{task.running ? <div className="hint">任务运行中：编辑和启用状态会从下次运行生效；删除不会中断已发出的模型请求。</div> : null}{task.last_error ? <div className="task-error">上次错误：{task.last_error}</div> : null}</div>;
+  const prompt = (task.prompt || '').trim().slice(0, 160) || '无提示内容';
+  const closeMenuAndRun = (event, action) => {
+    event.currentTarget.closest('details')?.removeAttribute('open');
+    action();
+  };
+
+  return <article className="task-card automation-task-card">
+    <header className="task-head automation-task-head">
+      <div className="automation-task-title-wrap">
+        <div className="task-name">{task.title || '未命名任务'}</div>
+        {task.running ? <span className="automation-task-running">运行中</span> : null}
+      </div>
+      <div className="automation-task-head-actions">
+        <span className={'badge ' + taskStatusClass(task)}>{taskStatusLabel(task)}</span>
+        <details className="automation-task-more">
+          <summary aria-label="更多任务操作" title="更多操作">•••</summary>
+          <div className="automation-task-menu">
+            {task.session_id ? <button type="button" className="secondary small" onClick={event => closeMenuAndRun(event, () => openScheduledTaskSession(task.session_id))}>打开最近会话</button> : null}
+            <button type="button" className="secondary small" onClick={event => closeMenuAndRun(event, () => editScheduledTask(task.id))}>编辑任务</button>
+            <button type="button" className="danger small" onClick={event => closeMenuAndRun(event, () => deleteScheduledTask(task.id))}>删除任务</button>
+          </div>
+        </details>
+      </div>
+    </header>
+
+    <div className="task-desc automation-task-desc" title={prompt}>{prompt}</div>
+
+    {task.running ? <div className="hint automation-task-notice">任务运行中：编辑和启用状态会从下次运行生效；删除不会中断已发出的模型请求。</div> : null}
+    {task.last_error ? <div className="task-error automation-task-error">上次错误：{task.last_error}</div> : null}
+
+    <div className="automation-task-meta-list">
+      <div className="task-meta">{scheduleSummary(task)}</div>
+      <div className="task-meta">上下文：{scheduledTaskContextLabel(task.context_mode || 'stateless')}{task.context_mode === 'session' && task.session_id ? ' · 会话 ' + task.session_id : ''}</div>
+    </div>
+
+    <footer className="automation-task-footer">
+      <label className="task-toggle automation-task-toggle"><input type="checkbox" checked={!!task.enabled} onChange={e => toggleScheduledTask(task.id, e.target.checked)} /><span>启用</span></label>
+      <div className="task-actions automation-task-primary-actions">
+        <button type="button" className="secondary small" disabled={task.running} onClick={() => runScheduledTaskNow(task.id)}>立即运行</button>
+        <button type="button" className="secondary small" onClick={() => viewScheduledTaskRuns(task.id)}>查看记录</button>
+      </div>
+    </footer>
+  </article>;
 }
 
 function DataStatus({ dataStatus, onCopy }) {
