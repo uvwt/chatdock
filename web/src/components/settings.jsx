@@ -48,7 +48,7 @@ export function SettingsPanel(props) {
     window.clearTimeout(saveTimerRef.current);
     setSaveState({scope, status: 'saving', message: ''});
     try {
-      await save();
+      await save({silent: true});
       setSaveState({scope, status: 'saved', message: ''});
       saveTimerRef.current = window.setTimeout(() => setSaveState(current => current.scope === scope ? {scope: '', status: 'idle', message: ''} : current), 2800);
     } catch (error) {
@@ -63,7 +63,7 @@ export function SettingsPanel(props) {
     (refreshVisibleSettings || refreshProductState)?.();
   };
   return <section className="settings">
-    <div className="settings-header"><div><div className="settings-title-row"><h2>配置中心</h2>{unsavedCount ? <span className="settings-global-save-state dirty"><span aria-hidden="true" />{unsavedCount} 处未保存</span> : saveState.status === 'saved' ? <span className="settings-global-save-state saved">✓ 已保存</span> : null}</div><p>常用入口靠前，高级配置收进折叠区。</p></div><div className="settings-header-actions"><button className="secondary small" onClick={() => closeSettings()}>返回</button><button className="secondary small settings-refresh-button" onClick={refreshSettings} aria-label="刷新" title="刷新"><svg className="settings-refresh-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.76-4.24L13 11h8V3z" fill="currentColor" /></svg><span className="settings-refresh-text">刷新</span></button></div></div>
+    <div className="settings-header"><div><div className="settings-title-row"><h2>配置中心</h2>{unsavedCount ? <span className="settings-global-save-state dirty"><span aria-hidden="true" />{unsavedCount} 处未保存</span> : saveState.status === 'saved' ? <span className="settings-global-save-state saved">✓ 已保存</span> : null}</div><p>按模块管理配置；有修改时保存后生效。</p></div><div className="settings-header-actions"><button className="secondary small" onClick={() => closeSettings()}>返回</button><button className="secondary small settings-refresh-button" onClick={refreshSettings} aria-label="刷新" title="刷新"><svg className="settings-refresh-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.76-4.24L13 11h8V3z" fill="currentColor" /></svg><span className="settings-refresh-text">刷新</span></button></div></div>
     <nav className="module-tabs" aria-label="配置模块">{settingsModuleGroups.map(group => <div className="module-nav-group" key={group.title}><div className="module-group-label">{group.title}</div>{group.modules.filter(m => settingsModules.includes(m)).map(m => { const dirty = moduleIsDirty(m); return <button key={m} className={'module-tab ' + (activeModule === m ? 'active ' : '') + (dirty ? 'dirty' : '')} onClick={() => switchSettingsModule(m)}><span className="module-tab-label">{moduleLabel(m)}</span>{dirty ? <span className="module-tab-dirty" aria-label="有未保存修改">未保存</span> : null}</button>; })}</div>)}</nav>
     <ModuleView name="workspace" activeModule={activeModule}><WorkspaceModule setupStatus={setupStatus} workspaces={workspaces} createWorkspace={createWorkspace} selectWorkspace={selectWorkspace} deleteWorkspace={deleteWorkspace} runSetupWizard={runSetupWizard} /></ModuleView>
     <ModuleView name="model" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="保存后将用于新的对话和自动化任务。"><ModelModule config={config} configDirty={configDirty} saveState={configSaveState} setConfig={setConfig} saveConfig={() => saveScope('config')} showWorkspacePromptPreview={showWorkspacePromptPreview} workspacePromptPreview={workspacePromptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>
@@ -93,9 +93,9 @@ function SettingsSaveState({ dirty, state = {}, onSave, hint }) {
   const status = state.status === 'saving' ? 'saving' : state.status === 'error' ? 'error' : dirty ? 'dirty' : state.status === 'saved' ? 'saved' : 'idle';
   if (status === 'idle') return null;
   const content = {
-    dirty: ['有未保存的修改', hint || '保存后配置才会生效。'],
-    saving: ['正在保存配置…', '请稍候，不要关闭页面。'],
-    saved: ['配置已保存', '刚刚已写入当前工作空间。'],
+    dirty: ['修改尚未保存', hint || '保存后配置才会生效。'],
+    saving: ['正在保存', '完成前请保持当前页面。'],
+    saved: ['保存成功', '配置已写入当前工作空间。'],
     error: ['保存失败', state.message || '请检查配置后重试。'],
   }[status];
   return <div className={'settings-save-state ' + status} role={status === 'error' ? 'alert' : 'status'}>

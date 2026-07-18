@@ -1,0 +1,393 @@
+/*
+ * 配置中心最终视觉系统。
+ * 旧样式文件继续负责布局和响应式结构；这里集中定义字号层级、字重、状态颜色和提示组件，
+ * 避免各模块通过局部选择器形成不同的视觉语言。
+ */
+.settings-page {
+  --settings-type-page-title: 26px;
+  --settings-type-module-title: 22px;
+  --settings-type-section-title: 16px;
+  --settings-type-body: 14px;
+  --settings-type-meta: 13px;
+  --settings-type-caption: 12px;
+  --settings-weight-title: 700;
+  --settings-weight-section: 650;
+  --settings-weight-control: 600;
+  --settings-weight-body: 400;
+  --settings-text: #182230;
+  --settings-muted: #667085;
+  --settings-subtle: #98a2b3;
+  --settings-line: #e4e9ef;
+  --settings-info-bg: #eff6ff;
+  --settings-info-line: #b8d4f4;
+  --settings-info-text: #245b92;
+  --settings-success-bg: #edf9f4;
+  --settings-success-line: #a9d9c8;
+  --settings-success-text: #087454;
+  --settings-warning-bg: #fff7e7;
+  --settings-warning-line: #efc77b;
+  --settings-warning-text: #8a5600;
+  --settings-error-bg: #fff1ef;
+  --settings-error-line: #efb5ad;
+  --settings-error-text: #a1382d;
+  color: var(--settings-text) !important;
+  font-size: var(--settings-type-body);
+  font-weight: var(--settings-weight-body);
+  line-height: 1.55;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.settings-page button,
+.settings-page input,
+.settings-page textarea,
+.settings-page select {
+  font-family: inherit;
+  letter-spacing: 0 !important;
+}
+
+/* 六级文字层级：页面、模块、区块、正文、元信息、标签。 */
+.settings-page .settings-header h2 {
+  color: var(--settings-text) !important;
+  font-size: var(--settings-type-page-title) !important;
+  font-weight: var(--settings-weight-title) !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0 !important;
+}
+
+.settings-page .module-view-title span {
+  color: var(--settings-text) !important;
+  font-size: var(--settings-type-module-title) !important;
+  font-weight: var(--settings-weight-title) !important;
+  line-height: 1.25 !important;
+  letter-spacing: 0 !important;
+}
+
+.settings-page .settings-section-head b,
+.settings-page .settings-block-head label,
+.settings-page .model-quick-head b,
+.settings-page .mcp-form-head b,
+.settings-page .product-card-head b,
+.settings-page .task-name,
+.settings-page .automation-task-title-wrap .task-name,
+.settings-page .mcp-tool-picker-head b,
+.settings-page .stat-value,
+.settings-page .workspace-summary-card b,
+.settings-page .model-summary-card b {
+  color: var(--settings-text) !important;
+  font-size: var(--settings-type-section-title) !important;
+  font-weight: var(--settings-weight-section) !important;
+  line-height: 1.4 !important;
+  letter-spacing: 0 !important;
+}
+
+.settings-page .settings-header p,
+.settings-page .module-view-title p,
+.settings-page .hint,
+.settings-page .task-desc,
+.settings-page .automation-task-desc,
+.settings-page .settings-section-head p,
+.settings-page .mcp-form-head span,
+.settings-page .model-quick-head span,
+.settings-page .mcp-tool-picker-head span,
+.settings-page .model-summary-card span,
+.settings-page .model-summary-card small {
+  color: var(--settings-muted) !important;
+  font-size: var(--settings-type-body) !important;
+  font-weight: var(--settings-weight-body) !important;
+  line-height: 1.6 !important;
+  letter-spacing: 0 !important;
+}
+
+.settings-page .product-meta,
+.settings-page .task-meta,
+.settings-page .automation-task-meta-list .task-meta,
+.settings-page .stat-label,
+.settings-page .mcp-tool-policy-name span,
+.settings-page .mcp-server-main span,
+.settings-page .mcp-server-main em,
+.settings-page .mcp-server-meta small,
+.settings-page .data-info-row span,
+.settings-page .data-info-row b {
+  color: var(--settings-muted) !important;
+  font-size: var(--settings-type-meta) !important;
+  font-weight: var(--settings-weight-body) !important;
+  line-height: 1.55 !important;
+  letter-spacing: 0 !important;
+}
+
+.settings-page .module-group-label {
+  color: var(--settings-subtle) !important;
+  font-size: 11px !important;
+  font-weight: var(--settings-weight-control) !important;
+  line-height: 1.3 !important;
+  letter-spacing: .06em !important;
+}
+
+.settings-page .module-tab,
+.settings-page label,
+.settings-page .check-row,
+.settings-page details > summary,
+.settings-page .automation-task-toggle,
+.settings-page .mcp-tool-policy-name b,
+.settings-page .mcp-tool-exposure {
+  font-size: var(--settings-type-body) !important;
+  font-weight: var(--settings-weight-control) !important;
+  line-height: 1.45 !important;
+  letter-spacing: 0 !important;
+}
+
+.settings-page input,
+.settings-page textarea,
+.settings-page select,
+.settings-page .session-search {
+  font-size: var(--settings-type-body) !important;
+  font-weight: var(--settings-weight-body) !important;
+  line-height: 1.45 !important;
+}
+
+.settings-page button,
+.settings-page button.secondary,
+.settings-page button.small,
+.settings-page button.mini,
+.settings-page .settings-actions button,
+.settings-page .product-actions button,
+.settings-page .task-actions button,
+.settings-page .model-option,
+.settings-page .mcp-tool-policy-actions button {
+  font-size: var(--settings-type-body) !important;
+  font-weight: var(--settings-weight-control) !important;
+  line-height: 1.35 !important;
+  letter-spacing: 0 !important;
+}
+
+.settings-page .badge,
+.settings-page .automation-task-running,
+.settings-page .settings-global-save-state,
+.settings-page .module-tab-dirty {
+  font-size: var(--settings-type-caption) !important;
+  font-weight: var(--settings-weight-control) !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+}
+
+.settings-page .module-tab:not(.active) .module-tab-dirty {
+  width: 7px;
+  height: 7px;
+  min-height: 7px;
+  margin-left: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: 50% !important;
+  background: #e49a24 !important;
+  color: transparent;
+  box-shadow: none !important;
+}
+
+.settings-page .module-view.active.dirty {
+  border-color: var(--settings-line) !important;
+  box-shadow: var(--settings-v5-shadow) !important;
+}
+
+/* 状态标签只用语义色区分，不再让所有 badge 默认显示为绿色。 */
+.settings-page .badge,
+.settings-page .automation-task-running {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px !important;
+  border: 1px solid var(--settings-line) !important;
+  border-radius: 999px !important;
+  background: #f8fafc !important;
+  color: #475467 !important;
+}
+
+.settings-page .badge.ok {
+  border-color: var(--settings-success-line) !important;
+  background: var(--settings-success-bg) !important;
+  color: var(--settings-success-text) !important;
+}
+
+.settings-page .badge.warn,
+.settings-page .automation-task-running {
+  border-color: var(--settings-warning-line) !important;
+  background: var(--settings-warning-bg) !important;
+  color: var(--settings-warning-text) !important;
+}
+
+.settings-page .badge.error {
+  border-color: var(--settings-error-line) !important;
+  background: var(--settings-error-bg) !important;
+  color: var(--settings-error-text) !important;
+}
+
+/* 提示组件统一使用同一结构、留白和四种语义颜色。 */
+.settings-page .settings-save-state,
+.settings-page .setup-banner,
+.settings-page .mcp-inline-warning,
+.settings-page .backup-health,
+.settings-page .automation-task-notice,
+.settings-page .automation-task-error,
+.settings-page .task-error {
+  border: 1px solid var(--settings-warning-line) !important;
+  border-radius: 12px !important;
+  background: var(--settings-warning-bg) !important;
+  color: var(--settings-warning-text) !important;
+  box-shadow: none !important;
+}
+
+.settings-page .settings-save-state,
+.settings-page .setup-banner,
+.settings-page .mcp-inline-warning,
+.settings-page .backup-health {
+  padding: 12px 14px !important;
+}
+
+.settings-page .automation-task-notice,
+.settings-page .automation-task-error,
+.settings-page .task-error {
+  padding: 10px 12px !important;
+}
+
+.settings-page .settings-save-state b,
+.settings-page .setup-banner b,
+.settings-page .mcp-inline-warning b,
+.settings-page .backup-health b,
+.settings-page .automation-task-notice b,
+.settings-page .automation-task-error b,
+.settings-page .task-error b {
+  font-size: var(--settings-type-body) !important;
+  font-weight: var(--settings-weight-section) !important;
+  line-height: 1.4 !important;
+}
+
+.settings-page .settings-save-state span,
+.settings-page .setup-banner .hint,
+.settings-page .mcp-inline-warning span,
+.settings-page .backup-health,
+.settings-page .automation-task-notice,
+.settings-page .automation-task-error,
+.settings-page .task-error {
+  font-size: var(--settings-type-meta) !important;
+  font-weight: var(--settings-weight-body) !important;
+  line-height: 1.55 !important;
+}
+
+.settings-page .settings-save-state.saving,
+.settings-page .automation-task-notice {
+  border-color: var(--settings-info-line) !important;
+  background: var(--settings-info-bg) !important;
+  color: var(--settings-info-text) !important;
+}
+
+.settings-page .settings-save-state.saved,
+.settings-page .setup-banner.ok,
+.settings-page .mcp-inline-warning.ok,
+.settings-page .backup-health.ok {
+  border-color: var(--settings-success-line) !important;
+  background: var(--settings-success-bg) !important;
+  color: var(--settings-success-text) !important;
+}
+
+.settings-page .settings-save-state.error,
+.settings-page .mcp-inline-warning.danger,
+.settings-page .automation-task-error,
+.settings-page .task-error {
+  border-color: var(--settings-error-line) !important;
+  background: var(--settings-error-bg) !important;
+  color: var(--settings-error-text) !important;
+}
+
+.settings-page .settings-save-state-copy {
+  gap: 10px;
+}
+
+.settings-page .settings-save-state-icon {
+  width: 22px;
+  height: 22px;
+  font-size: var(--settings-type-caption) !important;
+  font-weight: var(--settings-weight-section) !important;
+}
+
+.settings-page .settings-save-state-copy b {
+  font-size: var(--settings-type-body) !important;
+  font-weight: var(--settings-weight-section) !important;
+}
+
+.settings-page .settings-save-state-copy div > span {
+  margin-top: 2px;
+  opacity: .86;
+  font-size: var(--settings-type-meta) !important;
+}
+
+.settings-page .settings-global-save-state {
+  min-height: 24px;
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.settings-page .settings-global-save-state.dirty,
+.settings-page .module-tab-dirty {
+  border: 1px solid var(--settings-warning-line);
+  background: var(--settings-warning-bg);
+  color: var(--settings-warning-text);
+}
+
+.settings-page .settings-global-save-state.saved {
+  border: 1px solid var(--settings-success-line);
+  background: var(--settings-success-bg);
+  color: var(--settings-success-text);
+}
+
+/* 全局 Toast 与配置页提示保持同一套语义颜色和排版。 */
+.app-toast {
+  padding: 12px 14px;
+  border: 1px solid var(--settings-line, #e4e9ef);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--settings-text, #182230);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .14);
+}
+
+.app-toast.success {
+  border-color: var(--settings-success-line, #a9d9c8);
+  background: var(--settings-success-bg, #edf9f4);
+  color: var(--settings-success-text, #087454);
+}
+
+.app-toast.info {
+  border-color: var(--settings-info-line, #b8d4f4);
+  background: var(--settings-info-bg, #eff6ff);
+  color: var(--settings-info-text, #245b92);
+}
+
+.app-toast.warn {
+  border-color: var(--settings-warning-line, #efc77b);
+  background: var(--settings-warning-bg, #fff7e7);
+  color: var(--settings-warning-text, #8a5600);
+}
+
+.app-toast.error {
+  border-color: var(--settings-error-line, #efb5ad);
+  background: var(--settings-error-bg, #fff1ef);
+  color: var(--settings-error-text, #a1382d);
+}
+
+@media (max-width: 720px) {
+  .settings-page {
+    --settings-type-page-title: 22px;
+    --settings-type-module-title: 20px;
+    --settings-type-section-title: 15px;
+    --settings-type-body: 14px;
+    --settings-type-meta: 13px;
+  }
+
+  .settings-page .module-group-label {
+    font-size: var(--settings-type-caption) !important;
+  }
+}

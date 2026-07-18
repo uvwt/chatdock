@@ -1146,7 +1146,7 @@ export default function App() {
     }
   }, [api, busy, clearAttachments, loadConfig, loadDataStatus, loadMCPConfig, loadModelProviders, loadWorkspaceSummaries, loadScheduledTasks, loadSessions, loadSetupStatus, loadSystemStatus, selectedWorkspaceID, showDialog, showToast]);
 
-  const saveConfig = useCallback(async () => {
+  const saveConfig = useCallback(async ({silent = false} = {}) => {
     const workspaceID = activeWorkspace?.name || selectedWorkspaceID || 'default';
     await saveWorkspaceConfig(api, workspaceID, {
       provider_id: config.provider_id,
@@ -1163,7 +1163,7 @@ export default function App() {
     setConfig(c => ({ ...c, api_key: '', embedding_api_key: '' }));
     await loadConfig();
     await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadSystemStatus()]);
-    showToast('已保存到工作空间：' + workspaceID, 'success');
+    if (!silent) showToast('已保存到工作空间：' + workspaceID, 'success');
   }, [activeWorkspace?.name, api, config, loadConfig, loadModelProviders, loadSetupStatus, loadSystemStatus, loadWorkspaces, selectedWorkspaceID, showToast]);
 
   const showWorkspacePromptPreview = useCallback(async () => {
@@ -1306,19 +1306,19 @@ export default function App() {
     } catch (e) { showToast('获取候选模型失败：' + e.message, 'error'); }
   }, [api, showToast]);
 
-  const saveMCPConfig = useCallback(async () => {
+  const saveMCPConfig = useCallback(async ({silent = false} = {}) => {
     try {
       JSON.parse(mcpConfig || '{}');
     } catch (e) {
       const error = new Error('MCP 配置不是合法 JSON：' + e.message);
-      showToast(error.message, 'error');
+      if (!silent) showToast(error.message, 'error');
       throw error;
     }
     await saveMCPConfigRequest(api, mcpConfig);
     // 保存后重新读取服务端规范化结果，同时更新未保存基线。
     await loadMCPConfig();
     await loadMCPStatus().catch(() => { });
-    showToast('MCP 配置已保存', 'success');
+    if (!silent) showToast('MCP 配置已保存', 'success');
   }, [api, loadMCPConfig, loadMCPStatus, mcpConfig, showToast]);
 
   const testMCP = useCallback(async (serverName = '') => {
