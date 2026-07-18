@@ -51,7 +51,7 @@
   html.chatdock-keyboard-open #app.app .composer-shell {
     position: relative !important;
     bottom: auto !important;
-    padding-bottom: 8px !important;
+    padding-bottom: calc(8px + var(--chatdock-keyboard-accessory-inset, 0px)) !important;
     background: var(--gpt-main) !important;
   }
 }

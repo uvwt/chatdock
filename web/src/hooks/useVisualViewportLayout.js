@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { isTextEntryTarget, normalizeViewportMetrics, shouldKeepMessagesAtBottom } from '../lib/viewportLayout.js';
+import { isTextEntryTarget, keyboardAccessoryInset, normalizeViewportMetrics, shouldKeepMessagesAtBottom } from '../lib/viewportLayout.js';
 
 const mobileViewportQuery = '(max-width: 720px)';
 
@@ -14,11 +14,13 @@ export function useVisualViewportLayout() {
     const clearViewportState = () => {
       root.style.removeProperty('--chatdock-viewport-height');
       root.style.removeProperty('--chatdock-viewport-offset-top');
+      root.style.removeProperty('--chatdock-keyboard-accessory-inset');
       root.classList.remove('chatdock-keyboard-open');
     };
 
     const applyViewportState = () => {
       const messageBox = document.querySelector('#app.app .messages');
+      const composerShell = document.querySelector('#app.app .composer-shell');
       const keepMessagesAtBottom = shouldKeepMessagesAtBottom(messageBox);
 
       window.cancelAnimationFrame(layoutFrame);
@@ -29,11 +31,14 @@ export function useVisualViewportLayout() {
         }
 
         // iOS 聚焦输入框时会同时缩小并平移 visualViewport。
-        // 应用固定到这个真实可见矩形，内部仍保持正常 flex 流，避免状态栏重叠和输入区覆盖消息。
+        // 应用固定到真实可见矩形；系统输入附件栏不计入 visualViewport，需单独为聊天输入区预留空间。
         const metrics = normalizeViewportMetrics(visualViewport, window.innerHeight);
-        const keyboardOpen = isTextEntryTarget(document.activeElement);
+        const activeElement = document.activeElement;
+        const keyboardOpen = isTextEntryTarget(activeElement);
+        const accessoryInset = keyboardAccessoryInset(navigator, activeElement, composerShell);
         root.style.setProperty('--chatdock-viewport-height', `${metrics.height}px`);
         root.style.setProperty('--chatdock-viewport-offset-top', `${metrics.offsetTop}px`);
+        root.style.setProperty('--chatdock-keyboard-accessory-inset', `${accessoryInset}px`);
         root.classList.toggle('chatdock-keyboard-open', keyboardOpen);
 
         if (!keyboardOpen || !keepMessagesAtBottom || !messageBox) return;
