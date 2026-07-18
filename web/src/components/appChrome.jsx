@@ -2,17 +2,19 @@ import React from 'react';
 import { AttachmentList } from './chat.jsx';
 import { ComposerModelPicker } from './modelPicker.jsx';
 import { TaskPanelToggle } from './taskPanel.jsx';
+import { UiIcon } from './uiIcon.jsx';
 import { fmtTime } from '../lib/appUtils.js';
+import { scheduledTaskDisplayTitle } from '../lib/sessionPresentation.js';
 
 export function Topbar({ busy, cloneCurrent, copyCurrentMarkdown, current, currentPinned, currentTitle, deleteCurrent, exportCurrent, newSession, openSettings, pinCurrent, renameCurrent, setQuickPaletteOpen, setSidebarCollapsed, setThemeState, showContextPreview, sidebarCollapsed, taskPanelOpen, taskPanelTasks, theme, toggleTaskPanel }) {
   return <div className="topbar">
-    <div className="top-left"><button className="mobile-menu" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>☰</button><b id="title">{currentTitle}</b></div>
+    <div className="top-left"><button className="mobile-menu" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label="打开会话列表" title="会话列表"><UiIcon name="menu" className="mobile-menu-icon" /></button><b id="title">{currentTitle}</b></div>
     <div className="top-actions">
-      <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)} title="快捷指令（⌘/Ctrl K）"><span className="action-icon" aria-hidden="true">✦</span><span className="action-label">快捷</span></button>
-      <button className="secondary config-toggle" onClick={() => openSettings()} title="配置中心"><span className="action-icon" aria-hidden="true">⚙</span><span className="action-label">配置</span></button>
+      <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)} title="快捷指令（⌘/Ctrl K）"><UiIcon name="sparkles" className="action-icon" /><span className="action-label">快捷</span></button>
+      <button className="secondary config-toggle" onClick={() => openSettings()} title="配置中心"><UiIcon name="settings" className="action-icon" /><span className="action-label">配置</span></button>
       <TaskPanelToggle open={taskPanelOpen} tasks={taskPanelTasks} onClick={toggleTaskPanel} />
-      <button className="secondary session-actions-toggle mobile-new-toggle" onClick={newSession} aria-label="新会话" title="新会话"><svg className="mobile-new-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg></button>
-      <button className="theme-toggle" onClick={() => setThemeState(theme === 'day' ? 'night' : 'day')}><span className="action-icon" aria-hidden="true">{theme === 'day' ? '☀' : '☾'}</span><span className="action-label">{theme === 'day' ? '白天' : '夜晚'}</span></button>
+      <button className="secondary session-actions-toggle mobile-new-toggle" onClick={newSession} aria-label="新会话" title="新会话"><UiIcon name="plus" className="mobile-new-icon" /></button>
+      <button className="theme-toggle" onClick={() => setThemeState(theme === 'day' ? 'night' : 'day')}><UiIcon name={theme === 'day' ? 'sun' : 'moon'} className="action-icon" /><span className="action-label">{theme === 'day' ? '白天' : '夜晚'}</span></button>
       <button className="secondary" onClick={renameCurrent} disabled={!current || busy}>重命名</button>
       <button className="secondary" onClick={copyCurrentMarkdown} disabled={!current}>复制全文</button>
       <button className="secondary" onClick={cloneCurrent} disabled={!current || busy}>复制会话</button>
@@ -29,7 +31,7 @@ export function ComposerBar({ busy, createPersistedSession, current, downloadAtt
     {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} onDownload={downloadAttachment} /> : null}
     <div className={'composer' + (busy ? ' composer-streaming' : '')}>
       <input ref={fileInputRef} type="file" multiple className="file-input" onChange={event => handleFileSelect(event, { current, createPersistedSession })} />
-      <button className="secondary attach-control" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} aria-label="上传文件" title="上传文件"><svg className="attach-control-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg></button>
+      <button className="secondary attach-control" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} aria-label="上传文件" title="上传文件"><UiIcon name="plus" className="attach-control-icon" /></button>
       <ComposerModelPicker busy={busy} providers={providerChoices} selectedProvider={selectedModelProvider} selectedModel={selectedChatModel} open={modelPickerOpen} setOpen={setModelPickerOpen} selectModel={selectChatModel} openSettings={openSettings} />
       {busy ? <button className="secondary stream-control guide-control" onClick={guideActiveJob} disabled={!input.trim()} aria-label="追加引导" title="追加引导">引导</button> : null}
       {busy ? <button className="danger stream-control stop-control" onClick={stopStreaming} aria-label="中断生成" title="中断生成">中断</button> : null}
@@ -47,8 +49,8 @@ export function Sidebar({ activeWorkspace, activeScheduledTasks, busy, clearSche
       <button id="sidebarToggle" className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}>{sidebarCollapsed ? '›' : '‹'}</button>
     </div>
     <div className="prompt-box"><button className="workspace-picker-trigger" type="button" disabled={busy || !workspaceSummaries.length} onClick={() => setWorkspacePickerOpen(true)}><span className="workspace-picker-name">{activeWorkspace ? (activeWorkspace.name === 'default' ? '默认工作区' : activeWorkspace.name) : '未选择'}</span><span className="workspace-picker-meta">{activeWorkspace ? activeWorkspace.count : sessions.length}</span></button></div>
-    <div className="session-search-row"><label className="session-search-box"><input className="session-search" placeholder="搜索聊天记录" value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} /></label><button className="new" onClick={newSession} aria-label="新会话" title="新会话"><span className="new-icon" aria-hidden="true">＋</span></button></div>
-    {activeScheduledTasks.length ? <div className="sidebar-tasks"><div className="sidebar-section-head compact"><div className="sidebar-section-title">定时任务</div><span className="sidebar-section-count">{activeScheduledTasks.length}</span></div><div className="sidebar-task-list session-list-like">{activeScheduledTasks.slice(0, 3).map(task => <button key={task.id} type="button" className={'sidebar-task-item session ' + (selectedScheduledTaskID === task.id ? 'active ' : '') + (task.running ? 'running ' : '')} onClick={() => openScheduledTaskRunList(task.id)}><div className="session-main"><div className="sidebar-task-name session-title">{task.title || '未命名任务'}</div></div></button>)}</div>{activeScheduledTasks.length > 3 ? <button type="button" className="sidebar-task-more" onClick={() => openSettings('automation')}>查看全部 {activeScheduledTasks.length} 个任务</button> : null}</div> : null}
+    <div className="session-search-row"><label className="session-search-box"><input className="session-search" placeholder="搜索聊天记录" value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} /></label><button className="new" onClick={newSession} aria-label="新会话" title="新会话"><UiIcon name="plus" className="new-icon" /></button></div>
+    {activeScheduledTasks.length ? <div className="sidebar-tasks"><div className="sidebar-section-head compact"><div className="sidebar-section-title">定时任务</div><span className="sidebar-section-count">{activeScheduledTasks.length}</span></div><div className="sidebar-task-list session-list-like">{activeScheduledTasks.slice(0, 3).map(task => <button key={task.id} type="button" className={'sidebar-task-item session ' + (selectedScheduledTaskID === task.id ? 'active ' : '') + (task.running ? 'running ' : '')} onClick={() => openScheduledTaskRunList(task.id)}><UiIcon name="clock" className="sidebar-task-icon" /><div className="session-main"><div className="sidebar-task-name session-title">{scheduledTaskDisplayTitle(task.title)}</div></div></button>)}</div>{activeScheduledTasks.length > 3 ? <button type="button" className="sidebar-task-more" onClick={() => openSettings('automation')}>查看全部 {activeScheduledTasks.length} 个任务</button> : null}</div> : null}
     <div className="sidebar-section-head"><div className="sidebar-section-title">{selectedScheduledTask ? '任务会话' : '最近会话'}</div>{selectedScheduledTask ? <button type="button" className="secondary small sidebar-clear-task" onClick={clearScheduledTaskRunList}>全部</button> : null}</div>
     {selectedScheduledTask ? <div className="session-search-meta">{selectedScheduledTask.title || '定时任务'} · {selectedScheduledTaskSessions.length} 次会话</div> : (sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : '全文搜索 ' + filteredSessions.length + ' 条'}</div> : null)}
     <div id="sessions">{filteredSessions.length ? filteredSessions.map(s => {

@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scheduledTaskSessionRows, visibleSessionRows } from './sessionPresentation.js';
+import { scheduledTaskDisplayTitle, scheduledTaskSessionRows, visibleSessionRows } from './sessionPresentation.js';
+
+test('scheduledTaskDisplayTitle removes decorative emoji without changing the saved title', () => {
+  assert.equal(scheduledTaskDisplayTitle('🌅 每日早安综合消息'), '每日早安综合消息');
+  assert.equal(scheduledTaskDisplayTitle('🌙每日晚安综合消息'), '每日晚安综合消息');
+  assert.equal(scheduledTaskDisplayTitle('V2EX 热门帖子推送'), 'V2EX 热门帖子推送');
+  assert.equal(scheduledTaskDisplayTitle(''), '未命名任务');
+});
 
 test('scheduledTaskSessionRows merges run metadata into existing sessions', () => {
   const run = {session_id: 's1', task_title: '日报', status: 'done', started_at: '2026-07-06T12:00:00Z'};

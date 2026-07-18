@@ -228,9 +228,16 @@
   background: transparent !important;
   box-shadow: none !important;
   display: grid !important;
+  grid-template-columns: 18px minmax(0, 1fr) !important;
   align-items: center !important;
+  gap: 10px !important;
   text-align: left !important;
   color: inherit !important;
+}
+#app.app .sidebar-task-list.session-list-like .sidebar-task-icon {
+  width: 17px !important;
+  height: 17px !important;
+  color: #0f8f78 !important;
 }
 #app.app .sidebar-task-list.session-list-like .sidebar-task-item.session::before {
   content: none !important;

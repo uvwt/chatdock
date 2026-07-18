@@ -35,22 +35,12 @@
     font-size: 0 !important;
   }
 
-  .mobile-menu::before,
-  .quick-palette-toggle::before,
-  .config-toggle::before,
-  .session-actions-toggle::before {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: #0f172a;
-    font-size: 22px;
-    line-height: 1;
+  .mobile-menu-icon,
+  .top-actions .action-icon {
+    width: 22px;
+    height: 22px;
+    color: #0f8f78;
   }
-
-  .mobile-menu::before { content: "☰"; }
-  .quick-palette-toggle::before { content: "✦"; font-size: 21px; }
-  .config-toggle::before { content: "⚙"; }
-  .session-actions-toggle::before { content: "⋯"; font-size: 28px; transform: translateY(-2px); }
 
   .top-left {
     flex: 1 1 auto;
@@ -263,28 +253,12 @@
     box-shadow: 0 8px 20px rgba(15, 23, 42, .05) !important;
   }
 
-  .mobile-menu::before {
-    content: "☰" !important;
-    font-size: 24px !important;
-    font-weight: 500;
-  }
-
-  .quick-palette-toggle::before {
-    content: "⚡" !important;
-    font-size: 22px !important;
-  }
-
-  .config-toggle::before {
-    content: "⚙" !important;
-    font-size: 24px !important;
-  }
-
   .mobile-new-toggle {
     border-color: transparent !important;
     border-radius: 17px !important;
-    background: linear-gradient(135deg, #2563eb, #0f6bff) !important;
+    background: linear-gradient(135deg, #18a88b, #0f8f78) !important;
     color: #ffffff !important;
-    box-shadow: 0 14px 28px rgba(37, 99, 235, .22) !important;
+    box-shadow: 0 14px 28px rgba(15, 143, 120, .22) !important;
   }
 
   .mobile-new-toggle::before {
