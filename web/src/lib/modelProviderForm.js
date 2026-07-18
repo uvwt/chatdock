@@ -8,7 +8,7 @@ export function uniqueModelNames(value) {
   });
 }
 export function providerKeyRows(provider = {}) {
-  const keys = Array.isArray(provider.api_keys) ? provider.api_keys : [];
+  const keys = Array.isArray(provider?.api_keys) ? provider.api_keys : [];
   if (!keys.length) return [{id: 'main', name: '主 key', api_key: '', enabled: true, priority: 1}];
   return keys.map((key, index) => ({
     id: String(key.id || ('key-' + (index + 1))).trim(),

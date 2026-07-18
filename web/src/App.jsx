@@ -139,10 +139,6 @@ export default function App() {
   const showDialog = useCallback((config) => new Promise(resolve => {
     setDialog({ ...config, resolve });
   }), []);
-
-
-
-
   const copyText = useCallback(async (text) => {
     const value = String(text || '').trim();
     if (!value) {
@@ -202,6 +198,7 @@ export default function App() {
     providers,
     workspaceSummaries,
     scheduledTasks,
+    setScheduledTasks,
     dataStatus,
     systemStatus,
     mcpStatus,
@@ -1375,10 +1372,15 @@ export default function App() {
   const toggleScheduledTask = useCallback(async (id, enabled) => {
     const existing = scheduledTasks.find(t => t.id === id);
     if (!existing) return;
-    const payload = { title: existing.title, prompt: existing.prompt, enabled: !!enabled, schedule_type: existing.schedule_type, run_at: existing.run_at || '', time_of_day: existing.time_of_day || '', interval_minutes: existing.interval_minutes || 0, context_mode: existing.context_mode || 'stateless' };
-    const data = await saveScheduledTaskRecord(api, existing, payload);
-    setScheduledTasks(data.tasks || []);
-  }, [api, scheduledTasks]);
+    try {
+      const payload = { title: existing.title, prompt: existing.prompt, enabled: !!enabled, schedule_type: existing.schedule_type, run_at: existing.run_at || '', time_of_day: existing.time_of_day || '', interval_minutes: existing.interval_minutes || 0, context_mode: existing.context_mode || 'stateless' };
+      const data = await saveScheduledTaskRecord(api, existing, payload);
+      setScheduledTasks(data.tasks || []);
+      showToast(enabled ? '自动化任务已启用' : '自动化任务已停用', 'success');
+    } catch (error) {
+      showToast('修改自动化任务状态失败：' + (error.message || '未知错误'), 'error');
+    }
+  }, [api, scheduledTasks, setScheduledTasks, showToast]);
 
   const deleteScheduledTask = useCallback(async (id) => {
     const existing = scheduledTasks.find(t => t.id === id);

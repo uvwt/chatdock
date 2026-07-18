@@ -13,6 +13,10 @@ test('providerKeyRows masks saved keys', () => {
   assert.equal(rows[0].priority, 3);
 });
 
+test('providerKeyRows creates a blank key row for a new provider', () => {
+  assert.deepEqual(providerKeyRows(null), [{id: 'main', name: '主 key', api_key: '', enabled: true, priority: 1}]);
+});
+
 test('providerKeyInputsFromRows keeps saved masks', () => {
   assert.deepEqual(providerKeyInputsFromRows([{id: 'main', name: '主 key', api_key: '********', saved: true}]), [{id: 'main', name: '主 key', api_key: '********', enabled: true, priority: 1}]);
 });
