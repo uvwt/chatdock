@@ -58,6 +58,10 @@ for (const filename of listCSS(stylesDir)) {
     const selector = normalize(match[1]);
     const body = normalize(match[2]);
     if (!selector || !body || selector.startsWith('@')) continue;
+    const targetsSessionList = selector.split(',').some(item => item.trim().endsWith('#sessions'));
+    if (targetsSessionList && /\boverflow(?:-y)?\s*:\s*visible\b/.test(body)) {
+      failures.push(`session list must remain scrollable; ${rel} sets visible overflow on ${selector}`);
+    }
     const scope = scopedKey(file, match.index);
     const blockKey = scope + '\n' + selector + '\n' + body;
     const selectorKey = scope + '\n' + selector;

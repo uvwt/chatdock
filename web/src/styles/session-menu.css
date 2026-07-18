@@ -141,10 +141,9 @@
   opacity: 1 !important;
 }
 
-/* 2026-07-04 会话菜单层级修复：菜单打开时当前行提到最高层，防止后续会话标题穿透。 */
+/* 会话列表必须保持为唯一纵向滚动容器；菜单仅在当前会话行内提升层级。 */
 #app.app #sessions {
   position: relative !important;
-  overflow: visible !important;
   isolation: isolate !important;
 }
 
