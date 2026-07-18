@@ -19,10 +19,13 @@ import { chatStreamAssistantAfterEvent, chatStreamStatsAfterEvent, projectsChatS
 import { appendInlineReasoningPart, appendInlineTextPart } from './lib/toolEvents.js';
 import { providerChoiceID, providerKeyRows, providerLabel, providerPayloadForModelAppend, providerPayloadFromFormValues, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
 import { useSettingsData } from './hooks/useSettingsData.js';
+import { useVisualViewportLayout } from './hooks/useVisualViewportLayout.js';
 import { buildQuickActions } from './lib/quickActions.js';
 import { scheduledTaskSessionRows, visibleSessionRows } from './lib/sessionPresentation.js';
 
 export default function App() {
+  useVisualViewportLayout();
+
   const [authPage, setAuthPage] = useState(null);
   const [theme, setThemeState] = useState(() => localStorage.getItem('chatdock.theme') === 'day' ? 'day' : 'night');
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(() => {

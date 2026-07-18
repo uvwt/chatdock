@@ -1,0 +1,35 @@
+/* iOS 软键盘使用独立的 visualViewport。部分 WebView 不会同步刷新 100dvh，
+   因此手机端应用根节点必须跟随 JS 写入的真实可见高度和顶部偏移。 */
+@media (max-width: 720px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  #app.app,
+  #app.app.sidebar-collapsed,
+  #app.app.settings-open,
+  #app.app.sidebar-collapsed.settings-open {
+    position: fixed;
+    top: var(--chatdock-viewport-offset-top, 0px);
+    right: 0;
+    bottom: auto;
+    left: 0;
+    width: 100%;
+    height: var(--chatdock-viewport-height, 100dvh) !important;
+    min-height: 0;
+  }
+
+  #app.app main {
+    height: 100% !important;
+    min-height: 0;
+  }
+
+  html.chatdock-keyboard-open #app.app .composer-shell {
+    padding-bottom: 8px !important;
+  }
+}
