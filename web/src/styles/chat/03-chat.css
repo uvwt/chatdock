@@ -2,7 +2,7 @@
 .msg.assistant > .markdown,
 .msg.assistant > .answer,
 .msg.assistant .answer.markdown {
-  max-width: 700px !important;
+  max-width: var(--gpt-msg-width) !important;
   color: color-mix(in srgb, var(--gpt-text) 98%, var(--gpt-muted)) !important;
   font-size: 15.75px !important;
   font-weight: 400 !important;

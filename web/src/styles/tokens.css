@@ -50,6 +50,7 @@ body.theme-light {
   --gpt-accent: #10a37f;
   --gpt-danger: #ef4444;
   --gpt-chat-width: 768px;
+  --gpt-msg-width: 960px;
   --gpt-sidebar-width: 260px;
 }
 

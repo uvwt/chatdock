@@ -110,7 +110,7 @@ body.theme-light #app.app #sessions .session.active::after {
 #app.app .user-message-wrap {
   width: fit-content !important;
   max-width: min(680px, 76%) !important;
-  margin: 0 max(18px, calc((100% - var(--gpt-chat-width)) / 2)) 26px auto !important;
+  margin: 0 max(18px, calc((100% - var(--gpt-msg-width)) / 2)) 26px auto !important;
   overflow: visible !important;
 }
 
