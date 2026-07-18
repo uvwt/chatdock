@@ -8,11 +8,10 @@
 @import './styles/layout-guards.css';
 @import './styles/message-actions.css';
 @import './styles/sidebar.css';
+@import './styles/sidebar-task-overrides.css';
 @import './styles/chat-polish.css';
 @import './styles/session-menu.css';
-@import './styles/settings-header.css';
 @import './styles/scheduled-tasks.css';
-@import './styles/settings/11-responsive-audit.css';
 @import './styles/task-panel.css';
 @import './styles/current-task.css';
 @import './styles/mobile/07-keyboard-viewport.css';
@@ -20,3 +19,4 @@
 @import './styles/desktop-typography.css';
 @import './styles/settings/13-save-state.css';
 @import './styles/settings/14-visual-system.css';
+@import './styles/settings/15-layout-system.css';

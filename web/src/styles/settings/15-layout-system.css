@@ -1,0 +1,422 @@
+/*
+ * 配置中心整体布局。
+ * 页面只保留一个控制台壳，顶部栏、导航和内容区共享边框与背景，避免多个浮动卡片彼此割裂。
+ */
+.settings-page details:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+.settings-page {
+  min-height: 100dvh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 24px !important;
+  overflow: auto !important;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(16, 163, 127, .08), transparent 30%),
+    linear-gradient(145deg, #f4f7f8 0%, #f7f8fa 46%, #f3f6f8 100%) !important;
+}
+
+.settings-page .settings {
+  transform: none !important;
+  width: min(1600px, calc(100vw - 32px)) !important;
+  height: calc(100dvh - 48px) !important;
+  padding: 0 !important;
+  display: grid !important;
+  grid-template-columns: 200px minmax(0, 1fr) !important;
+  grid-template-rows: 82px minmax(0, 1fr) !important;
+  gap: 0 !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(214, 222, 230, .92) !important;
+  border-radius: 24px !important;
+  background: #fff !important;
+  box-shadow: 0 28px 70px rgba(23, 36, 50, .10), 0 2px 8px rgba(23, 36, 50, .04) !important;
+}
+
+.settings-page .settings-header {
+  grid-column: 1 / -1 !important;
+  grid-row: 1 !important;
+  min-height: 82px !important;
+  margin: 0 !important;
+  padding: 0 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 18px !important;
+  border: 0 !important;
+  border-bottom: 1px solid #e8edf2 !important;
+  background: rgba(255, 255, 255, .96) !important;
+  box-shadow: none !important;
+}
+
+.settings-page .settings-header-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.settings-page .settings-title-row {
+  gap: 10px !important;
+}
+
+.settings-page .settings-header h2 {
+  margin: 0 !important;
+  font-size: 23px !important;
+  line-height: 1.2 !important;
+}
+
+.settings-page .settings-header p {
+  margin: 4px 0 0 !important;
+  color: var(--settings-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+}
+
+.settings-page .settings-back-button,
+.settings-page .settings-header-actions .settings-refresh-button {
+  width: 42px !important;
+  min-width: 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid #dde4eb !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+  color: #263445 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04) !important;
+}
+
+.settings-page .settings-back-button {
+  font-size: 21px !important;
+  font-weight: 500 !important;
+}
+
+.settings-page .settings-header-actions {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.settings-page .settings-refresh-icon {
+  width: 18px !important;
+  height: 18px !important;
+}
+
+.settings-page .settings-refresh-text {
+  display: none !important;
+}
+
+.settings-page .settings-sidebar {
+  grid-column: 1 !important;
+  grid-row: 2 !important;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #e8edf2;
+  background: #f8fafb;
+}
+
+.settings-page .module-tabs {
+  position: static !important;
+  top: auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  margin: 0 !important;
+  padding: 18px 14px !important;
+  display: block !important;
+  overflow: auto !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.settings-page .module-nav-group {
+  display: grid !important;
+  gap: 5px !important;
+}
+
+.settings-page .module-nav-group + .module-nav-group {
+  margin-top: 18px !important;
+  padding-top: 18px !important;
+  border-top: 1px solid #e5eaf0 !important;
+}
+
+.settings-page .module-group-label {
+  margin: 0 10px 6px !important;
+  color: #98a2b3 !important;
+  font-size: 11px !important;
+  letter-spacing: .08em !important;
+}
+
+.settings-page .module-tab {
+  width: 100% !important;
+  min-height: 40px !important;
+  padding: 0 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  border: 1px solid transparent !important;
+  border-radius: 11px !important;
+  background: transparent !important;
+  color: #475467 !important;
+  box-shadow: none !important;
+  text-align: left !important;
+}
+
+.settings-page .module-tab::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #c6ced8;
+}
+
+.settings-page .module-tab:hover {
+  background: rgba(255, 255, 255, .72) !important;
+  color: #263445 !important;
+}
+
+.settings-page .module-tab.active {
+  border-color: #e1e7ed !important;
+  background: #fff !important;
+  color: #0f6f59 !important;
+  box-shadow: 0 5px 14px rgba(26, 42, 55, .06) !important;
+}
+
+.settings-page .module-tab.active::before {
+  background: #10a37f;
+  box-shadow: 0 0 0 4px rgba(16, 163, 127, .12);
+}
+
+.settings-page .module-tab-label {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.settings-page .settings-sidebar-footer {
+  margin: 0 14px 14px;
+  padding: 12px 13px;
+  display: grid;
+  gap: 3px;
+  border: 1px solid #e2e8ee;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .78);
+}
+
+.settings-page .settings-sidebar-footer span {
+  color: #98a2b3;
+  font-size: 11px;
+}
+
+.settings-page .settings-sidebar-footer b {
+  overflow: hidden;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-page .settings-mobile-module-select {
+  display: none !important;
+}
+
+.settings-page .settings-content {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  min-width: 0;
+  min-height: 0;
+  padding: 28px 24px 40px;
+  overflow-y: auto;
+  background: #fbfcfd;
+}
+
+.settings-page .module-view.active {
+  width: 100% !important;
+  max-width: 1280px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.settings-page .module-view-title {
+  margin: 0 0 22px !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+.settings-page .module-view-title span {
+  font-size: 26px !important;
+  line-height: 1.2 !important;
+}
+
+.settings-page .module-view-title p {
+  display: block !important;
+  margin: 7px 0 0 !important;
+  color: var(--settings-muted) !important;
+  font-size: 14px !important;
+  line-height: 1.55 !important;
+}
+
+.settings-page .settings-section,
+.settings-page .model-quick-panel,
+.settings-page .model-inline-card,
+.settings-page .mcp-form-card,
+.settings-page .product-card,
+.settings-page .automation-task-card,
+.settings-page .task-card,
+.settings-page .stat-card,
+.settings-page .workspace-summary-card,
+.settings-page .model-summary-card,
+.settings-page .backup-item,
+.settings-page .backup-health,
+.settings-page .empty.compact {
+  border-color: #e5eaf0 !important;
+  border-radius: 16px !important;
+  background: #fff !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .025), 0 8px 22px rgba(15, 23, 42, .025) !important;
+}
+
+.settings-page .settings-section-head,
+.settings-page .settings-block-head,
+.settings-page .product-card-head,
+.settings-page .task-head,
+.settings-page .mcp-form-head,
+.settings-page .model-quick-head {
+  padding-bottom: 0 !important;
+  border-bottom: 0 !important;
+}
+
+.settings-page .provider-grid,
+.settings-page .tasks-list,
+.settings-page .mcp-form-list,
+.settings-page .mcp-status-grid,
+.settings-page #workspaceCards {
+  gap: 14px !important;
+}
+
+@media (max-width: 900px) {
+  .settings-page {
+    display: block !important;
+    padding: 0 !important;
+    background: #f6f8fa !important;
+  }
+
+  .settings-page .settings {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    display: block !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .settings-page .settings-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 30 !important;
+    min-height: 70px !important;
+    padding: 10px 14px !important;
+    background: rgba(255, 255, 255, .94) !important;
+    backdrop-filter: blur(18px);
+  }
+
+  .settings-page .settings-header h2 {
+    font-size: 21px !important;
+  }
+
+  .settings-page .settings-header p {
+    display: none !important;
+  }
+
+  .settings-page .settings-back-button,
+  .settings-page .settings-header-actions .settings-refresh-button {
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+
+  .settings-page .settings-sidebar {
+    display: block;
+    border: 0;
+    border-bottom: 1px solid #e7ecf1;
+    background: rgba(248, 250, 251, .96);
+    backdrop-filter: blur(16px);
+  }
+
+  .settings-page .module-tabs,
+  .settings-page .settings-sidebar-footer {
+    display: none !important;
+  }
+
+  .settings-page .settings-mobile-module-select {
+    display: block !important;
+    width: calc(100% - 24px) !important;
+    min-height: 42px !important;
+    margin: 10px 12px 12px !important;
+    padding: 0 14px !important;
+    border: 1px solid #dde4eb !important;
+    border-radius: 12px !important;
+    background: #fff !important;
+    color: #263445 !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04) !important;
+  }
+
+  .settings-page .settings-content {
+    padding: 22px 14px 44px;
+    overflow: visible;
+    background: #f8fafb;
+  }
+
+  .settings-page .module-view.active {
+    max-width: none !important;
+  }
+
+  .settings-page .module-view-title {
+    margin-bottom: 16px !important;
+  }
+
+  .settings-page .module-view-title span {
+    font-size: 23px !important;
+  }
+
+  .settings-page .module-view-title p {
+    margin-top: 5px !important;
+    font-size: 13px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .settings-page .settings-title-row {
+    gap: 7px !important;
+  }
+
+  .settings-page .settings-global-save-state {
+    max-width: 82px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .settings-page .settings-content {
+    padding: 18px 12px 38px;
+  }
+
+  .settings-page .module-view-title span {
+    font-size: 22px !important;
+  }
+}
