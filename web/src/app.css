@@ -14,9 +14,12 @@
 @import './styles/scheduled-tasks.css';
 @import './styles/task-panel.css';
 @import './styles/current-task.css';
+@import './styles/mobile/04-mobile.css';
+@import './styles/mobile/08-chatgpt-chat.css';
 @import './styles/mobile/07-keyboard-viewport.css';
 @import './styles/settings/12-automation-tasks.css';
-@import './styles/desktop-typography.css';
+@import './styles/desktop-workspace.css';
+@import './styles/desktop-chat.css';
 @import './styles/settings/13-save-state.css';
 @import './styles/settings/14-visual-system.css';
 @import './styles/settings/15-layout-system.css';

@@ -1,500 +1,88 @@
-/* 2026-07 手机端最终校准：顶部工具栏、消息流和输入框按独立移动应用处理。 */
+/* 移动端消息操作与旧 reasoning 折叠组件；整体布局由 04/08 文件负责。 */
 @media (max-width: 720px) {
-  body.theme-light #app.app main,
-  #app.app main {
-    background:
-      radial-gradient(circle at 18% 0, rgba(45, 212, 191, .10), transparent 34%),
-      linear-gradient(180deg, #fbfdff 0%, #ffffff 36%, #fbfdff 100%) !important;
-  }
-
-  .topbar {
-    margin: 8px 8px 0;
-    min-height: 58px !important;
-    padding: 8px !important;
-    border: 1px solid rgba(226, 232, 240, .90) !important;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, .88) !important;
-    box-shadow: 0 12px 36px rgba(15, 23, 42, .08);
-    backdrop-filter: blur(18px) saturate(150%);
-  }
-
-  .mobile-menu,
-  .quick-palette-toggle,
-  .config-toggle,
-  .session-actions-toggle {
-    width: 48px !important;
-    height: 48px !important;
-    min-width: 48px !important;
-    min-height: 48px !important;
-    padding: 0 !important;
-    border: 1px solid rgba(226, 232, 240, .92) !important;
-    border-radius: 16px !important;
-    background: rgba(255, 255, 255, .88) !important;
-    color: #0f172a !important;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
-    font-size: 0 !important;
-  }
-
-  .mobile-menu::before,
-  .quick-palette-toggle::before,
-  .config-toggle::before,
-  .session-actions-toggle::before {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: #0f172a;
-    font-size: 22px;
-    line-height: 1;
-  }
-
-  .mobile-menu::before { content: "☰"; }
-  .quick-palette-toggle::before { content: "✦"; font-size: 21px; }
-  .config-toggle::before { content: "⚙"; }
-  .session-actions-toggle::before { content: "⋯"; font-size: 28px; transform: translateY(-2px); }
-
-  .top-left {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  #title {
-    display: grid;
-    gap: 2px;
-    min-width: 0;
-    color: #0f172a;
-    font-size: 20px !important;
-    line-height: 1.04;
-    font-weight: 850;
-    letter-spacing: -.04em;
-  }
-
-  #title::before {
-    content: "当前对话";
-    color: #94a3b8;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: .06em;
-  }
-
-  .messages {
-    padding: 22px 18px calc(118px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-
-  .msg.assistant,
-  .msg.assistant.markdown {
-    padding: 2px 0 0 46px !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-
-  .msg.assistant::before,
-  .msg.assistant.markdown::before {
-    top: 2px !important;
-    width: 34px !important;
-    height: 34px !important;
-    border-color: rgba(226, 232, 240, .92) !important;
-    background: #f1f5f9 !important;
-    color: #0f172a !important;
-  }
-
-  .msg.user,
-  .msg.system {
-    border: 0 !important;
-    box-shadow: 0 12px 30px rgba(37, 99, 235, .14);
-  }
-
-  .msg.user {
-    padding: 13px 17px !important;
-    border-radius: 24px 24px 8px 24px !important;
-    background: linear-gradient(135deg, #2563eb, #0f6bff) !important;
-    color: #ffffff !important;
-  }
-
-  .msg-actions {
-    position: static !important;
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
-    opacity: 1 !important;
-  }
-
-  .msg.user .msg-actions {
-    justify-content: flex-end;
-    margin-top: 8px;
-  }
-
-  .msg-actions button {
-    min-width: 36px !important;
-    min-height: 34px !important;
-    padding: 4px 10px !important;
-    border: 1px solid rgba(226, 232, 240, .88) !important;
-    background: rgba(255, 255, 255, .82) !important;
-    color: #64748b !important;
-    box-shadow: none !important;
-  }
-
-  .reasoning {
+  #app.app .reasoning {
     max-width: 100%;
-    margin: 0 0 14px;
-    border: 1px solid rgba(226, 232, 240, .92) !important;
-    border-radius: 16px !important;
-    background: rgba(255, 255, 255, .72) !important;
-    color: #64748b !important;
-  }
-
-  .reasoning-toggle {
-    min-height: 48px;
-    padding: 10px 14px;
-  }
-
-  .reasoning-toggle b {
-    color: #0f172a !important;
-    font-size: 16px;
-  }
-
-  .composer-shell {
-    padding: 10px 12px max(12px, env(safe-area-inset-bottom, 0px)) !important;
-    background: linear-gradient(180deg, transparent, rgba(255,255,255,.92) 28%, #ffffff) !important;
-  }
-
-  .composer {
-    min-height: 62px !important;
-    padding: 8px !important;
-    border: 1px solid rgba(226, 232, 240, .96) !important;
-    background: rgba(255, 255, 255, .94) !important;
-    box-shadow: 0 18px 48px rgba(15, 23, 42, .10) !important;
-  }
-
-  .attach-control,
-  #send,
-  .stream-control {
-    box-shadow: none !important;
-  }
-
-  .attach-control {
-    width: 48px !important;
-    height: 48px !important;
-    min-width: 48px !important;
-    border-radius: 16px !important;
-    background: #f8fafc !important;
-    color: #0f172a !important;
-  }
-
-  #send {
-    background: linear-gradient(135deg, #34d399, #10b981) !important;
-  }
-
-  .composer textarea {
-    color: #0f172a !important;
-  }
-}
-
-
-/* 2026-07 按移动端聊天产品说明收口：顶栏图标化、AI 裸正文、思考弱化、输入区极简。 */
-@media (max-width: 720px) {
-  body.theme-light #app.app main,
-  #app.app main {
-    background: #ffffff !important;
-  }
-
-  .topbar {
-    display: grid !important;
-    grid-template-columns: 54px minmax(0, 1fr) auto;
-    align-items: center;
-    min-height: 72px !important;
-    margin: 0 !important;
-    padding: 10px 8px !important;
-    border: 1px solid rgba(226, 232, 240, .82) !important;
-    border-radius: 0 0 14px 14px !important;
-    background: rgba(255, 255, 255, .96) !important;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, .04) !important;
-  }
-
-  .top-left {
-    display: contents !important;
-  }
-
-  .mobile-menu {
-    grid-column: 1;
-    justify-self: start;
-  }
-
-  #title {
-    grid-column: 2;
-    display: block !important;
-    align-self: center;
-    justify-self: start;
-    max-width: 100%;
+    margin: 0 0 14px !important;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: #0f172a;
-    font-size: 22px !important;
-    font-weight: 850;
-    line-height: 1;
-    letter-spacing: -.04em;
+    border: 1px solid var(--gpt-border) !important;
+    border-radius: 12px !important;
+    background: color-mix(in srgb, var(--gpt-surface) 50%, transparent) !important;
+    color: var(--gpt-muted) !important;
+    box-shadow: none !important;
   }
 
-  #title::before,
-  .status-pill {
-    display: none !important;
-  }
-
-  .top-actions {
-    grid-column: 3;
+  #app.app .reasoning-toggle {
+    min-height: 42px !important;
+    padding: 8px 11px !important;
     display: flex !important;
-    align-items: center;
-    justify-content: flex-end;
+    align-items: center !important;
+    justify-content: space-between !important;
     gap: 10px !important;
-  }
-
-  .mobile-menu,
-  .quick-palette-toggle,
-  .config-toggle,
-  .session-actions-toggle {
-    width: 46px !important;
-    height: 46px !important;
-    min-width: 46px !important;
-    min-height: 46px !important;
-    border-radius: 16px !important;
-    border-color: rgba(226, 232, 240, .86) !important;
-    background: #ffffff !important;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, .05) !important;
-  }
-
-  .mobile-menu::before {
-    content: "☰" !important;
-    font-size: 24px !important;
-    font-weight: 500;
-  }
-
-  .quick-palette-toggle::before {
-    content: "⚡" !important;
-    font-size: 22px !important;
-  }
-
-  .config-toggle::before {
-    content: "⚙" !important;
-    font-size: 24px !important;
-  }
-
-  .mobile-new-toggle {
-    border-color: transparent !important;
-    border-radius: 17px !important;
-    background: linear-gradient(135deg, #2563eb, #0f6bff) !important;
-    color: #ffffff !important;
-    box-shadow: 0 14px 28px rgba(37, 99, 235, .22) !important;
-  }
-
-  .mobile-new-toggle::before {
-    content: none !important;
-    display: none !important;
-  }
-
-  .mobile-new-icon {
-    display: block;
-    width: 22px;
-    height: 22px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2.2;
-    stroke-linecap: round;
-    pointer-events: none;
-  }
-
-  .messages {
-    --gpt-text: #111827;
-    --text-strong: #0f172a;
-    --gpt-muted: #475569;
-    --gpt-muted-2: #94a3b8;
-    padding: 28px 18px calc(114px + env(safe-area-inset-bottom, 0px)) !important;
-    background: #ffffff !important;
-  }
-
-  .msg {
-    margin-bottom: 24px !important;
-    color: #111827 !important;
-    font-size: 17px !important;
-    line-height: 1.76 !important;
-  }
-
-  .msg.user {
-    width: fit-content;
-    max-width: 78%;
-    margin-left: auto !important;
-    padding: 12px 20px !important;
-    border: 0 !important;
-    border-radius: 24px 24px 9px 24px !important;
-    background: linear-gradient(135deg, #2563eb, #0f6bff) !important;
-    color: #ffffff !important;
-    box-shadow: 0 12px 28px rgba(37, 99, 235, .15) !important;
-  }
-
-  .msg.assistant,
-  .msg.assistant.markdown {
-    position: relative;
-    padding: 0 0 0 46px !important;
-    border: 0 !important;
-    border-radius: 0 !important;
     background: transparent !important;
-    box-shadow: none !important;
   }
 
-  .msg.assistant::before,
-  .msg.assistant.markdown::before {
-    content: "C" !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 34px !important;
-    height: 34px !important;
-    border: 0 !important;
-    border-radius: 999px !important;
-    background: #f3f4f6 !important;
-    color: #111827 !important;
-    box-shadow: none !important;
-    font-size: 18px !important;
-    font-weight: 850 !important;
+  #app.app .reasoning-toggle b {
+    color: var(--gpt-text) !important;
+    font-size: 13px !important;
+    font-weight: 560 !important;
   }
 
-  .reasoning {
-    display: inline-block;
-    min-width: 0;
-    max-width: 100%;
-    margin: 0 0 18px !important;
-    border: 1px solid rgba(226, 232, 240, .96) !important;
-    border-radius: 16px !important;
-    background: #ffffff !important;
-    box-shadow: none !important;
-    color: #0f172a !important;
-    overflow: hidden;
-  }
-
-  .reasoning-toggle {
-    min-height: 46px !important;
-    gap: 20px;
-    padding: 10px 16px !important;
-    background: #ffffff !important;
-  }
-
-  .reasoning-toggle b {
-    color: #111827 !important;
-    font-size: 16px !important;
-    font-weight: 800 !important;
-  }
-
-  .reasoning-toggle small {
+  #app.app .reasoning-toggle small {
     display: none !important;
   }
 
-  .reasoning-chevron {
-    color: #0f172a !important;
-    font-size: 18px;
+  #app.app .reasoning-chevron {
+    color: var(--gpt-muted) !important;
+    font-size: 16px !important;
   }
 
-  .msg-actions {
+  #app.app .msg-actions,
+  #app.app .user-message-actions {
     position: static !important;
     display: flex !important;
-    align-items: center;
-    gap: 18px;
-    margin-top: 12px !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin-top: 8px !important;
     opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: none !important;
   }
 
-  .msg-actions button {
-    width: 26px !important;
-    height: 26px !important;
-    min-width: 26px !important;
-    min-height: 26px !important;
+  #app.app .user-message-actions {
+    justify-content: flex-end !important;
+  }
+
+  #app.app .msg-actions button,
+  #app.app .user-message-actions button {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
     padding: 0 !important;
     border: 0 !important;
     border-radius: 8px !important;
     background: transparent !important;
+    color: var(--gpt-muted) !important;
     box-shadow: none !important;
-    color: #6b7280 !important;
     font-size: 0 !important;
   }
 
-  .msg-action-copy::before {
+  #app.app .msg-action-copy::before {
     content: "⧉";
-    font-size: 22px;
+    font-size: 20px;
     line-height: 1;
   }
 
-  .msg-action-more::before {
+  #app.app .msg-action-branch::before {
+    content: "⑂";
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  #app.app .msg-action-more::before {
     content: "…";
-    font-size: 27px;
+    font-size: 24px;
     line-height: 1;
-    transform: translateY(-4px);
-  }
-
-  .composer-shell {
-    padding: 10px 12px max(12px, env(safe-area-inset-bottom, 0px)) !important;
-    border: 0 !important;
-    background: linear-gradient(180deg, transparent, rgba(255,255,255,.92) 26%, #ffffff) !important;
-  }
-
-  .composer {
-    min-height: 64px !important;
-    display: grid !important;
-    grid-template-columns: 48px minmax(0, 1fr) 50px;
-    align-items: center !important;
-    gap: 8px !important;
-    padding: 8px !important;
-    border: 1px solid rgba(226, 232, 240, .96) !important;
-    border-radius: 26px !important;
-    background: rgba(255, 255, 255, .97) !important;
-    box-shadow: 0 16px 46px rgba(15, 23, 42, .08) !important;
-  }
-
-  .attach-control {
-    grid-column: 1;
-    width: 46px !important;
-    height: 46px !important;
-    min-width: 46px !important;
-    min-height: 46px !important;
-    border-radius: 16px !important;
-    background: #ffffff !important;
-    color: #111827 !important;
-    font-size: 30px !important;
-    font-weight: 300 !important;
-  }
-
-  .composer textarea {
-    grid-column: 2;
-    width: 100%;
-    min-height: 42px !important;
-    max-height: 34dvh;
-    padding: 10px 8px !important;
-    color: #111827 !important;
-    font-size: 16px !important;
-    line-height: 1.4 !important;
-  }
-
-  .composer textarea::placeholder {
-    color: #94a3b8 !important;
-  }
-
-  #send,
-  .stream-control {
-    grid-column: 3;
-    width: 50px !important;
-    height: 50px !important;
-    min-width: 50px !important;
-    min-height: 50px !important;
-    padding: 0 !important;
-    border-radius: 999px !important;
-    background: linear-gradient(135deg, #34d399, #10b981) !important;
-    box-shadow: none !important;
-    font-size: 0 !important;
-  }
-
-  #send::before,
-  .stream-control::before {
-    content: "↑" !important;
-    color: #ffffff !important;
-    font-size: 30px !important;
-    font-weight: 800 !important;
-    transform: translateY(-1px);
+    transform: translateY(-3px);
   }
 }

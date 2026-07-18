@@ -11,42 +11,40 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 24px !important;
+  padding: 28px !important;
   overflow: auto !important;
-  background:
-    radial-gradient(circle at 8% 0%, rgba(16, 163, 127, .08), transparent 30%),
-    linear-gradient(145deg, #f4f7f8 0%, #f7f8fa 46%, #f3f6f8 100%) !important;
+  background: rgba(15, 23, 42, .34) !important;
 }
 
 .settings-page .settings {
   transform: none !important;
-  width: min(1600px, calc(100vw - 32px)) !important;
-  height: calc(100dvh - 48px) !important;
+  width: min(1000px, calc(100vw - 72px)) !important;
+  height: min(760px, calc(100dvh - 64px)) !important;
   padding: 0 !important;
   display: grid !important;
-  grid-template-columns: 200px minmax(0, 1fr) !important;
-  grid-template-rows: 82px minmax(0, 1fr) !important;
+  grid-template-columns: 210px minmax(0, 1fr) !important;
+  grid-template-rows: 64px minmax(0, 1fr) !important;
   gap: 0 !important;
   overflow: hidden !important;
-  border: 1px solid rgba(214, 222, 230, .92) !important;
-  border-radius: 24px !important;
+  border: 1px solid rgba(209, 213, 219, .92) !important;
+  border-radius: 18px !important;
   background: #fff !important;
-  box-shadow: 0 28px 70px rgba(23, 36, 50, .10), 0 2px 8px rgba(23, 36, 50, .04) !important;
+  box-shadow: 0 32px 80px rgba(15, 23, 42, .24) !important;
 }
 
 .settings-page .settings-header {
   grid-column: 1 / -1 !important;
   grid-row: 1 !important;
-  min-height: 82px !important;
+  min-height: 64px !important;
   margin: 0 !important;
-  padding: 0 24px !important;
+  padding: 0 16px 0 20px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  gap: 18px !important;
+  gap: 16px !important;
   border: 0 !important;
-  border-bottom: 1px solid #e8edf2 !important;
-  background: rgba(255, 255, 255, .96) !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  background: #fff !important;
   box-shadow: none !important;
 }
 
@@ -62,37 +60,45 @@
 
 .settings-page .settings-header h2 {
   margin: 0 !important;
-  font-size: 23px !important;
+  font-size: 20px !important;
   line-height: 1.2 !important;
 }
 
 .settings-page .settings-header p {
-  margin: 4px 0 0 !important;
-  color: var(--settings-muted) !important;
-  font-size: 13px !important;
-  line-height: 1.4 !important;
+  display: none !important;
 }
 
 .settings-page .settings-back-button,
 .settings-page .settings-header-actions .settings-refresh-button {
-  width: 42px !important;
-  min-width: 42px !important;
-  height: 42px !important;
-  min-height: 42px !important;
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
   padding: 0 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  border: 1px solid #dde4eb !important;
-  border-radius: 12px !important;
-  background: #fff !important;
-  color: #263445 !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .04) !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  color: #374151 !important;
+  box-shadow: none !important;
+}
+
+.settings-page .settings-back-button:hover,
+.settings-page .settings-header-actions .settings-refresh-button:hover {
+  background: #f3f4f6 !important;
 }
 
 .settings-page .settings-back-button {
-  font-size: 21px !important;
-  font-weight: 500 !important;
+  font-size: 24px !important;
+  font-weight: 300 !important;
+}
+
+.settings-page .settings-back-button::before,
+.settings-page .settings-back-button::after {
+  content: none !important;
+  display: none !important;
 }
 
 .settings-page .settings-header-actions {
@@ -116,8 +122,8 @@
   grid-row: 2 !important;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #e8edf2;
-  background: #f8fafb;
+  border-right: 1px solid #e5e7eb;
+  background: #f7f7f8;
 }
 
 .settings-page .module-tabs {
@@ -127,7 +133,7 @@
   min-width: 0 !important;
   flex: 1 1 auto !important;
   margin: 0 !important;
-  padding: 18px 14px !important;
+  padding: 12px 10px !important;
   display: block !important;
   overflow: auto !important;
   border: 0 !important;
@@ -138,61 +144,59 @@
 
 .settings-page .module-nav-group {
   display: grid !important;
-  gap: 5px !important;
+  gap: 2px !important;
 }
 
 .settings-page .module-nav-group + .module-nav-group {
-  margin-top: 18px !important;
-  padding-top: 18px !important;
-  border-top: 1px solid #e5eaf0 !important;
+  margin-top: 10px !important;
+  padding-top: 10px !important;
+  border-top: 1px solid #e5e7eb !important;
 }
 
 .settings-page .module-group-label {
-  margin: 0 10px 6px !important;
-  color: #98a2b3 !important;
-  font-size: 11px !important;
-  letter-spacing: .08em !important;
+  margin: 0 10px 5px !important;
+  color: #9ca3af !important;
+  font-size: 10.5px !important;
+  letter-spacing: .06em !important;
 }
 
 .settings-page .module-tab {
   width: 100% !important;
-  min-height: 40px !important;
-  padding: 0 12px !important;
+  min-height: 38px !important;
+  padding: 0 11px !important;
   display: flex !important;
   align-items: center !important;
-  gap: 10px !important;
-  border: 1px solid transparent !important;
-  border-radius: 11px !important;
+  gap: 9px !important;
+  border: 0 !important;
+  border-radius: 8px !important;
   background: transparent !important;
-  color: #475467 !important;
+  color: #4b5563 !important;
   box-shadow: none !important;
   text-align: left !important;
 }
 
 .settings-page .module-tab::before {
   content: '';
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: #c6ced8;
+  background: #d1d5db;
 }
 
 .settings-page .module-tab:hover {
-  background: rgba(255, 255, 255, .72) !important;
-  color: #263445 !important;
+  background: #ececf1 !important;
+  color: #111827 !important;
 }
 
 .settings-page .module-tab.active {
-  border-color: #e1e7ed !important;
-  background: #fff !important;
+  background: #e8f5ef !important;
   color: #0f6f59 !important;
-  box-shadow: 0 5px 14px rgba(26, 42, 55, .06) !important;
 }
 
 .settings-page .module-tab.active::before {
   background: #10a37f;
-  box-shadow: 0 0 0 4px rgba(16, 163, 127, .12);
+  box-shadow: none;
 }
 
 .settings-page .module-tab-label {
@@ -201,25 +205,25 @@
 }
 
 .settings-page .settings-sidebar-footer {
-  margin: 0 14px 14px;
-  padding: 12px 13px;
+  margin: 0 10px 10px;
+  padding: 9px 11px;
   display: grid;
-  gap: 3px;
-  border: 1px solid #e2e8ee;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, .78);
+  gap: 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
 }
 
 .settings-page .settings-sidebar-footer span {
-  color: #98a2b3;
-  font-size: 11px;
+  color: #9ca3af;
+  font-size: 10.5px;
 }
 
 .settings-page .settings-sidebar-footer b {
   overflow: hidden;
-  color: #344054;
-  font-size: 13px;
-  font-weight: 650;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 560;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -233,14 +237,14 @@
   grid-row: 2 !important;
   min-width: 0;
   min-height: 0;
-  padding: 28px 24px 40px;
+  padding: 28px 32px 36px;
   overflow-y: auto;
-  background: #fbfcfd;
+  background: #fff;
 }
 
 .settings-page .module-view.active {
   width: 100% !important;
-  max-width: 1280px !important;
+  max-width: 720px !important;
   margin: 0 auto !important;
   padding: 0 !important;
   border: 0 !important;
@@ -249,22 +253,22 @@
 }
 
 .settings-page .module-view-title {
-  margin: 0 0 22px !important;
+  margin: 0 0 20px !important;
   padding: 0 !important;
   border: 0 !important;
 }
 
 .settings-page .module-view-title span {
-  font-size: 26px !important;
-  line-height: 1.2 !important;
+  font-size: 22px !important;
+  line-height: 1.25 !important;
 }
 
 .settings-page .module-view-title p {
   display: block !important;
-  margin: 7px 0 0 !important;
+  margin: 6px 0 0 !important;
   color: var(--settings-muted) !important;
-  font-size: 14px !important;
-  line-height: 1.55 !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
 }
 
 .settings-page .settings-section,
@@ -280,10 +284,10 @@
 .settings-page .backup-item,
 .settings-page .backup-health,
 .settings-page .empty.compact {
-  border-color: #e5eaf0 !important;
-  border-radius: 16px !important;
+  border-color: #e5e7eb !important;
+  border-radius: 12px !important;
   background: #fff !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .025), 0 8px 22px rgba(15, 23, 42, .025) !important;
+  box-shadow: none !important;
 }
 
 .settings-page .settings-section-head,

@@ -1,0 +1,325 @@
+/* ChatGPT 式移动消息流、空白态和输入区。 */
+@media (max-width: 720px) {
+  /* Messages */
+  #app.app .messages {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 16px 15px calc(86px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: var(--gpt-main);
+    scroll-padding-top: 64px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #app.app .msg,
+  #app.app .msg.assistant,
+  #app.app .msg.assistant.markdown {
+    max-width: none !important;
+    margin: 0 0 22px !important;
+  }
+
+  #app.app .msg.assistant,
+  #app.app .msg.assistant.markdown {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  #app.app .msg.assistant::before,
+  #app.app .msg.assistant.markdown::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  #app.app .msg.assistant .answer.markdown,
+  #app.app .msg.assistant > .markdown,
+  #app.app .msg.assistant.markdown {
+    color: var(--gpt-text) !important;
+    font-size: 16px !important;
+    line-height: 1.66 !important;
+  }
+
+  #app.app .user-message-wrap {
+    width: fit-content !important;
+    max-width: 88% !important;
+    margin: 0 0 22px auto !important;
+  }
+
+  #app.app .user-message-wrap .msg.user,
+  #app.app .msg.user {
+    width: fit-content !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10px 14px !important;
+    border: 0 !important;
+    border-radius: 20px !important;
+    background: color-mix(in srgb, var(--gpt-accent) 9%, var(--gpt-surface)) !important;
+    color: var(--gpt-text) !important;
+    box-shadow: none !important;
+    font-size: 16px !important;
+    line-height: 1.55 !important;
+  }
+
+  body.theme-light #app.app .user-message-wrap .msg.user,
+  body.theme-light #app.app .msg.user {
+    background: #eef7f3 !important;
+    color: #17251f !important;
+  }
+
+  #app.app .msg-actions {
+    opacity: 1 !important;
+  }
+
+  /* Empty state */
+  #app.app .messages:has(.product-empty-state) {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding-top: 18px !important;
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #app.app .product-empty-state {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #app.app .empty-state-center {
+    width: 100%;
+    display: grid;
+    justify-items: center;
+    text-align: center;
+  }
+
+  #app.app .empty-state-logo {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 14px;
+    border-radius: 50%;
+    background: var(--gpt-accent);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 750;
+  }
+
+  #app.app .empty-state-center h1 {
+    margin: 0;
+    color: var(--gpt-text);
+    font-size: 24px;
+    font-weight: 620;
+    line-height: 1.24;
+    letter-spacing: -.02em;
+  }
+
+  #app.app .empty-state-center > p {
+    margin: 8px 0 20px;
+    color: var(--gpt-muted);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  #app.app .starter-grid {
+    width: calc(100vw - 30px);
+    display: flex !important;
+    gap: 8px !important;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  #app.app .starter-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  #app.app .starter-card {
+    min-width: 218px !important;
+    min-height: 72px !important;
+    flex: 0 0 218px !important;
+    padding: 12px 13px !important;
+    display: grid !important;
+    align-content: center !important;
+    gap: 4px !important;
+    border: 1px solid var(--gpt-border) !important;
+    border-radius: 14px !important;
+    background: transparent !important;
+    color: var(--gpt-text) !important;
+    box-shadow: none !important;
+    text-align: left !important;
+    scroll-snap-align: start;
+  }
+
+  #app.app .starter-card::after {
+    display: none !important;
+  }
+
+  #app.app .starter-card b {
+    font-size: 13.5px !important;
+    font-weight: 590 !important;
+  }
+
+  #app.app .starter-card span {
+    overflow: hidden;
+    color: var(--gpt-muted) !important;
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #app.app .empty-state-secondary-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  #app.app .empty-state-secondary-actions button {
+    min-height: 34px;
+    padding: 6px 11px;
+    border-radius: 9px;
+    font-size: 12px;
+  }
+
+  /* Composer */
+  #app.app .composer-shell {
+    position: sticky;
+    bottom: 0;
+    z-index: 8;
+    flex: 0 0 auto;
+    padding: 6px 8px max(8px, env(safe-area-inset-bottom, 0px)) !important;
+    background: linear-gradient(to top, var(--gpt-main) 78%, transparent) !important;
+  }
+
+  #app.app .composer {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 54px !important;
+    margin: 0 !important;
+    padding: 6px !important;
+    display: grid !important;
+    grid-template-columns: 42px minmax(74px, 94px) minmax(0, 1fr) 42px !important;
+    align-items: center !important;
+    gap: 5px !important;
+    border: 1px solid var(--gpt-border-strong) !important;
+    border-radius: 24px !important;
+    background: var(--gpt-surface) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .10) !important;
+  }
+
+  #app.app .attach-control,
+  #app.app #send,
+  #app.app .stream-control {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+  }
+
+  #app.app .model-picker,
+  #app.app .model-picker-trigger {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+
+  #app.app .model-picker-trigger {
+    padding: 4px 8px !important;
+    border: 0 !important;
+    border-radius: 18px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  #app.app .model-picker-trigger span {
+    display: none !important;
+  }
+
+  #app.app .model-picker-trigger b {
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--gpt-text) !important;
+    font-size: 12px !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #app.app .composer textarea {
+    width: 100% !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 150px !important;
+    padding: 10px 4px !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--gpt-text) !important;
+    box-shadow: none !important;
+    font-size: 16px !important;
+    line-height: 22px !important;
+  }
+
+  #app.app .composer-meta {
+    display: none !important;
+  }
+
+  #app.app .model-picker-popover {
+    position: fixed !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    max-height: min(430px, 58vh) !important;
+    padding: 14px !important;
+    border-radius: 20px !important;
+    background: color-mix(in srgb, var(--gpt-main) 98%, transparent) !important;
+    box-shadow: 0 24px 72px rgba(15, 23, 42, .20) !important;
+  }
+
+  #app.app .composer.composer-streaming {
+    grid-template-columns: minmax(0, 1fr) 54px 42px !important;
+  }
+
+  #app.app .composer-streaming .attach-control,
+  #app.app .composer-streaming .model-picker,
+  #app.app .composer-streaming #send {
+    display: none !important;
+  }
+
+  #app.app .composer-streaming textarea {
+    grid-column: 1 !important;
+  }
+
+  #app.app .composer-streaming .guide-control {
+    grid-column: 2 !important;
+    width: 54px !important;
+    min-width: 54px !important;
+    padding: 0 8px !important;
+    border-radius: 14px !important;
+    font-size: 12px !important;
+  }
+
+  #app.app .composer-streaming .stop-control {
+    grid-column: 3 !important;
+    border-radius: 50% !important;
+    font-size: 0 !important;
+  }
+
+  #app.app .composer-streaming .stop-control::before {
+    content: "■" !important;
+    display: block !important;
+    color: currentColor !important;
+    font-size: 13px !important;
+    transform: none !important;
+  }
+
+  #app.app .jump-latest {
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}

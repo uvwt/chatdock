@@ -289,38 +289,6 @@
 }
 
 /* 2026-07-05 手机端配置页刷新按钮居中修正。 */
-@media (max-width: 640px) {
-  .settings-page .settings-header-actions button,
-  .settings-page .settings-header-actions .secondary.small {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    text-align: center !important;
-    vertical-align: middle !important;
-    line-height: 1 !important;
-  }
-
-  .settings-page .settings-header-actions button:last-child {
-    width: 32px !important;
-    min-width: 32px !important;
-    max-width: 32px !important;
-    padding: 0 !important;
-    font-size: 0 !important;
-  }
-
-  .settings-page .settings-header-actions button:last-child::before {
-    content: '↻' !important;
-    display: block !important;
-    width: 1em !important;
-    height: 1em !important;
-    width: 18px !important;
-    height: 18px !important;
-    font-size: 18px !important;
-    line-height: 1 !important;
-    transform: none !important;
-  }
-}
-
 /* 2026-07-05 手机端配置页刷新按钮最终居中：使用专用图标按钮结构。 */
 .settings-page .settings-refresh-button {
   display: inline-flex !important;
