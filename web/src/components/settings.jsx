@@ -1,5 +1,5 @@
 // Configuration-center modules: workspace, model/provider, MCP tools, automation, reply/embedding, data, and security.
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TextCard } from './base.jsx';
 import { settingsModules, diagnosticsText, fmtBytes, fmtRelativeAge, fmtTime, runStatusClass, runStatusLabel, safePathName, scheduleSummary, taskStatusClass, taskStatusLabel } from '../lib/appUtils.js';
 
@@ -20,7 +20,7 @@ const settingsModuleGroups = [
 
 export function SettingsPanel(props) {
   const {
-    activeModule, busy, closeSettings, config, createWorkspace, dataStatus, deleteScheduledTask, deleteWorkspace, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
+    activeModule, busy, closeSettings, config, configDirty, mcpConfigDirty, createWorkspace, dataStatus, deleteScheduledTask, deleteWorkspace, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
     editScheduledTask, loadDataStatus, loadMCPConfig, loadMCPStatus, loadScheduledTasks,
     loadSystemStatus, logout, builtinTools, mcpConfig, mcpStatus, onCopy, providers, workspacePromptPreview, refreshProductState, refreshVisibleSettings, runScheduledTaskNow, viewScheduledTaskRuns, openScheduledTaskSession, runSetupWizard,
     saveConfig, saveMCPConfig, scheduledTasks, selectWorkspace, setConfig, setMcpConfig, setTaskSearch, setupStatus,
@@ -31,13 +31,44 @@ export function SettingsPanel(props) {
     const q = taskSearch.trim().toLowerCase();
     return q ? scheduledTasks.filter(t => [t.title, t.prompt, t.schedule_type, t.last_status, t.last_error].some(v => String(v || '').toLowerCase().includes(q))) : scheduledTasks;
   }, [scheduledTasks, taskSearch]);
+  const saveTimerRef = useRef(null);
+  const [saveState, setSaveState] = useState({scope: '', status: 'idle', message: ''});
+  const unsavedCount = Number(!!configDirty) + Number(!!mcpConfigDirty);
+  const moduleIsDirty = useCallback((name) => {
+    if (name === 'model' || name === 'providers') return !!configDirty;
+    if (name === 'tools') return !!mcpConfigDirty;
+    return false;
+  }, [configDirty, mcpConfigDirty]);
+
+  useEffect(() => () => window.clearTimeout(saveTimerRef.current), []);
+
+  const saveScope = useCallback(async (scope) => {
+    const save = scope === 'mcp' ? saveMCPConfig : saveConfig;
+    if (!save) return;
+    window.clearTimeout(saveTimerRef.current);
+    setSaveState({scope, status: 'saving', message: ''});
+    try {
+      await save();
+      setSaveState({scope, status: 'saved', message: ''});
+      saveTimerRef.current = window.setTimeout(() => setSaveState(current => current.scope === scope ? {scope: '', status: 'idle', message: ''} : current), 2800);
+    } catch (error) {
+      setSaveState({scope, status: 'error', message: error?.message || '保存失败，请稍后重试。'});
+    }
+  }, [saveConfig, saveMCPConfig]);
+
+  const configSaveState = saveState.scope === 'config' ? saveState : {scope: 'config', status: 'idle', message: ''};
+  const mcpSaveState = saveState.scope === 'mcp' ? saveState : {scope: 'mcp', status: 'idle', message: ''};
+  const refreshSettings = () => {
+    if (unsavedCount && !window.confirm('刷新会丢弃尚未保存的配置修改，确定继续吗？')) return;
+    (refreshVisibleSettings || refreshProductState)?.();
+  };
   return <section className="settings">
-    <div className="settings-header"><div><h2>配置中心</h2><p>常用入口靠前，高级配置收进折叠区。</p></div><div className="settings-header-actions"><button className="secondary small" onClick={() => closeSettings()}>返回</button><button className="secondary small settings-refresh-button" onClick={() => (refreshVisibleSettings || refreshProductState)?.()} aria-label="刷新" title="刷新"><svg className="settings-refresh-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.76-4.24L13 11h8V3z" fill="currentColor" /></svg><span className="settings-refresh-text">刷新</span></button></div></div>
-    <nav className="module-tabs" aria-label="配置模块">{settingsModuleGroups.map(group => <div className="module-nav-group" key={group.title}><div className="module-group-label">{group.title}</div>{group.modules.filter(m => settingsModules.includes(m)).map(m => <button key={m} className={'module-tab ' + (activeModule === m ? 'active' : '')} onClick={() => switchSettingsModule(m)}><span className="module-tab-label">{moduleLabel(m)}</span></button>)}</div>)}</nav>
+    <div className="settings-header"><div><div className="settings-title-row"><h2>配置中心</h2>{unsavedCount ? <span className="settings-global-save-state dirty"><span aria-hidden="true" />{unsavedCount} 处未保存</span> : saveState.status === 'saved' ? <span className="settings-global-save-state saved">✓ 已保存</span> : null}</div><p>常用入口靠前，高级配置收进折叠区。</p></div><div className="settings-header-actions"><button className="secondary small" onClick={() => closeSettings()}>返回</button><button className="secondary small settings-refresh-button" onClick={refreshSettings} aria-label="刷新" title="刷新"><svg className="settings-refresh-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.76-4.24L13 11h8V3z" fill="currentColor" /></svg><span className="settings-refresh-text">刷新</span></button></div></div>
+    <nav className="module-tabs" aria-label="配置模块">{settingsModuleGroups.map(group => <div className="module-nav-group" key={group.title}><div className="module-group-label">{group.title}</div>{group.modules.filter(m => settingsModules.includes(m)).map(m => { const dirty = moduleIsDirty(m); return <button key={m} className={'module-tab ' + (activeModule === m ? 'active ' : '') + (dirty ? 'dirty' : '')} onClick={() => switchSettingsModule(m)}><span className="module-tab-label">{moduleLabel(m)}</span>{dirty ? <span className="module-tab-dirty" aria-label="有未保存修改">未保存</span> : null}</button>; })}</div>)}</nav>
     <ModuleView name="workspace" activeModule={activeModule}><WorkspaceModule setupStatus={setupStatus} workspaces={workspaces} createWorkspace={createWorkspace} selectWorkspace={selectWorkspace} deleteWorkspace={deleteWorkspace} runSetupWizard={runSetupWizard} /></ModuleView>
-    <ModuleView name="model" activeModule={activeModule}><ModelModule config={config} setConfig={setConfig} saveConfig={saveConfig} showWorkspacePromptPreview={showWorkspacePromptPreview} workspacePromptPreview={workspacePromptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>
-    <ModuleView name="providers" activeModule={activeModule}><ProvidersModule config={config} setConfig={setConfig} providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} /></ModuleView>
-    <ModuleView name="tools" activeModule={activeModule}><ToolsModule builtinTools={builtinTools} mcpStatus={mcpStatus} mcpConfig={mcpConfig} setMcpConfig={setMcpConfig} saveMCPConfig={saveMCPConfig} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} /></ModuleView>
+    <ModuleView name="model" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="保存后将用于新的对话和自动化任务。"><ModelModule config={config} configDirty={configDirty} saveState={configSaveState} setConfig={setConfig} saveConfig={() => saveScope('config')} showWorkspacePromptPreview={showWorkspacePromptPreview} workspacePromptPreview={workspacePromptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>
+    <ModuleView name="providers" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="当前默认供应商需要保存后才会生效。"><ProvidersModule config={config} setConfig={setConfig} providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} /></ModuleView>
+    <ModuleView name="tools" activeModule={activeModule} dirty={mcpConfigDirty} saveState={mcpSaveState} onSave={() => saveScope('mcp')} saveHint="保存后工具加载方式和权限才会生效。"><ToolsModule builtinTools={builtinTools} mcpStatus={mcpStatus} mcpConfig={mcpConfig} mcpConfigDirty={mcpConfigDirty} saveState={mcpSaveState} setMcpConfig={setMcpConfig} saveMCPConfig={() => saveScope('mcp')} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} /></ModuleView>
     <ModuleView name="automation" activeModule={activeModule}><div className="settings-block-head"><label>自动化任务（当前工作空间）</label><button className="secondary small" onClick={() => editScheduledTask()}>新增任务</button></div><input className="session-search" placeholder="搜索任务" value={taskSearch} onChange={e => setTaskSearch(e.target.value)} /><div className="tasks-list">{filteredTasks.length ? filteredTasks.map(t => <TaskCard key={t.id} task={t} editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} toggleScheduledTask={toggleScheduledTask} runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} openScheduledTaskSession={openScheduledTaskSession} />) : <div className="hint">暂无定时任务。默认每次独立执行，运行结果写入任务记录；需要连续上下文时可在编辑中开启。</div>}</div><div className="settings-actions"><button className="secondary" onClick={() => loadScheduledTasks?.()}>刷新任务</button></div></ModuleView>
     <ModuleView name="data" activeModule={activeModule}><div className="settings-block-head"><label>数据状态</label><button className="secondary small" onClick={() => loadDataStatus?.()}>刷新数据状态</button></div><DataStatus dataStatus={dataStatus} onCopy={onCopy} /></ModuleView>
     <ModuleView name="security" activeModule={activeModule}><SecurityModule systemStatus={systemStatus} setupStatus={setupStatus} dataStatus={dataStatus} mcpStatus={mcpStatus} providers={providers} loadSystemStatus={loadSystemStatus} logout={logout} onCopy={onCopy} /></ModuleView>
@@ -50,10 +81,26 @@ function moduleLabel(m) {
 function moduleDescription(m) {
   return settingsModuleMeta[m]?.desc || '';
 }
-function ModuleView({ name, activeModule, children }) {
-  return <div className={'module-view ' + (activeModule === name ? 'active' : '')} data-module-view={name}>
+function ModuleView({ name, activeModule, children, dirty = false, saveState, onSave, saveHint = '' }) {
+  return <div className={'module-view ' + (activeModule === name ? 'active ' : '') + (dirty ? 'dirty' : '')} data-module-view={name}>
     <div className="module-view-title"><div><span>{moduleLabel(name)}</span><p>{moduleDescription(name)}</p></div></div>
+    <SettingsSaveState dirty={dirty} state={saveState} onSave={onSave} hint={saveHint} />
     {children}
+  </div>;
+}
+
+function SettingsSaveState({ dirty, state = {}, onSave, hint }) {
+  const status = state.status === 'saving' ? 'saving' : state.status === 'error' ? 'error' : dirty ? 'dirty' : state.status === 'saved' ? 'saved' : 'idle';
+  if (status === 'idle') return null;
+  const content = {
+    dirty: ['有未保存的修改', hint || '保存后配置才会生效。'],
+    saving: ['正在保存配置…', '请稍候，不要关闭页面。'],
+    saved: ['配置已保存', '刚刚已写入当前工作空间。'],
+    error: ['保存失败', state.message || '请检查配置后重试。'],
+  }[status];
+  return <div className={'settings-save-state ' + status} role={status === 'error' ? 'alert' : 'status'}>
+    <div className="settings-save-state-copy"><span className="settings-save-state-icon" aria-hidden="true">{status === 'saved' ? '✓' : status === 'error' ? '!' : ''}</span><div><b>{content[0]}</b><span>{content[1]}</span></div></div>
+    {dirty ? <button type="button" onClick={onSave} disabled={status === 'saving'}>{status === 'saving' ? '保存中…' : '保存更改'}</button> : null}
   </div>;
 }
 
@@ -92,7 +139,7 @@ function WorkspaceModule({ setupStatus, workspaces, createWorkspace, selectWorks
   </>;
 }
 
-function ModelModule({ config, setConfig, saveConfig, showWorkspacePromptPreview, workspacePromptPreview, testModelProvider, providers }) {
+function ModelModule({ config, configDirty, saveState, setConfig, saveConfig, showWorkspacePromptPreview, workspacePromptPreview, testModelProvider, providers }) {
   const update = (key, value) => setConfig(c => ({...c, [key]: value}));
   const providerModels = (provider) => normalizeModelNames([...(provider?.models || []), provider?.default_model].filter(Boolean));
   const activeProvider = providers.find(p => p.id === config.provider_id) || providers[0] || null;
@@ -108,9 +155,10 @@ function ModelModule({ config, setConfig, saveConfig, showWorkspacePromptPreview
   });
   const selectedProviderModels = providerModels(activeProvider);
   const contextMode = config.context_mode || 'auto';
+  const saving = saveState?.status === 'saving';
   return <>
     <section className="model-quick-panel model-page-single">
-      <div className="model-quick-head"><div><b>默认模型</b><span>{activeProvider?.name || '未选择供应商'} · {config.model || activeProvider?.default_model || '未选择模型'}</span></div><div className="model-quick-actions"><button onClick={() => saveConfig?.()}>保存</button><button className="secondary" onClick={() => testModelProvider?.()}>测试</button><button className="secondary" onClick={() => showWorkspacePromptPreview?.()}>Prompt</button></div></div>
+      <div className="model-quick-head"><div><b>默认模型</b><span>{activeProvider?.name || '未选择供应商'} · {config.model || activeProvider?.default_model || '未选择模型'}</span></div><div className="model-quick-actions"><button className={configDirty ? 'settings-inline-save-button dirty' : 'settings-inline-save-button'} onClick={() => saveConfig?.()} disabled={!configDirty || saving}>{saving ? '保存中…' : configDirty ? '保存更改' : '已保存'}</button><button className="secondary" onClick={() => testModelProvider?.()}>测试</button><button className="secondary" onClick={() => showWorkspacePromptPreview?.()}>Prompt</button></div></div>
       <div className="model-quick-grid">
         <label>供应商<select value={activeProvider?.id || ''} onChange={e => chooseProvider(e.target.value)}>{providers.length ? providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>) : <option value="">未配置供应商</option>}</select></label>
         <label>模型<input value={config.model || ''} onChange={e => chooseModel(e.target.value)} placeholder={activeProvider?.default_model || 'gpt-4o-mini'} /></label>
@@ -379,7 +427,7 @@ function BuiltinToolExposurePicker({draft, tools, onChange}) {
   </div>;
 }
 
-function ToolsModule({ builtinTools, mcpStatus, mcpConfig, setMcpConfig, saveMCPConfig, loadMCPConfig, loadMCPStatus, testMCP, fetchMCPServerTools }) {
+function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveState, setMcpConfig, saveMCPConfig, loadMCPConfig, loadMCPStatus, testMCP, fetchMCPServerTools }) {
   const [newServer, setNewServer] = useState(defaultMCPServerDraft);
   const [renameDrafts, setRenameDrafts] = useState({});
   const [formError, setFormError] = useState('');
@@ -388,6 +436,7 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, setMcpConfig, saveMCP
   const parsed = useMemo(() => parseMCPConfigDraft(mcpConfig), [mcpConfig]);
   const builtinDraft = builtinToolsToDraft(parsed.config.builtin_tools);
   const serverNames = Object.keys(parsed.config.servers || {}).sort();
+  const saving = saveState?.status === 'saving';
   const statusByName = useMemo(() => Object.fromEntries((mcpStatus || []).map(s => [s.name, s])), [mcpStatus]);
 
   async function refreshServerTools(name) {
@@ -526,7 +575,7 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, setMcpConfig, saveMCP
     {parsed.error ? <div className="backup-health warn">当前配置 JSON 损坏，表单无法解析：{parsed.error}。可以在下方高级区修复原始内容。</div> : null}
     {!parsed.error ? <div className="mcp-form-list redesigned">{serverNames.length ? serverNames.map(name => renderServerForm(name, parsed.config.servers[name])) : <div className="empty compact">暂无 Server，先添加一个 HTTP MCP 地址。</div>}{renderServerForm('', {}, true)}</div> : null}
     {formError ? <div className="backup-health warn">{formError}</div> : null}
-    <div className="settings-actions mcp-primary-actions"><button onClick={() => saveMCPConfig?.()}>保存 MCP 配置</button><button className="secondary" onClick={() => loadMCPConfig?.()}>重新加载</button><button className="secondary" onClick={() => testMCP()}>测试默认 MCP</button></div>
+    <div className="settings-actions mcp-primary-actions"><button className={mcpConfigDirty ? 'settings-inline-save-button dirty' : 'settings-inline-save-button'} onClick={() => saveMCPConfig?.()} disabled={!mcpConfigDirty || saving}>{saving ? '保存中…' : mcpConfigDirty ? '保存 MCP 更改' : 'MCP 已保存'}</button><button className="secondary" onClick={() => { if (!mcpConfigDirty || window.confirm('重新加载会丢弃尚未保存的 MCP 修改，确定继续吗？')) loadMCPConfig?.(); }}>重新加载</button><button className="secondary" onClick={() => testMCP()}>测试默认 MCP</button></div>
     <details className="mcp-raw-json"><summary>高级：查看 / 编辑原始 JSON</summary><textarea className="mcp-editor" value={mcpConfig} onChange={e => setMcpConfig(e.target.value)} /></details>
   </>;
 }

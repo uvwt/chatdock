@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { fetchConfig, fetchDataStatus, fetchMCPConfig, fetchMCPStatus, fetchModelProviders, fetchScheduledTasks, fetchSetupStatus, fetchSystemStatus, fetchWorkspaces } from '../lib/settingsApi.js';
+import { mcpConfigDraftChanged, workspaceConfigDraftChanged } from '../lib/settingsDraft.js';
 
 const defaultConfig = {
   base_url: '',
@@ -49,8 +50,13 @@ export function useSettingsData(api) {
   const [mcpStatus, setMcpStatus] = useState([]);
   const [workspacePromptPreview, setWorkspacePromptPreview] = useState('');
   const [mcpConfig, setMcpConfig] = useState('');
+  const [savedMCPConfig, setSavedMCPConfig] = useState(null);
   const [builtinTools, setBuiltinTools] = useState([]);
   const [config, setConfig] = useState(defaultConfig);
+  const [savedConfig, setSavedConfig] = useState(null);
+
+  const configDirty = useMemo(() => workspaceConfigDraftChanged(config, savedConfig), [config, savedConfig]);
+  const mcpConfigDirty = useMemo(() => mcpConfigDraftChanged(mcpConfig, savedMCPConfig), [mcpConfig, savedMCPConfig]);
 
   const loadWorkspaceSummaries = useCallback(async () => {
     const data = await fetchWorkspaces(api);
@@ -69,12 +75,16 @@ export function useSettingsData(api) {
 
   const loadConfig = useCallback(async () => {
     const c = await fetchConfig(api);
-    setConfig(configFromServer(c));
+    const next = configFromServer(c);
+    setConfig(next);
+    setSavedConfig(next);
   }, [api]);
 
   const loadMCPConfig = useCallback(async () => {
     const c = await fetchMCPConfig(api);
-    setMcpConfig(c.content || '{\n  "builtin_tools": {\n    "tool_exposure": "direct"\n  },\n  "servers": {}\n}\n');
+    const content = c.content || '{\n  "builtin_tools": {\n    "tool_exposure": "direct"\n  },\n  "servers": {}\n}\n';
+    setMcpConfig(content);
+    setSavedMCPConfig(content);
     setBuiltinTools(c.builtin_tools || []);
   }, [api]);
 
@@ -135,9 +145,10 @@ export function useSettingsData(api) {
     mcpConfig,
     setMcpConfig,
     builtinTools,
-    setBuiltinTools,
     config,
     setConfig,
+    configDirty,
+    mcpConfigDirty,
     loadWorkspaceSummaries,
     loadConfig,
     loadMCPConfig,

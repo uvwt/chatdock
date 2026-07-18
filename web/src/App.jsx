@@ -210,9 +210,10 @@ export default function App() {
     mcpConfig,
     setMcpConfig,
     builtinTools,
-    setBuiltinTools,
     config,
     setConfig,
+    configDirty,
+    mcpConfigDirty,
     loadWorkspaceSummaries,
     loadConfig,
     loadMCPConfig,
@@ -224,6 +225,16 @@ export default function App() {
     loadSystemStatus,
     loadMCPStatus,
   } = useSettingsData(api);
+
+  useEffect(() => {
+    if (!configDirty && !mcpConfigDirty) return undefined;
+    const warnBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [configDirty, mcpConfigDirty]);
 
   const taskDataEnabled = !!setupStatus && !setupStatus.needs_setup;
   const agentTasks = useAgentTasks(api, taskDataEnabled);
@@ -515,6 +526,7 @@ export default function App() {
   const selectWorkspace = useCallback(async (name) => {
     if (busy) { showToast('当前回复还在进行中，请先暂停或中断后再切换工作空间。', 'error'); return; }
     if (!name || name === selectedWorkspaceID) return;
+    if ((configDirty || mcpConfigDirty) && !window.confirm('切换工作空间会丢弃尚未保存的配置修改，确定继续吗？')) return;
     setWorkspacePickerOpen(false);
     try {
       const data = await selectWorkspaceRequest(api, name);
@@ -532,7 +544,7 @@ export default function App() {
     } catch (error) {
       showToast('切换工作空间失败：' + error.message, 'error');
     }
-  }, [api, busy, clearAttachments, closeSidebarOnMobile, selectedWorkspaceID, showToast]);
+  }, [api, busy, clearAttachments, closeSidebarOnMobile, configDirty, mcpConfigDirty, selectedWorkspaceID, showToast]);
 
   const createPersistedSession = useCallback(async ({ refreshList = true } = {}) => {
     const s = await createSessionRecord(api);
@@ -1298,13 +1310,19 @@ export default function App() {
   }, [api, showToast]);
 
   const saveMCPConfig = useCallback(async () => {
-    try { JSON.parse(mcpConfig || '{}'); } catch (e) { showToast('MCP 配置不是合法 JSON：' + e.message, 'error'); return; }
-    const c = await saveMCPConfigRequest(api, mcpConfig);
-    setMcpConfig(c.content || mcpConfig);
-    setBuiltinTools(c.builtin_tools || builtinTools);
+    try {
+      JSON.parse(mcpConfig || '{}');
+    } catch (e) {
+      const error = new Error('MCP 配置不是合法 JSON：' + e.message);
+      showToast(error.message, 'error');
+      throw error;
+    }
+    await saveMCPConfigRequest(api, mcpConfig);
+    // 保存后重新读取服务端规范化结果，同时更新未保存基线。
+    await loadMCPConfig();
     await loadMCPStatus().catch(() => { });
     showToast('MCP 配置已保存', 'success');
-  }, [api, builtinTools, loadMCPStatus, mcpConfig, setBuiltinTools, showToast]);
+  }, [api, loadMCPConfig, loadMCPStatus, mcpConfig, showToast]);
 
   const testMCP = useCallback(async (serverName = '') => {
     try {
@@ -1517,6 +1535,7 @@ export default function App() {
   const settingsPanel = (
     <SettingsPanel
       activeModule={activeModule} busy={busy} closeSettings={closeSettings} config={config}
+      configDirty={configDirty} mcpConfigDirty={mcpConfigDirty}
       createWorkspace={createWorkspace} dataStatus={dataStatus} deleteScheduledTask={deleteScheduledTask} deleteWorkspace={deleteWorkspace}
       editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels}
       editScheduledTask={editScheduledTask} loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig}
