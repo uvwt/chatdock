@@ -12,7 +12,6 @@ export function useVisualViewportLayout() {
 
     const clearViewportState = () => {
       root.style.removeProperty('--chatdock-viewport-height');
-      root.style.removeProperty('--chatdock-viewport-offset-top');
       root.classList.remove('chatdock-keyboard-open');
     };
 
@@ -25,10 +24,9 @@ export function useVisualViewportLayout() {
         }
 
         // iOS 键盘会缩小 visualViewport，但部分 WebView 不会同步更新 100dvh。
-        // 将应用根节点绑定到真实可见视口，避免系统键盘工具栏覆盖输入区。
+        // 只同步可见高度，让主布局在正常 flex 流内收缩，避免输入区覆盖消息内容。
         const metrics = normalizeViewportMetrics(window.visualViewport, window.innerHeight);
         root.style.setProperty('--chatdock-viewport-height', `${metrics.height}px`);
-        root.style.setProperty('--chatdock-viewport-offset-top', `${metrics.offsetTop}px`);
         root.classList.toggle('chatdock-keyboard-open', isTextEntryTarget(document.activeElement));
       });
     };
