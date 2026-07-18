@@ -1,11 +1,10 @@
 import React from 'react';
-import { UiIcon } from './uiIcon.jsx';
 import { activeAgentTaskCount, agentTaskProgress, agentTaskStatusMeta, agentTaskStepMeta } from '../lib/agentTasks.js';
 
 export function TaskPanelToggle({ open, tasks, onClick }) {
   const activeCount = activeAgentTaskCount(tasks);
   return <button type="button" className={'secondary task-panel-toggle ' + (open ? 'active' : '')} onClick={onClick} aria-label={open ? '关闭全部任务' : '打开全部任务'} aria-expanded={open ? 'true' : 'false'} title={open ? '关闭全部任务' : '打开全部任务'}>
-    <UiIcon name="tasks" className="task-panel-toggle-icon" />
+    <svg className="task-panel-toggle-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></svg>
     <span className="task-panel-toggle-label">任务</span>
     {activeCount > 0 ? <span className="task-panel-toggle-count">{activeCount > 99 ? '99+' : activeCount}</span> : null}
   </button>;

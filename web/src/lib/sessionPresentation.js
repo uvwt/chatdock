@@ -1,12 +1,5 @@
 import { fmtTime } from './appUtils.js';
 
-const leadingDecorativeEmoji = /^(?:(?:\p{Extended_Pictographic}|\uFE0F|\u200D)\s*)+/u;
-
-export function scheduledTaskDisplayTitle(title) {
-  const text = String(title || '').trim();
-  return text.replace(leadingDecorativeEmoji, '').trim() || '未命名任务';
-}
-
 export function scheduledTaskSessionRows({ selectedScheduledTaskID, selectedScheduledTaskRuns = [], selectedScheduledTask = null, sessions = [] }) {
   if (!selectedScheduledTaskID) return [];
   const byID = new Map(sessions.map(item => [item.id, item]));
