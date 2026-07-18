@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { isTextEntryTarget, normalizeViewportMetrics } from '../lib/viewportLayout.js';
+import { isTextEntryTarget, normalizeViewportMetrics, shouldKeepMessagesAtBottom } from '../lib/viewportLayout.js';
 
 const mobileViewportQuery = '(max-width: 720px)';
 
@@ -8,26 +8,39 @@ export function useVisualViewportLayout() {
     const root = document.documentElement;
     const mobile = window.matchMedia(mobileViewportQuery);
     const visualViewport = window.visualViewport;
-    let animationFrame = 0;
+    let layoutFrame = 0;
+    let scrollFrame = 0;
 
     const clearViewportState = () => {
       root.style.removeProperty('--chatdock-viewport-height');
+      root.style.removeProperty('--chatdock-viewport-offset-top');
       root.classList.remove('chatdock-keyboard-open');
     };
 
     const applyViewportState = () => {
-      window.cancelAnimationFrame(animationFrame);
-      animationFrame = window.requestAnimationFrame(() => {
+      const messageBox = document.querySelector('#app.app .messages');
+      const keepMessagesAtBottom = shouldKeepMessagesAtBottom(messageBox);
+
+      window.cancelAnimationFrame(layoutFrame);
+      layoutFrame = window.requestAnimationFrame(() => {
         if (!mobile.matches) {
           clearViewportState();
           return;
         }
 
-        // iOS 键盘会缩小 visualViewport，但部分 WebView 不会同步更新 100dvh。
-        // 只同步可见高度，让主布局在正常 flex 流内收缩，避免输入区覆盖消息内容。
-        const metrics = normalizeViewportMetrics(window.visualViewport, window.innerHeight);
+        // iOS 聚焦输入框时会同时缩小并平移 visualViewport。
+        // 应用固定到这个真实可见矩形，内部仍保持正常 flex 流，避免状态栏重叠和输入区覆盖消息。
+        const metrics = normalizeViewportMetrics(visualViewport, window.innerHeight);
+        const keyboardOpen = isTextEntryTarget(document.activeElement);
         root.style.setProperty('--chatdock-viewport-height', `${metrics.height}px`);
-        root.classList.toggle('chatdock-keyboard-open', isTextEntryTarget(document.activeElement));
+        root.style.setProperty('--chatdock-viewport-offset-top', `${metrics.offsetTop}px`);
+        root.classList.toggle('chatdock-keyboard-open', keyboardOpen);
+
+        if (!keyboardOpen || !keepMessagesAtBottom || !messageBox) return;
+        window.cancelAnimationFrame(scrollFrame);
+        scrollFrame = window.requestAnimationFrame(() => {
+          messageBox.scrollTop = messageBox.scrollHeight;
+        });
       });
     };
 
@@ -41,7 +54,8 @@ export function useVisualViewportLayout() {
     mobile.addEventListener('change', applyViewportState);
 
     return () => {
-      window.cancelAnimationFrame(animationFrame);
+      window.cancelAnimationFrame(layoutFrame);
+      window.cancelAnimationFrame(scrollFrame);
       visualViewport?.removeEventListener('resize', applyViewportState);
       visualViewport?.removeEventListener('scroll', applyViewportState);
       window.removeEventListener('resize', applyViewportState);

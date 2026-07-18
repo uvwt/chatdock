@@ -1,33 +1,49 @@
-/* iOS 软键盘会缩小 visualViewport，但部分 WebView 不会同步刷新 100dvh。
-   这里只收缩应用高度，不固定或平移整页，避免输入区覆盖消息内容。 */
+/* iOS 聚焦输入框时会平移并缩小 visualViewport。
+   键盘态把整个聊天应用固定到真实可见矩形，内部仍使用 flex 正常排版。 */
 @media (max-width: 720px) {
-  html,
-  body,
-  #root {
+  html.chatdock-keyboard-open,
+  html.chatdock-keyboard-open body,
+  html.chatdock-keyboard-open #root {
     width: 100%;
-    height: var(--chatdock-viewport-height, 100dvh);
+    height: 100%;
     min-height: 0;
     overflow: hidden;
+    overscroll-behavior: none;
   }
 
-  #app.app,
-  #app.app.sidebar-collapsed,
-  #app.app.settings-open,
-  #app.app.sidebar-collapsed.settings-open {
-    position: relative;
-    width: 100%;
+  html.chatdock-keyboard-open #app.app,
+  html.chatdock-keyboard-open #app.app.sidebar-collapsed,
+  html.chatdock-keyboard-open #app.app.settings-open,
+  html.chatdock-keyboard-open #app.app.sidebar-collapsed.settings-open {
+    position: fixed !important;
+    top: var(--chatdock-viewport-offset-top, 0px) !important;
+    right: 0 !important;
+    bottom: auto !important;
+    left: 0 !important;
+    width: 100% !important;
     height: var(--chatdock-viewport-height, 100dvh) !important;
-    min-height: 0;
+    min-height: 0 !important;
+    overflow: hidden !important;
   }
 
-  #app.app main {
+  html.chatdock-keyboard-open #app.app main {
+    display: flex !important;
+    flex-direction: column !important;
     height: 100% !important;
-    min-height: 0;
-    overflow: hidden;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  html.chatdock-keyboard-open #app.app .topbar,
+  html.chatdock-keyboard-open #app.app .current-session-task,
+  html.chatdock-keyboard-open #app.app .composer-shell {
+    flex: 0 0 auto !important;
   }
 
   html.chatdock-keyboard-open #app.app .messages {
-    min-height: 0;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
     padding-bottom: 12px !important;
     scroll-padding-bottom: 12px;
   }
@@ -35,7 +51,6 @@
   html.chatdock-keyboard-open #app.app .composer-shell {
     position: relative !important;
     bottom: auto !important;
-    flex: 0 0 auto;
     padding-bottom: 8px !important;
     background: var(--gpt-main) !important;
   }
