@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,11 @@ import (
 
 // SQLite 初始化和旧 JSON 数据迁移放在一起，便于先读懂 Store 启动流程，
 // 也避免把迁移细节混进会话/工作空间的业务方法里。
+
+const (
+	maxLegacyConfigJSONBytes  int64 = 16 << 20
+	maxLegacySessionJSONBytes int64 = 64 << 20
+)
 
 type sqlWriter interface {
 	Exec(string, ...any) (sql.Result, error)
@@ -252,7 +258,7 @@ func (s *Store) importLegacyDefaultFiles() error {
 		return err
 	} else if !ok {
 		legacyConfig := filepath.Join(s.dataDir, "config.json")
-		if raw, err := os.ReadFile(legacyConfig); err == nil {
+		if raw, err := readLegacyJSONFile(legacyConfig, maxLegacyConfigJSONBytes); err == nil {
 			if err := s.setWorkspaceRawLocked(defaultWorkspaceID, "config", string(raw)); err != nil {
 				return err
 			}
@@ -289,21 +295,21 @@ func (s *Store) importPromptDir(name string, dir string) error {
 	if err := s.ensureWorkspaceLocked(name); err != nil {
 		return err
 	}
-	if raw, err := os.ReadFile(filepath.Join(dir, "config.json")); err == nil {
+	if raw, err := readLegacyJSONFile(filepath.Join(dir, "config.json"), maxLegacyConfigJSONBytes); err == nil {
 		if err := s.setWorkspaceRawLocked(name, "config", string(raw)); err != nil {
 			return err
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	if raw, err := os.ReadFile(filepath.Join(dir, "mcp.json")); err == nil {
+	if raw, err := readLegacyJSONFile(filepath.Join(dir, "mcp.json"), maxLegacyConfigJSONBytes); err == nil {
 		if err := s.setWorkspaceRawLocked(name, "mcp", string(raw)); err != nil {
 			return err
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	if raw, err := os.ReadFile(filepath.Join(dir, "scheduled_tasks.json")); err == nil {
+	if raw, err := readLegacyJSONFile(filepath.Join(dir, "scheduled_tasks.json"), maxLegacyConfigJSONBytes); err == nil {
 		if err := s.setWorkspaceRawLocked(name, "scheduled_tasks", string(raw)); err != nil {
 			return err
 		}
@@ -327,7 +333,7 @@ func (s *Store) importPromptDir(name string, dir string) error {
 }
 
 func (s *Store) importSessionFile(prompt string, path string) error {
-	raw, err := os.ReadFile(path)
+	raw, err := readLegacyJSONFile(path, maxLegacySessionJSONBytes)
 	if err != nil {
 		return err
 	}
@@ -339,6 +345,27 @@ func (s *Store) importSessionFile(prompt string, path string) error {
 		return fmt.Errorf("legacy session %s has empty id", path)
 	}
 	return s.saveSessionForWorkspaceLocked(prompt, &session)
+}
+
+func readLegacyJSONFile(path string, maxBytes int64) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	if info, err := file.Stat(); err != nil {
+		return nil, err
+	} else if info.Size() > maxBytes {
+		return nil, fmt.Errorf("legacy JSON %s exceeds %d bytes", path, maxBytes)
+	}
+	raw, err := io.ReadAll(io.LimitReader(file, maxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(raw)) > maxBytes {
+		return nil, fmt.Errorf("legacy JSON %s exceeds %d bytes", path, maxBytes)
+	}
+	return raw, nil
 }
 
 func (s *Store) metaValue(key string) (string, error) {
