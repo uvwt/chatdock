@@ -15,6 +15,7 @@ export function useAgentTasks(api, enabled) {
   const [detailError, setDetailError] = useState('');
   const expandedTaskIDRef = useRef('');
   const requestSequenceRef = useRef(0);
+  const refreshInFlightRef = useRef(false);
 
   const loadDetail = useCallback(async (taskID, sequence) => {
     if (!taskID) {
@@ -37,7 +38,8 @@ export function useAgentTasks(api, enabled) {
   }, [api]);
 
   const refresh = useCallback(async ({ initial = false } = {}) => {
-    if (!enabled || document.visibilityState === 'hidden') return;
+    if (!enabled || document.visibilityState === 'hidden' || refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
     const sequence = ++requestSequenceRef.current;
     if (initial) setLoading(true);
     try {
@@ -52,6 +54,7 @@ export function useAgentTasks(api, enabled) {
       // 短暂断线时保留上一次任务数据，面板展示错误而不是闪成空列表。
       setError(err.message || '读取任务失败');
     } finally {
+      refreshInFlightRef.current = false;
       if (sequence === requestSequenceRef.current) setLoading(false);
     }
   }, [api, enabled, loadDetail]);

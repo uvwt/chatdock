@@ -5,8 +5,14 @@ export function normalizeSettingsModule(name) {
   return settingsModules.includes(name) ? name : 'workspace';
 }
 
-export function agentTaskDataEnabled(setupStatus, systemStatus) {
-  return !!setupStatus && !setupStatus.needs_setup && systemStatus?.agentdock_tasks_configured === true;
+export function agentTaskDataEnabled(setupStatus, systemStatus, authPageVisible = false) {
+  return !authPageVisible && !!setupStatus && !setupStatus.needs_setup && systemStatus?.agentdock_tasks_configured === true;
+}
+
+export function logoutAndReload(storage = localStorage, location = window.location) {
+  // 硬刷新确保轮询、流连接和内存中的受保护数据与登录态一起释放。
+  storage.removeItem('chatdock.authToken');
+  location.reload();
 }
 
 export function fmtTime(value) {

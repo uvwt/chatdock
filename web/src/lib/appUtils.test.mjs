@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { agentTaskDataEnabled, fmtBytes, fmtDuration, normalizeSettingsModule, runStatusClass, runStatusLabel, taskStatusClass, taskStatusLabel } from './appUtils.js';
+import { agentTaskDataEnabled, fmtBytes, fmtDuration, logoutAndReload, normalizeSettingsModule, runStatusClass, runStatusLabel, taskStatusClass, taskStatusLabel } from './appUtils.js';
 
 test('format helpers keep compact Chinese UI labels', () => {
   assert.equal(fmtBytes(1536), '1.5 KB');
@@ -20,4 +20,5 @@ test('AgentDock task polling starts only after setup and runtime configuration a
   assert.equal(agentTaskDataEnabled({needs_setup: true}, {agentdock_tasks_configured: true}), false);
   assert.equal(agentTaskDataEnabled({needs_setup: false}, {agentdock_tasks_configured: false}), false);
   assert.equal(agentTaskDataEnabled({needs_setup: false}, {agentdock_tasks_configured: true}), true);
+  assert.equal(agentTaskDataEnabled({needs_setup: false}, {agentdock_tasks_configured: true}, true), false);
 });

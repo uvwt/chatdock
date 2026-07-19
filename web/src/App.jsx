@@ -3,7 +3,7 @@ import { EmptyState, MessageView } from './components/chat.jsx';
 import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
 import { CurrentSessionTask, TaskPanel } from './components/taskPanel.jsx';
 import { DialogHost, LoginPage, Markdown, QuickPalette, WorkspacePicker } from './components/base.jsx';
-import { agentTaskDataEnabled, defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtTime, normalizeSettingsModule, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
+import { agentTaskDataEnabled, defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtTime, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
 import { attachmentLooksLikeImage, chatErrorDetails, contextPreviewText, finalAssistantMessageFromSession, readableChatError, scheduledTaskContextLabel, scheduledTaskRunsText, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
 import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js';
@@ -233,7 +233,7 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', warnBeforeUnload);
   }, [configDirty, mcpConfigDirty]);
 
-  const taskDataEnabled = agentTaskDataEnabled(setupStatus, systemStatus);
+  const taskDataEnabled = agentTaskDataEnabled(setupStatus, systemStatus, !!authPage);
   const agentTasks = useAgentTasks(api, taskDataEnabled);
   const currentSessionTask = useCurrentSessionTask(api, current, taskDataEnabled);
   const closeTaskPanel = useCallback(() => {
@@ -1491,10 +1491,7 @@ export default function App() {
     }
   }, [api, current, showDialog, showToast]);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('chatdock.authToken');
-    setAuthPage({ message: '请输入 ChatDock 账号和密码。' });
-  }, []);
+  const logout = useCallback(() => logoutAndReload(), []);
 
   const activeScheduledTasks = useMemo(() => scheduledTasks.filter(task => task.enabled || task.running), [scheduledTasks]);
   const selectedScheduledTask = useMemo(() => scheduledTasks.find(task => task.id === selectedScheduledTaskID) || null, [scheduledTasks, selectedScheduledTaskID]);
