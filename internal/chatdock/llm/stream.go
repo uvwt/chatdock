@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -76,7 +77,10 @@ func readModelStream(body io.Reader, cfg model.ModelConfig, onDelta func(StreamD
 		}
 
 		delta, err := parseStreamDelta(data)
-		if err != nil || delta.Empty() {
+		if err != nil {
+			return full.String(), err
+		}
+		if delta.Empty() {
 			continue
 		}
 
@@ -119,6 +123,7 @@ func (d StreamDelta) Empty() bool {
 }
 
 type streamChunk struct {
+	Error   json.RawMessage `json:"error"`
 	Choices []struct {
 		Delta StreamDelta `json:"delta"`
 	} `json:"choices"`
@@ -127,7 +132,10 @@ type streamChunk struct {
 func parseStreamDelta(data string) (StreamDelta, error) {
 	var chunk streamChunk
 	if err := json.Unmarshal([]byte(data), &chunk); err != nil {
-		return StreamDelta{}, err
+		return StreamDelta{}, fmt.Errorf("decode model stream chunk: %w", err)
+	}
+	if len(chunk.Error) > 0 && string(chunk.Error) != "null" {
+		return StreamDelta{}, fmt.Errorf("model stream failed: %s", summarizeModelProviderBody("application/json", chunk.Error))
 	}
 	if len(chunk.Choices) == 0 {
 		return StreamDelta{}, nil

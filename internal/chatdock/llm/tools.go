@@ -350,7 +350,10 @@ func readModelToolStream(body io.Reader, cfg model.ModelConfig, emit func(string
 			break
 		}
 		delta, err := parseToolStreamDelta(data)
-		if err != nil || delta.Empty() {
+		if err != nil {
+			return ModelChatResponse{Content: full.String(), ToolCalls: calls.List()}, err
+		}
+		if delta.Empty() {
 			continue
 		}
 		calls.Apply(delta.ToolCalls)
@@ -402,6 +405,7 @@ type streamingToolCallDelta struct {
 }
 
 type toolStreamChunk struct {
+	Error   json.RawMessage `json:"error"`
 	Choices []struct {
 		Delta struct {
 			Content          string                   `json:"content"`
@@ -414,7 +418,10 @@ type toolStreamChunk struct {
 func parseToolStreamDelta(data string) (toolStreamDelta, error) {
 	var chunk toolStreamChunk
 	if err := json.Unmarshal([]byte(data), &chunk); err != nil {
-		return toolStreamDelta{}, err
+		return toolStreamDelta{}, fmt.Errorf("decode model tool stream chunk: %w", err)
+	}
+	if len(chunk.Error) > 0 && string(chunk.Error) != "null" {
+		return toolStreamDelta{}, fmt.Errorf("model tool stream failed: %s", summarizeModelProviderBody("application/json", chunk.Error))
 	}
 	if len(chunk.Choices) == 0 {
 		return toolStreamDelta{}, nil
