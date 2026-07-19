@@ -30,6 +30,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm --prefix web ci
+      - run: make shell-check
       - run: test -z "$(gofmt -l cmd internal web/*.go)"
       - run: node --check web/vite.config.js
       - run: for f in web/src/lib/*.js web/src/lib/*.mjs web/src/hooks/*.js; do [ -f "$f" ] && node --check "$f"; done
