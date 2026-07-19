@@ -325,8 +325,11 @@ func (c *ChatClient) streamChatWithRawMessages(ctx context.Context, cfg model.Mo
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
-		return ModelChatResponse{}, fmt.Errorf("model api failed: %s: %s", resp.Status, string(respBody))
+		respBody, err := readModelResponseBody(resp, modelResponseBodyLimit(resp, 4<<20))
+		if err != nil {
+			return ModelChatResponse{}, err
+		}
+		return ModelChatResponse{}, modelAPIError("model api failed", resp, respBody)
 	}
 	return readModelToolStream(resp.Body, cfg, emit)
 }
@@ -490,9 +493,12 @@ func (c *ChatClient) completeChatWithRawMessages(ctx context.Context, cfg model.
 		return ModelChatResponse{}, err
 	}
 	defer resp.Body.Close()
-	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	respBody, err := readModelResponseBody(resp, modelResponseBodyLimit(resp, 16<<20))
+	if err != nil {
+		return ModelChatResponse{}, err
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return ModelChatResponse{}, fmt.Errorf("model api failed: %s: %s", resp.Status, string(respBody))
+		return ModelChatResponse{}, modelAPIError("model api failed", resp, respBody)
 	}
 	var output map[string]any
 	if err := json.Unmarshal(respBody, &output); err != nil {

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -54,9 +53,12 @@ func (c *ChatClient) Complete(ctx context.Context, cfg model.ModelConfig, histor
 	}
 	defer resp.Body.Close()
 
-	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	respBody, err := readModelResponseBody(resp, modelResponseBodyLimit(resp, 4<<20))
+	if err != nil {
+		return "", err
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("model api failed: %s: %s", resp.Status, string(respBody))
+		return "", modelAPIError("model api failed", resp, respBody)
 	}
 
 	var output struct {
@@ -98,9 +100,12 @@ func (c *ChatClient) ListModels(ctx context.Context, cfg model.ModelConfig) ([]s
 		return nil, err
 	}
 	defer resp.Body.Close()
-	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	respBody, err := readModelResponseBody(resp, modelResponseBodyLimit(resp, 1<<20))
+	if err != nil {
+		return nil, err
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("获取模型列表失败：%s；%s", resp.Status, summarizeModelProviderBody(resp.Header.Get("Content-Type"), respBody))
+		return nil, modelAPIError("获取模型列表失败", resp, respBody)
 	}
 
 	var output struct {

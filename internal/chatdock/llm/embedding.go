@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 )
@@ -38,9 +37,12 @@ func (c *ChatClient) Embed(ctx context.Context, baseURL string, apiKey string, m
 		return nil, err
 	}
 	defer resp.Body.Close()
-	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	respBody, err := readModelResponseBody(resp, modelResponseBodyLimit(resp, 8<<20))
+	if err != nil {
+		return nil, err
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("embedding api failed: %s: %s", resp.Status, summarizeModelProviderBody(resp.Header.Get("Content-Type"), respBody))
+		return nil, modelAPIError("embedding api failed", resp, respBody)
 	}
 	var output struct {
 		Data []struct {

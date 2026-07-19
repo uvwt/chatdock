@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -47,8 +46,11 @@ func (c *ChatClient) StreamRawMessages(ctx context.Context, cfg model.ModelConfi
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
-		return "", fmt.Errorf("model api failed: %s: %s", resp.Status, string(respBody))
+		respBody, err := readModelResponseBody(resp, modelResponseBodyLimit(resp, 4<<20))
+		if err != nil {
+			return "", err
+		}
+		return "", modelAPIError("model api failed", resp, respBody)
 	}
 
 	return readModelStream(resp.Body, cfg, onDelta)
