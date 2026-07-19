@@ -49,8 +49,8 @@ for (const legacyName of ['final-layout', 'visual-polish', 'override']) {
   if (settingsEntry.includes(legacyName)) failures.push(`settings.css must use semantic module names, not ${legacyName}`);
 }
 
-// 移动端聊天页会锁住 body，配置页必须自己成为视口内的纵向滚动容器。
-// 只检查最终布局层，避免后续重构又回到“自然高度 + body 禁止滚动”的死锁组合。
+// 移动端聊天页会锁住 body；配置页必须解除锁并使用浏览器原生文档滚动。
+// 禁止配置页再次变成固定高度的嵌套滚动容器，iOS Safari 对这类结构容易吞掉触摸滚动。
 const settingsLayout = read('web/src/styles/settings/15-layout-system.css');
 const settingsPageShellRule = settingsLayout.match(/\.settings-page\s+\.settings\s*\{([^}]*)\}/)?.[1] || '';
 if (!/position:\s*static\s*!important/.test(settingsPageShellRule)) {
@@ -67,12 +67,33 @@ const mobileSettingsLayout = settingsLayout.slice(
   settingsLayout.indexOf('@media (max-width: 900px)'),
   settingsLayout.indexOf('@media (max-width: 520px)'),
 );
-const mobileSettingsPageRule = mobileSettingsLayout.match(/\.settings-page\s*\{([^}]*)\}/)?.[1] || '';
-if (!/height:\s*var\(--chatdock-viewport-height,\s*100dvh\)\s*!important/.test(mobileSettingsPageRule)) {
-  failures.push('mobile settings page must be bounded to the visible viewport height');
+const mobileDocumentScrollRule = mobileSettingsLayout.match(/html\.settings-page-visible,[^{]*\{([^}]*)\}/)?.[1] || '';
+if (!/height:\s*auto\s*!important/.test(mobileDocumentScrollRule)
+  || !/overflow-y:\s*auto\s*!important/.test(mobileDocumentScrollRule)) {
+  failures.push('mobile settings mode must restore native document scrolling');
 }
-if (!/overflow-y:\s*auto\s*!important/.test(mobileSettingsPageRule)) {
-  failures.push('mobile settings page must own vertical scrolling while body is locked');
+
+const mobileSettingsPageRule = mobileSettingsLayout.match(/\.settings-page\s*\{([^}]*)\}/)?.[1] || '';
+if (!/height:\s*auto\s*!important/.test(mobileSettingsPageRule)
+  || !/overflow:\s*visible\s*!important/.test(mobileSettingsPageRule)) {
+  failures.push('mobile settings page must expand naturally inside the document');
+}
+if (/overflow-y:\s*auto/.test(mobileSettingsPageRule)
+  || /height:\s*var\(--chatdock-viewport-height/.test(mobileSettingsPageRule)) {
+  failures.push('mobile settings page must not create a nested viewport scroller');
+}
+
+const mobileSettingsContentRule = mobileSettingsLayout.match(/\.settings-page\s+\.settings-content\s*\{([^}]*)\}/)?.[1] || '';
+if (!/display:\s*block\s*!important/.test(mobileSettingsContentRule)
+  || !/height:\s*auto\s*!important/.test(mobileSettingsContentRule)
+  || !/overflow:\s*visible\s*!important/.test(mobileSettingsContentRule)) {
+  failures.push('mobile settings content must participate in the native document flow');
+}
+
+const mobileActiveModuleRule = mobileSettingsLayout.match(/\.settings-page\s+\.module-view\.active\s*\{([^}]*)\}/)?.[1] || '';
+if (!/height:\s*auto\s*!important/.test(mobileActiveModuleRule)
+  || !/overflow:\s*visible\s*!important/.test(mobileActiveModuleRule)) {
+  failures.push('mobile active settings module must not clip long content');
 }
 
 const exactBlocks = new Map();

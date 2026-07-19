@@ -3,7 +3,7 @@ import { EmptyState, MessageView } from './components/chat.jsx';
 import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
 import { CurrentSessionTask, TaskPanel } from './components/taskPanel.jsx';
 import { DialogHost, LoginPage, Markdown, QuickPalette, WorkspacePicker } from './components/base.jsx';
-import { agentTaskDataEnabled, defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtTime, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
+import { agentTaskDataEnabled, defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtTime, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath } from './lib/appUtils.js';
 import { attachmentLooksLikeImage, chatErrorDetails, contextPreviewText, finalAssistantMessageFromSession, readableChatError, scheduledTaskContextLabel, scheduledTaskRunsText, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
 import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js';
@@ -129,6 +129,8 @@ export default function App() {
     document.body.classList.toggle('auth-page-visible', !!authPage);
     return () => document.body.classList.remove('auth-page-visible');
   }, [authPage]);
+
+  useEffect(() => { setSettingsDocumentScroll(settingsOpen); return () => setSettingsDocumentScroll(false); }, [settingsOpen]);
 
   const showToast = useCallback((message, variant = 'info') => {
     setToast({ message, variant });

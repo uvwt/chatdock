@@ -312,15 +312,29 @@
 }
 
 @media (max-width: 900px) {
-  .settings-page {
-    height: var(--chatdock-viewport-height, 100dvh) !important;
-    min-height: 0 !important;
-    display: block !important;
-    padding: 0 !important;
+  html.settings-page-visible,
+  html.settings-page-visible body,
+  body.settings-page-visible {
+    height: auto !important;
+    min-height: 100% !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
+    overscroll-behavior-y: auto !important;
+  }
+
+  html.settings-page-visible #root {
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
+  }
+
+  .settings-page {
+    height: auto !important;
+    min-height: 100dvh !important;
+    display: block !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    overscroll-behavior-y: auto !important;
     background: #f6f8fa !important;
   }
 
@@ -390,13 +404,20 @@
   }
 
   .settings-page .settings-content {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
     padding: 22px 14px 44px;
-    overflow: visible;
+    overflow: visible !important;
     background: #f8fafb;
   }
 
   .settings-page .module-view.active {
+    width: 100% !important;
     max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
 
   .settings-page .module-view-title {

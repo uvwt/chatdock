@@ -15,6 +15,12 @@ export function logoutAndReload(storage = localStorage, location = window.locati
   location.reload();
 }
 
+export function setSettingsDocumentScroll(enabled, root = document.documentElement, body = document.body) {
+  // 聊天页会锁住文档滚动；配置页内容较长，必须切回浏览器原生文档滚动，避免 iOS Safari 嵌套滚动失效。
+  root?.classList?.toggle('settings-page-visible', enabled);
+  body?.classList?.toggle('settings-page-visible', enabled);
+}
+
 export function fmtTime(value) {
   if (!value) return '';
   try { return new Date(value).toLocaleString(); } catch { return ''; }
