@@ -6,8 +6,8 @@ const root = process.cwd();
 const stylesDir = path.join(root, 'web/src/styles');
 const failures = [];
 const budgets = {
-  exactDuplicateBlocks: 32,
-  selectorsRepeatedAtLeast4: 76,
+  exactDuplicateBlocks: 4,
+  selectorsRepeatedAtLeast4: 48,
   maxSelectorLayers: 24,
   maxCssFileLines: 650,
 };
@@ -27,7 +27,7 @@ function listCSS(dir) {
 function scopedKey(file, offset) {
   const before = file.text.slice(0, offset);
   const contexts = [];
-  for (const match of before.matchAll(/@(?:media|supports|container)[^{]+\{/g)) {
+  for (const match of before.matchAll(/@(?:media|supports|container|(?:-webkit-)?keyframes)[^{]+\{/g)) {
     const start = match.index;
     const rest = before.slice(start);
     const opens = (rest.match(/\{/g) || []).length;
