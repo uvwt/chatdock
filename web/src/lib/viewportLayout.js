@@ -26,6 +26,10 @@ export function isTextEntryTarget(target) {
     || target?.isContentEditable === true;
 }
 
+export function shouldUseComposerKeyboardLayout(activeElement, composerShell) {
+  return composerShell?.contains?.(activeElement) === true && isTextEntryTarget(activeElement);
+}
+
 export function isIOSKeyboardAccessoryDevice(navigatorLike) {
   const userAgent = String(navigatorLike?.userAgent || '');
   const platform = String(navigatorLike?.platform || '');

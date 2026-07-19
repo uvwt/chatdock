@@ -8,6 +8,7 @@ import {
   keyboardAccessoryInset,
   normalizeViewportMetrics,
   shouldKeepMessagesAtBottom,
+  shouldUseComposerKeyboardLayout,
 } from './viewportLayout.js';
 
 test('normalizeViewportMetrics uses the visual viewport when the keyboard shrinks and pans it', () => {
@@ -28,6 +29,16 @@ test('isTextEntryTarget recognizes editable controls', () => {
   assert.equal(isTextEntryTarget({ tagName: 'TEXTAREA' }), true);
   assert.equal(isTextEntryTarget({ tagName: 'DIV', isContentEditable: true }), true);
   assert.equal(isTextEntryTarget({ tagName: 'BUTTON' }), false);
+});
+
+test('composer keyboard layout ignores settings controls', () => {
+  const composerInput = { tagName: 'TEXTAREA', id: 'input' };
+  const settingsInput = { tagName: 'INPUT', id: 'task-search' };
+  const composerShell = { contains: target => target === composerInput };
+
+  assert.equal(shouldUseComposerKeyboardLayout(composerInput, composerShell), true);
+  assert.equal(shouldUseComposerKeyboardLayout(settingsInput, composerShell), false);
+  assert.equal(shouldUseComposerKeyboardLayout(composerInput, null), false);
 });
 
 test('isIOSKeyboardAccessoryDevice recognizes iPhone and desktop-mode iPad', () => {

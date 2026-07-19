@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { isTextEntryTarget, keyboardAccessoryInset, normalizeViewportMetrics, shouldKeepMessagesAtBottom } from '../lib/viewportLayout.js';
+import { keyboardAccessoryInset, normalizeViewportMetrics, shouldKeepMessagesAtBottom, shouldUseComposerKeyboardLayout } from '../lib/viewportLayout.js';
 
 const mobileViewportQuery = '(max-width: 720px)';
 
@@ -34,7 +34,8 @@ export function useVisualViewportLayout() {
         // 应用固定到真实可见矩形；系统输入附件栏不计入 visualViewport，需单独为聊天输入区预留空间。
         const metrics = normalizeViewportMetrics(visualViewport, window.innerHeight);
         const activeElement = document.activeElement;
-        const keyboardOpen = isTextEntryTarget(activeElement);
+        // 配置中心也包含 input/select；只有聊天输入区获得焦点时才启用键盘布局，避免误锁配置页滚动。
+        const keyboardOpen = shouldUseComposerKeyboardLayout(activeElement, composerShell);
         const accessoryInset = keyboardAccessoryInset(navigator, activeElement, composerShell);
         root.style.setProperty('--chatdock-viewport-height', `${metrics.height}px`);
         root.style.setProperty('--chatdock-viewport-offset-top', `${metrics.offsetTop}px`);

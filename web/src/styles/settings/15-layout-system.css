@@ -19,7 +19,14 @@
 }
 
 .settings-page .settings {
+  position: static !important;
+  z-index: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
   transform: none !important;
+  transition: none !important;
   width: min(1600px, calc(100vw - 32px)) !important;
   height: calc(100dvh - 48px) !important;
   padding: 0 !important;

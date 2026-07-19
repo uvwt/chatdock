@@ -52,6 +52,17 @@ for (const legacyName of ['final-layout', 'visual-polish', 'override']) {
 // 移动端聊天页会锁住 body，配置页必须自己成为视口内的纵向滚动容器。
 // 只检查最终布局层，避免后续重构又回到“自然高度 + body 禁止滚动”的死锁组合。
 const settingsLayout = read('web/src/styles/settings/15-layout-system.css');
+const settingsPageShellRule = settingsLayout.match(/\.settings-page\s+\.settings\s*\{([^}]*)\}/)?.[1] || '';
+if (!/position:\s*static\s*!important/.test(settingsPageShellRule)) {
+  failures.push('settings page shell must reset the legacy fixed drawer positioning');
+}
+if (!/top:\s*auto\s*!important/.test(settingsPageShellRule)
+  || !/right:\s*auto\s*!important/.test(settingsPageShellRule)
+  || !/bottom:\s*auto\s*!important/.test(settingsPageShellRule)
+  || !/left:\s*auto\s*!important/.test(settingsPageShellRule)) {
+  failures.push('settings page shell must reset all legacy drawer edges');
+}
+
 const mobileSettingsLayout = settingsLayout.slice(
   settingsLayout.indexOf('@media (max-width: 900px)'),
   settingsLayout.indexOf('@media (max-width: 520px)'),
