@@ -28,8 +28,10 @@ export default function App() {
 
   const [authPage, setAuthPage] = useState(null);
   const [theme, setThemeState] = useState(() => localStorage.getItem('chatdock.theme') === 'day' ? 'day' : 'night');
-  const [sidebarCollapsed, setSidebarCollapsedState] = useState(() =>
-    window.matchMedia('(max-width: 720px)').matches || localStorage.getItem('chatdock.sidebarCollapsed') === '1');
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState(() => {
+    const saved = localStorage.getItem('chatdock.sidebarCollapsed');
+    return saved == null ? window.matchMedia('(max-width: 720px)').matches : saved === '1';
+  });
   const [settingsOpen, setSettingsOpen] = useState(() => !!settingsModuleFromPath());
   const [activeModule, setActiveModule] = useState(() => normalizeSettingsModule(settingsModuleFromPath() || localStorage.getItem('chatdock.settingsModule') || 'workspace'));
   const [toast, setToast] = useState(null);
@@ -464,7 +466,7 @@ export default function App() {
 
   const setSidebarCollapsed = useCallback((value) => {
     setSidebarCollapsedState(value);
-    if (!window.matchMedia('(max-width: 720px)').matches) localStorage.setItem('chatdock.sidebarCollapsed', value ? '1' : '0');
+    localStorage.setItem('chatdock.sidebarCollapsed', value ? '1' : '0');
   }, []);
 
   const closeSidebarOnMobile = useCallback(() => {

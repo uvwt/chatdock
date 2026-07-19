@@ -66,15 +66,13 @@ export function SettingsPanel(props) {
   return <section className="settings">
     <header className="settings-header">
       <div className="settings-header-main">
+        <button className="secondary small settings-back-button" onClick={() => closeSettings()} aria-label="返回聊天">←</button>
         <div>
           <div className="settings-title-row"><h2>配置中心</h2>{unsavedCount ? <span className="settings-global-save-state dirty"><span aria-hidden="true" />{unsavedCount} 处未保存</span> : saveState.status === 'saved' ? <span className="settings-global-save-state saved">✓ 已保存</span> : null}</div>
           <p>统一管理工作区、模型、工具与自动化。</p>
         </div>
       </div>
-      <div className="settings-header-actions">
-        <button className="secondary small settings-refresh-button" onClick={refreshSettings} aria-label="刷新配置" title="刷新配置"><svg className="settings-refresh-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.76-4.24L13 11h8V3z" fill="currentColor" /></svg><span className="settings-refresh-text">刷新</span></button>
-        <button className="secondary small settings-back-button" onClick={() => closeSettings()} aria-label="关闭配置" title="关闭配置">×</button>
-      </div>
+      <div className="settings-header-actions"><button className="secondary small settings-refresh-button" onClick={refreshSettings} aria-label="刷新配置" title="刷新配置"><svg className="settings-refresh-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.76-4.24L13 11h8V3z" fill="currentColor" /></svg><span className="settings-refresh-text">刷新</span></button></div>
     </header>
     <div className="settings-sidebar">
       <select className="settings-mobile-module-select" value={activeModule} onChange={e => switchSettingsModule(e.target.value)} aria-label="选择配置模块">

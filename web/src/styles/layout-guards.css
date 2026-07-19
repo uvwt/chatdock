@@ -98,9 +98,144 @@
   padding: 0 12px !important;
 }
 
-
 @media (max-width: 720px) {
-  .messages { scroll-padding-top: 72px; }
+  .messages {
+    scroll-padding-top: 72px;
+  }
+
+  .product-empty-state {
+    min-height: auto !important;
+    padding-top: 14px !important;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .empty-capability-strip div {
+    padding-left: 52px !important;
+  }
+
+  .starter-card-arrow {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+
+/* Mobile empty state compaction after screenshot review. */
+@media (max-width: 720px) {
+  .product-empty-state {
+    gap: 10px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .product-hero {
+    gap: 10px !important;
+  }
+
+  .hero-copy {
+    padding: 18px !important;
+    border-radius: 22px !important;
+    min-height: 0 !important;
+  }
+
+  .hero-copy h1 {
+    margin: 10px 0 8px !important;
+    font-size: 29px !important;
+    line-height: 1.08 !important;
+  }
+
+  .hero-copy p {
+    margin-bottom: 14px !important;
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+  }
+
+  .hero-actions {
+    gap: 8px !important;
+  }
+
+  .hero-actions button {
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 13px !important;
+    font-size: 13px !important;
+  }
+
+  .hero-trust-row {
+    margin-top: 13px !important;
+    gap: 6px !important;
+  }
+
+  .hero-trust-row span {
+    padding: 5px 8px !important;
+    font-size: 11px !important;
+  }
+
+  .hero-panel {
+    padding: 12px !important;
+    border-radius: 22px !important;
+    gap: 7px !important;
+  }
+
+  .hero-panel-top {
+    padding-bottom: 5px !important;
+  }
+
+  .hero-metric-row {
+    min-height: 0 !important;
+    padding: 9px 11px !important;
+    border-radius: 15px !important;
+    gap: 8px !important;
+  }
+
+  .hero-metric-row div {
+    gap: 2px !important;
+  }
+
+  .hero-metric-row b {
+    font-size: 14px !important;
+  }
+
+  .hero-metric-row span {
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+  }
+
+  .starter-grid {
+    gap: 8px !important;
+  }
+
+  .starter-card {
+    min-height: 96px !important;
+    padding: 13px !important;
+    border-radius: 18px !important;
+    gap: 6px !important;
+  }
+
+  .starter-icon {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 12px !important;
+  }
+
+  .empty-capability-strip {
+    display: none !important;
+  }
+}
+
+/* Mobile first screen: keep starter cards visible instead of spending the first screen on the flow panel. */
+@media (max-width: 720px) {
+  .hero-panel {
+    display: none !important;
+  }
+
+  .hero-trust-row {
+    display: none !important;
+  }
+
+  .hero-copy {
+    padding-bottom: 16px !important;
+  }
 }
 
 /* Final composer alignment guard: keep all controls on the same vertical center line. */

@@ -301,7 +301,7 @@
   transform: translateY(-1px) !important;
 }
 
-#app.app.sidebar-collapsed .new-label {
+#app.app .new-label {
   display: none !important;
 }
 
