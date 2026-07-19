@@ -15,7 +15,10 @@ import (
 	"unicode/utf8"
 )
 
-const maxExtractedTextBytes = 180 << 10
+const (
+	maxExtractedTextBytes = 180 << 10
+	maxPDFProbeBytes      = 4 << 20
+)
 
 func extractAttachmentText(path string, name string, mimeType string) (string, string, error) {
 	ext := strings.ToLower(filepath.Ext(name))
@@ -23,7 +26,7 @@ func extractAttachmentText(path string, name string, mimeType string) (string, s
 	switch {
 	case isPlainTextAttachment(ext, lowerMime):
 		text, err := readTextFile(path)
-		return text, "extracted", err
+		return text, statusForText(text), err
 	case ext == ".docx" || lowerMime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
 		text, err := extractDocxText(path)
 		return text, statusForText(text), err
@@ -56,12 +59,7 @@ func isPlainTextAttachment(ext string, mimeType string) bool {
 }
 
 func readTextFile(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	raw, err := io.ReadAll(io.LimitReader(f, maxExtractedTextBytes+1))
+	raw, _, err := readFilePrefix(path, maxExtractedTextBytes)
 	if err != nil {
 		return "", err
 	}
@@ -69,6 +67,26 @@ func readTextFile(path string) (string, error) {
 		raw = bytes.ToValidUTF8(raw, []byte("�"))
 	}
 	return string(raw), nil
+}
+
+func readFilePrefix(path string, maxBytes int64) ([]byte, bool, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, false, err
+	}
+	defer file.Close()
+	raw, err := io.ReadAll(io.LimitReader(file, maxBytes+1))
+	if err != nil {
+		return nil, false, err
+	}
+	truncated := int64(len(raw)) > maxBytes
+	if truncated {
+		raw = raw[:maxBytes]
+		for len(raw) > 0 && !utf8.Valid(raw) {
+			raw = raw[:len(raw)-1]
+		}
+	}
+	return raw, truncated, nil
 }
 
 func extractDocxText(path string) (string, error) {
@@ -128,12 +146,9 @@ func extractDocxText(path string) (string, error) {
 }
 
 func extractPDFTextBestEffort(path string) (string, error) {
-	raw, err := os.ReadFile(path)
+	raw, _, err := readFilePrefix(path, maxPDFProbeBytes)
 	if err != nil {
 		return "", err
-	}
-	if len(raw) > 4<<20 {
-		raw = raw[:4<<20]
 	}
 	matches := regexp.MustCompile(`\((?:\\.|[^\\)]){2,}\)`).FindAll(raw, 3000)
 	var b strings.Builder
