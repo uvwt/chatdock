@@ -2,9 +2,7 @@ package chatdock
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -217,7 +215,7 @@ func requestAgentDockRuntimeJSON(ctx context.Context, contextURL, token, method,
 	defer resp.Body.Close()
 
 	var payload map[string]any
-	if err := json.NewDecoder(io.LimitReader(resp.Body, agentDockTaskResponseLimit)).Decode(&payload); err != nil {
+	if err := decodeBoundedJSON(resp.Body, agentDockTaskResponseLimit, &payload); err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("解析 AgentDock 任务响应失败: %w", err)
 	}
 	if payload == nil {

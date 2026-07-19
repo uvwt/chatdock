@@ -1,6 +1,8 @@
 package chatdock
 
 import (
+	"errors"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -40,7 +42,13 @@ func TestReadJSONRejectsOversizedBodyBeforeDecoding(t *testing.T) {
 	body := `{"name":"` + strings.Repeat("x", maxJSONRequestBytes) + `"}`
 	request := httptest.NewRequest("POST", "/", strings.NewReader(body))
 	var input strictJSONRequest
-	if err := readJSON(request, &input); err == nil || !strings.Contains(err.Error(), "exceeds") {
+	err := readJSON(request, &input)
+	if err == nil || !errors.Is(err, errJSONRequestTooLarge) || !strings.Contains(err.Error(), "exceeds") {
 		t.Fatalf("expected body limit error, got %v", err)
+	}
+	response := httptest.NewRecorder()
+	writeError(response, http.StatusBadRequest, err)
+	if response.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized JSON status = %d, want %d", response.Code, http.StatusRequestEntityTooLarge)
 	}
 }

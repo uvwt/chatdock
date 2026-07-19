@@ -3,12 +3,15 @@ package chatdock
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 )
 
 const maxJSONRequestBytes = 2 << 20
+
+var errJSONRequestTooLarge = errors.New("JSON request body is too large")
 
 func readJSON(r *http.Request, out any) error {
 	defer r.Body.Close()
@@ -17,7 +20,7 @@ func readJSON(r *http.Request, out any) error {
 		return err
 	}
 	if len(raw) > maxJSONRequestBytes {
-		return fmt.Errorf("request body exceeds %d bytes", maxJSONRequestBytes)
+		return fmt.Errorf("%w: exceeds %d bytes", errJSONRequestTooLarge, maxJSONRequestBytes)
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
@@ -43,6 +46,9 @@ func writeJSONResponse(w http.ResponseWriter, status int, value any) {
 }
 
 func writeError(w http.ResponseWriter, status int, err error) {
+	if status == http.StatusBadRequest && errors.Is(err, errJSONRequestTooLarge) {
+		status = http.StatusRequestEntityTooLarge
+	}
 	writeJSONResponse(w, status, map[string]any{"error": err.Error()})
 }
 

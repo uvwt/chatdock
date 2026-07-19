@@ -2,7 +2,6 @@ package chatdock
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -50,6 +49,8 @@ func (a *App) agentDockRuntimeContext(ctx context.Context) string {
 	return text
 }
 
+const agentDockContextResponseLimit int64 = 512 << 10
+
 func fetchAgentDockRuntimeContext(ctx context.Context, url string, token string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -72,7 +73,7 @@ func fetchAgentDockRuntimeContext(ctx context.Context, url string, token string)
 		Context string `json:"context"`
 		Summary string `json:"summary"`
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 512*1024)).Decode(&payload); err != nil {
+	if err := decodeBoundedJSON(resp.Body, agentDockContextResponseLimit, &payload); err != nil {
 		return "", err
 	}
 	if strings.TrimSpace(payload.Context) != "" {
