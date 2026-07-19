@@ -46,10 +46,16 @@ func compactMessageEvent(sessionID string, messageID string, messageIndex int, e
 	details := map[string]any{}
 	if len(event.Details) > 0 {
 		details = compactToolEventDetails(event.Details)
-	} else if strings.TrimSpace(event.Meta) != "" {
+	}
+	if meta := strings.TrimSpace(event.Meta); meta != "" {
 		decoded := map[string]any{}
-		if err := json.Unmarshal([]byte(event.Meta), &decoded); err == nil {
-			details = decoded
+		if err := json.Unmarshal([]byte(meta), &decoded); err == nil {
+			if len(event.Details) == 0 {
+				details = compactToolEventDetails(decoded)
+			}
+			event.Meta = ""
+		} else {
+			event.Meta = truncateRunes(meta, 300)
 		}
 	}
 	details["lazy"] = true
@@ -153,8 +159,16 @@ func compactToolResult(value any) map[string]any {
 }
 
 func compactToolNames(value any, limit int) ([]string, bool) {
-	items, ok := value.([]any)
-	if !ok {
+	items := []any{}
+	switch typed := value.(type) {
+	case []any:
+		items = typed
+	case []string:
+		items = make([]any, len(typed))
+		for i, item := range typed {
+			items[i] = item
+		}
+	default:
 		return nil, false
 	}
 	out := make([]string, 0, min(len(items), limit))
@@ -178,8 +192,16 @@ func compactToolNames(value any, limit int) ([]string, bool) {
 }
 
 func compactStringSlice(value any, limit int) ([]string, bool) {
-	items, ok := value.([]any)
-	if !ok {
+	items := []any{}
+	switch typed := value.(type) {
+	case []any:
+		items = typed
+	case []string:
+		items = make([]any, len(typed))
+		for i, item := range typed {
+			items[i] = item
+		}
+	default:
 		return nil, false
 	}
 	out := make([]string, 0, min(len(items), limit))
@@ -269,8 +291,15 @@ func stableToolEventID(sessionID string, messageID string, messageIndex int, eve
 }
 
 func matchingEventIndex(events []model.MessageEvent, target model.MessageEvent) int {
+	if strings.TrimSpace(target.ID) != "" {
+		for i, event := range events {
+			if event.ID == target.ID {
+				return i
+			}
+		}
+	}
 	for i, event := range events {
-		if target.CallKey != "" && event.CallKey == target.CallKey && event.Kind == target.Kind {
+		if target.CallKey != "" && event.CallKey == target.CallKey && event.Kind == target.Kind && event.Phase == target.Phase {
 			return i
 		}
 	}
