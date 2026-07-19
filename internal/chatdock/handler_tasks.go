@@ -2,7 +2,6 @@ package chatdock
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
 	"chatdock/internal/chatdock/model"
@@ -72,7 +71,11 @@ func (a *App) handleRunScheduledTask(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleListScheduledTaskRuns(w http.ResponseWriter, r *http.Request) {
 	id := scheduledTaskIDFromRequest(r)
-	limit, _ := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get("limit")))
+	limit, err := parseOptionalInt(r.URL.Query().Get("limit"), 30, 1, 100, "limit")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
 	result, err := a.store.ListScheduledTaskRuns(a.workspaceIDFromRequest(r), id, limit)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)

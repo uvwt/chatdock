@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 const maxJSONRequestBytes = 2 << 20
@@ -50,6 +52,18 @@ func writeError(w http.ResponseWriter, status int, err error) {
 		status = http.StatusRequestEntityTooLarge
 	}
 	writeJSONResponse(w, status, map[string]any{"error": err.Error()})
+}
+
+func parseOptionalInt(value string, defaultValue int, minValue int, maxValue int, name string) (int, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return defaultValue, nil
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < minValue || parsed > maxValue {
+		return 0, fmt.Errorf("%s must be an integer between %d and %d", name, minValue, maxValue)
+	}
+	return parsed, nil
 }
 
 func writeSSE(w http.ResponseWriter, flusher http.Flusher, event string, value any) error {

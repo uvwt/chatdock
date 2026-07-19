@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -161,7 +160,11 @@ func (a *App) handleCancelChatJob(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleChatJobEvents(w http.ResponseWriter, r *http.Request) {
 	jobID := r.PathValue("id")
-	after, _ := strconv.Atoi(r.URL.Query().Get("after"))
+	after, err := chatJobEventCursor(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		writeError(w, http.StatusInternalServerError, fmt.Errorf("streaming is not supported"))
