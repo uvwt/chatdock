@@ -87,16 +87,20 @@ func TestSecurityHeadersApplyToWebAssetsAndUnauthorizedAPI(t *testing.T) {
 	for _, tc := range []struct {
 		path       string
 		wantStatus int
+		wantCache  string
 	}{
-		{path: "/", wantStatus: http.StatusOK},
-		{path: "/assets/app.js", wantStatus: http.StatusOK},
-		{path: "/api/health", wantStatus: http.StatusUnauthorized},
+		{path: "/", wantStatus: http.StatusOK, wantCache: "no-store"},
+		{path: "/assets/app.js", wantStatus: http.StatusOK, wantCache: "public, max-age=31536000, immutable"},
+		{path: "/api/health", wantStatus: http.StatusUnauthorized, wantCache: "no-store"},
 	} {
 		t.Run(tc.path, func(t *testing.T) {
 			w := httptest.NewRecorder()
 			app.routes().ServeHTTP(w, httptest.NewRequest(http.MethodGet, tc.path, nil))
 			if w.Code != tc.wantStatus {
 				t.Fatalf("status = %d, want %d", w.Code, tc.wantStatus)
+			}
+			if got := w.Header().Get("Cache-Control"); got != tc.wantCache {
+				t.Fatalf("Cache-Control = %q, want %q", got, tc.wantCache)
 			}
 			for name, want := range map[string]string{
 				"X-Content-Type-Options": "nosniff",
