@@ -3,10 +3,11 @@ package model
 import "strings"
 
 const (
-	ContextModeAuto     = "auto"
-	ContextModeCompact  = "compact"
-	ContextModeExpanded = "expanded"
-	ContextModeCustom   = "custom"
+	ContextModeAuto         = "auto"
+	ContextModeCompact      = "compact"
+	ContextModeExpanded     = "expanded"
+	ContextModeCustom       = "custom"
+	MaxContextMessagesLimit = 200
 )
 
 func DefaultModelConfig() ModelConfig {
@@ -54,6 +55,8 @@ func NormalizeModelConfig(cfg ModelConfig) ModelConfig {
 	}
 	if cfg.MaxContextMessages <= 0 {
 		cfg.MaxContextMessages = 12
+	} else if cfg.MaxContextMessages > MaxContextMessagesLimit {
+		cfg.MaxContextMessages = MaxContextMessagesLimit
 	}
 	if cfg.Temperature < 0 || cfg.Temperature > 2 {
 		cfg.Temperature = 0.7

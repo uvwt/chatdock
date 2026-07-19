@@ -45,6 +45,13 @@ func TestEarlierContextSummaryDescribesImageOnlyMessage(t *testing.T) {
 	}
 }
 
+func TestContextPlanUsesBoundedCustomCapacity(t *testing.T) {
+	count, summarize := ContextPlan(model.ModelConfig{ContextMode: model.ContextModeCustom, MaxContextMessages: model.MaxContextMessagesLimit + 1})
+	if count != model.MaxContextMessagesLimit || summarize {
+		t.Fatalf("custom context plan = (%d, %v)", count, summarize)
+	}
+}
+
 func TestValidChatHistoryStillDropsEmptyNonImageMessages(t *testing.T) {
 	history := []model.Message{
 		{Role: "user"},

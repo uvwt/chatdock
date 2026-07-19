@@ -132,6 +132,9 @@ func contextPlan(cfg model.ModelConfig) (int, bool) {
 		if cfg.MaxContextMessages <= 0 {
 			return 12, false
 		}
+		if cfg.MaxContextMessages > model.MaxContextMessagesLimit {
+			return model.MaxContextMessagesLimit, false
+		}
 		return cfg.MaxContextMessages, false
 	default:
 		return 12, true

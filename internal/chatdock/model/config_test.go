@@ -52,6 +52,13 @@ func TestNormalizeModelConfigKeepsValidBoundaryValues(t *testing.T) {
 	}
 }
 
+func TestNormalizeModelConfigBoundsCustomContextMessages(t *testing.T) {
+	cfg := NormalizeModelConfig(ModelConfig{ContextMode: ContextModeCustom, MaxContextMessages: MaxContextMessagesLimit + 1})
+	if cfg.MaxContextMessages != MaxContextMessagesLimit {
+		t.Fatalf("max context messages = %d, want %d", cfg.MaxContextMessages, MaxContextMessagesLimit)
+	}
+}
+
 func TestToPublicModelConfigRedactsSecretsAndCopiesModels(t *testing.T) {
 	cfg := NormalizeModelConfig(ModelConfig{
 		APIKey:          " secret ",
