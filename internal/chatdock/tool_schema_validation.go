@@ -59,8 +59,15 @@ func validateSchemaObject(schema map[string]any, value any, path string) error {
 	for name, raw := range object {
 		propSchema, ok := props[name].(map[string]any)
 		if !ok {
-			if additional, ok := schema["additionalProperties"].(bool); ok && !additional {
-				return fmt.Errorf("%s.%s is not allowed", path, name)
+			switch additional := schema["additionalProperties"].(type) {
+			case bool:
+				if !additional {
+					return fmt.Errorf("%s.%s is not allowed", path, name)
+				}
+			case map[string]any:
+				if err := validateSchemaValue(additional, raw, path+"."+name); err != nil {
+					return err
+				}
 			}
 			continue
 		}
