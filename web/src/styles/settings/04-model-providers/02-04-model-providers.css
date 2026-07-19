@@ -86,9 +86,7 @@
 
   .settings-page .settings-section-head,
   .settings-page .mcp-form-head,
-  .settings-page .task-head,
-  .settings-page .task-head,
-  .settings-page .product-card-head {
+  .settings-page .task-head {
     flex-direction: column !important;
   }
 

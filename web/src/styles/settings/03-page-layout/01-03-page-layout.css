@@ -1,5 +1,4 @@
 /* 文件上传：输入框上方的附件栏和聊天气泡内附件卡片。 */
-.file-input { display: none; }
 .attach-control { flex: 0 0 44px; min-width: 44px; font-size: 22px; line-height: 1; padding: 8px 0; }
 .composer-shell .attachment-list { max-width: 900px; margin: 0 auto 8px; padding: 0 14px; }
 .attachment-list { display: flex; flex-wrap: wrap; gap: 8px; }

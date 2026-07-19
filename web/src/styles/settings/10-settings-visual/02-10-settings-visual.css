@@ -340,7 +340,6 @@
 
   .settings-page .model-quick-head,
   .settings-page .settings-section-head,
-  .settings-page .product-card-head,
   .settings-page .task-head,
   .settings-page .mcp-server-row {
     grid-template-columns: 1fr !important;
