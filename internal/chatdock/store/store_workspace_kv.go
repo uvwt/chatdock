@@ -10,6 +10,8 @@ import (
 	"unicode/utf8"
 )
 
+const maxWorkspaceIDRunes = 128
+
 func (s *Store) workspaceExistsLocked(name string) (bool, error) {
 	var value string
 	err := s.db.QueryRow(`SELECT name FROM workspaces WHERE name = ?`, name).Scan(&value)
@@ -113,6 +115,9 @@ func normalizeWorkspaceID(name string) (string, error) {
 	}
 	if !utf8.ValidString(name) {
 		return "", fmt.Errorf("workspace id is invalid")
+	}
+	if utf8.RuneCountInString(name) > maxWorkspaceIDRunes {
+		return "", fmt.Errorf("workspace id exceeds %d characters", maxWorkspaceIDRunes)
 	}
 	if name == "." || name == ".." || strings.Contains(name, "/") || strings.Contains(name, "\\") {
 		return "", fmt.Errorf("workspace id cannot contain path separators")
