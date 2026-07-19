@@ -122,7 +122,8 @@ web/src/styles/data.css             数据状态、备份、诊断和运行记�
 ## 部署和数据规则
 
 1. 生产部署必须使用 `/Volumes/KIOXIA/Docker/chatdock/compose.yaml`，不能在源码仓库目录用 compose 重建生产容器。
-2. 源码仓库只保留 `compose.dev.yaml` 作为开发示例；生产操作使用 `make deploy-prod`，部署后用 `make prod-check` 检查容器 label 和 `/data` mount。
+2. 源码仓库只保留 `compose.dev.yaml` 作为开发示例；生产操作使用 `make deploy-prod`。部署流程必须先用 `make prod-check` 验证容器 label 和 `/data` mount，再用 `make prod-health` 携带容器现有鉴权令牌等待应用健康响应。
 3. 涉及生产数据前必须先确认挂载和备份 SQLite 三件套：`.sqlite`、`.sqlite-wal`、`.sqlite-shm`。
-4. 修改后至少运行前端构建和后端测试；部署后必须真实请求健康接口或页面接口验证。
-5. Git commit message 使用旧格式：`type(scope): 中文说明`。
+4. 新建数据目录和上传目录使用 `0700`，SQLite 与附件使用 `0600`；历史数据权限只在完成备份并确认挂载后显式迁移，应用启动时不隐式 chmod。
+5. 修改后至少运行前端构建和后端测试；部署后必须真实请求健康接口或页面接口验证。
+6. Git commit message 使用旧格式：`type(scope): 中文说明`。

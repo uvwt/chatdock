@@ -168,7 +168,9 @@ Compose 不需要再挂载或配置 `CHATDOCK_WEB`，前端页面、后端 API �
 
 ### 生产部署说明
 
-仓库 `compose.dev.yaml` 是本地开发示例，默认把当前目录的 `./data` 挂载到容器 `/data`。当前 Mac mini 生产实例使用外置盘数据目录 `/Volumes/KIOXIA/Docker/chatdock/data`，并把 `/Volumes/KIOXIA/Docker/chatdock/backups` 只读挂载到容器 `/backups` 展示数据库备份状态。生产更新统一使用 `make deploy-prod`，它会从 `/Volumes/KIOXIA/Docker/chatdock/compose.yaml` 构建并在启动后检查容器 label 和 `/data` mount。
+仓库 `compose.dev.yaml` 是本地开发示例，默认把当前目录的 `./data` 挂载到容器 `/data`。当前 Mac mini 生产实例使用外置盘数据目录 `/Volumes/KIOXIA/Docker/chatdock/data`，并把 `/Volumes/KIOXIA/Docker/chatdock/backups` 只读挂载到容器 `/backups` 展示数据库备份状态。生产更新统一使用 `make deploy-prod`：它会从 `/Volumes/KIOXIA/Docker/chatdock/compose.yaml` 构建，检查容器 label 和 `/data` mount，并携带容器现有 Bearer Token 等待 `/api/health` 返回有效的 ChatDock 健康响应。也可以分别运行 `make prod-check` 和 `make prod-health` 复核挂载与应用就绪状态。
+
+新建数据目录和上传目录使用 `0700`，SQLite 与附件文件使用 `0600`。应用不会在启动时隐式修改历史数据权限；旧部署需要在确认挂载并完成一致性备份后单独迁移权限。
 
 ## macOS launchd
 
