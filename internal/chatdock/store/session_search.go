@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"chatdock/internal/chatdock/llm"
 )
@@ -45,6 +46,10 @@ func (s *Store) SearchSessions(workspaceID string, query string, limit int) ([]S
 	if err != nil {
 		return nil, err
 	}
+	attachmentTextBySession, err := s.attachmentSearchTextBySessionLocked(workspaceID)
+	if err != nil {
+		return nil, err
+	}
 	results := make([]SessionSearchResult, 0)
 	for _, session := range sessions {
 		if _, scheduled := scheduledSessionIDs[session.ID]; scheduled {
@@ -66,8 +71,13 @@ func (s *Store) SearchSessions(workspaceID string, query string, limit int) ([]S
 				}
 			}
 		}
-		if score, f, snip := s.matchAttachmentTextLocked(workspaceID, session.ID, needle, query); score > bestScore {
-			bestScore, field, snippet = score, f, snip
+		for _, attachment := range attachmentTextBySession[session.ID] {
+			if score, f, snip := matchSessionText(attachment.filename, "附件", needle, query); score > bestScore {
+				bestScore, field, snippet = score, f, snip
+			}
+			if score, f, snip := matchSessionText(attachment.textContent, "附件文本", needle, query); score > bestScore {
+				bestScore, field, snippet = score, f, snip
+			}
 		}
 		if bestScore <= 0 {
 			continue
@@ -89,26 +99,29 @@ func (s *Store) SearchSessions(workspaceID string, query string, limit int) ([]S
 	return results, nil
 }
 
-func (s *Store) matchAttachmentTextLocked(workspaceID string, sessionID string, needle string, original string) (int, string, string) {
-	rows, err := s.db.Query(`SELECT filename, text_content FROM attachments WHERE workspace_id = ? AND session_id = ?`, workspaceID, sessionID)
+type attachmentSearchText struct {
+	filename    string
+	textContent string
+}
+
+func (s *Store) attachmentSearchTextBySessionLocked(workspaceID string) (map[string][]attachmentSearchText, error) {
+	rows, err := s.db.Query(`SELECT session_id, filename, text_content FROM attachments WHERE workspace_id = ?`, workspaceID)
 	if err != nil {
-		return 0, "", ""
+		return nil, err
 	}
 	defer rows.Close()
-	bestScore, bestField, bestSnippet := 0, "", ""
+	bySession := make(map[string][]attachmentSearchText)
 	for rows.Next() {
-		var filename, content string
-		if err := rows.Scan(&filename, &content); err != nil {
-			continue
+		var sessionID, filename, textContent string
+		if err := rows.Scan(&sessionID, &filename, &textContent); err != nil {
+			return nil, err
 		}
-		if score, field, snippet := matchSessionText(filename, "附件", needle, original); score > bestScore {
-			bestScore, bestField, bestSnippet = score, field, snippet
-		}
-		if score, field, snippet := matchSessionText(content, "附件文本", needle, original); score > bestScore {
-			bestScore, bestField, bestSnippet = score, field, snippet
-		}
+		bySession[sessionID] = append(bySession[sessionID], attachmentSearchText{filename: filename, textContent: textContent})
 	}
-	return bestScore, bestField, bestSnippet
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return bySession, nil
 }
 
 func matchSessionText(value string, field string, needle string, original string) (int, string, string) {
@@ -128,17 +141,17 @@ func matchSessionText(value string, field string, needle string, original string
 	if strings.EqualFold(strings.TrimSpace(text), strings.TrimSpace(original)) {
 		score += 20
 	}
-	return score, field, makeSearchSnippet(text, idx, len([]rune(original)))
+	runeIndex := utf8.RuneCountInString(lower[:idx])
+	return score, field, makeSearchSnippet(text, runeIndex, utf8.RuneCountInString(needle))
 }
 
-func makeSearchSnippet(text string, byteIndex int, queryRunes int) string {
+func makeSearchSnippet(text string, runeIndex int, queryRunes int) string {
 	runes := []rune(text)
-	prefixRunes := len([]rune(text[:byteIndex]))
-	start := prefixRunes - 28
+	start := runeIndex - 28
 	if start < 0 {
 		start = 0
 	}
-	end := prefixRunes + queryRunes + 48
+	end := runeIndex + queryRunes + 48
 	if end > len(runes) {
 		end = len(runes)
 	}
