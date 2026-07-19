@@ -62,6 +62,56 @@ func TestSPAFallbackAndBackendBoundary(t *testing.T) {
 	}
 }
 
+func TestSecurityHeadersApplyToWebAssetsAndUnauthorizedAPI(t *testing.T) {
+	webDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(webDir, "assets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(webDir, "index.html"), []byte("<!doctype html><title>ChatDock</title>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(webDir, "assets", "app.js"), []byte("console.log('chatdock')"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: webDir, AuthToken: "secret"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := app.Close(); err != nil {
+			t.Errorf("close app: %v", err)
+		}
+	})
+
+	for _, tc := range []struct {
+		path       string
+		wantStatus int
+	}{
+		{path: "/", wantStatus: http.StatusOK},
+		{path: "/assets/app.js", wantStatus: http.StatusOK},
+		{path: "/api/health", wantStatus: http.StatusUnauthorized},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			app.routes().ServeHTTP(w, httptest.NewRequest(http.MethodGet, tc.path, nil))
+			if w.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d", w.Code, tc.wantStatus)
+			}
+			for name, want := range map[string]string{
+				"X-Content-Type-Options": "nosniff",
+				"X-Frame-Options":        "DENY",
+				"Referrer-Policy":        "no-referrer",
+				"Permissions-Policy":     "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
+			} {
+				if got := w.Header().Get(name); got != want {
+					t.Fatalf("%s = %q, want %q", name, got, want)
+				}
+			}
+		})
+	}
+}
+
 func TestAuthLoginWithCredential(t *testing.T) {
 	webDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(webDir, "index.html"), []byte("<!doctype html><title>ChatDock</title>"), 0o644); err != nil {

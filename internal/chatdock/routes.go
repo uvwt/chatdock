@@ -75,5 +75,5 @@ func (a *App) routes() http.Handler {
 
 	mux.Handle("/", a.webHandler())
 
-	return logRequest(gzipMiddleware(a.authMiddleware(a.workspaceScopeMiddleware(mux))))
+	return logRequest(securityHeaders(gzipMiddleware(a.authMiddleware(a.workspaceScopeMiddleware(mux)))))
 }

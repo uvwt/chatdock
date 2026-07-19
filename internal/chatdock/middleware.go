@@ -11,6 +11,16 @@ func isPublicBackendRoute(requestPath string) bool {
 	return requestPath == "/api/auth/status" || requestPath == "/api/auth/login" || strings.HasPrefix(requestPath, "/api/model-images/")
 }
 
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("Permissions-Policy", "camera=(), geolocation=(), microphone=(), payment=(), usb=()")
+		next.ServeHTTP(w, r)
+	})
+}
+
 type responseRecorder struct {
 	http.ResponseWriter
 	status int
