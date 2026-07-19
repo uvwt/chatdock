@@ -1,7 +1,6 @@
 package chatdock
 
 import (
-	"crypto/subtle"
 	"fmt"
 	"net/http"
 	"strings"
@@ -37,7 +36,9 @@ func (a *App) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, fmt.Errorf("login is not configured"))
 		return
 	}
-	if subtle.ConstantTimeCompare([]byte(input.Username), []byte(username)) == 1 && subtle.ConstantTimeCompare([]byte(input.Credential), []byte(credential)) == 1 {
+	usernameMatches := constantTimeStringEqual(input.Username, username)
+	credentialMatches := constantTimeStringEqual(input.Credential, credential)
+	if usernameMatches && credentialMatches {
 		writeJSONResponse(w, http.StatusOK, model.AuthLoginResponse{OK: true, Token: token, Username: username})
 		return
 	}

@@ -14,7 +14,7 @@ func bearerTokenFromAuthorization(value string) string {
 	return parts[1]
 }
 
-func bearerTokenMatches(received string, expected string) bool {
+func constantTimeStringEqual(received string, expected string) bool {
 	receivedHash := sha256.Sum256([]byte(received))
 	expectedHash := sha256.Sum256([]byte(expected))
 	return subtle.ConstantTimeCompare(receivedHash[:], expectedHash[:]) == 1

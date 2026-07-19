@@ -103,7 +103,7 @@ func (a *App) authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		got := bearerTokenFromAuthorization(r.Header.Get("Authorization"))
-		if !bearerTokenMatches(got, token) {
+		if !constantTimeStringEqual(got, token) {
 			writeJSONResponse(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized", "request_id": requestIDFromRequest(r)})
 			return
 		}

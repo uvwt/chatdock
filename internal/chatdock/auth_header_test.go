@@ -20,13 +20,13 @@ func TestBearerTokenFromAuthorizationParsesSchemeStrictly(t *testing.T) {
 	}
 }
 
-func TestBearerTokenMatchesFixedLengthDigests(t *testing.T) {
-	if !bearerTokenMatches("token-value", "token-value") {
-		t.Fatal("equal bearer tokens did not match")
+func TestConstantTimeStringEqualUsesFixedLengthDigests(t *testing.T) {
+	if !constantTimeStringEqual("token-value", "token-value") {
+		t.Fatal("equal strings did not match")
 	}
 	for _, received := range []string{"", "short", "token-value-extra"} {
-		if bearerTokenMatches(received, "token-value") {
-			t.Fatalf("unexpected bearer token match for %q", received)
+		if constantTimeStringEqual(received, "token-value") {
+			t.Fatalf("unexpected string match for %q", received)
 		}
 	}
 }
