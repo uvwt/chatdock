@@ -49,6 +49,21 @@ for (const legacyName of ['final-layout', 'visual-polish', 'override']) {
   if (settingsEntry.includes(legacyName)) failures.push(`settings.css must use semantic module names, not ${legacyName}`);
 }
 
+// 移动端聊天页会锁住 body，配置页必须自己成为视口内的纵向滚动容器。
+// 只检查最终布局层，避免后续重构又回到“自然高度 + body 禁止滚动”的死锁组合。
+const settingsLayout = read('web/src/styles/settings/15-layout-system.css');
+const mobileSettingsLayout = settingsLayout.slice(
+  settingsLayout.indexOf('@media (max-width: 900px)'),
+  settingsLayout.indexOf('@media (max-width: 520px)'),
+);
+const mobileSettingsPageRule = mobileSettingsLayout.match(/\.settings-page\s*\{([^}]*)\}/)?.[1] || '';
+if (!/height:\s*var\(--chatdock-viewport-height,\s*100dvh\)\s*!important/.test(mobileSettingsPageRule)) {
+  failures.push('mobile settings page must be bounded to the visible viewport height');
+}
+if (!/overflow-y:\s*auto\s*!important/.test(mobileSettingsPageRule)) {
+  failures.push('mobile settings page must own vertical scrolling while body is locked');
+}
+
 const exactBlocks = new Map();
 const selectorFiles = new Map();
 for (const filename of listCSS(stylesDir)) {

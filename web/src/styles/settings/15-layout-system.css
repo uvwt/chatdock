@@ -306,8 +306,14 @@
 
 @media (max-width: 900px) {
   .settings-page {
+    height: var(--chatdock-viewport-height, 100dvh) !important;
+    min-height: 0 !important;
     display: block !important;
     padding: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
     background: #f6f8fa !important;
   }
 
