@@ -22,18 +22,31 @@ import (
 )
 
 const (
-	maxUploadBytes = 32 << 20
-	uploadDirMode  = 0o700
-	uploadFileMode = 0o600
+	maxUploadBytes     = 32 << 20
+	maxMultipartMemory = 1 << 20
+	uploadDirMode      = 0o700
+	uploadFileMode     = 0o600
 )
 
 const modelImageURLTTL = 6 * time.Hour
 
 func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
-	if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
-		writeError(w, http.StatusBadRequest, fmt.Errorf("文件过大或表单不合法：%w", err))
+	if err := r.ParseMultipartForm(maxMultipartMemory); err != nil {
+		status := http.StatusBadRequest
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			status = http.StatusRequestEntityTooLarge
+		}
+		writeError(w, status, fmt.Errorf("文件过大或表单不合法：%w", err))
 		return
+	}
+	if r.MultipartForm != nil {
+		defer func() {
+			if err := r.MultipartForm.RemoveAll(); err != nil {
+				logError("multipart_cleanup_failed", err, logFields{"request_id": requestIDFromRequest(r)})
+			}
+		}()
 	}
 	file, header, err := r.FormFile("file")
 	if err != nil {
@@ -101,6 +114,58 @@ type persistedUpload struct {
 	OwnsStorage bool
 }
 
+func resolveAttachmentStoragePath(dataDir string, storedPath string) (string, error) {
+	root, err := filepath.Abs(strings.TrimSpace(dataDir))
+	if err != nil {
+		return "", err
+	}
+	storedPath = strings.TrimSpace(storedPath)
+	if storedPath == "" {
+		return "", fmt.Errorf("attachment storage path is empty")
+	}
+	cleaned := filepath.Clean(storedPath)
+	if !filepath.IsAbs(cleaned) {
+		if !isSafeRelativePath(cleaned) {
+			return "", fmt.Errorf("attachment storage path escapes data directory")
+		}
+		absolute, absErr := filepath.Abs(cleaned)
+		if absErr != nil {
+			return "", absErr
+		}
+		if rel, relErr := filepath.Rel(root, absolute); relErr == nil && isSafeRelativePath(rel) {
+			return absolute, nil
+		}
+		return joinAttachmentDataPath(root, cleaned)
+	}
+	if rel, relErr := filepath.Rel(root, cleaned); relErr == nil && isSafeRelativePath(rel) {
+		return cleaned, nil
+	}
+	parts := strings.Split(filepath.ToSlash(cleaned), "/")
+	for index := len(parts) - 1; index >= 0; index-- {
+		if parts[index] != "uploads" {
+			continue
+		}
+		return joinAttachmentDataPath(root, filepath.FromSlash(strings.Join(parts[index:], "/")))
+	}
+	return "", fmt.Errorf("attachment storage path is outside data directory")
+}
+
+func joinAttachmentDataPath(root string, relative string) (string, error) {
+	relative = filepath.Clean(relative)
+	if !isSafeRelativePath(relative) || strings.Split(filepath.ToSlash(relative), "/")[0] != "uploads" {
+		return "", fmt.Errorf("attachment storage path must be under uploads")
+	}
+	resolved := filepath.Join(root, relative)
+	if rel, err := filepath.Rel(root, resolved); err != nil || !isSafeRelativePath(rel) {
+		return "", fmt.Errorf("attachment storage path escapes data directory")
+	}
+	return resolved, nil
+}
+
+func isSafeRelativePath(path string) bool {
+	return path != "" && path != "." && path != ".." && !filepath.IsAbs(path) && !strings.HasPrefix(path, ".."+string(filepath.Separator))
+}
+
 func (a *App) persistUploadedFile(workspaceID string, id string, name string, contentType string, source io.Reader) (persistedUpload, error) {
 	uploadDir := filepath.Join(a.cfg.DataDir, "uploads", safeFileComponent(workspaceID))
 	if err := os.MkdirAll(uploadDir, uploadDirMode); err != nil {
@@ -135,7 +200,12 @@ func (a *App) persistUploadedFile(workspaceID string, id string, name string, co
 		return persistedUpload{}, err
 	}
 	if ok && strings.TrimSpace(blob.StoragePath) != "" {
-		info, statErr := os.Stat(blob.StoragePath)
+		blobPath, resolveErr := resolveAttachmentStoragePath(a.cfg.DataDir, blob.StoragePath)
+		if resolveErr != nil {
+			_ = os.Remove(storagePath)
+			return persistedUpload{}, resolveErr
+		}
+		info, statErr := os.Stat(blobPath)
 		switch {
 		case statErr == nil && !info.IsDir() && (blob.Size <= 0 || info.Size() == blob.Size):
 			_ = os.Remove(storagePath)
@@ -160,7 +230,12 @@ func (a *App) handleDownloadFile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, err)
 		return
 	}
-	file, err := os.Open(record.StoragePath)
+	storagePath, err := resolveAttachmentStoragePath(a.cfg.DataDir, record.StoragePath)
+	if err != nil {
+		writeError(w, http.StatusNotFound, err)
+		return
+	}
+	file, err := os.Open(storagePath)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err)
 		return
@@ -196,7 +271,12 @@ func (a *App) handleModelImageFile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, fmt.Errorf("attachment is not an image"))
 		return
 	}
-	file, err := os.Open(record.StoragePath)
+	storagePath, err := resolveAttachmentStoragePath(a.cfg.DataDir, record.StoragePath)
+	if err != nil {
+		writeError(w, http.StatusNotFound, err)
+		return
+	}
+	file, err := os.Open(storagePath)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err)
 		return
