@@ -199,10 +199,6 @@
   border-radius: 0 !important;
 }
 
-.settings-page .mcp-tool-policy-row:last-child {
-  border-bottom: 0 !important;
-}
-
 @media (min-width: 1040px) {
   .settings-page .settings,
   .settings-page .settings[style] {
@@ -237,10 +233,6 @@
   .settings-page .module-view.active {
     padding: 15px !important;
     border-radius: 13px !important;
-  }
-
-  .settings-page #dataStatus {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 
   .settings-page .provider-grid,
@@ -295,11 +287,6 @@
     background: #fff !important;
   }
 
-  .settings-page .module-view-title {
-    margin-bottom: 10px !important;
-    padding-bottom: 8px !important;
-  }
-
   .settings-page .module-view-title span {
     font-size: 19px !important;
   }
@@ -322,10 +309,6 @@
   .settings-page .mcp-advanced-fields {
     border: 0 !important;
     box-shadow: none !important;
-  }
-
-  .settings-page #dataStatus {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
   .settings-page .settings-form-grid,
@@ -379,12 +362,6 @@
   color: var(--set-text) !important;
 }
 
-.settings-page .settings-header {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
 .settings-page .settings-header h2 {
   color: var(--set-text) !important;
   letter-spacing: -.03em !important;
@@ -432,13 +409,6 @@
   background: #eef8f4 !important;
   color: #067a5f !important;
   box-shadow: inset 3px 0 0 var(--set-accent) !important;
-}
-
-.settings-page .module-view.active {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  padding: 0 !important;
 }
 
 .settings-page .module-view-title {

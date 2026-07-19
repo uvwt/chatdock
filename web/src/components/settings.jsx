@@ -1,5 +1,6 @@
 // Configuration-center modules: workspace, model/provider, MCP tools, automation, reply/embedding, data, and security.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import '../styles/settings-entry.css';
 import { TextCard } from './base.jsx';
 import { settingsModules, diagnosticsText, fmtBytes, fmtRelativeAge, fmtTime, runStatusClass, runStatusLabel, safePathName, scheduleSummary, taskStatusClass, taskStatusLabel } from '../lib/appUtils.js';
 

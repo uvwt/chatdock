@@ -301,10 +301,6 @@
   transform: translateY(-1px) !important;
 }
 
-#app.app .new-label {
-  display: none !important;
-}
-
 #app.app #sessions {
   display: grid !important;
   gap: 3px !important;

@@ -5,6 +5,10 @@ export function normalizeSettingsModule(name) {
   return settingsModules.includes(name) ? name : 'workspace';
 }
 
+export function agentTaskDataEnabled(setupStatus, systemStatus) {
+  return !!setupStatus && !setupStatus.needs_setup && systemStatus?.agentdock_tasks_configured === true;
+}
+
 export function fmtTime(value) {
   if (!value) return '';
   try { return new Date(value).toLocaleString(); } catch { return ''; }

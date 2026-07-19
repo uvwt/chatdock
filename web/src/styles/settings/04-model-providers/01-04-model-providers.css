@@ -163,12 +163,6 @@
   color: #047857 !important;
 }
 
-.settings-page .badge.warn {
-  border-color: #fde68a !important;
-  background: #fffbeb !important;
-  color: #92400e !important;
-}
-
 .settings-page .badge.danger-badge {
   border-color: #fecaca !important;
   background: #fef2f2 !important;

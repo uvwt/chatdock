@@ -34,10 +34,6 @@
   letter-spacing: -.02em !important;
 }
 
-.settings-page .module-view-title p {
-  display: none !important;
-}
-
 .settings-page .settings-block-head {
   margin: 14px 0 8px !important;
 }
@@ -49,7 +45,6 @@
 
 .settings-page .hint,
 .settings-page .product-meta,
-.settings-page .task-desc,
 .settings-page .task-desc,
 .settings-page .task-meta,
 .settings-page .stat-label,
@@ -77,14 +72,12 @@
 
 .settings-page .product-card-head,
 .settings-page .task-head,
-.settings-page .task-head,
 .settings-page .settings-section-head,
 .settings-page .mcp-form-head {
   gap: 10px !important;
 }
 
 .settings-page .product-card-head b,
-.settings-page .task-name,
 .settings-page .task-name,
 .settings-page .stat-value,
 .settings-page .model-summary-card b,
@@ -143,7 +136,6 @@
 .settings-page #dataStatus,
 .settings-page #workspaceCards,
 .settings-page .provider-grid,
-.settings-page .tasks-list,
 .settings-page .tasks-list,
 .settings-page .mcp-status-grid,
 .settings-page .mcp-form-list,
@@ -280,10 +272,6 @@
     border-radius: 14px !important;
   }
 
-  .settings-page .workspace-summary-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  }
-
   .settings-page #workspaceCards,
   .settings-page .provider-grid,
   .settings-page .tasks-list,
@@ -293,9 +281,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
-  .settings-page #dataStatus {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  }
 }
 
 @media (min-width: 1500px) {

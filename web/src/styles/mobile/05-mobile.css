@@ -168,11 +168,6 @@
     line-height: 1.35 !important;
   }
 
-  aside .session-delete {
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
-
   aside .session:hover .session-delete,
   aside .session:focus-within .session-delete {
     opacity: 1 !important;

@@ -1,10 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState, MessageView } from './components/chat.jsx';
 import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
 import { CurrentSessionTask, TaskPanel } from './components/taskPanel.jsx';
 import { DialogHost, LoginPage, Markdown, QuickPalette, WorkspacePicker } from './components/base.jsx';
-import { SettingsPanel } from './components/settings.jsx';
-import { defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtTime, normalizeSettingsModule, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
+import { agentTaskDataEnabled, defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtTime, normalizeSettingsModule, sessionIDFromPath, sessionPath, settingsModuleFromPath } from './lib/appUtils.js';
 import { attachmentLooksLikeImage, chatErrorDetails, contextPreviewText, finalAssistantMessageFromSession, readableChatError, scheduledTaskContextLabel, scheduledTaskRunsText, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
 import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js';
@@ -23,6 +22,7 @@ import { useVisualViewportLayout } from './hooks/useVisualViewportLayout.js';
 import { buildQuickActions } from './lib/quickActions.js';
 import { scheduledTaskSessionRows, visibleSessionRows } from './lib/sessionPresentation.js';
 
+const SettingsPanel = lazy(() => import('./components/settings.jsx').then(module => ({default: module.SettingsPanel})));
 export default function App() {
   useVisualViewportLayout();
 
@@ -233,7 +233,7 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', warnBeforeUnload);
   }, [configDirty, mcpConfigDirty]);
 
-  const taskDataEnabled = !!setupStatus && !setupStatus.needs_setup;
+  const taskDataEnabled = agentTaskDataEnabled(setupStatus, systemStatus);
   const agentTasks = useAgentTasks(api, taskDataEnabled);
   const currentSessionTask = useCurrentSessionTask(api, current, taskDataEnabled);
   const closeTaskPanel = useCallback(() => {
@@ -1553,7 +1553,7 @@ export default function App() {
 
   return <>
     <div id="sidebarMask" className={'sidebar-mask ' + (!settingsOpen && !sidebarCollapsed ? 'show' : '')} onClick={() => setSidebarCollapsed(true)} />
-    {settingsOpen ? <div id="settingsPage" className="settings-page">{settingsPanel}</div> : <div id="app" className={appClass}>
+    {settingsOpen ? <div id="settingsPage" className="settings-page"><Suspense fallback={<div className="empty compact" role="status">正在加载配置中心…</div>}>{settingsPanel}</Suspense></div> : <div id="app" className={appClass}>
       <Sidebar
         activeWorkspace={activeWorkspace} activeScheduledTasks={activeScheduledTasks} busy={busy} clearScheduledTaskRunList={clearScheduledTaskRunList}
         current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} newSession={newSession}
@@ -1570,7 +1570,7 @@ export default function App() {
           currentPinned={currentPinned} currentTitle={currentTitle} deleteCurrent={deleteCurrent} exportCurrent={exportCurrent}
           newSession={newSession} openSettings={openSettings} pinCurrent={pinCurrent} renameCurrent={renameCurrent}
           setQuickPaletteOpen={setQuickPaletteOpen} setSidebarCollapsed={setSidebarCollapsed} setThemeState={setThemeState}
-          showContextPreview={showContextPreview} sidebarCollapsed={sidebarCollapsed} taskPanelOpen={taskPanelOpen}
+          showContextPreview={showContextPreview} sidebarCollapsed={sidebarCollapsed} taskPanelAvailable={taskDataEnabled} taskPanelOpen={taskPanelOpen}
           taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
         />
         <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!workspaceSummaries.length} setInput={setInput} modelReady={modelReady} />}</div>
@@ -1592,7 +1592,7 @@ export default function App() {
       {taskPanelOpen ? <>
         <div className="agent-task-panel-mask" onClick={closeTaskPanel} />
         <TaskPanel
-          deletingTaskID={deletingAgentTaskID} detailError={agentTasks.detailError} detailLoading={agentTasks.detailLoading} error={agentTasks.error}
+          available={taskDataEnabled} deletingTaskID={deletingAgentTaskID} detailError={agentTasks.detailError} detailLoading={agentTasks.detailLoading} error={agentTasks.error}
           expandedTaskID={agentTasks.expandedTaskID} lastUpdatedAt={agentTasks.lastUpdatedAt} loading={agentTasks.loading}
           onClose={closeTaskPanel} onDelete={deleteAgentTaskFromPanel} onExpand={agentTasks.setExpandedTaskID} onRefresh={agentTasks.refresh}
           taskDetail={agentTasks.taskDetail} tasks={agentTasks.tasks}

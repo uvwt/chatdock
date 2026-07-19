@@ -7,11 +7,6 @@
     grid-template-columns: var(--gpt-sidebar-width) minmax(0, 1fr) !important;
   }
 
-  #app.app.sidebar-collapsed,
-  #app.app.sidebar-collapsed.settings-open {
-    grid-template-columns: 72px minmax(0, 1fr) !important;
-  }
-
   #app.app .top-actions .mobile-new-toggle {
     display: none !important;
   }
