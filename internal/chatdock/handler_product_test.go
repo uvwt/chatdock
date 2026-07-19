@@ -42,6 +42,44 @@ func TestProductizedAPIs(t *testing.T) {
 	}
 }
 
+func TestSystemStatusReportsAgentDockTaskCapability(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		contextURL string
+		want       bool
+	}{
+		{name: "not configured"},
+		{name: "configured", contextURL: "https://agentdock.example/context", want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app, err := NewApp(model.ServerConfig{
+				Addr:                "127.0.0.1:0",
+				DataDir:             t.TempDir(),
+				WebDir:              "../../web",
+				AgentDockContextURL: tc.contextURL,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			w := httptest.NewRecorder()
+			app.routes().ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/system/status", nil))
+			if w.Code != http.StatusOK {
+				t.Fatalf("system status %d: %s", w.Code, w.Body.String())
+			}
+			var payload storepkg.SystemStatusResponse
+			if err := json.Unmarshal(w.Body.Bytes(), &payload); err != nil {
+				t.Fatal(err)
+			}
+			if payload.AgentDockTasksConfigured != tc.want {
+				t.Fatalf("agentdock_tasks_configured = %v, want %v", payload.AgentDockTasksConfigured, tc.want)
+			}
+			if !payload.OK || payload.Name != "ChatDock" || payload.Database == "" {
+				t.Fatalf("incomplete system status: %#v", payload)
+			}
+		})
+	}
+}
+
 func TestWorkspaceResourceAPIs(t *testing.T) {
 	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {

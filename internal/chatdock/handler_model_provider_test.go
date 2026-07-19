@@ -133,6 +133,29 @@ func TestModelProviderRequestProviderIDDoesNotReuseCurrentWorkspaceKey(t *testin
 	}
 }
 
+func TestModelProviderRequestRejectsOversizedBody(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := app.Close(); err != nil {
+			t.Errorf("close app: %v", err)
+		}
+	})
+
+	body := "{}" + strings.Repeat(" ", maxJSONRequestBytes)
+	r := httptest.NewRequest(http.MethodPost, "/api/model-providers/models", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	app.routes().ServeHTTP(w, r)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("oversized model request status %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "request body exceeds") {
+		t.Fatalf("oversized model request error = %s", w.Body.String())
+	}
+}
+
 func TestModelProviderModelsReturnsAvailableNames(t *testing.T) {
 	seenPath := make(chan string, 1)
 	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

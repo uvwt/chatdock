@@ -12,7 +12,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const defaultWorkspaceID = "default"
+const (
+	defaultWorkspaceID = "default"
+	privateDirMode     = 0o700
+	privateFileMode    = 0o600
+)
 
 type Store struct {
 	mu      sync.RWMutex
@@ -22,13 +26,22 @@ type Store struct {
 }
 
 func NewStore(dataDir string) (*Store, error) {
-	if strings.TrimSpace(dataDir) == "" {
+	dataDir = strings.TrimSpace(dataDir)
+	if dataDir == "" {
 		dataDir = "data"
 	}
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+	if err := os.MkdirAll(dataDir, privateDirMode); err != nil {
 		return nil, err
 	}
 	dbPath := filepath.Join(dataDir, "chatdock.sqlite")
+	// 先以私有权限创建数据库文件；对已存在的数据库不做隐式 chmod 迁移。
+	dbFile, err := os.OpenFile(dbPath, os.O_RDWR|os.O_CREATE, privateFileMode)
+	if err != nil {
+		return nil, err
+	}
+	if err := dbFile.Close(); err != nil {
+		return nil, err
+	}
 	db, err := sql.Open("sqlite3", dbPath+"?_foreign_keys=on&_busy_timeout=5000")
 	if err != nil {
 		return nil, err

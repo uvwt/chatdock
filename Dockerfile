@@ -22,7 +22,9 @@ RUN apt-get update \
 COPY --from=build /out/chatdock /app/chatdock
 ENV CHATDOCK_ADDR=:8720
 ENV CHATDOCK_DATA=/data
-RUN mkdir -p /data && chown -R chatdock:nogroup /data /app
+RUN mkdir -p /data \
+    && chmod 0700 /data \
+    && chown -R chatdock:nogroup /data /app
 USER chatdock
 VOLUME ["/data"]
 EXPOSE 8720

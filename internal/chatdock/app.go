@@ -44,7 +44,16 @@ type App struct {
 	agentDockContextUntil time.Time
 }
 
+func normalizeServerConfig(cfg model.ServerConfig) model.ServerConfig {
+	cfg.DataDir = strings.TrimSpace(cfg.DataDir)
+	if cfg.DataDir == "" {
+		cfg.DataDir = "data"
+	}
+	return cfg
+}
+
 func NewApp(cfg model.ServerConfig) (*App, error) {
+	cfg = normalizeServerConfig(cfg)
 	st, err := storepkg.NewStore(cfg.DataDir)
 	if err != nil {
 		return nil, err

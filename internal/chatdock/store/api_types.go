@@ -162,6 +162,18 @@ type DataStatus struct {
 	SessionCount           int          `json:"session_count"`
 }
 
+type SystemStatusResponse struct {
+	OK                       bool        `json:"ok"`
+	Name                     string      `json:"name"`
+	Time                     time.Time   `json:"time"`
+	Setup                    SetupStatus `json:"setup"`
+	Data                     DataStatus  `json:"data"`
+	WebDir                   string      `json:"web_dir"`
+	Addr                     string      `json:"addr"`
+	Database                 string      `json:"database"`
+	AgentDockTasksConfigured bool        `json:"agentdock_tasks_configured"`
+}
+
 type MCPServerStatus struct {
 	Name         string `json:"name"`
 	URL          string `json:"url"`

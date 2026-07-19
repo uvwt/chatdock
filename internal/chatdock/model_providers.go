@@ -71,9 +71,12 @@ func (a *App) modelConfigFromRequest(r *http.Request) (model.ModelConfig, error)
 		return cfg, nil
 	}
 	defer r.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(r.Body, 2<<20))
+	raw, err := io.ReadAll(io.LimitReader(r.Body, maxJSONRequestBytes+1))
 	if err != nil {
 		return model.ModelConfig{}, err
+	}
+	if len(raw) > maxJSONRequestBytes {
+		return model.ModelConfig{}, fmt.Errorf("request body exceeds %d bytes", maxJSONRequestBytes)
 	}
 	if strings.TrimSpace(string(raw)) == "" || strings.TrimSpace(string(raw)) == "{}" {
 		return cfg, nil

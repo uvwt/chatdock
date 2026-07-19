@@ -22,15 +22,16 @@ func (a *App) handleSystemStatus(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, map[string]any{
-		"ok":       true,
-		"name":     "ChatDock",
-		"time":     time.Now(),
-		"setup":    setup,
-		"data":     data,
-		"web_dir":  a.cfg.WebDir,
-		"addr":     a.cfg.Addr,
-		"database": filepath.Base(data.DatabasePath),
+	writeJSONResponse(w, http.StatusOK, storepkg.SystemStatusResponse{
+		OK:                       true,
+		Name:                     "ChatDock",
+		Time:                     time.Now(),
+		Setup:                    setup,
+		Data:                     data,
+		WebDir:                   a.cfg.WebDir,
+		Addr:                     a.cfg.Addr,
+		Database:                 filepath.Base(data.DatabasePath),
+		AgentDockTasksConfigured: strings.TrimSpace(a.cfg.AgentDockContextURL) != "",
 	})
 }
 

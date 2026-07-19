@@ -21,7 +21,11 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-const maxUploadBytes = 32 << 20
+const (
+	maxUploadBytes = 32 << 20
+	uploadDirMode  = 0o700
+	uploadFileMode = 0o600
+)
 
 const modelImageURLTTL = 6 * time.Hour
 
@@ -99,11 +103,11 @@ type persistedUpload struct {
 
 func (a *App) persistUploadedFile(workspaceID string, id string, name string, contentType string, source io.Reader) (persistedUpload, error) {
 	uploadDir := filepath.Join(a.cfg.DataDir, "uploads", safeFileComponent(workspaceID))
-	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
+	if err := os.MkdirAll(uploadDir, uploadDirMode); err != nil {
 		return persistedUpload{}, err
 	}
 	storagePath := filepath.Join(uploadDir, id+"_"+name)
-	out, err := os.Create(storagePath)
+	out, err := os.OpenFile(storagePath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, uploadFileMode)
 	if err != nil {
 		return persistedUpload{}, err
 	}
