@@ -20,6 +20,30 @@ func TestNextDailyRunUsesConfiguredScheduleTimezone(t *testing.T) {
 	}
 }
 
+func TestNextDailyRunKeepsWallClockAcrossDSTChanges(t *testing.T) {
+	t.Setenv("CHATDOCK_TIMEZONE", "America/New_York")
+	loc := scheduleLocation()
+	cases := map[string]struct {
+		now        time.Time
+		wantDate   string
+		wantOffset string
+	}{
+		"spring forward": {now: time.Date(2026, 3, 7, 10, 0, 0, 0, loc), wantDate: "2026-03-08 09:00", wantOffset: "-04:00"},
+		"fall back":      {now: time.Date(2026, 10, 31, 10, 0, 0, 0, loc), wantDate: "2026-11-01 09:00", wantOffset: "-05:00"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := nextDailyRun(tc.now, "09:00")
+			if got.In(loc).Format("2006-01-02 15:04") != tc.wantDate {
+				t.Fatalf("next daily run = %s, want %s", got.In(loc), tc.wantDate)
+			}
+			if got.Format("-07:00") != tc.wantOffset {
+				t.Fatalf("next daily run offset = %s, want %s", got.Format("-07:00"), tc.wantOffset)
+			}
+		})
+	}
+}
+
 func TestRepairDailyNextRunFixesOldUTCStoredTime(t *testing.T) {
 	t.Setenv("CHATDOCK_TIMEZONE", "Asia/Shanghai")
 	task := model.ScheduledTask{

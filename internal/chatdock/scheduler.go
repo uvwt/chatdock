@@ -34,10 +34,12 @@ func (a *App) runDueScheduledTasks() {
 }
 
 func (a *App) startScheduledTask(workspaceID string, id string, manual bool) {
-	key := strings.TrimSpace(workspaceID) + ":" + strings.TrimSpace(id)
-	if key == "" {
+	workspaceID = strings.TrimSpace(workspaceID)
+	id = strings.TrimSpace(id)
+	if workspaceID == "" || id == "" {
 		return
 	}
+	key := workspaceID + ":" + id
 	a.runningMu.Lock()
 	if a.running[key] {
 		a.runningMu.Unlock()

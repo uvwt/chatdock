@@ -224,7 +224,7 @@ func nextDailyRun(now time.Time, timeOfDay string) time.Time {
 	parsed, _ := time.Parse("15:04", timeOfDay)
 	next := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), parsed.Hour(), parsed.Minute(), 0, 0, loc)
 	if !next.After(localNow) {
-		next = next.Add(24 * time.Hour)
+		next = time.Date(localNow.Year(), localNow.Month(), localNow.Day()+1, parsed.Hour(), parsed.Minute(), 0, 0, loc)
 	}
 	return next
 }
