@@ -3,7 +3,7 @@ WEB_DIR := web
 DEV_COMPOSE := compose.dev.yaml
 PROD_CHATDOCK_DIR ?= /Volumes/KIOXIA/Docker/chatdock
 
-.PHONY: run build web-deps web-build web-dev js-check css-check bundle-check frontend-test frontend-lint commit-msg-check test vet fmt fmt-check check clean dev-up dev-down prod-check deploy-prod
+.PHONY: run build web-deps web-build web-dev js-check css-check bundle-check frontend-test frontend-lint commit-msg-check shell-check test vet fmt fmt-check check clean dev-up dev-down prod-check prod-health deploy-prod
 
 run: web-build
 	go run ./cmd/chatdock
@@ -47,6 +47,9 @@ commit-msg-check:
 	@test -n "$(MSG)" || (echo 'usage: make commit-msg-check MSG="refactor(chatdock): 中文说明"' >&2; exit 2)
 	node scripts/check-commit-message.mjs --message "$(MSG)"
 
+shell-check:
+	@for file in scripts/*.sh; do bash -n "$$file"; done
+
 test: web-build
 	go test ./...
 
@@ -56,7 +59,7 @@ vet: web-build
 fmt-check:
 	test -z "$$(gofmt -l cmd internal web/*.go)"
 
-check: fmt-check frontend-lint frontend-test bundle-check vet test build
+check: fmt-check shell-check frontend-lint frontend-test bundle-check vet test build
 
 fmt:
 	gofmt -w cmd internal web/*.go
@@ -69,6 +72,9 @@ dev-down:
 
 prod-check:
 	CHATDOCK_PROD_DIR=$(PROD_CHATDOCK_DIR) scripts/check-prod-compose.sh
+
+prod-health:
+	scripts/check-prod-health.sh
 
 deploy-prod:
 	cd $(PROD_CHATDOCK_DIR) && CHATDOCK_PROD_DIR=$(PROD_CHATDOCK_DIR) $(CURDIR)/scripts/deploy-prod.sh

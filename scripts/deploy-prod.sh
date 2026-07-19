@@ -19,3 +19,4 @@ fi
 
 docker compose -f "$PROD_COMPOSE" --project-directory "$PROD_DIR" up -d --build chatdock
 "$REPO_DIR/scripts/check-prod-compose.sh"
+"$REPO_DIR/scripts/check-prod-health.sh"
