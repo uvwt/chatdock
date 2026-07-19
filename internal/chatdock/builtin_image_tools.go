@@ -114,6 +114,9 @@ func validatePublicHTTPImageURL(ctx context.Context, raw string) (*url.URL, erro
 	if parsed.Hostname() == "" {
 		return nil, fmt.Errorf("url host is required")
 	}
+	if parsed.User != nil {
+		return nil, fmt.Errorf("url credentials are not allowed")
+	}
 	if err := rejectPrivateHost(ctx, parsed.Hostname()); err != nil {
 		return nil, err
 	}
@@ -124,9 +127,11 @@ func probeImageURL(ctx context.Context, rawURL string) (imageURLMeta, error) {
 	ctx, cancel := context.WithTimeout(ctx, 25*time.Second)
 	defer cancel()
 
+	transport := publicImageTransport()
+	defer transport.CloseIdleConnections()
 	client := &http.Client{
 		Timeout:   25 * time.Second,
-		Transport: publicImageTransport(),
+		Transport: transport,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 5 {
 				return fmt.Errorf("too many redirects")
@@ -169,15 +174,35 @@ func probeImageURL(ctx context.Context, rawURL string) (imageURLMeta, error) {
 	if len(raw) > maxImageURLBytes {
 		return imageURLMeta{}, fmt.Errorf("image is too large: exceeds %d bytes", maxImageURLBytes)
 	}
-	mimeType := strings.TrimSpace(strings.Split(resp.Header.Get("Content-Type"), ";")[0])
-	if mimeType == "" || mimeType == "application/octet-stream" {
-		mimeType = http.DetectContentType(raw)
-	}
-	mimeType = strings.ToLower(mimeType)
-	if !isSupportedVisionImageMIME(mimeType) {
-		return imageURLMeta{}, fmt.Errorf("url content is not a supported image type: %s", mimeType)
+	mimeType, err := validateImageResponseMIME(resp.Header.Get("Content-Type"), raw)
+	if err != nil {
+		return imageURLMeta{}, err
 	}
 	return imageURLMeta{MIMEType: mimeType, SizeBytes: int64(len(raw))}, nil
+}
+
+func validateImageResponseMIME(contentType string, raw []byte) (string, error) {
+	declared := strings.ToLower(strings.TrimSpace(strings.Split(contentType, ";")[0]))
+	detected := strings.ToLower(http.DetectContentType(raw))
+	if !isSupportedVisionImageMIME(detected) {
+		return "", fmt.Errorf("url content is not a supported image type: %s", detected)
+	}
+	if declared != "" && declared != "application/octet-stream" {
+		if !isSupportedVisionImageMIME(declared) {
+			return "", fmt.Errorf("url declared unsupported image type: %s", declared)
+		}
+		if canonicalImageMIME(declared) != canonicalImageMIME(detected) {
+			return "", fmt.Errorf("url image type mismatch: declared %s, detected %s", declared, detected)
+		}
+	}
+	return canonicalImageMIME(detected), nil
+}
+
+func canonicalImageMIME(mimeType string) string {
+	if strings.EqualFold(strings.TrimSpace(mimeType), "image/jpg") {
+		return "image/jpeg"
+	}
+	return strings.ToLower(strings.TrimSpace(mimeType))
 }
 
 func publicImageTransport() *http.Transport {
