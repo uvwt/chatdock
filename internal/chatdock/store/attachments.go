@@ -9,6 +9,8 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
+const maxAttachmentsPerMessage = 20
+
 type AttachmentBlob struct {
 	SHA256      string
 	StoragePath string
@@ -149,7 +151,10 @@ func (s *Store) attachmentRecordsByIDsLocked(workspaceID string, ids []string) (
 	if err != nil {
 		return nil, err
 	}
-	ids = uniqueAttachmentIDs(ids)
+	ids, err = normalizeAttachmentIDs(ids)
+	if err != nil {
+		return nil, err
+	}
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -236,6 +241,14 @@ func uniqueAttachmentIDs(ids []string) []string {
 		out = append(out, id)
 	}
 	return out
+}
+
+func normalizeAttachmentIDs(ids []string) ([]string, error) {
+	ids = uniqueAttachmentIDs(ids)
+	if len(ids) > maxAttachmentsPerMessage {
+		return nil, fmt.Errorf("attachment count exceeds %d", maxAttachmentsPerMessage)
+	}
+	return ids, nil
 }
 
 func publicAttachments(records []model.AttachmentRecord) []model.Attachment {

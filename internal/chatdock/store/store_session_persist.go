@@ -90,6 +90,11 @@ func persistSessionTx(tx *sql.Tx, workspaceID string, session *model.Session) er
 }
 
 func bindAttachmentsTx(tx *sql.Tx, workspaceID string, sessionID string, messageID string, attachmentIDs []string) error {
+	var err error
+	attachmentIDs, err = normalizeAttachmentIDs(attachmentIDs)
+	if err != nil {
+		return err
+	}
 	if len(attachmentIDs) == 0 {
 		return nil
 	}
