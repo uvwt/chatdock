@@ -1,4 +1,4 @@
-/* 桌面主界面最终层：按 ChatGPT 当前桌面尺寸组织侧栏和顶栏。 */
+/* ChatGPT 式主界面最终层：保留 ChatDock 青绿色品牌色。 */
 .chrome-icon {
   width: 19px;
   height: 19px;
@@ -13,10 +13,10 @@
 
 @media (min-width: 861px) {
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     font-size: 15px;
     font-weight: 400;
-    line-height: 1.5;
+    line-height: 1.55;
     text-rendering: optimizeLegibility;
   }
 
@@ -29,26 +29,17 @@
 
   #app.app {
     --gpt-sidebar-width: 260px;
-    --gpt-chat-width: 768px;
-    --gpt-msg-width: 768px;
+    --gpt-chat-width: 800px;
+    --gpt-msg-width: 800px;
     grid-template-columns: var(--gpt-sidebar-width) minmax(0, 1fr);
     background: var(--gpt-main);
   }
 
   #app.app.sidebar-collapsed {
-    grid-template-columns: 60px minmax(0, 1fr);
+    grid-template-columns: 68px minmax(0, 1fr);
   }
 
-  #app.app main,
-  #app.app main::before {
-    background: var(--gpt-main);
-  }
-
-  #app.app main::before {
-    display: none;
-  }
-
-  /* Sidebar */
+  /* 侧栏：品牌、新聊天、搜索、工作区、历史、底部设置。 */
   #app.app aside {
     padding: 8px;
     border-right: 1px solid var(--gpt-border);
@@ -57,116 +48,128 @@
   }
 
   #app.app .sidebar-head {
-    min-height: 44px;
-    padding: 0 2px 4px;
+    min-height: 48px;
+    padding: 2px 2px 6px;
     display: flex;
     align-items: center;
     gap: 4px;
   }
 
   #app.app .sidebar-brand-button {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
+    min-width: 0;
     min-height: 40px;
-    flex: 0 0 40px;
-    padding: 0;
-    display: inline-flex;
+    flex: 1 1 auto;
+    display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 10px;
+    padding: 6px 8px;
     border: 0;
     border-radius: 10px;
     background: transparent;
     color: var(--gpt-text);
     box-shadow: none;
+    text-align: left;
   }
 
-  #app.app .sidebar-brand-button:hover:not(:disabled),
-  #app.app .sidebar-toggle:hover:not(:disabled),
-  #app.app .sidebar-new-chat:hover:not(:disabled),
-  #app.app aside > .session-search-box:hover,
-  #app.app aside > .session-search-box:focus-within,
-  #app.app .workspace-picker-trigger:hover:not(:disabled),
-  #app.app .sidebar-settings-entry:hover:not(:disabled) {
-    background: var(--gpt-sidebar-hover) !important;
+  #app.app .sidebar-brand-button:hover:not(:disabled) {
+    background: var(--gpt-sidebar-hover);
   }
 
   #app.app .brand-logo {
-    width: 26px !important;
-    height: 26px !important;
-    flex: 0 0 26px !important;
+    width: 28px !important;
+    height: 28px !important;
+    flex: 0 0 28px !important;
     display: inline-grid !important;
     place-items: center;
     border-radius: 50% !important;
     background: var(--gpt-accent) !important;
     color: #fff !important;
-    font-size: 12px !important;
-    font-weight: 720;
+    font-size: 13px !important;
+    font-weight: 750;
     box-shadow: none !important;
   }
 
   #app.app .sidebar-brand-button .brand-text {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 650;
+    letter-spacing: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #app.app .sidebar-brand-button .brand-text::before {
+    content: none !important;
     display: none !important;
   }
 
   #app.app .sidebar-toggle {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
-    margin-left: auto;
-    padding: 0;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    flex: 0 0 38px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    padding: 0;
     border: 0;
     border-radius: 10px;
     background: transparent;
     color: var(--gpt-muted);
-    box-shadow: none;
+    line-height: 1;
   }
 
-  #app.app aside .sidebar-new-chat,
-  #app.app aside > .session-search-box,
-  #app.app aside .workspace-picker-trigger {
+  #app.app .sidebar-toggle:hover:not(:disabled) {
+    background: var(--gpt-sidebar-hover);
+    color: var(--gpt-text);
+  }
+
+  #app.app .sidebar-new-chat {
     width: calc(100% - 4px) !important;
-    max-width: none !important;
     min-height: 40px !important;
-    margin: 0 2px 2px !important;
-    padding: 0 10px !important;
+    margin: 2px 2px 4px !important;
+    padding: 8px 10px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-start !important;
+    gap: 10px;
     border: 0 !important;
     border-radius: 10px !important;
     background: transparent !important;
     color: var(--gpt-text) !important;
     box-shadow: none !important;
-  }
-
-  #app.app aside .sidebar-new-chat {
-    display: flex !important;
-    align-items: center;
-    justify-content: flex-start !important;
-    gap: 10px;
     font-size: 14px;
-    font-weight: 510;
+    font-weight: 540;
     text-align: left;
   }
 
-  #app.app .sidebar-new-chat .new-label {
-    display: inline !important;
-  }
-
-  #app.app .sidebar-new-chat.active {
+  #app.app .sidebar-new-chat:hover:not(:disabled) {
     background: var(--gpt-sidebar-hover) !important;
   }
 
   #app.app aside > .session-search-box {
+    width: calc(100% - 4px);
+    min-height: 40px;
+    margin: 0 2px 5px;
+    padding: 0 10px;
     display: flex;
     align-items: center;
     gap: 10px;
+    border: 0;
+    border-radius: 10px !important;
+    background: transparent;
+    color: var(--gpt-muted);
   }
 
-  #app.app aside > .session-search-box .chrome-icon,
-  #app.app .sidebar-new-chat .chrome-icon {
+  #app.app aside > .session-search-box:hover,
+  #app.app aside > .session-search-box:focus-within {
+    background: var(--gpt-sidebar-hover);
+    color: var(--gpt-text);
+  }
+
+  #app.app aside > .session-search-box .chrome-icon {
     width: 18px;
     height: 18px;
     flex: 0 0 18px;
@@ -187,35 +190,36 @@
     line-height: 38px !important;
   }
 
-  #app.app aside .session-search::placeholder {
-    color: var(--gpt-text);
-    opacity: 1;
-  }
-
   #app.app .prompt-box {
-    margin: 0 2px 6px;
+    margin: 0 2px 8px;
     padding: 0;
     border: 0;
+    border-radius: 0 !important;
     background: transparent;
   }
 
   #app.app .workspace-picker-trigger {
-    min-height: 44px !important;
-    display: grid;
+    min-height: 42px;
+    padding: 7px 10px;
+    border: 0;
+    border-radius: 10px !important;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: "name arrow" "meta arrow";
-    align-items: center;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  #app.app .workspace-picker-trigger:hover:not(:disabled) {
+    background: var(--gpt-sidebar-hover);
   }
 
   #app.app .workspace-picker-name {
     font-size: 13.5px;
-    font-weight: 510;
+    font-weight: 560;
     line-height: 1.25;
   }
 
-  #app.app .workspace-picker-meta,
-  #app.app .workspace-picker-arrow {
-    color: var(--gpt-muted-2);
+  #app.app .workspace-picker-meta {
     font-size: 11.5px;
     line-height: 1.25;
   }
@@ -225,26 +229,26 @@
   }
 
   #app.app .sidebar-section-head {
-    min-height: 26px;
-    padding: 7px 10px 3px;
+    min-height: 28px;
+    padding: 8px 10px 4px;
   }
 
-  #app.app .sidebar-section-title,
-  #app.app .sidebar-section-count {
-    color: var(--gpt-muted-2) !important;
+  #app.app .sidebar-section-title {
+    color: var(--gpt-muted-2);
     font-size: 12px !important;
-    font-weight: 500 !important;
+    font-weight: 560 !important;
     letter-spacing: 0 !important;
   }
 
-  #app.app .sidebar-task-list,
-  #app.app #sessions {
-    gap: 1px;
+  #app.app .sidebar-section-count {
+    color: var(--gpt-muted-2);
+    font-size: 11px;
   }
 
   #app.app #sessions {
-    min-height: 0;
     flex: 1 1 auto;
+    gap: 1px;
+    min-height: 0;
     padding: 1px 0 6px;
     overflow-y: auto;
   }
@@ -268,20 +272,15 @@
     background: var(--gpt-sidebar-hover) !important;
   }
 
-  #app.app #sessions .session.active::before,
-  #app.app .sidebar-task-list .session.active::before {
+  #app.app #sessions .session.active::before {
     display: none;
   }
 
   #app.app .session-title {
-    overflow: hidden;
-    color: var(--gpt-text) !important;
     font-size: 13.5px !important;
-    font-weight: 450 !important;
+    font-weight: 470 !important;
     line-height: 1.35 !important;
     letter-spacing: 0 !important;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   #app.app .session-preview,
@@ -300,19 +299,22 @@
 
   #app.app .sidebar-settings-entry {
     width: calc(100% - 4px);
-    min-height: 50px;
+    min-height: 48px;
     margin: auto 2px 0;
     padding: 6px 10px;
     display: flex;
     align-items: center;
     gap: 10px;
     border: 0;
-    border-top: 1px solid var(--gpt-border);
-    border-radius: 0 !important;
+    border-radius: 10px !important;
     background: transparent;
     color: var(--gpt-text);
     box-shadow: none;
     text-align: left;
+  }
+
+  #app.app .sidebar-settings-entry:hover:not(:disabled) {
+    background: var(--gpt-sidebar-hover);
   }
 
   #app.app .sidebar-settings-entry > span {
@@ -323,7 +325,7 @@
 
   #app.app .sidebar-settings-entry b {
     font-size: 13.5px;
-    font-weight: 510;
+    font-weight: 560;
   }
 
   #app.app .sidebar-settings-entry small {
@@ -334,9 +336,9 @@
     white-space: nowrap;
   }
 
-  /* Collapsed sidebar */
+  /* 折叠后只保留 ChatGPT 式功能图标栏。 */
   #app.app.sidebar-collapsed aside {
-    padding-inline: 8px;
+    padding-inline: 10px;
   }
 
   #app.app.sidebar-collapsed .sidebar-head {
@@ -358,11 +360,9 @@
     height: 40px !important;
     min-width: 40px !important;
     min-height: 40px !important;
-    margin: 2px auto !important;
+    margin: 2px auto 4px !important;
     padding: 0 !important;
     justify-content: center !important;
-    border: 0 !important;
-    border-radius: 10px !important;
   }
 
   #app.app.sidebar-collapsed aside > .session-search-box input,
@@ -375,86 +375,38 @@
     margin-top: auto !important;
   }
 
-  /* Topbar */
+  /* 顶栏：仅保留轻量图标操作，不再组成胶囊工具条。 */
+  #app.app main {
+    background: var(--gpt-main);
+  }
+
+  #app.app main::before {
+    display: none;
+  }
+
   #app.app .topbar {
     height: 56px;
-    min-height: 56px;
-    padding: 8px 14px;
+    padding: 8px 16px;
     border-bottom: 0 !important;
-    background: color-mix(in srgb, var(--gpt-main) 96%, transparent) !important;
-    backdrop-filter: blur(12px);
+    background: color-mix(in srgb, var(--gpt-main) 94%, transparent) !important;
+    backdrop-filter: blur(14px);
   }
 
   #app.app .top-left {
-    min-width: 0;
-    max-width: min(58vw, 760px);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  #app.app .topbar-model-picker {
-    min-width: 0;
-    position: relative;
-  }
-
-  #app.app .topbar-model-picker .model-picker,
-  #app.app .topbar-model-picker .model-picker-trigger {
-    width: auto !important;
-    min-width: 0 !important;
-    max-width: 220px !important;
-  }
-
-  #app.app .topbar-model-picker .model-picker-trigger {
-    height: 40px !important;
-    min-height: 40px !important;
-    padding: 0 8px !important;
-    flex-direction: row !important;
-    gap: 0 !important;
-    border: 0 !important;
-    border-radius: 9px !important;
-    background: transparent !important;
-    color: var(--gpt-text) !important;
-    box-shadow: none !important;
-  }
-
-  #app.app .topbar-model-picker .model-picker-trigger:hover:not(:disabled) {
-    background: var(--gpt-sidebar-hover) !important;
-  }
-
-  #app.app .topbar-model-picker .model-picker-trigger span {
-    display: none;
-  }
-
-  #app.app .topbar-model-picker .model-picker-trigger b {
-    max-width: 190px;
-    color: var(--gpt-text) !important;
-    font-size: 15.5px;
-    font-weight: 600;
-    line-height: 1.2;
-  }
-
-  #app.app .topbar-model-picker .model-picker-trigger::after {
-    content: "⌄";
-    margin-left: 5px;
-    color: var(--gpt-muted);
-    font-size: 12px;
-  }
-
-  #app.app .topbar-model-picker .model-picker-popover {
-    top: calc(100% + 6px);
-    bottom: auto;
-    left: 0;
+    max-width: min(52vw, 720px);
   }
 
   #app.app #title {
-    display: none;
+    font-size: 14.5px;
+    font-weight: 580;
+    letter-spacing: 0;
   }
 
   #app.app .top-actions {
     gap: 2px;
     padding: 0;
     border: 0;
+    border-radius: 0;
     background: transparent;
     box-shadow: none;
   }
@@ -471,7 +423,7 @@
     align-items: center;
     justify-content: center;
     border: 0;
-    border-radius: 9px !important;
+    border-radius: 10px !important;
     background: transparent;
     color: var(--gpt-muted);
     box-shadow: none;
@@ -485,7 +437,10 @@
   }
 
   #app.app .top-actions .action-label,
-  #app.app .task-panel-toggle-label,
+  #app.app .task-panel-toggle-label {
+    display: none !important;
+  }
+
   #app.app .top-actions .config-toggle,
   #app.app .top-actions .mobile-new-toggle {
     display: none !important;
@@ -505,4 +460,5 @@
     font-size: 9px;
     line-height: 11px;
   }
+
 }

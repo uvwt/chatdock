@@ -1,4 +1,4 @@
-/* 移动端外壳最终层：按 ChatGPT 当前移动对话页组织顶栏与抽屉。 */
+/* ChatGPT 式移动端最终布局：轻量抽屉、紧凑顶栏、自然消息流和底部输入框。 */
 @media (max-width: 720px) {
   html,
   body,
@@ -33,30 +33,30 @@
     display: none !important;
   }
 
-  /* Topbar: menu / model / new chat */
+  /* Topbar */
   #app.app .topbar {
     min-height: 56px !important;
     height: 56px !important;
     padding: max(6px, env(safe-area-inset-top, 0px)) 8px 6px !important;
     display: flex !important;
     align-items: center !important;
-    gap: 4px !important;
-    border: 0 !important;
-    background: color-mix(in srgb, var(--gpt-main) 96%, transparent) !important;
-    box-shadow: none !important;
-    backdrop-filter: blur(12px);
+    gap: 6px !important;
+    border-bottom: 0 !important;
+    background: color-mix(in srgb, var(--gpt-main) 94%, transparent) !important;
+    backdrop-filter: blur(14px);
   }
 
   #app.app .top-left {
     min-width: 0;
+    max-width: none;
     flex: 1 1 auto;
-    display: grid !important;
-    grid-template-columns: 40px minmax(0, 1fr);
+    display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
   }
 
   #app.app .mobile-menu,
+  #app.app .top-actions .task-panel-toggle,
   #app.app .top-actions .mobile-new-toggle {
     width: 40px !important;
     height: 40px !important;
@@ -74,90 +74,49 @@
   }
 
   #app.app .mobile-menu:active,
+  #app.app .top-actions .task-panel-toggle:active,
   #app.app .top-actions .mobile-new-toggle:active {
     background: var(--gpt-sidebar-hover) !important;
   }
 
-  #app.app .topbar-model-picker {
+  #app.app #title {
     min-width: 0;
-    justify-self: center;
-    position: relative;
-  }
-
-  #app.app .topbar-model-picker .model-picker,
-  #app.app .topbar-model-picker .model-picker-trigger {
-    width: auto !important;
-    min-width: 0 !important;
-    max-width: min(54vw, 190px) !important;
-    height: 40px !important;
-    min-height: 40px !important;
-  }
-
-  #app.app .topbar-model-picker .model-picker-trigger {
-    padding: 0 8px !important;
-    flex-direction: row !important;
-    gap: 0 !important;
-    border: 0 !important;
-    border-radius: 10px !important;
-    background: transparent !important;
-    color: var(--gpt-text) !important;
-    box-shadow: none !important;
-  }
-
-  #app.app .topbar-model-picker .model-picker-trigger span {
-    display: none !important;
-  }
-
-  #app.app .topbar-model-picker .model-picker-trigger b {
-    max-width: calc(min(54vw, 190px) - 22px);
     overflow: hidden;
-    color: var(--gpt-text) !important;
     font-size: 15px !important;
-    font-weight: 600 !important;
-    line-height: 1.2;
+    font-weight: 590 !important;
+    line-height: 1.3;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  #app.app .topbar-model-picker .model-picker-trigger::after {
-    content: "⌄";
-    margin-left: 5px;
-    color: var(--gpt-muted);
-    font-size: 11px;
-  }
-
-  #app.app .topbar-model-picker .model-picker-popover {
-    position: fixed !important;
-    top: calc(56px + env(safe-area-inset-top, 0px)) !important;
-    right: 10px !important;
-    bottom: auto !important;
-    left: 10px !important;
-    width: auto !important;
-    max-height: min(430px, 62vh) !important;
-    padding: 14px !important;
-    border-radius: 20px !important;
-    background: color-mix(in srgb, var(--gpt-main) 98%, transparent) !important;
-    box-shadow: 0 24px 72px rgba(0, 0, 0, .18) !important;
-  }
-
-  #app.app #title {
-    display: none !important;
   }
 
   #app.app .top-actions {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    gap: 0 !important;
+    gap: 2px !important;
   }
 
   #app.app .top-actions .quick-palette-toggle,
   #app.app .top-actions .config-toggle,
   #app.app .top-actions .theme-toggle,
-  #app.app .top-actions .task-panel-toggle,
   #app.app .top-actions .action-label,
   #app.app .task-panel-toggle-label {
     display: none !important;
+  }
+
+  #app.app .task-panel-toggle-count {
+    position: absolute;
+    top: 2px;
+    right: 1px;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 4px;
+    border: 2px solid var(--gpt-main);
+    border-radius: 999px;
+    background: var(--gpt-accent);
+    color: #fff;
+    font-size: 9px;
+    line-height: 11px;
   }
 
   /* Drawer */
@@ -165,7 +124,7 @@
     position: fixed !important;
     inset: 0 auto 0 0 !important;
     z-index: 30 !important;
-    width: min(86vw, 320px) !important;
+    width: min(84vw, 304px) !important;
     height: 100dvh !important;
     min-height: 0 !important;
     padding: calc(env(safe-area-inset-top, 0px) + 8px) 8px calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
@@ -173,11 +132,11 @@
     flex-direction: column !important;
     overflow: hidden !important;
     border: 0 !important;
-    border-right: 1px solid var(--gpt-border) !important;
+    border-right: 1px solid rgba(0, 0, 0, .08) !important;
     border-radius: 0 !important;
-    background: var(--gpt-sidebar) !important;
-    color: var(--gpt-text) !important;
-    box-shadow: 18px 0 56px rgba(0, 0, 0, .18) !important;
+    background: #f7f7f8 !important;
+    color: #111827 !important;
+    box-shadow: 18px 0 56px rgba(15, 23, 42, .18) !important;
     transform: translateX(0) !important;
     transition: transform .18s ease !important;
   }
@@ -196,7 +155,7 @@
     position: fixed;
     inset: 0;
     z-index: 20;
-    background: rgba(0, 0, 0, .34);
+    background: rgba(15, 23, 42, .34);
     backdrop-filter: blur(2px);
   }
 
@@ -220,7 +179,7 @@
     border: 0 !important;
     border-radius: 10px !important;
     background: transparent !important;
-    color: var(--gpt-text) !important;
+    color: #111827 !important;
     box-shadow: none !important;
   }
 
@@ -235,15 +194,15 @@
     color: #fff !important;
     box-shadow: none !important;
     font-size: 13px !important;
-    font-weight: 720 !important;
+    font-weight: 750 !important;
   }
 
   #app.app aside .brand-text {
     min-width: 0 !important;
     overflow: hidden !important;
-    color: var(--gpt-text) !important;
+    color: #111827 !important;
     font-size: 14px !important;
-    font-weight: 600 !important;
+    font-weight: 650 !important;
     line-height: 1.2 !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
@@ -267,39 +226,28 @@
     border: 0 !important;
     border-radius: 10px !important;
     background: transparent !important;
-    color: var(--gpt-muted) !important;
-    box-shadow: none !important;
-  }
-
-  #app.app aside .sidebar-new-chat,
-  #app.app aside > .session-search-box,
-  #app.app aside .workspace-picker-trigger {
-    width: calc(100% - 4px) !important;
-    max-width: none !important;
-    min-height: 40px !important;
-    margin: 0 2px 2px !important;
-    padding: 0 10px !important;
-    border: 0 !important;
-    border-radius: 10px !important;
-    background: transparent !important;
-    color: var(--gpt-text) !important;
+    color: #6b7280 !important;
     box-shadow: none !important;
   }
 
   #app.app aside .sidebar-new-chat {
+    width: calc(100% - 4px) !important;
+    max-width: none !important;
+    min-height: 40px !important;
     flex: 0 0 auto !important;
+    margin: 2px 2px 3px !important;
+    padding: 8px 10px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: flex-start !important;
     gap: 10px !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    background: transparent !important;
+    color: #111827 !important;
+    box-shadow: none !important;
     font-size: 14px !important;
-    font-weight: 500 !important;
-  }
-
-  #app.app aside .sidebar-new-chat.active,
-  #app.app aside #sessions .session.active,
-  #app.app aside .sidebar-task-list .session.active {
-    background: var(--gpt-sidebar-hover) !important;
+    font-weight: 520 !important;
   }
 
   #app.app aside .sidebar-new-chat .chrome-icon {
@@ -314,9 +262,22 @@
   }
 
   #app.app aside > .session-search-box {
+    width: calc(100% - 4px) !important;
+    min-height: 40px !important;
+    margin: 0 2px 4px !important;
+    padding: 0 10px !important;
     display: flex !important;
     align-items: center !important;
     gap: 10px !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    background: transparent !important;
+    color: #6b7280 !important;
+    box-shadow: none !important;
+  }
+
+  #app.app aside > .session-search-box:focus-within {
+    background: #ececf1 !important;
   }
 
   #app.app aside .session-search {
@@ -326,17 +287,13 @@
     margin: 0 !important;
     padding: 0 !important;
     border: 0 !important;
+    border-radius: 0 !important;
     background: transparent !important;
-    color: var(--gpt-text) !important;
+    color: #111827 !important;
     box-shadow: none !important;
-    font-size: 15px !important;
+    font-size: 16px !important;
     font-weight: 430 !important;
     line-height: 38px !important;
-  }
-
-  #app.app aside .session-search::placeholder {
-    color: var(--gpt-text) !important;
-    opacity: 1;
   }
 
   #app.app aside .prompt-box {
@@ -347,38 +304,49 @@
   }
 
   #app.app aside .workspace-picker-trigger {
-    min-height: 44px !important;
-    display: grid !important;
+    min-height: 42px !important;
+    padding: 7px 10px !important;
     grid-template-columns: minmax(0, 1fr) auto !important;
     grid-template-areas: "name arrow" "meta arrow" !important;
-    align-items: center !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    background: transparent !important;
+    color: #111827 !important;
+    box-shadow: none !important;
   }
 
   #app.app aside .workspace-picker-name {
-    color: var(--gpt-text) !important;
     font-size: 13.5px !important;
-    font-weight: 500 !important;
+    font-weight: 560 !important;
     line-height: 1.25 !important;
   }
 
-  #app.app aside .workspace-picker-meta,
-  #app.app aside .workspace-picker-arrow {
-    color: var(--gpt-muted) !important;
+  #app.app aside .workspace-picker-meta {
+    color: #6b7280 !important;
     font-size: 11.5px !important;
     font-weight: 430 !important;
     line-height: 1.25 !important;
   }
 
+  #app.app aside .workspace-picker-arrow {
+    color: #6b7280 !important;
+    font-size: 13px !important;
+  }
+
   #app.app aside .sidebar-section-head {
-    min-height: 26px !important;
+    min-height: 27px !important;
     padding: 7px 10px 3px !important;
   }
 
-  #app.app aside .sidebar-section-title,
-  #app.app aside .sidebar-section-count {
-    color: var(--gpt-muted-2) !important;
+  #app.app aside .sidebar-section-title {
+    color: #8a8f98 !important;
     font-size: 12px !important;
-    font-weight: 500 !important;
+    font-weight: 540 !important;
+  }
+
+  #app.app aside .sidebar-section-count {
+    color: #9ca3af !important;
+    font-size: 11px !important;
   }
 
   #app.app aside #sessions {
@@ -400,8 +368,13 @@
     padding: 9px 34px 9px 10px !important;
     border: 0 !important;
     border-radius: 10px !important;
-    background: transparent;
+    background: transparent !important;
     box-shadow: none !important;
+  }
+
+  #app.app aside #sessions .session.active,
+  #app.app aside .sidebar-task-list .session.active {
+    background: #e8f5ef !important;
   }
 
   #app.app aside .session::before,
@@ -413,9 +386,9 @@
   #app.app aside .session-title {
     display: block !important;
     overflow: hidden !important;
-    color: var(--gpt-text) !important;
+    color: #111827 !important;
     font-size: 13.5px !important;
-    font-weight: 450 !important;
+    font-weight: 470 !important;
     line-height: 1.4 !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
@@ -438,17 +411,16 @@
 
   #app.app aside .sidebar-settings-entry {
     width: calc(100% - 4px) !important;
-    min-height: 48px !important;
+    min-height: 44px !important;
     margin: auto 2px 0 !important;
     padding: 6px 10px !important;
     display: flex !important;
     align-items: center !important;
     gap: 10px !important;
     border: 0 !important;
-    border-top: 1px solid var(--gpt-border) !important;
-    border-radius: 0 !important;
+    border-radius: 10px !important;
     background: transparent !important;
-    color: var(--gpt-text) !important;
+    color: #111827 !important;
     box-shadow: none !important;
     text-align: left !important;
   }
@@ -460,14 +432,13 @@
   }
 
   #app.app aside .sidebar-settings-entry b {
-    color: var(--gpt-text) !important;
     font-size: 13.5px !important;
-    font-weight: 500 !important;
+    font-weight: 560 !important;
   }
 
   #app.app aside .sidebar-settings-entry small {
     overflow: hidden !important;
-    color: var(--gpt-muted-2) !important;
+    color: #8a8f98 !important;
     font-size: 11.5px !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;

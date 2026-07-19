@@ -18,12 +18,11 @@ function ChromeIcon({ name }) {
   return <svg className="chrome-icon" aria-hidden="true" viewBox="0 0 24 24">{paths[name]}</svg>;
 }
 
-export function Topbar({ busy, cloneCurrent, copyCurrentMarkdown, current, currentPinned, currentTitle, deleteCurrent, exportCurrent, modelPickerOpen, newSession, openSettings, pinCurrent, providerChoices, renameCurrent, selectChatModel, selectedChatModel, selectedModelProvider, setModelPickerOpen, setQuickPaletteOpen, setSidebarCollapsed, setThemeState, showContextPreview, sidebarCollapsed, taskPanelOpen, taskPanelTasks, theme, toggleTaskPanel }) {
+export function Topbar({ busy, cloneCurrent, copyCurrentMarkdown, current, currentPinned, currentTitle, deleteCurrent, exportCurrent, newSession, openSettings, pinCurrent, renameCurrent, setQuickPaletteOpen, setSidebarCollapsed, setThemeState, showContextPreview, sidebarCollapsed, taskPanelOpen, taskPanelTasks, theme, toggleTaskPanel }) {
   return <div className="topbar">
     <div className="top-left">
       <button className="mobile-menu" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label="打开会话栏" title="打开会话栏"><ChromeIcon name="menu" /></button>
-      <div className="topbar-model-picker"><ComposerModelPicker busy={busy} providers={providerChoices} selectedProvider={selectedModelProvider} selectedModel={selectedChatModel} open={modelPickerOpen} setOpen={setModelPickerOpen} selectModel={selectChatModel} openSettings={openSettings} /></div>
-      <b id="title" title={currentTitle}>{currentTitle}</b>
+      <b id="title">{currentTitle}</b>
     </div>
     <div className="top-actions">
       <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)} aria-label="快捷指令" title="快捷指令（⌘/Ctrl K）"><ChromeIcon name="sparkles" /><span className="action-label">快捷</span></button>
@@ -42,12 +41,13 @@ export function Topbar({ busy, cloneCurrent, copyCurrentMarkdown, current, curre
   </div>;
 }
 
-export function ComposerBar({ busy, createPersistedSession, current, downloadAttachment, fileInputRef, guideActiveJob, handleFileSelect, input, inputRef, inputStats, modelReady, pendingAttachmentIDs, pendingAttachments, removePendingAttachment, sendMsg, setInput, stopStreaming, uploadingFiles }) {
+export function ComposerBar({ busy, createPersistedSession, current, downloadAttachment, fileInputRef, guideActiveJob, handleFileSelect, input, inputRef, inputStats, modelPickerOpen, modelReady, openSettings, pendingAttachmentIDs, pendingAttachments, providerChoices, removePendingAttachment, selectChatModel, selectedChatModel, selectedModelProvider, sendMsg, setInput, setModelPickerOpen, stopStreaming, uploadingFiles }) {
   return <div className="composer-shell">
     {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} onDownload={downloadAttachment} /> : null}
     <div className={'composer' + (busy ? ' composer-streaming' : '')}>
       <input ref={fileInputRef} type="file" multiple className="file-input" onChange={event => handleFileSelect(event, { current, createPersistedSession })} />
       <button className="secondary attach-control" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} aria-label="上传文件" title="上传文件"><svg className="attach-control-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg></button>
+      <ComposerModelPicker busy={busy} providers={providerChoices} selectedProvider={selectedModelProvider} selectedModel={selectedChatModel} open={modelPickerOpen} setOpen={setModelPickerOpen} selectModel={selectChatModel} openSettings={openSettings} />
       {busy ? <button className="secondary stream-control guide-control" onClick={guideActiveJob} disabled={!input.trim()} aria-label="追加引导" title="追加引导">引导</button> : null}
       {busy ? <button className="danger stream-control stop-control" onClick={stopStreaming} aria-label="中断生成" title="中断生成">中断</button> : null}
       <textarea ref={inputRef} id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); busy ? guideActiveJob() : sendMsg(); } }} placeholder={busy ? '输入引导内容' : '向 ChatDock 发送消息'} />
@@ -68,7 +68,7 @@ export function Sidebar({ activeWorkspace, activeScheduledTasks, busy, clearSche
       <button id="sidebarToggle" className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'} title={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}><ChromeIcon name="panel" /></button>
     </div>
 
-    <button className={'new sidebar-new-chat ' + (!current ? 'active' : '')} onClick={newSession}><ChromeIcon name="compose" /><span className="new-label">新聊天</span></button>
+    <button className="new sidebar-new-chat" onClick={newSession}><ChromeIcon name="compose" /><span className="new-label">新聊天</span></button>
     <label className="session-search-box"><ChromeIcon name="search" /><input className="session-search" placeholder="搜索聊天记录" value={sessionSearch} onChange={e => setSessionSearch(e.target.value)} /></label>
     <div className="prompt-box"><button className="workspace-picker-trigger" type="button" disabled={busy || !workspaceSummaries.length} onClick={() => setWorkspacePickerOpen(true)}><span className="workspace-picker-name">{workspaceName}</span><span className="workspace-picker-meta">{activeWorkspace ? activeWorkspace.count : sessions.length} 个会话</span><span className="workspace-picker-arrow" aria-hidden="true">⌄</span></button></div>
 
