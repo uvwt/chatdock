@@ -22,6 +22,8 @@ type hybridToolMatch struct {
 	semanticHit bool
 }
 
+const maxQueryEmbeddingCacheEntries = 256
+
 func (a *App) searchToolCatalog(ctx context.Context, workspaceID string, catalog toolCatalog, args map[string]any) map[string]any {
 	result, _ := searchToolCatalogWithMatches(ctx, a, workspaceID, catalog, args)
 	return result
@@ -141,7 +143,7 @@ func (a *App) semanticToolScores(ctx context.Context, workspaceID string, catalo
 }
 
 func (a *App) cachedQueryEmbedding(ctx context.Context, cfg model.ModelConfig, query string) ([]float64, bool) {
-	key := strings.TrimSpace(cfg.EmbeddingModel) + "\x00" + normalizeEmbeddingQuery(query)
+	key := queryEmbeddingCacheKey(cfg, query)
 	a.embeddingMu.Lock()
 	if vector, ok := a.embeddingMemo[key]; ok && len(vector) > 0 {
 		a.embeddingMu.Unlock()
@@ -153,7 +155,7 @@ func (a *App) cachedQueryEmbedding(ctx context.Context, cfg model.ModelConfig, q
 		return nil, false
 	}
 	a.embeddingMu.Lock()
-	if len(a.embeddingMemo) > 256 {
+	if len(a.embeddingMemo) >= maxQueryEmbeddingCacheEntries {
 		for k := range a.embeddingMemo {
 			delete(a.embeddingMemo, k)
 			break
@@ -162,6 +164,12 @@ func (a *App) cachedQueryEmbedding(ctx context.Context, cfg model.ModelConfig, q
 	a.embeddingMemo[key] = append([]float64(nil), vectors[0]...)
 	a.embeddingMu.Unlock()
 	return vectors[0], true
+}
+
+func queryEmbeddingCacheKey(cfg model.ModelConfig, query string) string {
+	baseURL := strings.TrimRight(strings.TrimSpace(cfg.EmbeddingBaseURL), "/")
+	modelName := strings.TrimSpace(cfg.EmbeddingModel)
+	return baseURL + "\x00" + modelName + "\x00" + normalizeEmbeddingQuery(query)
 }
 
 func normalizeEmbeddingQuery(query string) string {
