@@ -77,11 +77,16 @@ func (c *MCPClient) ListServerTools(ctx context.Context, cfg MCPConfig, serverNa
 	}
 
 	tools := make([]MCPTool, 0, len(result.Tools))
+	toolAliases := make(map[string]string, len(result.Tools))
 	for _, tool := range result.Tools {
 		fullName := toolFullName(serverName, tool.Name)
 		if !server.allowsTool(tool.Name, fullName) {
 			continue
 		}
+		if previous, exists := toolAliases[fullName]; exists {
+			return nil, fmt.Errorf("%s tools %q and %q share exposed name %q", serverName, previous, tool.Name, fullName)
+		}
+		toolAliases[fullName] = tool.Name
 		tools = append(tools, MCPTool{
 			Server:      serverName,
 			Name:        tool.Name,
@@ -103,26 +108,51 @@ func (c *MCPClient) CallToolAfterConfirmation(ctx context.Context, cfg MCPConfig
 	return c.callTool(ctx, cfg, fullName, arguments, false)
 }
 
+func (c *MCPClient) ToolRequiresConfirmation(ctx context.Context, cfg MCPConfig, fullName string) (bool, error) {
+	_, tool, server, err := c.resolveExposedTool(ctx, cfg, fullName)
+	if err != nil {
+		return false, err
+	}
+	return server.requiresConfirmation(tool.Name, tool.FullName), nil
+}
+
 func (c *MCPClient) callTool(ctx context.Context, cfg MCPConfig, fullName string, arguments map[string]any, enforceConfirmation bool) (any, error) {
-	serverName, toolName, server, err := ResolveToolServer(cfg, fullName)
+	_, tool, server, err := c.resolveExposedTool(ctx, cfg, fullName)
 	if err != nil {
 		return nil, err
 	}
-	if server.Disabled {
-		return nil, fmt.Errorf("mcp server disabled: %s", serverName)
-	}
-	if !server.allowsTool(toolName, fullName) {
+	if !server.allowsTool(tool.Name, tool.FullName) {
 		return nil, fmt.Errorf("mcp tool is not allowed: %s", fullName)
 	}
-	if enforceConfirmation && server.requiresConfirmation(toolName, fullName) {
+	if enforceConfirmation && server.requiresConfirmation(tool.Name, tool.FullName) {
 		return nil, fmt.Errorf("mcp tool requires manual confirmation: %s", fullName)
 	}
 	var result any
-	err = c.call(ctx, server, "tools/call", map[string]any{"name": toolName, "arguments": arguments}, &result)
+	err = c.call(ctx, server, "tools/call", map[string]any{"name": tool.Name, "arguments": arguments}, &result)
 	if err != nil {
 		return nil, err
 	}
 	return result, nil
+}
+
+func (c *MCPClient) resolveExposedTool(ctx context.Context, cfg MCPConfig, fullName string) (string, MCPTool, MCPServerConfig, error) {
+	serverName, _, server, err := ResolveToolServer(cfg, fullName)
+	if err != nil {
+		return "", MCPTool{}, MCPServerConfig{}, err
+	}
+	if server.Disabled {
+		return "", MCPTool{}, MCPServerConfig{}, fmt.Errorf("mcp server disabled: %s", serverName)
+	}
+	tools, err := c.ListServerTools(ctx, cfg, serverName)
+	if err != nil {
+		return "", MCPTool{}, MCPServerConfig{}, err
+	}
+	for _, tool := range tools {
+		if tool.FullName == fullName {
+			return serverName, tool, server, nil
+		}
+	}
+	return "", MCPTool{}, MCPServerConfig{}, fmt.Errorf("mcp tool is not exposed: %s", fullName)
 }
 
 func (c *MCPClient) call(ctx context.Context, server MCPServerConfig, method string, params any, out any) error {

@@ -24,6 +24,7 @@ func TestParseMCPConfigRejectsAmbiguousServerToolAliases(t *testing.T) {
 
 func TestCallToolResolvesSanitizedServerAliasToOriginalConfigName(t *testing.T) {
 	var calledTool string
+	originalToolName := "events create/中文"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request struct {
 			ID     any    `json:"id"`
@@ -37,10 +38,15 @@ func TestCallToolResolvesSanitizedServerAliasToOriginalConfigName(t *testing.T) 
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if request.Method != "tools/call" {
+		switch request.Method {
+		case "tools/list":
+			_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": request.ID, "result": map[string]any{"tools": []map[string]any{{"name": originalToolName, "inputSchema": map[string]any{"type": "object"}}}}})
+			return
+		case "tools/call":
+			calledTool = request.Params.Name
+		default:
 			t.Errorf("method = %q", request.Method)
 		}
-		calledTool = request.Params.Name
 		_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": request.ID, "result": map[string]any{"ok": true}})
 	}))
 	defer server.Close()
@@ -48,16 +54,58 @@ func TestCallToolResolvesSanitizedServerAliasToOriginalConfigName(t *testing.T) 
 	cfg := MCPConfig{Servers: map[string]MCPServerConfig{
 		"calendar prod": {URL: server.URL},
 	}}
-	fullName := ToolFullName("calendar prod", "events_create")
+	fullName := ToolFullName("calendar prod", originalToolName)
 	result, err := NewMCPClient().CallTool(context.Background(), cfg, fullName, map[string]any{"title": "周会"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if calledTool != "events_create" {
+	if calledTool != originalToolName {
 		t.Fatalf("called tool = %q", calledTool)
 	}
 	if !strings.Contains(CompactJSON(result), `"ok":true`) {
 		t.Fatalf("unexpected result: %#v", result)
+	}
+}
+
+func TestListServerToolsRejectsSanitizedToolAliasCollision(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			ID any `json:"id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": request.ID, "result": map[string]any{"tools": []map[string]any{
+			{"name": "event create", "inputSchema": map[string]any{"type": "object"}},
+			{"name": "event_create", "inputSchema": map[string]any{"type": "object"}},
+		}}})
+	}))
+	defer server.Close()
+
+	cfg := MCPConfig{Servers: map[string]MCPServerConfig{"demo": {URL: server.URL}}}
+	_, err := NewMCPClient().ListServerTools(context.Background(), cfg, "demo")
+	if err == nil || !strings.Contains(err.Error(), "share exposed name") {
+		t.Fatalf("tool alias collision error = %v", err)
+	}
+}
+
+func TestToolRequiresConfirmationUsesOriginalToolName(t *testing.T) {
+	originalToolName := "events delete/中文"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			ID any `json:"id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": request.ID, "result": map[string]any{"tools": []map[string]any{{"name": originalToolName, "inputSchema": map[string]any{"type": "object"}}}}})
+	}))
+	defer server.Close()
+
+	cfg := MCPConfig{Servers: map[string]MCPServerConfig{"calendar prod": {URL: server.URL, ConfirmTools: []string{originalToolName}}}}
+	required, err := NewMCPClient().ToolRequiresConfirmation(context.Background(), cfg, ToolFullName("calendar prod", originalToolName))
+	if err != nil || !required {
+		t.Fatalf("confirmation required=%v error=%v", required, err)
 	}
 }
 

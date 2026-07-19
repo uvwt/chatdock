@@ -117,7 +117,11 @@ func (a *App) callConversationTool(ctx context.Context, workspaceID string, sess
 	if !mcpReady {
 		return nil, fmt.Errorf("MCP tool is not available: %s", name)
 	}
-	if mcpToolNeedsConfirmation(mcpConfig, name) {
+	requiresConfirmation, err := a.mcpClient.ToolRequiresConfirmation(ctx, mcpConfig, name)
+	if err != nil {
+		return nil, err
+	}
+	if requiresConfirmation {
 		if err := a.requestMCPConfirmation(ctx, sessionID, name, args, emit); err != nil {
 			return nil, err
 		}

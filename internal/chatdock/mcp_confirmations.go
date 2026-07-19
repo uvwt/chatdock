@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"chatdock/internal/chatdock/mcp"
 	"chatdock/internal/chatdock/model"
 	storepkg "chatdock/internal/chatdock/store"
 )
@@ -31,11 +30,6 @@ type MCPConfirmationResolveRequest struct {
 }
 
 var errMCPConfirmationNotActive = errors.New("mcp confirmation is not active")
-
-func mcpToolNeedsConfirmation(cfg mcp.MCPConfig, fullName string) bool {
-	_, toolName, server, err := mcp.ResolveToolServer(cfg, fullName)
-	return err == nil && server.RequiresConfirmation(toolName, fullName)
-}
 
 func (a *App) requestMCPConfirmation(ctx context.Context, sessionID string, tool string, args map[string]any, emit func(string, any) error) error {
 	workspaceID, err := a.workspaceIDForSession(sessionID)
