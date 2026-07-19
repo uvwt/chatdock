@@ -130,10 +130,7 @@ export default function App() {
     return () => document.body.classList.remove('auth-page-visible');
   }, [authPage]);
 
-  useEffect(() => {
-    setSettingsDocumentScroll(settingsOpen);
-    return () => setSettingsDocumentScroll(false);
-  }, [settingsOpen]);
+  useEffect(() => { setSettingsDocumentScroll(settingsOpen); return () => setSettingsDocumentScroll(false); }, [settingsOpen]);
 
   const showToast = useCallback((message, variant = 'info') => {
     setToast({ message, variant });
