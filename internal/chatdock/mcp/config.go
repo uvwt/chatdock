@@ -90,7 +90,16 @@ func ParseMCPConfig(content string) (MCPConfig, error) {
 	if err := validateToolExposureConfig("builtin tools", cfg.BuiltinTools, true); err != nil {
 		return MCPConfig{}, err
 	}
+	serverAliases := make(map[string]string, len(cfg.Servers))
 	for serverName, server := range cfg.Servers {
+		if strings.TrimSpace(serverName) == "" {
+			return MCPConfig{}, fmt.Errorf("mcp server name cannot be empty")
+		}
+		alias := safeToolName(serverName)
+		if previous, exists := serverAliases[alias]; exists {
+			return MCPConfig{}, fmt.Errorf("mcp server names %q and %q share tool alias %q", previous, serverName, alias)
+		}
+		serverAliases[alias] = serverName
 		if err := validateToolExposureConfig("mcp server "+serverName, ToolExposureConfig{
 			ToolExposure:  server.ToolExposure,
 			ToolOverrides: server.ToolOverrides,

@@ -19,6 +19,11 @@ type MCPClient struct {
 	toolsCache map[string]cachedMCPTools
 }
 
+const (
+	maxMCPResponseBodyBytes = 16 << 20
+	maxMCPErrorSummaryRunes = 2048
+)
+
 func NewMCPClient() *MCPClient {
 	return &MCPClient{httpClient: &http.Client{Timeout: 90 * time.Second}, toolsCache: map[string]cachedMCPTools{}}
 }
@@ -99,10 +104,9 @@ func (c *MCPClient) CallToolAfterConfirmation(ctx context.Context, cfg MCPConfig
 }
 
 func (c *MCPClient) callTool(ctx context.Context, cfg MCPConfig, fullName string, arguments map[string]any, enforceConfirmation bool) (any, error) {
-	serverName, toolName := splitToolFullName(fullName)
-	server, ok := cfg.Servers[serverName]
-	if !ok {
-		return nil, fmt.Errorf("mcp server not found: %s", serverName)
+	serverName, toolName, server, err := ResolveToolServer(cfg, fullName)
+	if err != nil {
+		return nil, err
 	}
 	if server.Disabled {
 		return nil, fmt.Errorf("mcp server disabled: %s", serverName)
@@ -114,7 +118,7 @@ func (c *MCPClient) callTool(ctx context.Context, cfg MCPConfig, fullName string
 		return nil, fmt.Errorf("mcp tool requires manual confirmation: %s", fullName)
 	}
 	var result any
-	err := c.call(ctx, server, "tools/call", map[string]any{"name": toolName, "arguments": arguments}, &result)
+	err = c.call(ctx, server, "tools/call", map[string]any{"name": toolName, "arguments": arguments}, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -149,9 +153,12 @@ func (c *MCPClient) call(ctx context.Context, server MCPServerConfig, method str
 		return err
 	}
 	defer resp.Body.Close()
-	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	respBody, err := readMCPResponseBody(resp, maxMCPResponseBodyBytes)
+	if err != nil {
+		return err
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("mcp http failed: %s: %s", resp.Status, string(respBody))
+		return fmt.Errorf("mcp http failed: %s: %s", resp.Status, summarizeMCPErrorBody(respBody))
 	}
 	var rpc mcpJSONRPCResponse
 	if err := json.Unmarshal(respBody, &rpc); err != nil {
@@ -164,4 +171,30 @@ func (c *MCPClient) call(ctx context.Context, server MCPServerConfig, method str
 		return nil
 	}
 	return json.Unmarshal(rpc.Result, out)
+}
+
+func readMCPResponseBody(resp *http.Response, maxBytes int64) ([]byte, error) {
+	if resp.ContentLength > maxBytes {
+		return nil, fmt.Errorf("mcp response exceeds %d bytes", maxBytes)
+	}
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("read mcp response: %w", err)
+	}
+	if int64(len(raw)) > maxBytes {
+		return nil, fmt.Errorf("mcp response exceeds %d bytes", maxBytes)
+	}
+	return raw, nil
+}
+
+func summarizeMCPErrorBody(raw []byte) string {
+	text := strings.Join(strings.Fields(string(raw)), " ")
+	if text == "" {
+		return "empty response body"
+	}
+	runes := []rune(text)
+	if len(runes) > maxMCPErrorSummaryRunes {
+		return string(runes[:maxMCPErrorSummaryRunes]) + "…"
+	}
+	return text
 }

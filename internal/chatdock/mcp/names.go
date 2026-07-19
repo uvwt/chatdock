@@ -26,6 +26,29 @@ func SplitToolFullName(fullName string) (string, string) {
 	return splitToolFullName(fullName)
 }
 
+func ResolveToolServer(cfg MCPConfig, fullName string) (string, string, MCPServerConfig, error) {
+	serverAlias, toolName := splitToolFullName(fullName)
+	var matchedName string
+	var matchedServer MCPServerConfig
+	matchCount := 0
+	for serverName, server := range cfg.Servers {
+		if safeToolName(serverName) != serverAlias {
+			continue
+		}
+		matchedName = serverName
+		matchedServer = server
+		matchCount++
+	}
+	switch matchCount {
+	case 0:
+		return "", "", MCPServerConfig{}, fmt.Errorf("mcp server not found for alias: %s", serverAlias)
+	case 1:
+		return matchedName, toolName, matchedServer, nil
+	default:
+		return "", "", MCPServerConfig{}, fmt.Errorf("mcp server alias is ambiguous: %s", serverAlias)
+	}
+}
+
 func splitToolFullName(fullName string) (string, string) {
 	parts := strings.SplitN(fullName, "__", 2)
 	if len(parts) == 2 {

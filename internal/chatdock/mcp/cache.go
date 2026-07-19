@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const maxMCPToolCacheEntries = 128
+
 func (c *MCPClient) cachedTools(key string, server MCPServerConfig) ([]MCPTool, bool) {
 	ttl := server.cacheTTL()
 	if ttl <= 0 {
@@ -15,7 +17,11 @@ func (c *MCPClient) cachedTools(key string, server MCPServerConfig) ([]MCPTool, 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	item, ok := c.toolsCache[key]
-	if !ok || time.Since(item.createdAt) > ttl {
+	if !ok {
+		return nil, false
+	}
+	if time.Since(item.createdAt) > ttl {
+		delete(c.toolsCache, key)
 		return nil, false
 	}
 	return cloneTools(item.tools), true
@@ -24,6 +30,17 @@ func (c *MCPClient) cachedTools(key string, server MCPServerConfig) ([]MCPTool, 
 func (c *MCPClient) storeCachedTools(key string, tools []MCPTool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if _, exists := c.toolsCache[key]; !exists && len(c.toolsCache) >= maxMCPToolCacheEntries {
+		oldestKey := ""
+		var oldestAt time.Time
+		for existingKey, item := range c.toolsCache {
+			if oldestKey == "" || item.createdAt.Before(oldestAt) {
+				oldestKey = existingKey
+				oldestAt = item.createdAt
+			}
+		}
+		delete(c.toolsCache, oldestKey)
+	}
 	c.toolsCache[key] = cachedMCPTools{createdAt: time.Now(), tools: cloneTools(tools)}
 }
 
@@ -45,6 +62,37 @@ func serverCacheKey(serverName string, server MCPServerConfig) string {
 
 func cloneTools(tools []MCPTool) []MCPTool {
 	out := make([]MCPTool, len(tools))
-	copy(out, tools)
+	for i, tool := range tools {
+		out[i] = tool
+		out[i].InputSchema = cloneJSONMap(tool.InputSchema)
+	}
 	return out
+}
+
+func cloneJSONMap(value map[string]any) map[string]any {
+	if value == nil {
+		return nil
+	}
+	out := make(map[string]any, len(value))
+	for key, item := range value {
+		out[key] = cloneJSONValue(item)
+	}
+	return out
+}
+
+func cloneJSONValue(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		return cloneJSONMap(typed)
+	case []any:
+		out := make([]any, len(typed))
+		for i, item := range typed {
+			out[i] = cloneJSONValue(item)
+		}
+		return out
+	case []string:
+		return append([]string(nil), typed...)
+	default:
+		return typed
+	}
 }

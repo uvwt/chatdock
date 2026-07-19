@@ -33,9 +33,8 @@ type MCPConfirmationResolveRequest struct {
 var errMCPConfirmationNotActive = errors.New("mcp confirmation is not active")
 
 func mcpToolNeedsConfirmation(cfg mcp.MCPConfig, fullName string) bool {
-	serverName, toolName := mcp.SplitToolFullName(fullName)
-	server, ok := cfg.Servers[serverName]
-	return ok && server.RequiresConfirmation(toolName, fullName)
+	_, toolName, server, err := mcp.ResolveToolServer(cfg, fullName)
+	return err == nil && server.RequiresConfirmation(toolName, fullName)
 }
 
 func (a *App) requestMCPConfirmation(ctx context.Context, sessionID string, tool string, args map[string]any, emit func(string, any) error) error {
@@ -68,13 +67,15 @@ func (a *App) requestMCPConfirmation(ctx context.Context, sessionID string, tool
 		}
 	}
 
+	expiryTimer := time.NewTimer(10 * time.Minute)
+	defer expiryTimer.Stop()
 	var approved bool
 	select {
 	case approved = <-confirmation.decision:
 	case <-ctx.Done():
 		_, finishErr := a.finishMCPConfirmation(confirmation.ID, "cancelled", false)
 		return errors.Join(ctx.Err(), finishErr)
-	case <-time.After(10 * time.Minute):
+	case <-expiryTimer.C:
 		expiredErr := fmt.Errorf("mcp tool confirmation expired: %s", tool)
 		_, finishErr := a.finishMCPConfirmation(confirmation.ID, "expired", false)
 		return errors.Join(expiredErr, finishErr)

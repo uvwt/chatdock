@@ -5,8 +5,18 @@ import (
 	"errors"
 	"testing"
 
+	"chatdock/internal/chatdock/mcp"
 	"chatdock/internal/chatdock/model"
 )
+
+func TestMCPToolNeedsConfirmationResolvesSanitizedServerAlias(t *testing.T) {
+	cfg := mcp.MCPConfig{Servers: map[string]mcp.MCPServerConfig{
+		"calendar prod": {ConfirmTools: []string{"events_delete"}},
+	}}
+	if !mcpToolNeedsConfirmation(cfg, mcp.ToolFullName("calendar prod", "events_delete")) {
+		t.Fatal("confirmation policy should use the original server config behind the exposed alias")
+	}
+}
 
 func TestRequestMCPConfirmationCancelsWhenRequiredEventFails(t *testing.T) {
 	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
