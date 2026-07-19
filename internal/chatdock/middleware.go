@@ -56,7 +56,7 @@ func (r *responseRecorder) Flush() {
 func logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		requestID := strings.TrimSpace(r.Header.Get("X-Request-ID"))
+		requestID := normalizeRequestID(r.Header.Get("X-Request-ID"))
 		if requestID == "" {
 			requestID = newRequestID()
 		}

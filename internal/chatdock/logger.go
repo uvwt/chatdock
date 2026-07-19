@@ -16,6 +16,8 @@ type requestContextKey struct{}
 
 type logFields map[string]any
 
+const maxRequestIDLength = 128
+
 var (
 	logAuthorizationPattern = regexp.MustCompile(`(?i)(authorization\s*[:=]\s*bearer\s+)[^\s,;]+`)
 	logBearerPattern        = regexp.MustCompile(`(?i)(\bbearer\s+)[A-Za-z0-9._~+/=-]{8,}`)
@@ -28,7 +30,7 @@ func newRequestID() string {
 }
 
 func withRequestID(ctx context.Context, requestID string) context.Context {
-	requestID = strings.TrimSpace(requestID)
+	requestID = normalizeRequestID(requestID)
 	if requestID == "" {
 		requestID = newRequestID()
 	}
@@ -40,7 +42,7 @@ func requestIDFromContext(ctx context.Context) string {
 		return ""
 	}
 	if value, ok := ctx.Value(requestContextKey{}).(string); ok {
-		return strings.TrimSpace(value)
+		return normalizeRequestID(value)
 	}
 	return ""
 }
@@ -52,7 +54,26 @@ func requestIDFromRequest(r *http.Request) string {
 	if id := requestIDFromContext(r.Context()); id != "" {
 		return id
 	}
-	return strings.TrimSpace(r.Header.Get("X-Request-ID"))
+	return normalizeRequestID(r.Header.Get("X-Request-ID"))
+}
+
+func normalizeRequestID(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > maxRequestIDLength {
+		return ""
+	}
+	for _, char := range value {
+		if char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' {
+			continue
+		}
+		switch char {
+		case '.', '_', ':', '-':
+			continue
+		default:
+			return ""
+		}
+	}
+	return value
 }
 
 func logInfo(event string, fields logFields) {
