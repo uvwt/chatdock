@@ -1,7 +1,6 @@
 package chatdock
 
 import (
-	"crypto/subtle"
 	"fmt"
 	"net/http"
 	"strings"
@@ -104,7 +103,7 @@ func (a *App) authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		got := bearerTokenFromAuthorization(r.Header.Get("Authorization"))
-		if subtle.ConstantTimeCompare([]byte(got), []byte(token)) != 1 {
+		if !bearerTokenMatches(got, token) {
 			writeJSONResponse(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized", "request_id": requestIDFromRequest(r)})
 			return
 		}

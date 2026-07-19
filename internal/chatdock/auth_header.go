@@ -1,6 +1,10 @@
 package chatdock
 
-import "strings"
+import (
+	"crypto/sha256"
+	"crypto/subtle"
+	"strings"
+)
 
 func bearerTokenFromAuthorization(value string) string {
 	parts := strings.Fields(strings.TrimSpace(value))
@@ -8,4 +12,10 @@ func bearerTokenFromAuthorization(value string) string {
 		return ""
 	}
 	return parts[1]
+}
+
+func bearerTokenMatches(received string, expected string) bool {
+	receivedHash := sha256.Sum256([]byte(received))
+	expectedHash := sha256.Sum256([]byte(expected))
+	return subtle.ConstantTimeCompare(receivedHash[:], expectedHash[:]) == 1
 }
