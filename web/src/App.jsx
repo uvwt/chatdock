@@ -1566,7 +1566,9 @@ export default function App() {
         <Topbar
           busy={busy} cloneCurrent={cloneCurrent} copyCurrentMarkdown={copyCurrentMarkdown} current={current}
           currentPinned={currentPinned} currentTitle={currentTitle} deleteCurrent={deleteCurrent} exportCurrent={exportCurrent}
-          newSession={newSession} openSettings={openSettings} pinCurrent={pinCurrent} renameCurrent={renameCurrent}
+          modelPickerOpen={modelPickerOpen} newSession={newSession} openSettings={openSettings} pinCurrent={pinCurrent}
+          providerChoices={providerChoices} renameCurrent={renameCurrent} selectChatModel={selectChatModel}
+          selectedChatModel={selectedChatModel} selectedModelProvider={selectedModelProvider} setModelPickerOpen={setModelPickerOpen}
           setQuickPaletteOpen={setQuickPaletteOpen} setSidebarCollapsed={setSidebarCollapsed} setThemeState={setThemeState}
           showContextPreview={showContextPreview} sidebarCollapsed={sidebarCollapsed} taskPanelOpen={taskPanelOpen}
           taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
@@ -1580,11 +1582,10 @@ export default function App() {
         <ComposerBar
           busy={busy} createPersistedSession={createPersistedSession} current={current} downloadAttachment={downloadAttachment}
           fileInputRef={fileInputRef} guideActiveJob={guideActiveJob} handleFileSelect={handleFileSelect}
-          input={input} inputRef={inputRef} inputStats={inputStats} modelPickerOpen={modelPickerOpen} modelReady={modelReady}
-          openSettings={openSettings} pendingAttachmentIDs={pendingAttachmentIDs} pendingAttachments={pendingAttachments}
-          providerChoices={providerChoices} removePendingAttachment={removePendingAttachment} selectChatModel={selectChatModel}
-          selectedChatModel={selectedChatModel} selectedModelProvider={selectedModelProvider} sendMsg={sendMsg}
-          setInput={setInput} setModelPickerOpen={setModelPickerOpen} stopStreaming={stopStreaming} uploadingFiles={uploadingFiles}
+          input={input} inputRef={inputRef} inputStats={inputStats} modelReady={modelReady}
+          pendingAttachmentIDs={pendingAttachmentIDs} pendingAttachments={pendingAttachments}
+          removePendingAttachment={removePendingAttachment} sendMsg={sendMsg} setInput={setInput}
+          stopStreaming={stopStreaming} uploadingFiles={uploadingFiles}
         />
       </main>
       {taskPanelOpen ? <>

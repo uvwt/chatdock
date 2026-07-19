@@ -172,37 +172,3 @@
     min-height: 40px !important;
   }
 }
-
-/* 2026-07-04 桌面输入框单行保护：模型选择器按真实宽度占位，避免和“继续”重叠。 */
-@media (min-width: 721px) {
-  #app.app .composer {
-    height: 62px !important;
-    min-height: 62px !important;
-    align-items: center !important;
-    overflow: visible !important;
-  }
-
-  #app.app .model-picker {
-    flex: 0 0 180px !important;
-    width: 180px !important;
-    min-width: 180px !important;
-    max-width: 180px !important;
-  }
-
-  #app.app .model-picker-trigger {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-
-  #app.app .quick-control {
-    flex: 0 0 auto !important;
-  }
-
-  #app.app .composer textarea {
-    flex: 1 1 auto !important;
-    height: 42px !important;
-    min-height: 42px !important;
-    align-self: center !important;
-    padding: 10px 8px !important;
-  }
-}

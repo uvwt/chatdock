@@ -1,7 +1,7 @@
 import React from 'react';
 import { compactModelName, providerLabel } from '../lib/modelProviderForm.js';
 
-export function ComposerModelPicker({ busy, providers, selectedProvider, selectedModel, open, setOpen, selectModel, openSettings }) {
+export function ComposerModelPicker({ busy, providers = [], selectedProvider, selectedModel, open, setOpen, selectModel, openSettings }) {
   return <div className="model-picker">
     <button type="button" className="secondary model-picker-trigger" disabled={busy || !providers.length} onClick={() => setOpen(value => !value)} title="选择供应商 / 模型"><span>{providerLabel(selectedProvider)}</span><b>{compactModelName(selectedModel) || '未选择模型'}</b></button>
     {open ? <div className="model-picker-popover">

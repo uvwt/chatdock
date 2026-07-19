@@ -103,7 +103,7 @@
   .messages { scroll-padding-top: 72px; }
 }
 
-/* Final composer alignment guard: keep all controls on the same vertical center line. */
+/* Composer alignment guard: attachment / text / send remain vertically centered. */
 #app.app .composer {
   align-items: center !important;
 }
@@ -117,8 +117,7 @@
 #app.app .attach-control,
 #app.app .quick-control,
 #app.app .stream-control,
-#app.app #send,
-#app.app .model-picker-trigger {
+#app.app #send {
   align-self: center !important;
   box-sizing: border-box !important;
   align-items: center !important;
@@ -128,33 +127,12 @@
 
 #app.app .quick-control,
 #app.app .stream-control,
-#app.app .model-picker-trigger {
+#app.app .attach-control,
+#app.app #send {
   display: inline-flex !important;
-}
-
-@media (min-width: 721px) {
-  #app.app .attach-control,
-  #app.app #send {
-    display: inline-flex !important;
-  }
-}
-
-#app.app .model-picker,
-#app.app .model-picker-trigger {
-  height: 42px !important;
-  min-height: 42px !important;
-}
-
-#app.app .model-picker-trigger {
-  flex-direction: column !important;
-  justify-content: center !important;
-  gap: 2px !important;
 }
 
 #app.app .attach-control {
-  display: inline-flex !important;
-  height: 42px !important;
-  min-height: 42px !important;
   padding: 0 !important;
   font-size: 0 !important;
 }
@@ -171,10 +149,6 @@
 }
 
 #app.app #send {
-  width: 42px !important;
-  height: 42px !important;
-  min-width: 42px !important;
-  min-height: 42px !important;
   padding: 0 !important;
   font-size: 0 !important;
 }
@@ -186,68 +160,29 @@
 }
 
 @media (max-width: 720px) {
-  #app.app .composer {
-    align-items: center !important;
-    min-height: 56px !important;
-  }
-
-  #app.app .composer:not(.composer-streaming) {
-    grid-template-columns: 42px minmax(76px, 96px) minmax(0, 1fr) 44px !important;
-  }
-
-  #app.app .model-picker,
-  #app.app .model-picker-trigger,
-  #app.app .attach-control {
-    height: 42px !important;
-    min-height: 42px !important;
-  }
-
-  #app.app .composer textarea {
-    height: 42px !important;
-    min-height: 42px !important;
-    padding: 10px 6px !important;
-    line-height: 22px !important;
-  }
-
-  #app.app #send,
-  #app.app .stop-control {
-    width: 42px !important;
-    height: 42px !important;
-    min-width: 42px !important;
-    min-height: 42px !important;
-  }
-
-  #app.app .composer:not(.composer-streaming) #send,
-  #app.app .stream-control {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-
-  #app.app #send::before {
-    font-size: 26px !important;
-    transform: translateY(-1px) !important;
-  }
-}
-
-/* Mobile composer should be one clean row: + / model / input / send. */
-@media (max-width: 720px) {
   #app.app .composer .quick-control {
     display: none !important;
   }
 
+  #app.app .composer:not(.composer-streaming) {
+    grid-template-columns: 40px minmax(0, 1fr) 40px !important;
+  }
+
   #app.app .attach-control,
-  #app.app .model-picker,
   #app.app .composer textarea,
   #app.app #send,
   #app.app .stream-control {
     grid-row: 1 !important;
   }
 
-  #app.app .composer {
-    height: 56px !important;
-    min-height: 56px !important;
-    max-height: 56px !important;
-    overflow: visible !important;
+  #app.app .composer textarea {
+    height: 40px !important;
+    min-height: 40px !important;
+    line-height: 22px !important;
+  }
+
+  #app.app #send::before {
+    font-size: 25px !important;
+    transform: translateY(-1px) !important;
   }
 }
