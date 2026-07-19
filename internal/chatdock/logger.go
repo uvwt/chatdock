@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -14,6 +15,13 @@ import (
 type requestContextKey struct{}
 
 type logFields map[string]any
+
+var (
+	logAuthorizationPattern = regexp.MustCompile(`(?i)(authorization\s*[:=]\s*bearer\s+)[^\s,;]+`)
+	logBearerPattern        = regexp.MustCompile(`(?i)(\bbearer\s+)[A-Za-z0-9._~+/=-]{8,}`)
+	logSecretFieldPattern   = regexp.MustCompile(`(?i)((?:"|')?(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|credential|password)(?:"|')?\s*[:=]\s*(?:"|')?)[^"',\s}\]]+`)
+	logURLUserinfoPattern   = regexp.MustCompile(`(?i)(https?://)[^/@\s]+@`)
+)
 
 func newRequestID() string {
 	return "req_" + model.NewID()
@@ -71,10 +79,11 @@ func writeStructuredLog(level string, event string, fields logFields) {
 		"event": strings.TrimSpace(event),
 	}
 	for key, value := range fields {
-		if strings.TrimSpace(key) == "" {
+		key = strings.TrimSpace(key)
+		if key == "" {
 			continue
 		}
-		entry[key] = value
+		entry[key] = sanitizeLogValue(key, value)
 	}
 	raw, err := json.Marshal(entry)
 	if err != nil {
@@ -85,9 +94,63 @@ func writeStructuredLog(level string, event string, fields logFields) {
 }
 
 func sanitizeLogText(value string, limit int) string {
-	value = strings.TrimSpace(value)
-	if limit <= 0 || len(value) <= limit {
+	value = redactSensitiveLogText(strings.TrimSpace(value))
+	if limit <= 0 {
 		return value
 	}
-	return value[:limit] + "…"
+	runes := []rune(value)
+	if len(runes) <= limit {
+		return value
+	}
+	return string(runes[:limit]) + "…"
+}
+
+func sanitizeLogValue(key string, value any) any {
+	if isSensitiveLogKey(key) {
+		return "[REDACTED]"
+	}
+	switch typed := value.(type) {
+	case string:
+		return sanitizeLogText(typed, 4000)
+	case error:
+		return sanitizeLogText(typed.Error(), 4000)
+	case map[string]any:
+		out := make(map[string]any, len(typed))
+		for nestedKey, nestedValue := range typed {
+			out[nestedKey] = sanitizeLogValue(nestedKey, nestedValue)
+		}
+		return out
+	case []any:
+		out := make([]any, len(typed))
+		for i, item := range typed {
+			out[i] = sanitizeLogValue("", item)
+		}
+		return out
+	case []string:
+		out := make([]string, len(typed))
+		for i, item := range typed {
+			out[i] = sanitizeLogText(item, 4000)
+		}
+		return out
+	default:
+		return typed
+	}
+}
+
+func isSensitiveLogKey(key string) bool {
+	key = strings.ToLower(strings.TrimSpace(key))
+	key = strings.NewReplacer("-", "_", " ", "_").Replace(key)
+	switch key {
+	case "authorization", "api_key", "apikey", "access_token", "refresh_token", "token", "credential", "password", "secret":
+		return true
+	default:
+		return false
+	}
+}
+
+func redactSensitiveLogText(value string) string {
+	value = logAuthorizationPattern.ReplaceAllString(value, `${1}[REDACTED]`)
+	value = logBearerPattern.ReplaceAllString(value, `${1}[REDACTED]`)
+	value = logSecretFieldPattern.ReplaceAllString(value, `${1}[REDACTED]`)
+	return logURLUserinfoPattern.ReplaceAllString(value, `${1}[REDACTED]@`)
 }
