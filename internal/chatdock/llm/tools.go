@@ -580,7 +580,9 @@ func BuildChatMessagesAny(cfg model.ModelConfig, history []model.Message) []map[
 	prepared := buildChatContextMessages(cfg, history)
 	messages := make([]map[string]any, 0, len(prepared)*2)
 	for _, item := range prepared {
-		messages = append(messages, map[string]any{"role": item.Role, "content": messageContentForModel(item)})
+		if strings.TrimSpace(item.Content) != "" {
+			messages = append(messages, map[string]any{"role": item.Role, "content": messageContentForModel(item)})
+		}
 		if imageContent := imageMessageContentForModel(item); imageContent != nil {
 			messages = append(messages, map[string]any{"role": "user", "content": imageContent})
 		}

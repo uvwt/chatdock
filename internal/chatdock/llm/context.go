@@ -19,6 +19,9 @@ func BuildChatMessages(cfg model.ModelConfig, history []model.Message) []map[str
 	prepared := buildChatContextMessages(cfg, history)
 	messages := make([]map[string]string, 0, len(prepared))
 	for _, item := range prepared {
+		if strings.TrimSpace(item.Content) == "" {
+			continue
+		}
 		messages = append(messages, map[string]string{"role": item.Role, "content": item.Content})
 	}
 	return mergeLeadingSystemMessages(messages)
@@ -155,13 +158,22 @@ func validChatHistory(history []model.Message) []model.Message {
 			continue
 		}
 		content := strings.TrimSpace(item.Content)
-		if content == "" {
+		if content == "" && !hasModelImageAttachment(item.ModelAttachments) {
 			continue
 		}
 		item.Content = content
 		valid = append(valid, item)
 	}
 	return valid
+}
+
+func hasModelImageAttachment(attachments []model.AttachmentRecord) bool {
+	for _, attachment := range attachments {
+		if model.IsImageAttachment(attachment) && strings.TrimSpace(attachment.ModelURL) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func summarizeEarlierContext(history []model.Message) string {
@@ -178,7 +190,11 @@ func summarizeEarlierContext(history []model.Message) string {
 		lines = append(lines, fmt.Sprintf("- 更早还有 %d 条消息，已省略为摘要前情。", start))
 	}
 	for _, item := range history[start:] {
-		lines = append(lines, fmt.Sprintf("- %s：%s", contextRoleLabel(item.Role), compactContextText(item.Content, 220)))
+		content := item.Content
+		if strings.TrimSpace(content) == "" && hasModelImageAttachment(item.ModelAttachments) {
+			content = "[图片附件]"
+		}
+		lines = append(lines, fmt.Sprintf("- %s：%s", contextRoleLabel(item.Role), compactContextText(content, 220)))
 	}
 	if len(lines) == 0 {
 		return ""
