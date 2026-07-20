@@ -353,8 +353,9 @@
   }
 
   .settings-page [data-module-view="workspace"] #workspaceCards {
+    display: grid !important;
     grid-template-columns: 1fr !important;
-    gap: 10px !important;
+    row-gap: 12px !important;
   }
 
   .settings-page [data-module-view="workspace"] #workspaceCards .product-card {
