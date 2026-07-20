@@ -1,0 +1,113 @@
+/* 手机端共享主题变量：布局样式只引用语义颜色，避免白天/夜间维护两套结构。 */
+body.theme-night,
+body:not(.theme-light) {
+  --mobile-bg: #111111;
+  --mobile-panel: #1b1b1b;
+  --mobile-panel-translucent: rgba(27, 27, 27, .94);
+  --mobile-panel-soft: #232323;
+  --mobile-panel-raised: #2a2a2a;
+  --mobile-hover: #252525;
+  --mobile-text: #f4f4f5;
+  --mobile-text-strong: #ffffff;
+  --mobile-muted: #a1a1aa;
+  --mobile-muted-weak: #71717a;
+  --mobile-border: rgba(255, 255, 255, .10);
+  --mobile-border-strong: rgba(255, 255, 255, .16);
+  --mobile-shadow-soft: 0 8px 24px rgba(0, 0, 0, .24);
+  --mobile-shadow-raised: 0 18px 52px rgba(0, 0, 0, .34);
+  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(17, 17, 17, .92) 26%, #111111);
+  --mobile-accent-panel: #16251f;
+  --mobile-accent-soft: rgba(16, 163, 127, .16);
+  --mobile-accent-text: #6ee7b7;
+  --mobile-overlay: rgba(0, 0, 0, .62);
+  --mobile-danger-soft: rgba(239, 68, 68, .14);
+  --mobile-danger-border: rgba(239, 68, 68, .30);
+  --mobile-danger-text: #fca5a5;
+  --mobile-action-bg: #f4f4f5;
+  --mobile-action-text: #111111;
+}
+
+body.theme-light {
+  --mobile-bg: #f5f6f8;
+  --mobile-panel: #ffffff;
+  --mobile-panel-translucent: rgba(255, 255, 255, .94);
+  --mobile-panel-soft: #f8fafc;
+  --mobile-panel-raised: #f1f5f9;
+  --mobile-hover: #f8fafc;
+  --mobile-text: #111827;
+  --mobile-text-strong: #0f172a;
+  --mobile-muted: #64748b;
+  --mobile-muted-weak: #94a3b8;
+  --mobile-border: rgba(226, 232, 240, .96);
+  --mobile-border-strong: #d7dee9;
+  --mobile-shadow-soft: 0 8px 24px rgba(15, 23, 42, .06);
+  --mobile-shadow-raised: 0 18px 52px rgba(15, 23, 42, .14);
+  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(255, 255, 255, .92) 26%, #ffffff);
+  --mobile-accent-panel: #f4fbf8;
+  --mobile-accent-soft: #e8f7f1;
+  --mobile-accent-text: #08795f;
+  --mobile-overlay: rgba(15, 23, 42, .42);
+  --mobile-danger-soft: #fee2e2;
+  --mobile-danger-border: #fecaca;
+  --mobile-danger-text: #b91c1c;
+  --mobile-action-bg: #172033;
+  --mobile-action-text: #ffffff;
+}
+
+/* 最终主题层只负责颜色，不改组件几何。 */
+@media (max-width: 720px) {
+  #app.app aside {
+    border-right-color: var(--mobile-border) !important;
+    background: var(--mobile-panel) !important;
+    color: var(--mobile-text) !important;
+    box-shadow: var(--mobile-shadow-raised) !important;
+  }
+
+  #app.app .sidebar-mask.show { background: var(--mobile-overlay) !important; }
+
+  #app.app aside :is(.brand-text, .workspace-picker-name, .session-title, .sidebar-section-head, .sidebar-task-item),
+  #app.app aside .sidebar-task-list.session-list-like .sidebar-task-name.session-title {
+    color: var(--mobile-text-strong) !important;
+  }
+
+  #app.app aside :is(.sub, .session-preview, .session-meta, .workspace-picker-arrow, .sidebar-section-count) {
+    color: var(--mobile-muted) !important;
+  }
+
+  #app.app aside :is(.sidebar-toggle, .workspace-picker-trigger, .session-search-box, .session-delete) {
+    border-color: var(--mobile-border) !important;
+    background: var(--mobile-panel-soft) !important;
+    color: var(--mobile-text) !important;
+  }
+
+  #app.app aside :is(.workspace-picker-meta, .pin-mark) {
+    background: var(--mobile-accent-soft) !important;
+    color: var(--mobile-accent-text) !important;
+  }
+
+  #app.app aside .session:hover { background: var(--mobile-hover) !important; }
+  #app.app aside .session.active {
+    border-color: var(--mobile-border-strong) !important;
+    background: var(--mobile-accent-panel) !important;
+  }
+
+  #app.app :is(.quick-palette, .quick-palette-head, .quick-palette-foot, .quick-palette-item, .model-picker-popover, .workspace-picker-sheet, .session-actions-sheet) {
+    border-color: var(--mobile-border) !important;
+    background: var(--mobile-panel-translucent) !important;
+    color: var(--mobile-text) !important;
+  }
+
+  #app.app :is(.quick-palette-head input, .quick-palette-item em, .quick-palette-close, .model-provider-item, .model-chip, .workspace-picker-item) {
+    border-color: var(--mobile-border) !important;
+    background: var(--mobile-panel-soft) !important;
+    color: var(--mobile-text) !important;
+  }
+
+  #app.app :is(.quick-palette-item b, .model-picker-popover b, .workspace-picker-item b, .session-actions-sheet b) {
+    color: var(--mobile-text-strong) !important;
+  }
+
+  #app.app :is(.quick-palette-item small, .quick-palette-foot, .model-picker-popover small, .workspace-picker-item span) {
+    color: var(--mobile-muted) !important;
+  }
+}

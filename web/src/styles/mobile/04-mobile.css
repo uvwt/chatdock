@@ -29,17 +29,17 @@
 /* 2026-07 侧栏专项复审：手机抽屉按成熟聊天应用处理，列表更轻、更可扫读。 */
 @media (max-width: 720px) {
   .sidebar-mask.show {
-    background: rgba(15, 23, 42, .38) !important;
+    background: var(--mobile-overlay) !important;
     backdrop-filter: blur(4px) saturate(120%) !important;
   }
 
   aside {
     width: min(86vw, 348px) !important;
     padding: calc(env(safe-area-inset-top, 0px) + 16px) 14px calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
-    border-right: 1px solid rgba(226, 232, 240, .92) !important;
+    border-right: 1px solid var(--mobile-border) !important;
     border-radius: 0 26px 26px 0 !important;
-    background: #ffffff !important;
-    box-shadow: 20px 0 70px rgba(15, 23, 42, .20) !important;
+    background: var(--mobile-panel) !important;
+    box-shadow: var(--mobile-shadow-raised) !important;
   }
 
   aside .sidebar-head {
@@ -63,7 +63,7 @@
   }
 
   aside .sub {
-    color: #94a3b8 !important;
+    color: var(--mobile-muted-weak) !important;
     font-size: 12px !important;
     font-weight: 650 !important;
   }
@@ -73,7 +73,7 @@
     height: 42px !important;
     flex-basis: 42px !important;
     border-radius: 14px !important;
-    background: #f8fafc !important;
+    background: var(--mobile-panel-soft) !important;
     box-shadow: none !important;
     font-size: 24px !important;
   }
@@ -85,9 +85,9 @@
   aside .workspace-picker-trigger {
     min-height: 54px !important;
     padding: 0 14px !important;
-    border: 1px solid #e2e8f0 !important;
+    border: 1px solid var(--mobile-border) !important;
     border-radius: 18px !important;
-    background: #f8fafc !important;
+    background: var(--mobile-panel-soft) !important;
     box-shadow: none !important;
   }
 
@@ -98,8 +98,8 @@
     align-items: center;
     justify-content: center;
     border-radius: 10px;
-    background: #e0f2fe;
-    color: #0369a1 !important;
+    background: var(--mobile-accent-soft);
+    color: var(--mobile-accent-text) !important;
     font-size: 16px !important;
   }
 
@@ -111,14 +111,14 @@
   aside .workspace-picker-meta {
     padding: 3px 8px;
     border-radius: 999px;
-    background: #ffffff;
-    color: #64748b !important;
+    background: var(--mobile-panel);
+    color: var(--mobile-muted) !important;
     font-size: 12px !important;
     font-weight: 800 !important;
   }
 
   aside .workspace-picker-arrow {
-    color: #64748b !important;
+    color: var(--mobile-muted) !important;
     font-size: 18px !important;
   }
 
@@ -132,9 +132,9 @@
   aside .new {
     min-height: 52px !important;
     border-radius: 18px !important;
-    border: 1px solid #e2e8f0 !important;
-    background: #ffffff !important;
-    box-shadow: 0 8px 26px rgba(15, 23, 42, .04) !important;
+    border: 1px solid var(--mobile-border) !important;
+    background: var(--mobile-panel) !important;
+    box-shadow: var(--mobile-shadow-soft) !important;
   }
 
   aside .session-search-box {
@@ -183,19 +183,19 @@
   }
 
   aside .session:hover {
-    background: #f8fafc !important;
+    background: var(--mobile-panel-soft) !important;
   }
 
   aside .session.active {
-    border-color: #dbeafe !important;
-    background: linear-gradient(180deg, #eff6ff, #f8fbff) !important;
+    border-color: var(--mobile-border-strong) !important;
+    background: var(--mobile-accent-panel) !important;
     box-shadow: inset 3px 0 0 #2563eb !important;
   }
 
   aside .session-title {
     display: -webkit-box;
     overflow: hidden;
-    color: #0f172a !important;
+    color: var(--mobile-text-strong) !important;
     font-size: 15px !important;
     line-height: 1.28 !important;
     font-weight: 780 !important;
@@ -209,7 +209,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: #94a3b8 !important;
+    color: var(--mobile-muted-weak) !important;
     font-size: 11px !important;
     line-height: 1.3 !important;
   }
@@ -225,8 +225,8 @@
   aside .pin-mark {
     padding: 1px 5px !important;
     border-radius: 999px !important;
-    background: #dbeafe !important;
-    color: #1d4ed8 !important;
+    background: var(--mobile-accent-soft) !important;
+    color: var(--mobile-accent-text) !important;
     font-size: 10px !important;
     vertical-align: 1px;
   }
@@ -255,7 +255,7 @@
   }
 
   .app:not(.sidebar-collapsed) aside {
-    box-shadow: 20px 0 70px rgba(15, 23, 42, .18) !important;
+    box-shadow: var(--mobile-shadow-raised) !important;
   }
 
   .msg.assistant,
@@ -267,10 +267,10 @@
   .tool-event {
     margin: 12px 0 !important;
     padding: 14px 16px !important;
-    border: 1px dashed #dbe3ee !important;
+    border: 1px dashed var(--mobile-border) !important;
     border-radius: 17px !important;
-    background: #ffffff !important;
-    color: #64748b !important;
+    background: var(--mobile-panel) !important;
+    color: var(--mobile-muted) !important;
     font-size: 15px !important;
     line-height: 1.45 !important;
   }
@@ -280,7 +280,7 @@
   }
 
   .tool-event.has-details:active {
-    background: #f8fafc !important;
+    background: var(--mobile-panel-soft) !important;
   }
 
   .tool-event.has-details:focus {
@@ -402,7 +402,7 @@
     min-height: 42px !important;
     padding: 4px 9px !important;
     border-radius: 16px !important;
-    background: #f8fafc !important;
+    background: var(--mobile-panel-soft) !important;
     box-shadow: none !important;
   }
 
@@ -412,7 +412,7 @@
 
   .model-picker-trigger b {
     max-width: 100%;
-    color: #0f172a !important;
+    color: var(--mobile-text-strong) !important;
     font-size: 13px !important;
   }
 
@@ -434,13 +434,13 @@
     max-height: min(460px, 58vh) !important;
     padding: 16px !important;
     border-radius: 26px !important;
-    background: rgba(255, 255, 255, .98) !important;
-    box-shadow: 0 28px 90px rgba(15, 23, 42, .18) !important;
+    background: var(--mobile-panel-translucent) !important;
+    box-shadow: var(--mobile-shadow-raised) !important;
   }
 
   .model-provider-item {
     border-radius: 20px !important;
-    background: #f8fafc !important;
+    background: var(--mobile-panel-soft) !important;
   }
 
   .model-chip {
@@ -448,7 +448,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    background: #ffffff !important;
+    background: var(--mobile-panel) !important;
   }
 
   /* 生成中只保留真正可用的控件，避免发送、引导和中断在窄屏上重叠。 */
@@ -472,8 +472,8 @@
     min-width: 58px !important;
     padding: 0 10px !important;
     border-radius: 14px !important;
-    background: #f1f5f9 !important;
-    color: #0f172a !important;
+    background: var(--mobile-panel-raised) !important;
+    color: var(--mobile-text-strong) !important;
     font-size: 13px !important;
     font-weight: 750 !important;
   }
@@ -481,8 +481,8 @@
   .composer-streaming .stop-control {
     grid-column: 3 !important;
     border-radius: 14px !important;
-    background: #fee2e2 !important;
-    color: #b91c1c !important;
+    background: var(--mobile-danger-soft) !important;
+    color: var(--mobile-danger-text) !important;
     font-size: 0 !important;
   }
 
@@ -496,7 +496,7 @@
   .composer-streaming .stop-control::before {
     content: "■" !important;
     display: block !important;
-    color: #b91c1c !important;
+    color: var(--mobile-danger-text) !important;
     font-size: 14px !important;
     transform: none !important;
   }

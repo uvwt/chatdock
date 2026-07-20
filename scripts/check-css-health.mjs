@@ -63,10 +63,7 @@ if (!/top:\s*auto\s*!important/.test(settingsPageShellRule)
   failures.push('settings page shell must reset all legacy drawer edges');
 }
 
-const mobileSettingsLayout = settingsLayout.slice(
-  settingsLayout.indexOf('@media (max-width: 900px)'),
-  settingsLayout.indexOf('@media (max-width: 520px)'),
-);
+const mobileSettingsLayout = read('web/src/styles/settings/16-mobile-layout.css');
 const mobileDocumentScrollRule = mobileSettingsLayout.match(/html\.settings-page-visible,[^{]*\{([^}]*)\}/)?.[1] || '';
 if (!/height:\s*auto\s*!important/.test(mobileDocumentScrollRule)
   || !/overflow-y:\s*auto\s*!important/.test(mobileDocumentScrollRule)) {

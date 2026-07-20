@@ -1,0 +1,559 @@
+/* 配置中心手机端布局：使用原生文档滚动、横向文字导航和紧凑卡片层级。 */
+@media (max-width: 900px) {
+  html.settings-page-visible,
+  html.settings-page-visible body,
+  body.settings-page-visible {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: auto !important;
+  }
+
+  html.settings-page-visible #root {
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
+  }
+
+  .settings-page {
+    height: auto !important;
+    min-height: 100dvh !important;
+    display: block !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    overscroll-behavior-y: auto !important;
+    background: var(--mobile-bg) !important;
+    color: var(--mobile-text) !important;
+  }
+
+  .settings-page .settings {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    display: block !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: var(--mobile-bg) !important;
+    box-shadow: none !important;
+  }
+
+  .settings-page .settings-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 40 !important;
+    min-height: 62px !important;
+    padding: 10px 14px !important;
+    border-bottom: 1px solid var(--mobile-border) !important;
+    background: var(--mobile-panel-translucent) !important;
+    backdrop-filter: blur(18px);
+  }
+
+  .settings-page .settings-header-main {
+    gap: 11px !important;
+  }
+
+  .settings-page .settings-title-row {
+    gap: 8px !important;
+  }
+
+  .settings-page .settings-header h2 {
+    color: var(--mobile-text-strong) !important;
+    font-size: 20px !important;
+    letter-spacing: -.02em !important;
+  }
+
+  .settings-page .settings-header p,
+  .settings-page .settings-refresh-text {
+    display: none !important;
+  }
+
+  .settings-page .settings-back-button,
+  .settings-page .settings-header-actions .settings-refresh-button {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    border-color: var(--mobile-border) !important;
+    border-radius: 11px !important;
+    background: var(--mobile-panel-soft) !important;
+    color: var(--mobile-text-strong) !important;
+    box-shadow: none !important;
+  }
+
+  .settings-page .settings-sidebar {
+    position: sticky;
+    top: 62px;
+    z-index: 30;
+    display: block;
+    overflow: hidden;
+    border: 0;
+    border-bottom: 1px solid var(--mobile-border);
+    background: var(--mobile-panel-translucent);
+    backdrop-filter: blur(16px);
+  }
+
+  .settings-page .settings-mobile-module-select,
+  .settings-page .settings-sidebar-footer,
+  .settings-page .module-group-label {
+    display: none !important;
+  }
+
+  .settings-page .module-tabs {
+    width: 100% !important;
+    min-height: 46px !important;
+    margin: 0 !important;
+    padding: 0 16px !important;
+    display: flex !important;
+    align-items: stretch !important;
+    gap: 22px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    border: 0 !important;
+    background: transparent !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .settings-page .module-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .settings-page .module-nav-group {
+    display: contents !important;
+  }
+
+  .settings-page .module-nav-group + .module-nav-group {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+
+  .settings-page .module-tab,
+  .settings-page .module-tabs button.module-tab {
+    position: relative !important;
+    width: auto !important;
+    min-width: max-content !important;
+    min-height: 46px !important;
+    padding: 0 1px !important;
+    flex: 0 0 auto !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--mobile-muted) !important;
+    font-size: 14px !important;
+    font-weight: 650 !important;
+    box-shadow: none !important;
+  }
+
+  .settings-page .module-tab::before {
+    display: none !important;
+  }
+
+  .settings-page .module-tabs .module-tab.active,
+  .settings-page .module-tabs button.module-tab.active,
+  .settings-page .module-tabs button.module-tab.active:not(.danger):not(.secondary),
+  .settings-page .module-tabs .module-tab.active:focus,
+  .settings-page .module-tabs .module-tab.active:focus-visible {
+    border: 0 !important;
+    outline: 0 !important;
+    background: transparent !important;
+    color: var(--mobile-text-strong) !important;
+    box-shadow: none !important;
+  }
+
+  .settings-page .module-tabs button.module-tab.active::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  .settings-page .module-tab.active::after {
+    content: '' !important;
+    position: absolute !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: auto !important;
+    height: 2px !important;
+    display: block !important;
+    border-radius: 2px 2px 0 0 !important;
+    background: #10a37f !important;
+    transform: none !important;
+  }
+
+  .settings-page .module-tab-label {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+  }
+
+  .settings-page .settings-content {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 22px 16px 60px !important;
+    overflow: visible !important;
+    background: var(--mobile-bg) !important;
+  }
+
+  .settings-page .module-view.active {
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .settings-page .module-view-title {
+    margin: 0 2px 20px !important;
+  }
+
+  .settings-page .module-view-title span {
+    color: var(--mobile-text-strong) !important;
+    font-size: 24px !important;
+    font-weight: 780 !important;
+    letter-spacing: -.035em !important;
+  }
+
+  .settings-page .module-view-title p {
+    margin-top: 6px !important;
+    color: var(--mobile-muted) !important;
+    font-size: 13px !important;
+    line-height: 1.55 !important;
+  }
+
+  .settings-page .settings-section,
+  .settings-page .model-quick-panel,
+  .settings-page .model-inline-card,
+  .settings-page .mcp-form-card {
+    padding: 16px !important;
+    border-radius: 18px !important;
+  }
+
+  .settings-page .product-card,
+  .settings-page .automation-task-card,
+  .settings-page .task-card,
+  .settings-page .stat-card,
+  .settings-page .workspace-summary-card,
+  .settings-page .model-summary-card,
+  .settings-page .empty.compact {
+    padding: 14px !important;
+    border-radius: 16px !important;
+  }
+
+  .settings-page .settings-section,
+  .settings-page .model-quick-panel,
+  .settings-page .model-inline-card,
+  .settings-page .mcp-form-card,
+  .settings-page .product-card,
+  .settings-page .automation-task-card,
+  .settings-page .task-card,
+  .settings-page .stat-card,
+  .settings-page .workspace-summary-card,
+  .settings-page .model-summary-card,
+  .settings-page .empty.compact {
+    border-color: var(--mobile-border) !important;
+    background: var(--mobile-panel) !important;
+    box-shadow: var(--mobile-shadow-soft) !important;
+  }
+
+  .settings-page .settings-block-head {
+    margin: 0 2px 12px !important;
+    align-items: center !important;
+  }
+
+  .settings-page .settings-block-head label {
+    color: var(--mobile-text-strong) !important;
+    font-size: 17px !important;
+    font-weight: 760 !important;
+    letter-spacing: -.02em !important;
+  }
+
+  .settings-page .product-card-head b,
+  .settings-page .settings-section-head b,
+  .settings-page .model-quick-head b,
+  .settings-page .mcp-form-head b,
+  .settings-page .task-name,
+  .settings-page .stat-value {
+    color: var(--mobile-text-strong) !important;
+  }
+
+  .settings-page .settings-form-grid,
+  .settings-page .mcp-form-grid,
+  .settings-page .model-inline-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .settings-page .workspace-summary-grid,
+  .settings-page .model-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .settings-page [data-module-view="workspace"] .workspace-summary-grid {
+    gap: 0 !important;
+    margin: 0 0 24px !important;
+    overflow: hidden !important;
+    border: 1px solid var(--mobile-border) !important;
+    border-radius: 18px !important;
+    background: var(--mobile-panel) !important;
+    box-shadow: var(--mobile-shadow-soft) !important;
+  }
+
+  .settings-page [data-module-view="workspace"] .workspace-summary-card {
+    min-height: 78px !important;
+    padding: 14px 16px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .settings-page [data-module-view="workspace"] .workspace-summary-card:nth-child(odd) {
+    border-right: 1px solid var(--mobile-border) !important;
+  }
+
+  .settings-page [data-module-view="workspace"] .workspace-summary-card:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--mobile-border) !important;
+  }
+
+  .settings-page [data-module-view="workspace"] .workspace-summary-card span {
+    color: var(--mobile-muted) !important;
+    font-size: 12px !important;
+  }
+
+  .settings-page [data-module-view="workspace"] .workspace-summary-card b {
+    margin-top: 5px !important;
+    color: var(--mobile-text-strong) !important;
+    font-size: 18px !important;
+  }
+
+  .settings-page [data-module-view="workspace"] .setup-banner.ok {
+    display: none !important;
+  }
+
+  .settings-page [data-module-view="workspace"] #workspaceCards {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .settings-page [data-module-view="workspace"] #workspaceCards .product-card {
+    padding: 16px !important;
+    border-radius: 18px !important;
+  }
+
+  .settings-page [data-module-view="workspace"] #workspaceCards .product-card.active {
+    border-color: rgba(16, 163, 127, .28) !important;
+    background: var(--mobile-accent-panel) !important;
+  }
+
+  .settings-page [data-module-view="workspace"] #workspaceCards .product-card-head {
+    margin: 0 0 8px !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    border: 0 !important;
+  }
+
+  .settings-page [data-module-view="workspace"] #workspaceCards .product-card-head b {
+    font-size: 16px !important;
+  }
+
+  .settings-page [data-module-view="workspace"] #workspaceCards .badge {
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 23px !important;
+    padding: 3px 8px !important;
+    flex: 0 0 auto !important;
+    border-radius: 999px !important;
+    background: var(--mobile-panel-raised) !important;
+    color: var(--mobile-muted) !important;
+  }
+
+  .settings-page [data-module-view="workspace"] #workspaceCards .product-card.active .badge {
+    background: var(--mobile-accent-soft) !important;
+    color: var(--mobile-accent-text) !important;
+  }
+
+  .settings-page [data-module-view="workspace"] #workspaceCards .product-meta {
+    color: var(--mobile-muted) !important;
+    font-size: 13px !important;
+    line-height: 1.55 !important;
+  }
+
+  .settings-page [data-module-view="workspace"] #workspaceCards .product-actions {
+    margin-top: 14px !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .settings-page [data-module-view="workspace"] #workspaceCards .product-actions button {
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 36px !important;
+    padding: 0 12px !important;
+    border-radius: 10px !important;
+  }
+
+  .settings-page [data-module-view="workspace"] #workspaceCards .product-actions button.secondary {
+    border-color: var(--mobile-action-bg) !important;
+    background: var(--mobile-action-bg) !important;
+    color: var(--mobile-action-text) !important;
+  }
+
+  .settings-page .model-save-toolbar {
+    position: static !important;
+    padding: 12px !important;
+    align-items: stretch !important;
+  }
+
+  .settings-page .model-save-toolbar-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .settings-page .model-save-toolbar-actions button:first-child {
+    grid-column: 1 / -1 !important;
+  }
+
+  .settings-page .settings-disclosure > summary {
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  .settings-page .settings-disclosure > summary p {
+    display: none !important;
+  }
+
+  .settings-page .provider-actions-inline {
+    margin: 10px 0 !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .settings-page .settings-global-save-state {
+    max-width: 82px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .settings-page .module-tabs {
+    padding: 0 14px !important;
+    gap: 20px !important;
+  }
+
+  .settings-page .settings-content {
+    padding: 20px 14px 56px !important;
+  }
+
+  .settings-page .module-view-title span {
+    font-size: 23px !important;
+  }
+}
+
+/* 表单型模块同样遵循手机主题，避免工作区页正常而模型/供应商页仍强制白底。 */
+@media (max-width: 900px) {
+  body .settings-page .settings-section,
+  body .settings-page .model-quick-panel,
+  body .settings-page .model-inline-card,
+  body .settings-page [data-module-view] .settings-section,
+  body .settings-page [data-module-view] .model-quick-panel,
+  body .settings-page [data-module-view] .model-inline-card,
+  body .settings-page .mcp-form-card,
+  body .settings-page .product-card,
+  body .settings-page .automation-task-card,
+  body .settings-page .task-card,
+  body .settings-page .stat-card,
+  body .settings-page .model-summary-card,
+  body .settings-page .settings-disclosure {
+    border-color: var(--mobile-border) !important;
+    background: var(--mobile-panel) !important;
+    color: var(--mobile-text) !important;
+    box-shadow: var(--mobile-shadow-soft) !important;
+  }
+
+  body .settings-page input,
+  body .settings-page select,
+  body .settings-page textarea,
+  body .settings-page .code-preview,
+  body .settings-page .model-options {
+    border-color: var(--mobile-border) !important;
+    background: var(--mobile-panel-soft) !important;
+    color: var(--mobile-text) !important;
+  }
+
+  body .settings-page input::placeholder,
+  body .settings-page textarea::placeholder,
+  body .settings-page .hint,
+  body .settings-page .product-meta,
+  body .settings-page .stat-label,
+  body .settings-page small {
+    color: var(--mobile-muted) !important;
+  }
+
+  body .settings-page label,
+  body .settings-page .model-quick-panel b,
+  body .settings-page [data-module-view] .model-quick-head b,
+  body .settings-page .settings-section b,
+  body .settings-page .settings-disclosure summary b {
+    color: var(--mobile-text-strong) !important;
+  }
+
+  body .settings-page [data-module-view] .model-quick-head span {
+    color: var(--mobile-muted) !important;
+  }
+
+  body .settings-page button.secondary,
+  body .settings-page .model-option,
+  body .settings-page .provider-chip {
+    border-color: var(--mobile-border) !important;
+    background: var(--mobile-panel-raised) !important;
+    color: var(--mobile-text) !important;
+    box-shadow: none !important;
+  }
+
+  body .settings-page .model-option.active,
+  body .settings-page .provider-chip.active {
+    border-color: rgba(16, 163, 127, .42) !important;
+    background: var(--mobile-accent-soft) !important;
+    color: var(--mobile-accent-text) !important;
+  }
+
+  body .settings-page [data-module-view="automation"] .automation-task-title-wrap .task-name {
+    color: var(--mobile-text-strong) !important;
+  }
+
+  body .settings-page [data-module-view="automation"] .automation-task-desc,
+  body .settings-page [data-module-view="automation"] .automation-task-meta-list .task-meta {
+    color: var(--mobile-muted) !important;
+  }
+
+  body .settings-page [data-module-view="automation"] .automation-task-meta-list {
+    border-top-color: var(--mobile-border) !important;
+  }
+
+  body .settings-page [data-module-view="automation"] .automation-task-toggle {
+    color: var(--mobile-text) !important;
+  }
+
+  body .settings-page [data-module-view="automation"] .automation-task-more > summary,
+  body .settings-page [data-module-view="automation"] .automation-task-menu {
+    border-color: var(--mobile-border) !important;
+    background: var(--mobile-panel-raised) !important;
+    color: var(--mobile-text) !important;
+  }
+
+  body .settings-page [data-module-view="automation"] .automation-task-primary-actions button.secondary,
+  body .settings-page [data-module-view="automation"] > button.secondary {
+    border-color: var(--mobile-border) !important;
+    background: var(--mobile-panel-raised) !important;
+    color: var(--mobile-text) !important;
+  }
+}
