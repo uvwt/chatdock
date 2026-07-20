@@ -11,6 +11,7 @@ test('format helpers keep compact Chinese UI labels', () => {
 
 test('settings module and task status normalize defaults', () => {
   assert.equal(normalizeSettingsModule('missing'), 'workspace');
+  assert.equal(normalizeSettingsModule('data'), 'security');
   assert.equal(taskStatusLabel({running: true}), '运行中');
   assert.equal(taskStatusClass({last_status: 'failed'}), 'error');
 });

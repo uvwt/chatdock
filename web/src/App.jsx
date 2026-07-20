@@ -397,12 +397,13 @@ export default function App() {
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, [loadSessionFromRoute, showToast]);
-
   useEffect(() => {
     if (!settingsOpen) return;
     if (activeModule === 'tools') loadMCPStatus().catch(e => showToast('MCP 状态加载失败：' + e.message, 'error'));
-    if (activeModule === 'data') loadDataStatus().catch(e => showToast('数据状态加载失败：' + e.message, 'error'));
-    if (activeModule === 'security') loadSystemStatus().catch(e => showToast('系统状态加载失败：' + e.message, 'error'));
+    if (activeModule === 'security') {
+      loadSystemStatus().catch(e => showToast('系统状态加载失败：' + e.message, 'error'));
+      loadDataStatus().catch(e => showToast('数据状态加载失败：' + e.message, 'error'));
+    }
   }, [settingsOpen, activeModule, loadMCPStatus, loadDataStatus, loadSystemStatus, showToast]);
 
   const latestModelMessageElement = useCallback(() => {

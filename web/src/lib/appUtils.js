@@ -1,7 +1,8 @@
 // Shared UI formatting, routing, and product-status helpers.
-export const settingsModules = ['workspace', 'model', 'providers', 'tools', 'automation', 'data', 'security'];
+export const settingsModules = ['workspace', 'model', 'providers', 'tools', 'automation', 'security'];
 
 export function normalizeSettingsModule(name) {
+  if (name === 'data') return 'security';
   return settingsModules.includes(name) ? name : 'workspace';
 }
 

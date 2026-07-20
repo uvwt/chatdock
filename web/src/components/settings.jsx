@@ -1,4 +1,4 @@
-// Configuration-center modules: workspace, model/provider, MCP tools, automation, reply/embedding, data, and security.
+// Configuration-center modules: workspace, model/provider, MCP tools, automation, and system diagnostics.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '../styles/settings-entry.css';
 import { TextCard } from './base.jsx';
@@ -10,13 +10,12 @@ const settingsModuleMeta = {
   providers: {label: '供应商', desc: '新增、编辑、测试模型供应商和候选模型。'},
   tools: {label: '工具', desc: '添加、检测和维护 MCP Server。'},
   automation: {label: '自动化', desc: '管理当前工作空间下的定时任务和运行状态。'},
-  data: {label: '数据', desc: '检查数据库、备份、会话和工作空间数据健康。'},
-  security: {label: '系统', desc: '查看运行状态、诊断信息和访问入口。'},
+  security: {label: '系统', desc: '查看运行状态、数据库、备份、诊断信息和访问入口。'},
 };
 
 const settingsModuleGroups = [
   {title: '常用', modules: ['workspace', 'model', 'providers', 'tools', 'automation']},
-  {title: '排障', modules: ['data', 'security']},
+  {title: '系统', modules: ['security']},
 ];
 
 export function SettingsPanel(props) {
@@ -88,8 +87,7 @@ export function SettingsPanel(props) {
       <ModuleView name="providers" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="当前默认供应商需要保存后才会生效。"><ProvidersModule config={config} setConfig={setConfig} providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} /></ModuleView>
       <ModuleView name="tools" activeModule={activeModule} dirty={mcpConfigDirty} saveState={mcpSaveState} onSave={() => saveScope('mcp')} saveHint="保存后工具加载方式和权限才会生效。"><ToolsModule builtinTools={builtinTools} mcpStatus={mcpStatus} mcpConfig={mcpConfig} mcpConfigDirty={mcpConfigDirty} saveState={mcpSaveState} setMcpConfig={setMcpConfig} saveMCPConfig={() => saveScope('mcp')} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} /></ModuleView>
       <ModuleView name="automation" activeModule={activeModule}><div className="settings-block-head"><label>自动化任务（当前工作空间）</label><button className="secondary small" onClick={() => editScheduledTask()}>新增任务</button></div><input className="session-search" placeholder="搜索任务" value={taskSearch} onChange={e => setTaskSearch(e.target.value)} /><div className="tasks-list">{filteredTasks.length ? filteredTasks.map(t => <TaskCard key={t.id} task={t} editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} toggleScheduledTask={toggleScheduledTask} runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} openScheduledTaskSession={openScheduledTaskSession} />) : <div className="hint">暂无定时任务。默认每次独立执行，运行结果写入任务记录；需要连续上下文时可在编辑中开启。</div>}</div><div className="settings-actions"><button className="secondary" onClick={() => loadScheduledTasks?.()}>刷新任务</button></div></ModuleView>
-      <ModuleView name="data" activeModule={activeModule}><div className="settings-block-head"><label>数据状态</label><button className="secondary small" onClick={() => loadDataStatus?.()}>刷新数据状态</button></div><DataStatus dataStatus={dataStatus} onCopy={onCopy} /></ModuleView>
-      <ModuleView name="security" activeModule={activeModule}><SecurityModule systemStatus={systemStatus} setupStatus={setupStatus} dataStatus={dataStatus} mcpStatus={mcpStatus} providers={providers} loadSystemStatus={loadSystemStatus} logout={logout} onCopy={onCopy} /></ModuleView>
+      <ModuleView name="security" activeModule={activeModule}><SecurityModule systemStatus={systemStatus} setupStatus={setupStatus} dataStatus={dataStatus} mcpStatus={mcpStatus} providers={providers} loadSystemStatus={loadSystemStatus} loadDataStatus={loadDataStatus} logout={logout} onCopy={onCopy} /></ModuleView>
     </main>
   </section>;
 }
@@ -653,35 +651,33 @@ function TaskCard({ task, editScheduledTask, deleteScheduledTask, toggleSchedule
 
 function DataStatus({ dataStatus, onCopy }) {
   if (!dataStatus) return <div className="hint">尚未加载数据状态。</div>;
-  const items = [
-    ['当前工作空间', dataStatus.active_workspace || '-'],
-    ['数据目录', dataStatus.data_dir || '-'],
-    ['数据库', dataStatus.database_exists ? (dataStatus.database_path || '-') : '未创建'],
-    ['数据库大小', fmtBytes(dataStatus.database_size_bytes)],
+  const databaseItems = [
+    ['数据目录', safePathName(dataStatus.data_dir)],
     ['数据库健康', dataStatus.database_healthy ? '正常' : (dataStatus.database_warning || '需要检查')],
-    ['工作空间', String(dataStatus.workspace_count || 0)],
-    ['会话', String(dataStatus.session_count || 0)],
     ['WAL', dataStatus.wal_enabled ? '启用' : '未检测到'],
-    ['备份目录', dataStatus.backup_dir || '未检测到'],
-    ['数据库备份数量', String(dataStatus.backup_count || 0)],
-    ['已检查备份目录', String((dataStatus.backup_checked_dirs || []).length)],
-    ['最近数据库备份', dataStatus.latest_backup_at ? fmtTime(dataStatus.latest_backup_at) + ' · ' + fmtBytes(dataStatus.latest_backup_size_bytes) + ' · ' + fmtRelativeAge(dataStatus.latest_backup_age_seconds) : '暂无数据库备份'],
-    ['备份健康', dataStatus.backup_healthy ? '正常' : (dataStatus.backup_warning || '需要检查')],
+    ['工作空间 / 会话', `${dataStatus.workspace_count || 0} / ${dataStatus.session_count || 0}`],
+  ];
+  const backupItems = [
+    ['备份目录', safePathName(dataStatus.backup_dir || '未检测到')],
+    ['备份数量', String(dataStatus.backup_count || 0)],
+    ['已检查目录', String((dataStatus.backup_checked_dirs || []).length)],
+    ['最近备份', dataStatus.latest_backup_at ? fmtTime(dataStatus.latest_backup_at) + ' · ' + fmtBytes(dataStatus.latest_backup_size_bytes) + ' · ' + fmtRelativeAge(dataStatus.latest_backup_age_seconds) : '暂无数据库备份'],
   ];
   const backups = dataStatus.backups || [];
-  const primaryItems = items.slice(0, 8);
-  const backupItems = items.slice(8);
   return <>
     {dataStatus.backup_warning ? <div className="backup-health warn">{dataStatus.backup_warning}</div> : <div className="backup-health ok">数据库备份状态正常。</div>}
-    <section className="settings-section data-table-section"><div className="settings-section-head"><div><b>数据库</b></div></div><div id="dataStatus" className="data-info-table">{primaryItems.map(item => <div className="data-info-row" key={item[0]}><span>{item[0]}</span><b>{item[1]}</b></div>)}</div></section>
-    <section className="settings-section data-table-section"><div className="settings-section-head"><div><b>备份</b></div></div><div className="data-info-table backup-info-table">{backupItems.map(item => <div className="data-info-row" key={item[0]}><span>{item[0]}</span><b>{item[1]}</b></div>)}</div></section>
+    <div className="settings-block-head"><label>数据库</label></div>
+    <div id="dataStatus" className="data-info-table">{databaseItems.map(item => <div className="data-info-row" key={item[0]}><span>{item[0]}</span><b>{item[1]}</b></div>)}</div>
+    <div className="settings-block-head"><label>备份</label></div>
+    <div className="data-info-table backup-info-table">{backupItems.map(item => <div className="data-info-row" key={item[0]}><span>{item[0]}</span><b>{item[1]}</b></div>)}</div>
     {(dataStatus.backup_checked_dirs || []).length ? <details className="backup-path checked-dirs"><summary>查看已检查备份目录</summary>{dataStatus.backup_checked_dirs.map(dir => <code key={dir}>{dir}</code>)}</details> : null}
-    {backups.length ? <section className="settings-section backup-list"><div className="settings-section-head"><div><b>最近数据库备份</b></div></div>{backups.map(item => <div className="backup-item" key={item.path || item.name}><div className="backup-main"><div><b>{item.name || safePathName(item.path)}</b><div className="hint">{fmtTime(item.updated_at)} · {fmtRelativeAge(item.age_seconds)} · {fmtBytes(item.size_bytes)}</div></div>{item.path ? <button className="secondary mini" onClick={() => onCopy?.(item.path)}>复制路径</button> : null}</div>{item.path ? <details className="backup-path"><summary>查看完整路径</summary><code>{item.path}</code></details> : null}</div>)}</section> : null}
+    {backups.length ? <div className="backup-list"><div className="settings-block-head"><label>最近数据库备份</label></div>{backups.map(item => <div className="backup-item" key={item.path || item.name}><div className="backup-main"><div><b>{item.name || safePathName(item.path)}</b><div className="hint">{fmtTime(item.updated_at)} · {fmtRelativeAge(item.age_seconds)} · {fmtBytes(item.size_bytes)}</div></div>{item.path ? <button className="secondary mini" onClick={() => onCopy?.(item.path)}>复制路径</button> : null}</div>{item.path ? <details className="backup-path"><summary>查看完整路径</summary><code>{item.path}</code></details> : null}</div>)}</div> : null}
   </>;
 }
 
-function SecurityModule({ systemStatus, setupStatus, dataStatus, mcpStatus, providers, loadSystemStatus, logout, onCopy }) {
+function SecurityModule({ systemStatus, setupStatus, dataStatus, mcpStatus, providers, loadSystemStatus, loadDataStatus, logout, onCopy }) {
   const text = diagnosticsText({setupStatus, systemStatus, dataStatus, mcpStatus, providers});
+  const refreshStatus = () => Promise.allSettled([loadSystemStatus?.(), loadDataStatus?.()]);
   const setup = setupStatus || systemStatus?.setup || {};
   const data = dataStatus || systemStatus?.data || {};
   const healthy = Boolean(systemStatus?.ok);
@@ -702,7 +698,7 @@ function SecurityModule({ systemStatus, setupStatus, dataStatus, mcpStatus, prov
   ];
 
   return <>
-    <div className="settings-block-head"><label>系统状态</label><button className="secondary small" onClick={loadSystemStatus}>刷新系统状态</button></div>
+    <div className="settings-block-head"><label>系统状态</label><button className="secondary small" onClick={refreshStatus}>刷新状态</button></div>
     <div className={'setup-banner show ' + (healthy ? 'ok' : '')}>
       <div><b>{healthy ? 'ChatDock 运行正常' : 'ChatDock 状态待确认'}</b><div className="hint">{healthy ? '核心服务可用，配置和数据状态已加载。' : '刷新后仍异常时，可展开下方诊断信息排查。'}</div></div>
       <span className={'badge ' + (healthy ? 'ok' : 'warn')}>{healthy ? 'healthy' : 'unknown'}</span>
@@ -712,6 +708,10 @@ function SecurityModule({ systemStatus, setupStatus, dataStatus, mcpStatus, prov
       <div className="settings-section-head"><div><b>运行环境</b><div className="hint">服务入口、数据与扩展连接概览</div></div></div>
       <div className="data-info-table">{runtime.map(([label, value]) => <div className="data-info-row" key={label}><span>{label}</span><b title={value}>{value}</b></div>)}</div>
     </section>
+    <details className="settings-section settings-disclosure">
+      <summary><div><b>数据与备份</b><p>数据库健康、备份目录和最近备份</p></div><span>展开</span></summary>
+      <DataStatus dataStatus={dataStatus} onCopy={onCopy} />
+    </details>
     <details className="settings-section settings-disclosure">
       <summary><div><b>完整诊断信息</b><p>排障或反馈问题时再展开查看</p></div><span>展开</span></summary>
       <pre className="diagnostics-preview">{text}</pre>
