@@ -421,7 +421,7 @@ function MCPToolPolicyPicker({name, draft, tools, loading, onRefresh, onChange})
       const exposure = toolExposureForValue(tool.value, draft);
       return <div className="mcp-tool-policy-row" key={tool.value}>
         <div className="mcp-tool-policy-name"><b>{tool.title || tool.name}</b><span>{tool.value}{tool.configuredOnly ? ' · 配置项' : ''}</span></div>
-        <label className="mcp-tool-exposure">加载方式<select value={exposure} onChange={e => onChange(setToolExposureDraft(draft, tool.value, e.target.value))}><option value="inherit">跟随默认</option><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select></label>
+        <label className="mcp-tool-exposure"><span>加载方式</span><select aria-label={(tool.title || tool.name) + ' 加载方式'} value={exposure} onChange={e => onChange(setToolExposureDraft(draft, tool.value, e.target.value))}><option value="inherit">跟随默认</option><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select></label>
         <div className="mcp-tool-policy-actions" role="group" aria-label={tool.value + ' 权限'}>
           {[
             ['default', allowAll ? '默认允许' : '默认'],
@@ -437,13 +437,13 @@ function MCPToolPolicyPicker({name, draft, tools, loading, onRefresh, onChange})
 
 function BuiltinToolExposurePicker({draft, tools, onChange}) {
   const options = normalizeMCPToolOptions('chatdock', tools, draft);
-  return <div className="mcp-tool-picker builtin-tool-picker">
-    <div className="mcp-tool-picker-head"><div><b>单工具加载方式</b><span>{options.length + ' 个内置工具'}</span></div></div>
+  return <details className="mcp-tool-picker builtin-tool-picker">
+    <summary className="builtin-tool-picker-summary"><span><b>单工具覆盖</b><small>仅调整例外工具</small></span><em>{options.length} 个</em></summary>
     <div className="mcp-tool-policy-list">{options.map(tool => <div className="mcp-tool-policy-row builtin-tool-exposure-row" key={tool.value}>
       <div className="mcp-tool-policy-name"><b>{tool.title || tool.name}</b><span>{tool.value}</span></div>
-      <label className="mcp-tool-exposure">加载方式<select value={toolExposureForValue(tool.value, draft)} onChange={e => onChange(setToolExposureDraft(draft, tool.value, e.target.value))}><option value="inherit">跟随默认</option><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select></label>
+      <select className="mcp-tool-exposure-select" aria-label={(tool.title || tool.name) + ' 加载方式'} value={toolExposureForValue(tool.value, draft)} onChange={e => onChange(setToolExposureDraft(draft, tool.value, e.target.value))}><option value="inherit">跟随默认</option><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select>
     </div>)}</div>
-  </div>;
+  </details>;
 }
 
 function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveState, setMcpConfig, saveMCPConfig, loadMCPConfig, loadMCPStatus, testMCP, fetchMCPServerTools }) {
@@ -582,13 +582,15 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
 
   return <>
     <section className="settings-section mcp-overview-section builtin-tools-section">
-      <div className="settings-section-head"><div><b>ChatDock 内置工具</b><span className="hint">定时任务、图片和模型供应商工具</span></div></div>
-      <div className="mcp-form-grid"><label>工具默认加载<select value={builtinDraft.tool_exposure} onChange={e => patchBuiltinTools({tool_exposure: e.target.value})}><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select></label></div>
-      <div className="hint">旧配置默认直接加载；改为按需后，仅在工具搜索命中时把真实内置工具加入当前会话。</div>
+      <div className="settings-section-head"><div><b>ChatDock 内置工具</b><div className="hint">定时任务、图片和模型供应商工具</div></div></div>
+      <div className="builtin-default-exposure">
+        <div><b>默认加载方式</b><span>未单独设置的工具继承此方式</span></div>
+        <select aria-label="内置工具默认加载方式" value={builtinDraft.tool_exposure} onChange={e => patchBuiltinTools({tool_exposure: e.target.value})}><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select>
+      </div>
       <BuiltinToolExposurePicker draft={builtinDraft} tools={builtinTools || []} onChange={patchBuiltinTools} />
     </section>
-    <section className="settings-section mcp-overview-section">
-      <div className="settings-section-head"><div><b>MCP Server</b><span className="hint">连接状态和工具权限</span></div><button className="secondary small" onClick={() => loadMCPStatus?.()}>检测</button></div>
+    <section className="settings-section mcp-overview-section mcp-status-section">
+      <div className="settings-section-head"><div><b>MCP Server</b><div className="hint">连接状态和工具权限</div></div><button className="secondary small mcp-detect-button" onClick={() => loadMCPStatus?.()}>检测</button></div>
       <div id="mcpStatusCards" className="mcp-server-list">{mcpStatus.length ? mcpStatus.map(s => <div key={s.name} className="mcp-server-row"><div className="mcp-server-main"><b>{s.name}</b><span>{s.url || '未填写 HTTP 地址'}</span>{s.last_error ? <em>{s.last_error}</em> : null}</div><div className="mcp-server-meta"><span className={'badge ' + runStatusClass(s.last_status || 'unknown')}>{runStatusLabel(s.last_status || 'unknown')}</span><small>allow {s.allow_count} · deny {s.deny_count} · confirm {s.confirm_count}</small><button className="secondary small" onClick={() => testMCP(s.name)} disabled={s.disabled || !s.url}>测试</button></div></div>) : <div className="empty compact">尚未配置 MCP Server。</div>}</div>
     </section>
     {parsed.error ? <div className="backup-health warn">当前配置 JSON 损坏，表单无法解析：{parsed.error}。可以在下方高级区修复原始内容。</div> : null}

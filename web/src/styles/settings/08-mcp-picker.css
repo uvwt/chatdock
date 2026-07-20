@@ -1,28 +1,59 @@
-/* 2026-07-06 MCP tool policy picker: choose tools instead of typing names. */
+/* MCP 工具配置保持扁平：默认方式在外层，例外工具按需展开。 */
+.settings-page .builtin-default-exposure {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 148px !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 12px 0 !important;
+  border-top: 1px solid var(--set-line, #edf1f5) !important;
+  border-bottom: 1px solid var(--set-line, #edf1f5) !important;
+}
+.settings-page .builtin-default-exposure b,
+.settings-page .builtin-default-exposure span {
+  display: block !important;
+}
+.settings-page .builtin-default-exposure b {
+  color: var(--set-text, #111827) !important;
+  font-size: 13px !important;
+}
+.settings-page .builtin-default-exposure span {
+  margin-top: 3px !important;
+  color: var(--set-muted, #667085) !important;
+  font-size: 12px !important;
+}
+.settings-page .builtin-default-exposure select,
+.settings-page .mcp-tool-exposure-select {
+  width: 100% !important;
+  min-height: 34px !important;
+  padding: 0 30px 0 10px !important;
+  font-size: 12px !important;
+}
 .settings-page .mcp-tool-picker {
   margin-top: 10px !important;
-  padding: 10px !important;
-  border: 1px solid #e5e7eb !important;
-  border-radius: 12px !important;
-  background: #fff !important;
+  padding-top: 8px !important;
+  border: 0 !important;
+  border-top: 1px solid var(--set-line, #edf1f5) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
 }
 .settings-page .mcp-tool-picker-head {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
   gap: 10px !important;
-  margin-bottom: 8px !important;
+  padding: 0 2px 8px !important;
 }
-.settings-page .mcp-tool-picker-head b {
-  display: block !important;
-  color: #111827 !important;
-  font-size: 14px !important;
-  line-height: 1.2 !important;
-}
+.settings-page .mcp-tool-picker-head b,
 .settings-page .mcp-tool-picker-head span {
   display: block !important;
+}
+.settings-page .mcp-tool-picker-head b {
+  color: var(--set-text, #111827) !important;
+  font-size: 14px !important;
+}
+.settings-page .mcp-tool-picker-head span {
   margin-top: 2px !important;
-  color: #6b7280 !important;
+  color: var(--set-muted, #667085) !important;
   font-size: 12px !important;
 }
 .settings-page .mcp-tool-allow-all {
@@ -30,35 +61,32 @@
   align-items: center !important;
   gap: 7px !important;
   min-height: 28px !important;
-  margin: 0 0 8px !important;
-  padding: 4px 8px !important;
-  border: 1px solid #e5e7eb !important;
-  border-radius: 999px !important;
-  background: #f9fafb !important;
-  color: #374151 !important;
+  margin: 0 2px 8px !important;
+  color: var(--set-text, #374151) !important;
   font-size: 12px !important;
-  font-weight: 760 !important;
+  font-weight: 700 !important;
 }
 .settings-page .mcp-tool-policy-list {
   display: grid !important;
-  gap: 6px !important;
-  max-height: 360px !important;
+  gap: 0 !important;
+  max-height: 340px !important;
   overflow: auto !important;
-  padding-right: 2px !important;
+  border-top: 1px solid var(--set-line, #edf1f5) !important;
 }
 .settings-page .mcp-tool-policy-row {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(124px, 156px) auto !important;
+  grid-template-columns: minmax(0, 1fr) 148px auto !important;
   align-items: center !important;
   gap: 10px !important;
-  min-height: 42px !important;
-  padding: 7px 8px !important;
-  border: 1px solid #edf0f3 !important;
-  border-radius: 10px !important;
-  background: #fbfbfc !important;
+  min-height: 54px !important;
+  padding: 9px 2px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--set-line, #edf1f5) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
 }
 .settings-page .builtin-tool-exposure-row {
-  grid-template-columns: minmax(0, 1fr) minmax(124px, 156px) !important;
+  grid-template-columns: minmax(0, 1fr) 132px !important;
 }
 .settings-page .mcp-tool-policy-name {
   min-width: 0 !important;
@@ -66,158 +94,125 @@
 .settings-page .mcp-tool-policy-name b,
 .settings-page .mcp-tool-policy-name span {
   display: block !important;
-  white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 .settings-page .mcp-tool-policy-name b {
-  color: #111827 !important;
+  color: var(--set-text, #111827) !important;
   font-size: 13px !important;
-  line-height: 1.2 !important;
 }
 .settings-page .mcp-tool-policy-name span {
   margin-top: 2px !important;
-  color: #8a94a6 !important;
+  color: var(--set-muted, #8a94a6) !important;
   font-size: 11px !important;
 }
 .settings-page .mcp-tool-exposure {
   display: grid !important;
   gap: 3px !important;
-  color: #6b7280 !important;
+  color: var(--set-muted, #667085) !important;
   font-size: 11px !important;
   font-weight: 700 !important;
 }
 .settings-page .mcp-tool-exposure select {
-  min-height: 30px !important;
+  min-height: 32px !important;
   padding: 0 28px 0 9px !important;
   font-size: 12px !important;
 }
 .settings-page .mcp-tool-policy-actions {
-  display: inline-grid !important;
-  grid-template-columns: repeat(4, auto) !important;
-  gap: 4px !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 5px !important;
 }
-.settings-page .mcp-tool-policy-actions button {
-  min-height: 26px !important;
-  padding: 0 8px !important;
-  border-radius: 999px !important;
-  border: 1px solid #e5e7eb !important;
-  background: #fff !important;
-  color: #6b7280 !important;
-  font-size: 11px !important;
+.settings-page .builtin-tool-picker {
+  padding-top: 0 !important;
+  border-top: 0 !important;
 }
-.settings-page .mcp-tool-policy-actions button.active {
-  border-color: rgba(16, 163, 127, .45) !important;
-  background: #eef7f4 !important;
-  color: #047857 !important;
-}
-.settings-page .mcp-tool-policy-actions button.active.confirm {
-  border-color: rgba(217, 119, 6, .35) !important;
-  background: #fffbeb !important;
-  color: #92400e !important;
-}
-@media (max-width: 720px) {
-  .settings-page .mcp-tool-policy-row {
-    grid-template-columns: 1fr !important;
-  }
-  .settings-page .mcp-tool-policy-actions {
-    justify-content: start !important;
-    grid-template-columns: repeat(4, minmax(0, auto)) !important;
-  }
-}
-
-/* 2026-07-06 MCP picker mobile polish: reduce nested borders and make it a flat list. */
-.settings-page .mcp-advanced-fields {
-  background: #fff !important;
-}
-.settings-page .mcp-tool-picker {
-  margin-top: 10px !important;
-  padding: 8px 0 0 !important;
-  border: 0 !important;
-  border-top: 1px solid #eef1f4 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-}
-.settings-page .mcp-tool-picker-head {
-  padding: 0 2px 8px !important;
-  margin-bottom: 0 !important;
-}
-.settings-page .mcp-tool-allow-all {
-  margin: 0 2px 8px !important;
-  padding: 4px 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-}
-.settings-page .mcp-tool-policy-list {
-  gap: 0 !important;
-  max-height: 340px !important;
+.settings-page .builtin-tool-picker-summary {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  min-height: 46px !important;
   padding: 0 !important;
-  border-top: 1px solid #f0f2f5 !important;
+  cursor: pointer !important;
+  list-style: none !important;
 }
-.settings-page .mcp-tool-policy-row {
-  min-height: 54px !important;
-  padding: 9px 2px !important;
-  border: 0 !important;
-  border-bottom: 1px solid #f0f2f5 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
+.settings-page .builtin-tool-picker-summary::-webkit-details-marker {
+  display: none !important;
 }
-.settings-page .mcp-tool-policy-actions button,
-.settings-page .mcp-tool-policy-actions button.default,
-.settings-page .mcp-tool-policy-actions button.allow,
-.settings-page .mcp-tool-policy-actions button.confirm,
-.settings-page .mcp-tool-policy-actions button.deny {
-  min-height: 25px !important;
-  padding: 0 7px !important;
-  border-radius: 999px !important;
-  border: 1px solid #dde3ea !important;
-  background: #fff !important;
-  color: #4b5563 !important;
-  box-shadow: none !important;
+.settings-page .builtin-tool-picker-summary span,
+.settings-page .builtin-tool-picker-summary b,
+.settings-page .builtin-tool-picker-summary small {
+  display: block !important;
 }
-.settings-page .mcp-tool-policy-actions button.active.default,
-.settings-page .mcp-tool-policy-actions button.active.allow {
-  border-color: rgba(16, 163, 127, .42) !important;
-  background: #eef9f5 !important;
-  color: #047857 !important;
+.settings-page .builtin-tool-picker-summary b {
+  color: var(--set-text, #111827) !important;
+  font-size: 13px !important;
 }
-.settings-page .mcp-tool-policy-actions button.active.confirm {
-  border-color: rgba(217, 119, 6, .38) !important;
-  background: #fff7ed !important;
-  color: #9a5a00 !important;
+.settings-page .builtin-tool-picker-summary small {
+  margin-top: 2px !important;
+  color: var(--set-muted, #667085) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
 }
-.settings-page .mcp-tool-policy-actions button.active.deny {
-  border-color: rgba(220, 38, 38, .35) !important;
-  background: #fef2f2 !important;
-  color: #b42318 !important;
+.settings-page .builtin-tool-picker-summary em {
+  color: var(--set-muted, #667085) !important;
+  font-size: 12px !important;
+  font-style: normal !important;
 }
-@media (max-width: 720px) {
-  .settings-page .mcp-form-card {
-    border-radius: 14px !important;
-  }
-  .settings-page .mcp-advanced-fields {
-    border: 1px solid #edf0f3 !important;
-    border-radius: 12px !important;
-    padding: 10px 12px !important;
-  }
-  .settings-page .mcp-tool-policy-row {
-    gap: 6px !important;
-  }
-  .settings-page .mcp-tool-policy-name b {
-    font-size: 13px !important;
-  }
-  .settings-page .mcp-tool-policy-name span {
-    font-size: 11px !important;
-  }
-  .settings-page .mcp-tool-policy-actions {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 5px !important;
-  }
-  .settings-page .mcp-tool-policy-actions button {
-    flex: 0 0 auto !important;
-    font-size: 11px !important;
-  }
+.settings-page .builtin-tool-picker[open] .builtin-tool-picker-summary {
+  border-bottom: 1px solid var(--set-line, #edf1f5) !important;
 }
 
+@media (max-width: 720px) {
+  .settings-page .builtin-default-exposure {
+    grid-template-columns: minmax(0, 1fr) 116px !important;
+    gap: 10px !important;
+  }
+  .settings-page .builtin-default-exposure select,
+  .settings-page .mcp-tool-exposure-select {
+    width: 116px !important;
+  }
+  .settings-page .builtin-tool-picker .mcp-tool-policy-list {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .settings-page .mcp-tool-policy-row {
+    grid-template-columns: minmax(0, 1fr) 116px !important;
+    grid-template-areas: "name exposure" "actions actions" !important;
+    gap: 7px 10px !important;
+  }
+  .settings-page .mcp-tool-policy-name {
+    grid-area: name !important;
+  }
+  .settings-page .mcp-tool-exposure {
+    grid-area: exposure !important;
+  }
+  .settings-page .mcp-tool-exposure > span {
+    display: none !important;
+  }
+  .settings-page .mcp-tool-exposure select {
+    width: 116px !important;
+  }
+  .settings-page .mcp-tool-policy-actions {
+    grid-area: actions !important;
+  }
+  .settings-page .builtin-tool-exposure-row {
+    grid-template-columns: minmax(0, 1fr) 116px !important;
+    grid-template-areas: none !important;
+    min-height: 58px !important;
+  }
+  .settings-page .builtin-tool-exposure-row .mcp-tool-policy-name,
+  .settings-page .builtin-tool-exposure-row .mcp-tool-exposure-select {
+    grid-area: auto !important;
+  }
+  .settings-page .mcp-status-section .settings-section-head {
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+  .settings-page .mcp-status-section .settings-section-head > .mcp-detect-button {
+    width: auto !important;
+    min-width: 64px !important;
+  }
+}
