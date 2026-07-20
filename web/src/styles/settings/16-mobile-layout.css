@@ -589,4 +589,8 @@
     background: var(--mobile-panel-raised) !important;
     color: var(--mobile-text) !important;
   }
+
+  body .settings-page [data-module-view="security"] .workspace-summary-card b {
+    color: var(--mobile-text-strong) !important;
+  }
 }

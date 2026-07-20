@@ -682,11 +682,41 @@ function DataStatus({ dataStatus, onCopy }) {
 
 function SecurityModule({ systemStatus, setupStatus, dataStatus, mcpStatus, providers, loadSystemStatus, logout, onCopy }) {
   const text = diagnosticsText({setupStatus, systemStatus, dataStatus, mcpStatus, providers});
+  const setup = setupStatus || systemStatus?.setup || {};
+  const data = dataStatus || systemStatus?.data || {};
+  const healthy = Boolean(systemStatus?.ok);
+  const activeWorkspace = setup.active_workspace || data.active_workspace || '-';
+  const overview = [
+    ['运行状态', healthy ? '正常' : '待检查'],
+    ['当前工作空间', activeWorkspace],
+    ['数据库大小', fmtBytes(data.database_size_bytes)],
+    ['最近备份', data.latest_backup_at ? fmtRelativeAge(data.latest_backup_age_seconds) : '暂无'],
+  ];
+  const runtime = [
+    ['访问地址', systemStatus?.addr || '-'],
+    ['Web 资源', systemStatus?.web_dir ? safePathName(systemStatus.web_dir) : '内嵌'],
+    ['数据库文件', safePathName(data.database_path || systemStatus?.database)],
+    ['会话 / 工作空间', `${data.session_count ?? '-'} / ${data.workspace_count ?? setup.workspace_count ?? '-'}`],
+    ['模型供应商', String((providers || []).length)],
+    ['MCP Server', String((mcpStatus || []).length)],
+  ];
+
   return <>
     <div className="settings-block-head"><label>系统状态</label><button className="secondary small" onClick={loadSystemStatus}>刷新系统状态</button></div>
-    {systemStatus ? <TextCard title="ChatDock" hint={systemStatus.addr || ''} badge={systemStatus.ok ? 'healthy' : 'unknown'} badgeClass={systemStatus.ok ? 'ok' : 'warn'}><div className="product-meta">Web：{systemStatus.web_dir || '内嵌'} · DB：{systemStatus.database || '-'} · 当前工作空间：{(systemStatus.setup || {}).active_workspace || '-'}</div></TextCard> : <div className="hint">尚未加载系统状态。</div>}
-    <div className="settings-block-head"><label>诊断信息</label></div>
-    <pre className="diagnostics-preview">{text}</pre>
-    <div className="settings-actions"><button className="secondary" onClick={() => onCopy?.(text)}>复制诊断信息</button><button className="secondary" onClick={logout}>登录 / 切换账号</button></div>
+    <div className={'setup-banner show ' + (healthy ? 'ok' : '')}>
+      <div><b>{healthy ? 'ChatDock 运行正常' : 'ChatDock 状态待确认'}</b><div className="hint">{healthy ? '核心服务可用，配置和数据状态已加载。' : '刷新后仍异常时，可展开下方诊断信息排查。'}</div></div>
+      <span className={'badge ' + (healthy ? 'ok' : 'warn')}>{healthy ? 'healthy' : 'unknown'}</span>
+    </div>
+    <div className="workspace-summary-grid">{overview.map(([label, value]) => <div className="workspace-summary-card" key={label}><span>{label}</span><b className="stat-value" title={value}>{value}</b></div>)}</div>
+    <section className="settings-section data-table-section">
+      <div className="settings-section-head"><div><b>运行环境</b><div className="hint">服务入口、数据与扩展连接概览</div></div></div>
+      <div className="data-info-table">{runtime.map(([label, value]) => <div className="data-info-row" key={label}><span>{label}</span><b title={value}>{value}</b></div>)}</div>
+    </section>
+    <details className="settings-section settings-disclosure">
+      <summary><div><b>完整诊断信息</b><p>排障或反馈问题时再展开查看</p></div><span>展开</span></summary>
+      <pre className="diagnostics-preview">{text}</pre>
+      <div className="settings-actions"><button className="secondary" onClick={() => onCopy?.(text)}>复制诊断信息</button></div>
+    </details>
+    <div className="settings-actions"><button className="secondary" onClick={logout}>登录 / 切换账号</button></div>
   </>;
 }
