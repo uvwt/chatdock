@@ -65,7 +65,7 @@
 .model-option { padding:7px 10px; border-radius:999px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:12px; cursor:pointer; }
 .model-option.active { border-color:var(--accent); box-shadow:0 0 0 1px rgba(20, 184, 166, .28) inset; }
 body.theme-light .model-option { background:#f8fafc; }
-@media (max-width: 640px) { .model-option { width:100%; text-align:left; border-radius:12px; } }
+@media (max-width: 640px) { .model-option { width:auto; max-width:100%; text-align:left; border-radius:10px; } }
 
 
 /* ChatDock UI polish 2026-06: settings navigation and empty states */

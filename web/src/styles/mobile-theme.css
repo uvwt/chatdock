@@ -19,6 +19,9 @@ body:not(.theme-light) {
   --mobile-accent-panel: #16251f;
   --mobile-accent-soft: rgba(16, 163, 127, .16);
   --mobile-accent-text: #6ee7b7;
+  --mobile-accent-solid: #159a78;
+  --mobile-accent-contrast: #ffffff;
+  --mobile-accent-shadow: 0 10px 24px rgba(16, 163, 127, .20);
   --mobile-overlay: rgba(0, 0, 0, .62);
   --mobile-danger-soft: rgba(239, 68, 68, .14);
   --mobile-danger-border: rgba(239, 68, 68, .30);
@@ -46,6 +49,9 @@ body.theme-light {
   --mobile-accent-panel: #f4fbf8;
   --mobile-accent-soft: #e8f7f1;
   --mobile-accent-text: #08795f;
+  --mobile-accent-solid: #10a37f;
+  --mobile-accent-contrast: #ffffff;
+  --mobile-accent-shadow: 0 10px 24px rgba(16, 163, 127, .18);
   --mobile-overlay: rgba(15, 23, 42, .42);
   --mobile-danger-soft: #fee2e2;
   --mobile-danger-border: #fecaca;

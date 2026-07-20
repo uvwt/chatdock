@@ -221,10 +221,12 @@
   }
 
   .settings-page .provider-actions-inline {
-    display: grid;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
   .settings-page .provider-actions-inline button {
-    width: 100%;
+    width: auto;
   }
 }

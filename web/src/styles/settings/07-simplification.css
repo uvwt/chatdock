@@ -464,14 +464,17 @@
 @media (max-width: 720px) {
   .settings-page [data-module-view="model"] .model-quick-head {
     align-items: flex-start !important;
-    flex-direction: column !important;
   }
   .settings-page [data-module-view="model"] .model-quick-head span {
     max-width: 100% !important;
   }
-  .settings-page [data-module-view="model"] .model-quick-actions,
+  .settings-page [data-module-view="model"] .model-quick-actions {
+    flex-wrap: nowrap !important;
+  }
   .settings-page [data-module-view="model"] .model-quick-actions button {
-    width: 100% !important;
+    width: auto !important;
+    min-height: 32px !important;
+    padding: 0 10px !important;
   }
   .settings-page [data-module-view="model"] .model-quick-grid {
     grid-template-columns: 1fr !important;
@@ -499,14 +502,14 @@
 .settings-page [data-module-view="model"] .model-mini-details {
   margin-top: 8px !important;
   padding: 8px 10px !important;
-  border: 1px solid #edf0f3 !important;
+  border: 1px solid var(--mobile-border) !important;
   border-radius: 10px !important;
-  background: #fafafa !important;
+  background: var(--mobile-panel-soft) !important;
 }
 .settings-page [data-module-view="model"] .model-mini-details summary {
   min-height: 24px !important;
   cursor: pointer !important;
-  color: #374151 !important;
+  color: var(--mobile-text) !important;
   font-size: 12px !important;
   font-weight: 760 !important;
 }

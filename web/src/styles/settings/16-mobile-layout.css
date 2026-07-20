@@ -43,15 +43,16 @@
     position: sticky !important;
     top: 0 !important;
     z-index: 40 !important;
-    min-height: 62px !important;
-    padding: 10px 14px !important;
+    min-height: 58px !important;
+    padding: 9px 12px !important;
     border-bottom: 1px solid var(--mobile-border) !important;
     background: var(--mobile-panel-translucent) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .06) !important;
     backdrop-filter: blur(18px);
   }
 
   .settings-page .settings-header-main {
-    gap: 11px !important;
+    gap: 9px !important;
   }
 
   .settings-page .settings-title-row {
@@ -60,7 +61,8 @@
 
   .settings-page .settings-header h2 {
     color: var(--mobile-text-strong) !important;
-    font-size: 20px !important;
+    font-size: 18px !important;
+    font-weight: 760 !important;
     letter-spacing: -.02em !important;
   }
 
@@ -75,16 +77,35 @@
     min-width: 36px !important;
     height: 36px !important;
     min-height: 36px !important;
-    border-color: var(--mobile-border) !important;
-    border-radius: 11px !important;
+    padding: 0 !important;
+    border: 1px solid var(--mobile-border) !important;
+    border-radius: 10px !important;
     background: var(--mobile-panel-soft) !important;
-    color: var(--mobile-text-strong) !important;
+    color: var(--mobile-muted) !important;
     box-shadow: none !important;
+  }
+
+  .settings-page .settings-header-icon {
+    display: block !important;
+    width: 18px !important;
+    height: 18px !important;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.7 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+  }
+
+  body .settings-page button.settings-back-button,
+  body .settings-page .settings-header-actions button.settings-refresh-button {
+    border-color: var(--mobile-border) !important;
+    background: var(--mobile-panel-soft) !important;
+    color: var(--mobile-muted) !important;
   }
 
   .settings-page .settings-sidebar {
     position: sticky;
-    top: 62px;
+    top: 58px;
     z-index: 30;
     display: block;
     overflow: hidden;
@@ -102,12 +123,12 @@
 
   .settings-page .module-tabs {
     width: 100% !important;
-    min-height: 46px !important;
+    min-height: 52px !important;
     margin: 0 !important;
-    padding: 0 16px !important;
+    padding: 8px 12px !important;
     display: flex !important;
-    align-items: stretch !important;
-    gap: 22px !important;
+    align-items: center !important;
+    gap: 6px !important;
     overflow-x: auto !important;
     overflow-y: hidden !important;
     border: 0 !important;
@@ -135,15 +156,15 @@
     position: relative !important;
     width: auto !important;
     min-width: max-content !important;
-    min-height: 46px !important;
-    padding: 0 1px !important;
+    min-height: 36px !important;
+    padding: 0 12px !important;
     flex: 0 0 auto !important;
-    border: 0 !important;
-    border-radius: 0 !important;
+    border: 1px solid transparent !important;
+    border-radius: 10px !important;
     background: transparent !important;
     color: var(--mobile-muted) !important;
-    font-size: 14px !important;
-    font-weight: 650 !important;
+    font-size: 13px !important;
+    font-weight: 680 !important;
     box-shadow: none !important;
   }
 
@@ -156,30 +177,17 @@
   .settings-page .module-tabs button.module-tab.active:not(.danger):not(.secondary),
   .settings-page .module-tabs .module-tab.active:focus,
   .settings-page .module-tabs .module-tab.active:focus-visible {
-    border: 0 !important;
+    border-color: transparent !important;
     outline: 0 !important;
-    background: transparent !important;
-    color: var(--mobile-text-strong) !important;
+    background: var(--mobile-accent-soft) !important;
+    color: var(--mobile-accent-text) !important;
     box-shadow: none !important;
   }
 
-  .settings-page .module-tabs button.module-tab.active::before {
+  .settings-page .module-tabs button.module-tab.active::before,
+  .settings-page .module-tab.active::after {
     content: none !important;
     display: none !important;
-  }
-
-  .settings-page .module-tab.active::after {
-    content: '' !important;
-    position: absolute !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    width: auto !important;
-    height: 2px !important;
-    display: block !important;
-    border-radius: 2px 2px 0 0 !important;
-    background: #10a37f !important;
-    transform: none !important;
   }
 
   .settings-page .module-tab-label {
@@ -192,7 +200,7 @@
     display: block !important;
     height: auto !important;
     min-height: 0 !important;
-    padding: 22px 16px 60px !important;
+    padding: 18px 14px 64px !important;
     overflow: visible !important;
     background: var(--mobile-bg) !important;
   }
@@ -206,29 +214,30 @@
   }
 
   .settings-page .module-view-title {
-    margin: 0 2px 20px !important;
+    margin: 0 2px 16px !important;
   }
 
   .settings-page .module-view-title span {
     color: var(--mobile-text-strong) !important;
-    font-size: 24px !important;
-    font-weight: 780 !important;
-    letter-spacing: -.035em !important;
+    font-size: 21px !important;
+    font-weight: 760 !important;
+    letter-spacing: -.03em !important;
   }
 
   .settings-page .module-view-title p {
-    margin-top: 6px !important;
+    max-width: 34em !important;
+    margin-top: 5px !important;
     color: var(--mobile-muted) !important;
     font-size: 13px !important;
-    line-height: 1.55 !important;
+    line-height: 1.5 !important;
   }
 
   .settings-page .settings-section,
   .settings-page .model-quick-panel,
   .settings-page .model-inline-card,
   .settings-page .mcp-form-card {
-    padding: 16px !important;
-    border-radius: 18px !important;
+    padding: 15px !important;
+    border-radius: 15px !important;
   }
 
   .settings-page .product-card,
@@ -239,7 +248,7 @@
   .settings-page .model-summary-card,
   .settings-page .empty.compact {
     padding: 14px !important;
-    border-radius: 16px !important;
+    border-radius: 14px !important;
   }
 
   .settings-page .settings-section,
@@ -255,7 +264,7 @@
   .settings-page .empty.compact {
     border-color: var(--mobile-border) !important;
     background: var(--mobile-panel) !important;
-    box-shadow: var(--mobile-shadow-soft) !important;
+    box-shadow: none !important;
   }
 
   .settings-page .settings-block-head {
@@ -268,6 +277,16 @@
     font-size: 17px !important;
     font-weight: 760 !important;
     letter-spacing: -.02em !important;
+  }
+
+  .settings-page .settings-block-head > button.secondary,
+  .settings-page .settings-section-head > button.secondary {
+    min-height: 34px !important;
+    padding: 0 11px !important;
+    border-color: transparent !important;
+    border-radius: 10px !important;
+    background: var(--mobile-accent-soft) !important;
+    color: var(--mobile-accent-text) !important;
   }
 
   .settings-page .product-card-head b,
@@ -293,17 +312,17 @@
 
   .settings-page [data-module-view="workspace"] .workspace-summary-grid {
     gap: 0 !important;
-    margin: 0 0 24px !important;
+    margin: 0 0 20px !important;
     overflow: hidden !important;
     border: 1px solid var(--mobile-border) !important;
-    border-radius: 18px !important;
+    border-radius: 16px !important;
     background: var(--mobile-panel) !important;
-    box-shadow: var(--mobile-shadow-soft) !important;
+    box-shadow: none !important;
   }
 
   .settings-page [data-module-view="workspace"] .workspace-summary-card {
-    min-height: 78px !important;
-    padding: 14px 16px !important;
+    min-height: 74px !important;
+    padding: 13px 15px !important;
     border: 0 !important;
     border-radius: 0 !important;
     background: transparent !important;
@@ -335,17 +354,18 @@
 
   .settings-page [data-module-view="workspace"] #workspaceCards {
     grid-template-columns: 1fr !important;
-    gap: 12px !important;
+    gap: 10px !important;
   }
 
   .settings-page [data-module-view="workspace"] #workspaceCards .product-card {
-    padding: 16px !important;
-    border-radius: 18px !important;
+    padding: 15px !important;
+    border-radius: 15px !important;
   }
 
   .settings-page [data-module-view="workspace"] #workspaceCards .product-card.active {
-    border-color: rgba(16, 163, 127, .28) !important;
-    background: var(--mobile-accent-panel) !important;
+    border-color: rgba(16, 163, 127, .32) !important;
+    background: var(--mobile-panel) !important;
+    box-shadow: inset 3px 0 0 var(--mobile-accent-solid) !important;
   }
 
   .settings-page [data-module-view="workspace"] #workspaceCards .product-card-head {
@@ -401,9 +421,15 @@
   }
 
   .settings-page [data-module-view="workspace"] #workspaceCards .product-actions button.secondary {
-    border-color: var(--mobile-action-bg) !important;
-    background: var(--mobile-action-bg) !important;
-    color: var(--mobile-action-text) !important;
+    border-color: transparent !important;
+    background: var(--mobile-accent-soft) !important;
+    color: var(--mobile-accent-text) !important;
+  }
+
+  .settings-page [data-module-view="workspace"] #workspaceCards .product-actions button.danger {
+    border-color: var(--mobile-danger-border) !important;
+    background: var(--mobile-danger-soft) !important;
+    color: var(--mobile-danger-text) !important;
   }
 
   .settings-page .model-save-toolbar {
@@ -476,14 +502,14 @@
     border-color: var(--mobile-border) !important;
     background: var(--mobile-panel) !important;
     color: var(--mobile-text) !important;
-    box-shadow: var(--mobile-shadow-soft) !important;
+    box-shadow: none !important;
   }
 
   body .settings-page input,
   body .settings-page select,
   body .settings-page textarea,
-  body .settings-page .code-preview,
-  body .settings-page .model-options {
+  body .settings-page .session-search,
+  body .settings-page .code-preview {
     border-color: var(--mobile-border) !important;
     background: var(--mobile-panel-soft) !important;
     color: var(--mobile-text) !important;
@@ -524,6 +550,12 @@
     border-color: rgba(16, 163, 127, .42) !important;
     background: var(--mobile-accent-soft) !important;
     color: var(--mobile-accent-text) !important;
+  }
+
+  body .settings-page [data-module-view="providers"] .product-card.active {
+    border-color: rgba(16, 163, 127, .32) !important;
+    background: var(--mobile-panel) !important;
+    box-shadow: inset 3px 0 0 var(--mobile-accent-solid) !important;
   }
 
   body .settings-page [data-module-view="automation"] .automation-task-title-wrap .task-name {
