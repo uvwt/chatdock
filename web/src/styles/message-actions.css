@@ -1,41 +1,37 @@
-/* 2026-07-04 操作按钮图标：消息操作区与手机端一致，放在消息下方且只露出图标。 */
+/* 消息操作区统一使用同一尺寸和视觉中心，避免各图标单独偏移。 */
 #app.app .msg-actions {
   position: static !important;
   display: flex !important;
+  flex-flow: row nowrap !important;
   align-items: center !important;
   justify-content: flex-start !important;
-  gap: 14px !important;
-  margin: 10px 0 0 !important;
+  gap: 4px !important;
+  width: max-content !important;
+  max-width: 100% !important;
+  margin: 8px 0 0 !important;
   padding: 0 !important;
   opacity: 1 !important;
+  white-space: nowrap !important;
   transform: none !important;
-  transition: none !important;
-}
-
-#app.app .msg.assistant .msg-actions,
-#app.app .msg.assistant.markdown .msg-actions,
-#app.app .msg.user .msg-actions,
-#app.app .msg.system .msg-actions {
-  right: auto !important;
-  top: auto !important;
 }
 
 #app.app .msg-actions button {
-  width: 30px !important;
-  height: 30px !important;
-  min-width: 30px !important;
-  min-height: 30px !important;
+  display: inline-flex !important;
+  flex: 0 0 32px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
   padding: 0 !important;
   border: 0 !important;
-  border-radius: 10px !important;
+  border-radius: 9px !important;
   background: transparent !important;
   box-shadow: none !important;
   color: var(--gpt-muted) !important;
   font-size: 0 !important;
   line-height: 1 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
 }
 
 #app.app .msg-actions button:hover:not(:disabled) {
@@ -49,29 +45,24 @@
 }
 
 #app.app .msg-action-icon {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 22px !important;
-  height: 22px !important;
-  color: currentColor !important;
-  font-size: 21px !important;
-  line-height: 1 !important;
+  display: block !important;
+  flex: 0 0 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.6 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  vector-effect: non-scaling-stroke;
   transform: none !important;
 }
 
-#app.app .msg-action-copy .msg-action-icon {
-  font-size: 21px !important;
-}
-
-#app.app .msg-action-branch .msg-action-icon {
-  font-size: 21px !important;
-  transform: translateY(-1px) !important;
-}
-
 #app.app .msg-action-more .msg-action-icon {
-  font-size: 28px !important;
-  transform: translateY(-3px) !important;
+  width: 17px !important;
+  height: 17px !important;
+  fill: currentColor !important;
+  stroke: none !important;
 }
 
 #app.app .msg-action-label {
@@ -110,67 +101,12 @@
   }
 }
 
-/* 2026-07-04 输入区与消息操作复审：纯图标一行、去掉输入框下方快捷键文案。 */
-#app.app .msg-actions {
-  display: flex !important;
-  flex-flow: row nowrap !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  gap: 16px !important;
-  width: max-content !important;
-  max-width: 100% !important;
-  margin: 12px 0 0 !important;
-  white-space: nowrap !important;
-}
-
-#app.app .msg-actions button {
-  flex: 0 0 28px !important;
-  width: 28px !important;
-  height: 28px !important;
-  min-width: 28px !important;
-  min-height: 28px !important;
-  padding: 0 !important;
-  overflow: visible !important;
-}
-
-#app.app .msg-action-icon {
-  flex: 0 0 22px !important;
-  width: 22px !important;
-  height: 22px !important;
-  display: block !important;
-  fill: none !important;
-  stroke: currentColor !important;
-  stroke-width: 2 !important;
-  stroke-linecap: round !important;
-  stroke-linejoin: round !important;
-  transform: none !important;
-}
-
-#app.app .msg-action-more .msg-action-icon,
-#app.app .msg-action-branch .msg-action-icon {
-  transform: none !important;
-}
-
 #app.app .composer-meta {
   display: none !important;
 }
 
 #app.app .composer-shell {
   padding-bottom: 18px !important;
-}
-
-@media (max-width: 720px) {
-  #app.app .msg-actions {
-    gap: 8px !important;
-  }
-
-  #app.app .msg-actions button {
-    flex-basis: 40px !important;
-    width: 40px !important;
-    height: 40px !important;
-    min-width: 40px !important;
-    min-height: 40px !important;
-  }
 }
 
 /* 2026-07-04 桌面输入框单行保护：模型选择器按真实宽度占位，避免和“继续”重叠。 */

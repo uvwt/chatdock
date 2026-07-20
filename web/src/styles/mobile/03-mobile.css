@@ -206,42 +206,6 @@
     font-size: 18px;
   }
 
-  .msg-actions {
-    position: static !important;
-    display: flex !important;
-    align-items: center;
-    gap: 18px;
-    margin-top: 12px !important;
-    opacity: 1 !important;
-  }
-
-  .msg-actions button {
-    width: 26px !important;
-    height: 26px !important;
-    min-width: 26px !important;
-    min-height: 26px !important;
-    padding: 0 !important;
-    border: 0 !important;
-    border-radius: 8px !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    color: var(--mobile-muted) !important;
-    font-size: 0 !important;
-  }
-
-  .msg-action-copy::before {
-    content: "⧉";
-    font-size: 22px;
-    line-height: 1;
-  }
-
-  .msg-action-more::before {
-    content: "…";
-    font-size: 27px;
-    line-height: 1;
-    transform: translateY(-4px);
-  }
-
   .composer-shell {
     padding: 10px 12px max(12px, env(safe-area-inset-bottom, 0px)) !important;
     border: 0 !important;

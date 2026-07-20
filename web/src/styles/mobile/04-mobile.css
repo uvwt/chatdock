@@ -298,21 +298,6 @@
   }
 }
 
-
-/* 2026-07 分支专属按钮：分支和更多拆开，避免三点承担实际分支动作。 */
-@media (max-width: 720px) {
-  .msg-actions {
-    gap: 16px !important;
-  }
-
-  .msg-action-branch::before {
-    content: "⑂";
-    font-size: 22px;
-    line-height: 1;
-    transform: translateY(-1px);
-  }
-}
-
 /* 2026-07 高度微调：移动端导航栏和输入框再压低一档，给消息区多留空间。 */
 @media (max-width: 720px) {
   .topbar {

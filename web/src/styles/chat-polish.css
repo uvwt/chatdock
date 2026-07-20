@@ -127,9 +127,9 @@ body.theme-light #app.app #sessions .session.active::after {
   flex-flow: row nowrap !important;
   align-items: center !important;
   justify-content: flex-end !important;
-  gap: 2px !important;
+  gap: 4px !important;
   width: 100% !important;
-  margin: 2px 0 0 auto !important;
+  margin: 4px 0 0 auto !important;
   padding: 0 !important;
   opacity: 0 !important;
   pointer-events: none !important;
@@ -145,20 +145,14 @@ body.theme-light #app.app #sessions .session.active::after {
 }
 
 #app.app .user-message-wrap .user-message-actions button {
-  flex: 0 0 28px !important;
-  width: 28px !important;
-  height: 28px !important;
-  min-width: 28px !important;
-  min-height: 28px !important;
   border: 0 !important;
-  border-radius: 8px !important;
   background: transparent !important;
-  color: #64748b !important;
+  color: var(--gpt-muted) !important;
 }
 
 #app.app .user-message-wrap .user-message-actions button:hover:not(:disabled) {
-  background: #f1f5f9 !important;
-  color: #111827 !important;
+  background: var(--gpt-sidebar-hover) !important;
+  color: var(--gpt-text) !important;
 }
 
 @media (max-width: 720px) {
