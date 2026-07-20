@@ -184,12 +184,14 @@ function UserMessageView({ message, messageIndex, onCopy, onEditUserMessage, onD
   return <div className={'user-message-wrap ' + (editing ? 'editing' : '')}>
     <div className="msg user">
       {editing ? <div className="user-message-editor">
-        <textarea ref={editRef} value={draft} disabled={saving} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); saveEdit(); } if (e.key === 'Escape') { e.preventDefault(); setDraft(text); setEditing(false); } }} />
-        <div className="user-message-editor-actions">
-          <button type="button" className="secondary small" disabled={saving} onClick={() => { setDraft(text); setEditing(false); }}>取消</button>
-          <button type="button" className="primary small" disabled={saving || !draft.trim()} onClick={saveEdit}>{saving ? '保存中' : '保存'}</button>
+        <textarea rows={1} aria-label="编辑消息" ref={editRef} value={draft} disabled={saving} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); saveEdit(); } if (e.key === 'Escape') { e.preventDefault(); setDraft(text); setEditing(false); } }} />
+        <div className="user-message-editor-footer">
+          <small>保存后会删除后续消息</small>
+          <div className="user-message-editor-actions">
+            <button type="button" className="secondary small" disabled={saving} onClick={() => { setDraft(text); setEditing(false); }}>取消</button>
+            <button type="button" className="primary small" disabled={saving || !draft.trim()} onClick={saveEdit}>{saving ? '保存中' : '保存'}</button>
+          </div>
         </div>
-        <small>保存后会替换这条消息，并删除它下面的所有消息。</small>
       </div> : <>{text ? <div>{text}</div> : null}<AttachmentList attachments={message.attachments || []} onDownload={onDownloadAttachment} /></>}
     </div>
     {!editing ? <MessageActions text={text} onCopy={onCopy} onEdit={() => setEditing(true)} user /> : null}

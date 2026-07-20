@@ -31,8 +31,8 @@
 
 /* 2026-07-04 浅色主题会话气泡：用户消息不再使用高饱和蓝色。 */
 body.theme-light #app.app .msg.user {
-  border-color: #e5e7eb !important;
-  background: #f3f4f6 !important;
+  border-color: transparent !important;
+  background: #f4f4f4 !important;
   color: #111827 !important;
   box-shadow: none !important;
 }
@@ -109,8 +109,8 @@ body.theme-light #app.app #sessions .session.active::after {
 /* 2026-07-04 用户消息悬浮操作：按钮独立成气泡下方一行，避免和气泡内容重叠。 */
 #app.app .user-message-wrap {
   width: fit-content !important;
-  max-width: min(680px, 76%) !important;
-  margin: 0 max(18px, calc((100% - var(--gpt-msg-width)) / 2)) 26px auto !important;
+  max-width: min(620px, 72%) !important;
+  margin: 0 max(18px, calc((100% - var(--gpt-msg-width)) / 2)) 24px auto !important;
   overflow: visible !important;
 }
 
@@ -163,9 +163,9 @@ body.theme-light #app.app #sessions .session.active::after {
 
 @media (max-width: 720px) {
   #app.app .user-message-wrap {
-    max-width: 78% !important;
+    max-width: 82% !important;
     margin-right: 0 !important;
-    margin-bottom: 14px !important;
+    margin-bottom: 20px !important;
   }
 
   #app.app .user-message-wrap .user-message-actions {
@@ -263,55 +263,78 @@ body.theme-light #app.app #sessions .session.active::after {
 }
 
 
-/* 2026-07-04 用户消息就地编辑：编辑态复用气泡位置，保存会截断后续消息。 */
-#app.app .user-message-wrap.editing {
-  width: min(680px, 76%) !important;
+/* 用户消息编辑态保持气泡形态，长文本才自然增高。 */
+.user-message-wrap.editing {
+  width: min(620px, 72%) !important;
 }
 
-#app.app .user-message-editor {
-  display: grid !important;
-  gap: 10px !important;
-  min-width: min(520px, 70vw) !important;
-}
-
-#app.app .user-message-editor textarea {
+.user-message-wrap.editing .msg.user,
+.user-message-editor textarea {
   width: 100% !important;
-  min-height: 92px !important;
-  resize: vertical !important;
-  border: 0 !important;
-  outline: none !important;
+}
+
+.user-message-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.user-message-editor textarea {
+  field-sizing: content;
+  min-height: 42px;
+  resize: none;
+  border: 0;
   background: transparent !important;
-  color: inherit !important;
-  font: inherit !important;
-  line-height: 1.55 !important;
-  white-space: pre-wrap !important;
+  color: inherit;
+  font: inherit;
+  line-height: 1.5;
 }
 
-#app.app .user-message-editor-actions {
-  display: flex !important;
-  justify-content: flex-end !important;
-  gap: 8px !important;
+.user-message-editor-footer,
+.user-message-editor-actions {
+  display: flex;
+  align-items: center;
 }
 
-#app.app .user-message-editor-actions button {
-  min-height: 32px !important;
-  padding: 6px 12px !important;
-  border-radius: 10px !important;
+.user-message-editor-footer {
+  justify-content: space-between;
+  gap: 8px;
 }
 
-#app.app .user-message-editor small {
-  color: #64748b !important;
-  font-size: 12px !important;
-  line-height: 1.35 !important;
-  text-align: right !important;
+.user-message-editor-actions {
+  gap: 7px;
+}
+
+.user-message-editor-actions button {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 14px;
+}
+
+.user-message-editor small {
+  color: var(--gpt-muted);
+  font-size: 11px;
+  line-height: 1.3;
 }
 
 @media (max-width: 720px) {
-  #app.app .user-message-wrap.editing {
-    width: 100% !important;
-    max-width: 100% !important;
+  .user-message-wrap.editing {
+    width: calc(100% - 44px) !important;
+    max-width: calc(100% - 44px) !important;
   }
-  #app.app .user-message-editor {
-    min-width: 0 !important;
+
+  .user-message-wrap.editing .msg.user {
+    padding: 12px 13px 11px !important;
+    border-radius: 18px 18px 6px 18px !important;
+  }
+
+  .user-message-editor textarea {
+    min-height: 38px;
+    max-height: 150px;
+    line-height: 1.45;
+  }
+
+  .user-message-editor small {
+    color: var(--mobile-muted);
   }
 }
