@@ -1,5 +1,3 @@
-export const IOS_KEYBOARD_ACCESSORY_INSET = 64;
-
 export function normalizeViewportMetrics(visualViewport, fallbackHeight) {
   const viewportHeight = Number(visualViewport?.height);
   const fallback = Number(fallbackHeight);
@@ -28,19 +26,6 @@ export function isTextEntryTarget(target) {
 
 export function shouldUseComposerKeyboardLayout(activeElement, composerShell) {
   return composerShell?.contains?.(activeElement) === true && isTextEntryTarget(activeElement);
-}
-
-export function isIOSKeyboardAccessoryDevice(navigatorLike) {
-  const userAgent = String(navigatorLike?.userAgent || '');
-  const platform = String(navigatorLike?.platform || '');
-  const maxTouchPoints = Number(navigatorLike?.maxTouchPoints || 0);
-  return /iPad|iPhone|iPod/i.test(userAgent)
-    || (platform === 'MacIntel' && maxTouchPoints > 1);
-}
-
-export function keyboardAccessoryInset(navigatorLike, activeElement, composerShell) {
-  if (!composerShell?.contains?.(activeElement)) return 0;
-  return isIOSKeyboardAccessoryDevice(navigatorLike) ? IOS_KEYBOARD_ACCESSORY_INSET : 0;
 }
 
 export function shouldKeepMessagesAtBottom(messageBox, threshold = 120) {

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { keyboardAccessoryInset, normalizeViewportMetrics, shouldKeepMessagesAtBottom, shouldUseComposerKeyboardLayout } from '../lib/viewportLayout.js';
+import { normalizeViewportMetrics, shouldKeepMessagesAtBottom, shouldUseComposerKeyboardLayout } from '../lib/viewportLayout.js';
 
 const mobileViewportQuery = '(max-width: 720px)';
 
@@ -14,7 +14,6 @@ export function useVisualViewportLayout() {
     const clearViewportState = () => {
       root.style.removeProperty('--chatdock-viewport-height');
       root.style.removeProperty('--chatdock-viewport-offset-top');
-      root.style.removeProperty('--chatdock-keyboard-accessory-inset');
       root.classList.remove('chatdock-keyboard-open');
     };
 
@@ -31,15 +30,13 @@ export function useVisualViewportLayout() {
         }
 
         // iOS 聚焦输入框时会同时缩小并平移 visualViewport。
-        // 应用固定到真实可见矩形；系统输入附件栏不计入 visualViewport，需单独为聊天输入区预留空间。
+        // 应用固定到 Safari 返回的真实可见矩形，避免再人为叠加键盘附件栏高度。
         const metrics = normalizeViewportMetrics(visualViewport, window.innerHeight);
         const activeElement = document.activeElement;
         // 配置中心也包含 input/select；只有聊天输入区获得焦点时才启用键盘布局，避免误锁配置页滚动。
         const keyboardOpen = shouldUseComposerKeyboardLayout(activeElement, composerShell);
-        const accessoryInset = keyboardAccessoryInset(navigator, activeElement, composerShell);
         root.style.setProperty('--chatdock-viewport-height', `${metrics.height}px`);
         root.style.setProperty('--chatdock-viewport-offset-top', `${metrics.offsetTop}px`);
-        root.style.setProperty('--chatdock-keyboard-accessory-inset', `${accessoryInset}px`);
         root.classList.toggle('chatdock-keyboard-open', keyboardOpen);
 
         if (!keyboardOpen || !keepMessagesAtBottom || !messageBox) return;

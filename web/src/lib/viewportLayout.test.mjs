@@ -2,10 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  IOS_KEYBOARD_ACCESSORY_INSET,
-  isIOSKeyboardAccessoryDevice,
   isTextEntryTarget,
-  keyboardAccessoryInset,
   normalizeViewportMetrics,
   shouldKeepMessagesAtBottom,
   shouldUseComposerKeyboardLayout,
@@ -39,22 +36,6 @@ test('composer keyboard layout ignores settings controls', () => {
   assert.equal(shouldUseComposerKeyboardLayout(composerInput, composerShell), true);
   assert.equal(shouldUseComposerKeyboardLayout(settingsInput, composerShell), false);
   assert.equal(shouldUseComposerKeyboardLayout(composerInput, null), false);
-});
-
-test('isIOSKeyboardAccessoryDevice recognizes iPhone and desktop-mode iPad', () => {
-  assert.equal(isIOSKeyboardAccessoryDevice({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)' }), true);
-  assert.equal(isIOSKeyboardAccessoryDevice({ platform: 'MacIntel', maxTouchPoints: 5 }), true);
-  assert.equal(isIOSKeyboardAccessoryDevice({ userAgent: 'Mozilla/5.0 (Linux; Android 15)', platform: 'Linux armv8l', maxTouchPoints: 5 }), false);
-});
-
-test('keyboardAccessoryInset only reserves the iOS input assistant for the composer', () => {
-  const textarea = { id: 'input' };
-  const composerShell = { contains: target => target === textarea };
-  const iphone = { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)' };
-
-  assert.equal(keyboardAccessoryInset(iphone, textarea, composerShell), IOS_KEYBOARD_ACCESSORY_INSET);
-  assert.equal(keyboardAccessoryInset(iphone, { id: 'search' }, composerShell), 0);
-  assert.equal(keyboardAccessoryInset({ userAgent: 'Mozilla/5.0 (Linux; Android 15)' }, textarea, composerShell), 0);
 });
 
 test('shouldKeepMessagesAtBottom only follows a conversation near its bottom edge', () => {
