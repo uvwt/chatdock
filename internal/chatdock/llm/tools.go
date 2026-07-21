@@ -571,7 +571,7 @@ func MCPToolsToOpenAITools(tools []mcp.MCPTool) []map[string]any {
 		if desc == "" {
 			desc = tool.Title
 		}
-		out = append(out, map[string]any{"type": "function", "function": map[string]any{"name": name, "description": desc, "parameters": mcp.NormalizeJSONSchema(tool.InputSchema)}})
+		out = append(out, map[string]any{"type": "function", "function": map[string]any{"name": name, "description": desc, "parameters": adaptToolSchemaForModelAPI(tool.InputSchema)}})
 	}
 	return out
 }

@@ -14,7 +14,36 @@ func TestMCPToolsToOpenAIToolsDoesNotMutateSchema(t *testing.T) {
 		t.Fatalf("expected one tool")
 	}
 	if _, ok := schema["type"]; ok {
-		t.Fatal("normalizeJSONSchema should not mutate original schema")
+		t.Fatal("model schema adaptation should not mutate original schema")
+	}
+}
+
+func TestMCPToolsToOpenAIToolsDeclaresRequiredFieldsInsideCompositionBranches(t *testing.T) {
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"artifact_id": map[string]any{"type": "string"},
+			"path":        map[string]any{"type": "string"},
+		},
+		"oneOf": []any{
+			map[string]any{"type": "object", "required": []any{"artifact_id"}},
+			map[string]any{"type": "object", "required": []any{"path"}},
+		},
+	}
+
+	tools := MCPToolsToOpenAITools([]mcp.MCPTool{{Server: "agentdock", Name: "view_image", InputSchema: schema}})
+	function := tools[0]["function"].(map[string]any)
+	parameters := function["parameters"].(map[string]any)
+	branches := parameters["oneOf"].([]any)
+	for index, field := range []string{"artifact_id", "path"} {
+		branch := branches[index].(map[string]any)
+		properties := branch["properties"].(map[string]any)
+		if _, ok := properties[field]; !ok {
+			t.Fatalf("branch %d does not declare required field %q: %#v", index, field, branch)
+		}
+	}
+	if _, ok := schema["oneOf"].([]any)[0].(map[string]any)["properties"]; ok {
+		t.Fatalf("input schema was mutated: %#v", schema)
 	}
 }
 
