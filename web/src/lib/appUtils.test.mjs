@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { agentTaskDataEnabled, cronSchedulePayload, fmtBytes, fmtDuration, logoutAndReload, normalizeSettingsModule, runStatusClass, runStatusLabel, scheduleSummary, setSettingsDocumentScroll, taskStatusClass, taskStatusLabel } from './appUtils.js';
+import { agentTaskDataEnabled, cronScheduleFormValue, cronSchedulePayload, fmtBytes, fmtDuration, logoutAndReload, normalizeSettingsModule, runStatusClass, runStatusLabel, scheduleSummary, setSettingsDocumentScroll, taskStatusClass, taskStatusLabel } from './appUtils.js';
 
 test('format helpers keep compact Chinese UI labels', () => {
   assert.equal(fmtBytes(1536), '1.5 KB');
@@ -38,21 +38,51 @@ test('AgentDock task polling starts only after setup and runtime configuration a
 });
 
 
-test('Cron schedule summary shows every expression and timezone', () => {
+test('common Cron expressions become a structured daily plan', () => {
+  assert.deepEqual(cronScheduleFormValue({
+    cron_expressions: ['30 9 * * *', '0 18 * * *'],
+    timezone: 'Asia/Shanghai',
+  }), {
+    frequency: 'daily',
+    weekday: '1',
+    month_day: '1',
+    times: ['09:30', '18:00'],
+    timezone: 'Asia/Shanghai',
+    original_expressions: ['30 9 * * *', '0 18 * * *'],
+  });
+});
+
+test('structured weekday, weekly and monthly plans generate Cron automatically', () => {
+  assert.deepEqual(cronSchedulePayload({cron_schedule: {
+    frequency: 'weekdays', weekday: '1', month_day: '1', times: ['08:15'], timezone: 'Asia/Shanghai',
+  }}).cron_expressions, ['15 8 * * 1-5']);
+  assert.deepEqual(cronSchedulePayload({cron_schedule: {
+    frequency: 'weekly', weekday: '5', month_day: '1', times: ['20:30', '09:00'], timezone: 'Asia/Shanghai',
+  }}), {
+    cron_expressions: ['0 9 * * 5', '30 20 * * 5'],
+    timezone: 'Asia/Shanghai',
+  });
+  assert.deepEqual(cronSchedulePayload({cron_schedule: {
+    frequency: 'monthly', weekday: '1', month_day: '15', times: ['08:05'], timezone: 'Asia/Shanghai',
+  }}).cron_expressions, ['5 8 15 * *']);
+});
+
+test('unsupported advanced plans stay intact without exposing an editor', () => {
+  const form = cronScheduleFormValue({cron_expressions: ['*/15 * * * *'], timezone: 'UTC'});
+  assert.equal(form.frequency, 'custom');
+  assert.deepEqual(cronSchedulePayload({cron_schedule: form}), {
+    cron_expressions: ['*/15 * * * *'],
+    timezone: 'UTC',
+  });
+});
+
+test('schedule summary uses readable plan text instead of Cron syntax', () => {
   const summary = scheduleSummary({
     schedule_type: 'cron',
     cron_expressions: ['30 9 * * *', '0 18 * * *'],
     timezone: 'Asia/Shanghai',
   });
-
-  assert.match(summary, /Cron：30 9 \* \* \*；0 18 \* \* \*/);
+  assert.match(summary, /每天 09:30、18:00/);
   assert.match(summary, /Asia\/Shanghai/);
-});
-
-
-test('cronSchedulePayload trims blank lines and timezone', () => {
-  assert.deepEqual(cronSchedulePayload({cron_expressions: ' 30 9 * * * \n\n0 18 * * * ', timezone: ' Asia/Shanghai '}), {
-    cron_expressions: ['30 9 * * *', '0 18 * * *'],
-    timezone: 'Asia/Shanghai',
-  });
+  assert.doesNotMatch(summary, /30 9 \* \* \*/);
 });

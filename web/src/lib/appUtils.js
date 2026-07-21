@@ -113,11 +113,78 @@ export function defaultRunAtValue() {
   return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
 
-export function cronSchedulePayload(values = {}) {
+const cronExpressionPattern = /^(\d{1,2})\s+(\d{1,2})\s+(\*|[1-9]|[12]\d|3[01])\s+\*\s+(\*|[0-6]|1-5)$/;
+const cronWeekdayLabels = {'0': '星期日', '1': '星期一', '2': '星期二', '3': '星期三', '4': '星期四', '5': '星期五', '6': '星期六'};
+
+function scheduleTimezone(value) {
+  return String(value || '').trim() || 'Asia/Shanghai';
+}
+
+function parsedCronExpression(expression) {
+  const match = String(expression || '').trim().match(cronExpressionPattern);
+  if (!match) return null;
+  const minute = Number(match[1]);
+  const hour = Number(match[2]);
+  if (minute < 0 || minute > 59 || hour < 0 || hour > 23) return null;
   return {
-    cron_expressions: String(values.cron_expressions || '').split(/\r?\n/).map(value => value.trim()).filter(Boolean),
-    timezone: String(values.timezone || '').trim(),
+    month_day: match[3],
+    weekday: match[4],
+    time: String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0'),
   };
+}
+
+function customCronSchedule(expressions, timezone) {
+  return {frequency: 'custom', weekday: '1', month_day: '1', times: [], timezone, original_expressions: expressions};
+}
+
+export function cronScheduleFormValue(task = {}, fallbackTimezone = 'Asia/Shanghai') {
+  const timezone = scheduleTimezone(task?.timezone || fallbackTimezone);
+  const expressions = Array.isArray(task?.cron_expressions) ? task.cron_expressions.map(value => String(value || '').trim()).filter(Boolean) : [];
+  if (!expressions.length) return {frequency: 'daily', weekday: '1', month_day: '1', times: ['09:00'], timezone, original_expressions: []};
+
+  const parsed = expressions.map(parsedCronExpression);
+  if (parsed.some(value => !value)) return customCronSchedule(expressions, timezone);
+  const {month_day: monthDay, weekday} = parsed[0];
+  if (parsed.some(value => value.month_day !== monthDay || value.weekday !== weekday)) return customCronSchedule(expressions, timezone);
+
+  let frequency = '';
+  if (monthDay === '*' && weekday === '*') frequency = 'daily';
+  if (monthDay === '*' && weekday === '1-5') frequency = 'weekdays';
+  if (monthDay === '*' && cronWeekdayLabels[weekday]) frequency = 'weekly';
+  if (monthDay !== '*' && weekday === '*') frequency = 'monthly';
+  if (!frequency) return customCronSchedule(expressions, timezone);
+
+  const times = [...new Set(parsed.map(value => value.time))].sort();
+  return {frequency, weekday: frequency === 'weekly' ? weekday : '1', month_day: frequency === 'monthly' ? monthDay : '1', times, timezone, original_expressions: expressions};
+}
+
+export function cronSchedulePayload(values = {}) {
+  const schedule = values.cron_schedule && typeof values.cron_schedule === 'object' ? values.cron_schedule : {};
+  const timezone = scheduleTimezone(schedule.timezone);
+  if (schedule.frequency === 'custom') return {cron_expressions: [...(schedule.original_expressions || [])], timezone};
+
+  const times = [...new Set((Array.isArray(schedule.times) ? schedule.times : []).map(value => String(value || '').trim()).filter(value => /^([01]\d|2[0-3]):[0-5]\d$/.test(value)))].sort();
+  let suffix = '* * *';
+  if (schedule.frequency === 'weekdays') suffix = '* * 1-5';
+  if (schedule.frequency === 'weekly') suffix = '* * ' + String(schedule.weekday || '1');
+  if (schedule.frequency === 'monthly') suffix = String(schedule.month_day || '1') + ' * *';
+  return {
+    cron_expressions: times.map(value => {
+      const [hour, minute] = value.split(':');
+      return Number(minute) + ' ' + Number(hour) + ' ' + suffix;
+    }),
+    timezone,
+  };
+}
+
+function cronScheduleText(task) {
+  const schedule = cronScheduleFormValue(task, task?.timezone);
+  if (schedule.frequency === 'custom') return '自定义重复计划';
+  const times = schedule.times.join('、') || '未设置时间';
+  if (schedule.frequency === 'weekdays') return '工作日 ' + times;
+  if (schedule.frequency === 'weekly') return '每周' + (cronWeekdayLabels[schedule.weekday] || '') + ' ' + times;
+  if (schedule.frequency === 'monthly') return '每月 ' + schedule.month_day + ' 日 ' + times;
+  return '每天 ' + times;
 }
 
 export function scheduleSummary(t) {
@@ -125,10 +192,7 @@ export function scheduleSummary(t) {
   const last = t.last_run_at ? fmtTime(t.last_run_at) : '未运行';
   let plan = '一次性：' + (t.run_at ? fmtTime(t.run_at) : next);
   if (t.schedule_type === 'interval') plan = '每 ' + (t.interval_minutes || 0) + ' 分钟';
-  if (t.schedule_type === 'cron') {
-    const expressions = Array.isArray(t.cron_expressions) ? t.cron_expressions.join('；') : '--';
-    plan = 'Cron：' + expressions + (t.timezone ? ' · ' + t.timezone : '');
-  }
+  if (t.schedule_type === 'cron') plan = cronScheduleText(t) + ' · ' + scheduleTimezone(t.timezone);
   return plan + ' · 下次：' + next + ' · 上次：' + last;
 }
 

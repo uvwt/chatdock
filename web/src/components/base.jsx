@@ -1,5 +1,6 @@
 // Reusable shell components: product cards, modal, auth, palette, and workspace picker.
 import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { ScheduleBuilder } from './scheduleBuilder.jsx';
 
 const MarkdownRenderer = lazy(() => import('./markdown.jsx'));
 
@@ -154,7 +155,14 @@ export function DialogHost({ dialog, closeDialog }) {
       <div className="app-modal-title">{dialog.title || '确认'}</div>
       {dialog.message ? <div className="app-modal-message">{dialog.message}</div> : null}
       {dialog.toolEventDetail ? <ToolEventDetail detail={dialog.toolEventDetail} /> : null}
-      <div className="app-modal-fields">{visibleFields.map(field => field.type === 'hidden' ? renderDialogField(field, values[field.name] ?? '', value => setValues(v => ({...v, [field.name]: value})), values, setValues) : <label key={field.name} className={'app-modal-field ' + (field.type === 'provider_keys' ? 'provider-keys-field' : '')}><span>{field.label || field.name}</span>{renderDialogField(field, values[field.name] ?? '', value => setValues(v => ({...v, [field.name]: value})), values, setValues)}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</label>)}</div>
+      <div className="app-modal-fields">{visibleFields.map(field => {
+        const value = values[field.name] ?? '';
+        const setValue = next => setValues(current => ({...current, [field.name]: next}));
+        const control = renderDialogField(field, value, setValue, values, setValues);
+        if (field.type === 'hidden') return control;
+        if (field.type === 'schedule_builder') return <div key={field.name} className="app-modal-field schedule-builder-field"><span>{field.label || field.name}</span>{control}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</div>;
+        return <label key={field.name} className={'app-modal-field ' + (field.type === 'provider_keys' ? 'provider-keys-field' : '')}><span>{field.label || field.name}</span>{control}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</label>;
+      })}</div>
       <div className="app-modal-actions">{dialog.hideCancel ? null : <button type="button" className="secondary app-modal-cancel" onClick={() => closeDialog(null)}>{dialog.cancelText || '取消'}</button>}<button type="submit" className={dialog.danger ? 'danger' : ''}>{dialog.confirmText || '确定'}</button></div>
     </form></div>
   </div>;
@@ -241,6 +249,7 @@ function ProviderKeysEditor({ value, setValue, values, setValues }) {
 function renderDialogField(field, value, setValue, values = {}, setValues = null) {
   if (field.type === 'hidden') return <input key={field.name} type="hidden" value={value || ''} readOnly />;
   if (field.type === 'provider_keys') return <ProviderKeysEditor value={value} setValue={setValue} values={values} setValues={setValues} />;
+  if (field.type === 'schedule_builder') return <ScheduleBuilder value={value} onChange={setValue} />;
   if (field.type === 'textarea') return <textarea rows={field.rows || 5} value={value} placeholder={field.placeholder || ''} required={!!field.required} onChange={e => setValue(e.target.value)} />;
   if (field.type === 'select') return <select value={value} required={!!field.required} onChange={e => { const next = e.target.value; setValue(next); if (field.fillByValue && setValues) { const fill = field.fillByValue[next] || {}; setValues(current => ({...current, ...Object.fromEntries(Object.entries(fill).filter(([, v]) => v))})); } }}>{(field.options || []).map(opt => typeof opt === 'string' ? <option key={opt} value={opt}>{opt}</option> : <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select>;
   return <input type={field.type || 'text'} min={field.min} max={field.max} step={field.step} value={value} placeholder={field.placeholder || ''} required={!!field.required} onChange={e => setValue(e.target.value)} />;

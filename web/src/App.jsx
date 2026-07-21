@@ -3,7 +3,7 @@ import { EmptyState, MessageView } from './components/chat.jsx';
 import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
 import { CurrentSessionTask, TaskPanel } from './components/taskPanel.jsx';
 import { DialogHost, LoginPage, Markdown, QuickPalette, WorkspacePicker } from './components/base.jsx';
-import { agentTaskDataEnabled, cronSchedulePayload, defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtTime, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath } from './lib/appUtils.js';
+import { agentTaskDataEnabled, cronScheduleFormValue, cronSchedulePayload, defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtTime, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath } from './lib/appUtils.js';
 import { attachmentLooksLikeImage, chatErrorDetails, contextPreviewText, finalAssistantMessageFromSession, readableChatError, scheduledTaskContextLabel, scheduledTaskRunsText, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
 import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js';
@@ -1345,13 +1345,12 @@ export default function App() {
       title: existing ? '编辑自动化任务' : '新增自动化任务', message: existing ? '普通保存会保留下一次运行时间；需要从现在重新计算时勾选“保存后重新计时”。' : '选择调度类型后，只需要填写对应的时间字段。', confirmText: existing ? '保存任务' : '新增任务', fields: [
         { name: 'title', label: '任务标题', value: existing ? existing.title : '', required: true },
         { name: 'prompt', label: '任务提示词', type: 'textarea', rows: 6, value: existing ? (existing.prompt || '') : '', required: true },
-        { name: 'schedule_type', label: '调度类型', type: 'select', value: existing ? existing.schedule_type : 'once', options: [{ value: 'once', label: '一次性' }, { value: 'interval', label: '按分钟间隔' }, { value: 'cron', label: 'Cron 计划' }] },
+        { name: 'schedule_type', label: '调度类型', type: 'select', value: existing ? existing.schedule_type : 'once', options: [{ value: 'once', label: '一次性' }, { value: 'interval', label: '按分钟间隔' }, { value: 'cron', label: '重复计划' }] },
         { name: 'run_at', label: '一次性运行时间', type: 'datetime-local', value: existing && existing.run_at ? existing.run_at.slice(0, 16) : defaultRunAtValue(), showWhen: { schedule_type: 'once' } },
         { name: 'interval_minutes', label: '间隔分钟数', type: 'number', min: 1, step: 1, value: existing && existing.interval_minutes ? String(existing.interval_minutes) : '60', showWhen: { schedule_type: 'interval' }, hint: '当前本地调度器最低按分钟执行；过短间隔会更频繁占用模型额度。' },
-        { name: 'cron_expressions', label: 'Cron 表达式', type: 'textarea', rows: 4, value: existing ? (existing.cron_expressions || []).join('\n') : '0 9 * * *', showWhen: { schedule_type: 'cron' }, hint: '使用标准五段 Cron；每行一条，可配置每天多个独立时间点。' },
-        { name: 'timezone', label: '时区', value: existing ? (existing.timezone || 'Asia/Shanghai') : (Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai'), showWhen: { schedule_type: 'cron' }, hint: '填写 IANA 时区，例如 Asia/Shanghai。' },
+        { name: 'cron_schedule', label: '重复计划', type: 'schedule_builder', value: cronScheduleFormValue(existing || {}, Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai'), showWhen: { schedule_type: 'cron' }, hint: '可添加多个执行时间，保存时会自动生成底层调度规则。' },
         { name: 'context_mode', label: '上下文模式', type: 'select', value: existing ? (existing.context_mode || 'stateless') : 'stateless', options: [{ value: 'stateless', label: '每次独立执行，最省 token' }, { value: 'last_result', label: '带上次运行结果' }, { value: 'session', label: '连续会话，保留完整上下文' }], hint: '默认独立执行：只使用本次任务提示词；需要长期上下文时再选择连续会话。' },
-        ...(existing ? [{ name: 'reschedule', label: '保存后重新计时', type: 'checkbox', value: false, hint: '关闭时仅保存内容；开启后会按当前时间重新计算 interval 或 Cron 的下一次运行。' }] : []),
+        ...(existing ? [{ name: 'reschedule', label: '保存后重新计时', type: 'checkbox', value: false, hint: '关闭时仅保存内容；开启后会按当前时间重新计算间隔或重复计划的下一次运行。' }] : []),
       ]
     });
     if (!values) return;
