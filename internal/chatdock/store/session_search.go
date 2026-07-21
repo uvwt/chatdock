@@ -1,7 +1,9 @@
 package store
 
 import (
+	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -24,12 +26,43 @@ type SessionSearchResult struct {
 }
 
 func (s *Store) SearchSessions(workspaceID string, query string, limit int) ([]SessionSearchResult, error) {
+	items, _, _, err := s.SearchSessionPage(workspaceID, query, "", limit)
+	return items, err
+}
+
+func (s *Store) SearchSessionPage(workspaceID string, query string, cursor string, limit int) ([]SessionSearchResult, string, bool, error) {
+	limit = normalizeSessionPageLimit(limit)
+	offset := 0
+	if strings.TrimSpace(cursor) != "" {
+		parsed, err := strconv.Atoi(cursor)
+		if err != nil || parsed < 0 {
+			return nil, "", false, fmt.Errorf("invalid search cursor")
+		}
+		offset = parsed
+	}
+	results, err := s.searchSessions(workspaceID, query)
+	if err != nil {
+		return nil, "", false, err
+	}
+	if offset >= len(results) {
+		return []SessionSearchResult{}, "", false, nil
+	}
+	end := offset + limit
+	if end > len(results) {
+		end = len(results)
+	}
+	hasMore := end < len(results)
+	nextCursor := ""
+	if hasMore {
+		nextCursor = strconv.Itoa(end)
+	}
+	return results[offset:end], nextCursor, hasMore, nil
+}
+
+func (s *Store) searchSessions(workspaceID string, query string) ([]SessionSearchResult, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
-		return nil, nil
-	}
-	if limit <= 0 || limit > 100 {
-		limit = 50
+		return []SessionSearchResult{}, nil
 	}
 	needle := strings.ToLower(query)
 	s.mu.RLock()
@@ -93,9 +126,6 @@ func (s *Store) SearchSessions(workspaceID string, query string, limit int) ([]S
 		}
 		return results[i].UpdatedAt.After(results[j].UpdatedAt)
 	})
-	if len(results) > limit {
-		results = results[:limit]
-	}
 	return results, nil
 }
 

@@ -41,8 +41,10 @@ export function ComposerBar({ busy, createPersistedSession, current, downloadAtt
   </div>;
 }
 
-export function Sidebar({ activeWorkspace, activeScheduledTasks, busy, clearScheduledTaskRunList, current, deleteSessionByID, filteredSessions, newSession, openScheduledTaskRunList, openSession, openSettings, pinSessionByID, workspaceSummaries, renameSessionByID, selectedScheduledTask, selectedScheduledTaskID, selectedScheduledTaskSessions, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setWorkspacePickerOpen, sessions, setSidebarCollapsed, sidebarCollapsed }) {
+export function Sidebar({ activeWorkspace, activeScheduledTasks, busy, clearScheduledTaskRunList, current, deleteSessionByID, filteredSessions, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openScheduledTaskRunList, openSession, openSettings, pinSessionByID, workspaceSummaries, renameSessionByID, selectedScheduledTask, selectedScheduledTaskID, selectedScheduledTaskSessions, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setWorkspacePickerOpen, sessions, setSidebarCollapsed, sidebarCollapsed }) {
   const [menuPosition, setMenuPosition] = React.useState(null);
+  const sessionsRef = React.useRef(null);
+  const loadMoreRef = React.useRef(null);
   const menuSession = filteredSessions.find(session => session.id === sessionMenuID) || null;
 
   React.useEffect(() => {
@@ -78,6 +80,28 @@ export function Sidebar({ activeWorkspace, activeScheduledTasks, busy, clearSche
     setSessionMenuID(session.id);
   };
 
+  React.useEffect(() => {
+    if (sessionsRef.current) sessionsRef.current.scrollTop = 0;
+  }, [selectedScheduledTaskID, sessionSearch]);
+
+  React.useEffect(() => {
+    if (!hasMoreSessions || loadingMoreSessions || !onLoadMoreSessions || !window.IntersectionObserver) return undefined;
+    const target = loadMoreRef.current;
+    const root = sessionsRef.current;
+    if (!target || !root) return undefined;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) onLoadMoreSessions();
+    }, { root, rootMargin: '120px 0px' });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [filteredSessions.length, hasMoreSessions, loadingMoreSessions, onLoadMoreSessions]);
+
+  const handleSessionScroll = event => {
+    if (!hasMoreSessions || loadingMoreSessions || !onLoadMoreSessions) return;
+    const list = event.currentTarget;
+    if (list.scrollHeight - list.scrollTop - list.clientHeight <= 120) onLoadMoreSessions();
+  };
+
   const menu = menuSession && menuPosition ? createPortal(
     <div className="session-row-menu-portal" role="menu" style={menuPosition} onClick={event => event.stopPropagation()}>
       <button type="button" role="menuitem" onClick={() => { setSessionMenuID(''); pinSessionByID(menuSession.id, !!menuSession.pinned); }}>{menuSession.pinned ? '取消置顶' : '置顶'}</button>
@@ -97,15 +121,15 @@ export function Sidebar({ activeWorkspace, activeScheduledTasks, busy, clearSche
       <div className="session-search-row"><label className="session-search-box"><input className="session-search" placeholder="搜索聊天记录" value={sessionSearch} onChange={event => setSessionSearch(event.target.value)} /></label><button className="new" onClick={newSession} aria-label="新会话" title="新会话"><span className="new-icon" aria-hidden="true">＋</span></button></div>
       {activeScheduledTasks.length ? <div className="sidebar-tasks"><div className="sidebar-section-head compact"><div className="sidebar-section-title">定时任务</div><span className="sidebar-section-count">{activeScheduledTasks.length}</span></div><div className="sidebar-task-list session-list-like">{activeScheduledTasks.slice(0, 3).map(task => <button key={task.id} type="button" className={'sidebar-task-item session ' + (selectedScheduledTaskID === task.id ? 'active ' : '') + (task.running ? 'running ' : '')} onClick={() => openScheduledTaskRunList(task.id)}><div className="session-main"><div className="sidebar-task-name session-title">{task.title || '未命名任务'}</div></div></button>)}</div>{activeScheduledTasks.length > 3 ? <button type="button" className="sidebar-task-more" onClick={() => openSettings('automation')}>查看全部 {activeScheduledTasks.length} 个任务</button> : null}</div> : null}
       <div className="sidebar-section-head"><div className="sidebar-section-title">{selectedScheduledTask ? '任务会话' : '最近会话'}</div>{selectedScheduledTask ? <button type="button" className="secondary small sidebar-clear-task" onClick={clearScheduledTaskRunList}>全部</button> : null}</div>
-      {selectedScheduledTask ? <div className="session-search-meta">{selectedScheduledTask.title || '定时任务'} · {selectedScheduledTaskSessions.length} 次会话</div> : (sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : '全文搜索 ' + filteredSessions.length + ' 条'}</div> : null)}
-      <div id="sessions">{filteredSessions.length ? filteredSessions.map(session => {
+      {selectedScheduledTask ? <div className="session-search-meta">{selectedScheduledTask.title || '定时任务'} · {selectedScheduledTaskSessions.length} 次会话</div> : (sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : (hasMoreSessions ? '全文搜索 · 已加载 ' : '全文搜索 ') + filteredSessions.length + ' 条'}</div> : null)}
+      <div id="sessions" ref={sessionsRef} onScroll={handleSessionScroll}>{filteredSessions.length ? filteredSessions.map(session => {
         const isActive = current === session.id;
         const menuOpen = sessionMenuID === session.id;
-        return <div key={session.id} className={'session ' + (session.scheduled_run ? 'scheduled-run ' : '') + (isActive ? 'active ' : '') + (session.pinned ? 'pinned ' : '') + (menuOpen ? 'menu-open' : '')} onClick={() => openSession(session.id, session)}>
+        return <div key={session.id} data-session-id={session.id} className={'session ' + (session.scheduled_run ? 'scheduled-run ' : '') + (isActive ? 'active ' : '') + (session.pinned ? 'pinned ' : '') + (menuOpen ? 'menu-open' : '')} onClick={() => openSession(session.id, session)}>
           <div className="session-main"><div className="session-title">{session.pinned ? <span className="pin-mark" aria-label="置顶" title="置顶" /> : null}{session.title}</div>{session.scheduled_run ? null : (session.match_snippet ? <div className="session-preview search-hit">{session.match_field ? session.match_field + '：' : ''}{session.match_snippet}</div> : (session.preview ? <div className="session-preview">{session.preview}</div> : null))}{session.scheduled_run ? null : <div className="session-meta">{session.count} 条 · {fmtTime(session.updated_at)}</div>}</div>
           <button type="button" className="session-menu-trigger" disabled={busy} onClick={event => toggleSessionMenu(event, session)} aria-label={(session.title || '会话') + ' 操作'} aria-expanded={menuOpen ? 'true' : 'false'} title="会话操作">⋯</button>
         </div>;
-      }) : <div className="empty compact">{selectedScheduledTask ? '这个任务还没有可打开的运行会话' : (sessionSearch.trim() ? '没有匹配会话' : '暂无会话，开始新会话')}</div>}</div>
+      }) : <div className="empty compact">{selectedScheduledTask ? '这个任务还没有可打开的运行会话' : (sessionSearch.trim() ? '没有匹配会话' : '暂无会话，开始新会话')}</div>}<div ref={loadMoreRef} style={{ minHeight: 1 }} aria-hidden="true" />{loadingMoreSessions ? <div className="session-search-meta" role="status">正在加载更多…</div> : null}</div>
     </aside>
     {menu}
   </>;

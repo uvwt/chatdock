@@ -1,11 +1,15 @@
 import { fetchWithAuth } from './http.js';
 
-export function fetchSessions(api) {
-  return api('/api/sessions');
+export function fetchSessions(api, { cursor = '', limit = 30 } = {}) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (cursor) params.set('cursor', cursor);
+  return api('/api/sessions?' + params.toString());
 }
 
-export function searchSessions(api, query) {
-  return api('/api/sessions/search?q=' + encodeURIComponent(query));
+export function searchSessions(api, query, { cursor = '', limit = 30 } = {}) {
+  const params = new URLSearchParams({ q: query, limit: String(limit) });
+  if (cursor) params.set('cursor', cursor);
+  return api('/api/sessions/search?' + params.toString());
 }
 
 export function fetchContextPreview(api, id) {

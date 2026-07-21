@@ -13,12 +13,27 @@ import (
 )
 
 func (a *App) handleListSessions(w http.ResponseWriter, r *http.Request) {
-	items, err := a.store.ListSessions(a.workspaceIDFromRequest(r))
+	query := r.URL.Query()
+	if strings.TrimSpace(query.Get("limit")) == "" && strings.TrimSpace(query.Get("cursor")) == "" {
+		items, err := a.store.ListSessions(a.workspaceIDFromRequest(r))
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		writeJSONResponse(w, http.StatusOK, items)
+		return
+	}
+	limit, err := parseOptionalInt(query.Get("limit"), 30, 1, 100, "limit")
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	writeJSONResponse(w, http.StatusOK, items)
+	items, nextCursor, hasMore, err := a.store.ListSessionPage(a.workspaceIDFromRequest(r), query.Get("cursor"), limit)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, map[string]any{"sessions": items, "next_cursor": nextCursor, "has_more": hasMore})
 }
 
 func (a *App) handleCreateSession(w http.ResponseWriter, r *http.Request) {

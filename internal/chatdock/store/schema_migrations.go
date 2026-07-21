@@ -24,6 +24,11 @@ var sqliteSchemaMigrations = []sqliteSchemaMigration{
 	{Version: 6, Name: "tool_embeddings_embedding_blob", Statements: []string{`ALTER TABLE tool_embeddings ADD COLUMN embedding_blob BLOB NOT NULL DEFAULT x''`}},
 	{Version: 7, Name: "session_messages_error_json", Statements: []string{`ALTER TABLE session_messages ADD COLUMN error_json TEXT NOT NULL DEFAULT ''`}},
 	{Version: 8, Name: "scheduled_tasks_cron", Apply: migrateScheduledTasksCronSchema},
+	{Version: 9, Name: "sessions_page_indexes", Statements: []string{
+		`CREATE INDEX IF NOT EXISTS idx_sessions_workspace_pinned_updated ON sessions(workspace_id, pinned DESC, updated_at DESC, id DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_workspace_session ON scheduled_tasks(workspace_id, session_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_scheduled_task_runs_workspace_session ON scheduled_task_runs(workspace_id, session_id)`,
+	}},
 }
 
 func (s *Store) ensureSQLiteSchemaUpdates() error {

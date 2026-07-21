@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -14,35 +13,19 @@ import (
 // 会话生命周期全部以显式 workspaceID 为边界；不要把会话放入 Store 全局缓存。
 
 func (s *Store) ListSessions(workspaceID string) ([]model.SessionSummary, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return nil, err
-	}
-	sessions, err := loadSessionsFromTablesLocked(s.db, workspaceID)
-	if err != nil {
-		return nil, err
-	}
-	scheduledSessionIDs, err := s.scheduledSessionIDsLocked(workspaceID)
-	if err != nil {
-		return nil, err
-	}
-	items := make([]model.SessionSummary, 0, len(sessions))
-	for _, session := range sessions {
-		if _, scheduled := scheduledSessionIDs[session.ID]; scheduled {
-			continue
+	items := make([]model.SessionSummary, 0)
+	cursor := ""
+	for {
+		page, nextCursor, hasMore, err := s.ListSessionPage(workspaceID, cursor, 100)
+		if err != nil {
+			return nil, err
 		}
-		lastRole, preview := sessionPreview(session)
-		items = append(items, model.SessionSummary{ID: session.ID, Title: session.Title, Pinned: session.Pinned, ProviderID: session.ProviderID, Model: session.Model, Preview: preview, LastRole: lastRole, CreatedAt: session.CreatedAt, UpdatedAt: session.UpdatedAt, Count: len(session.Messages)})
-	}
-	sort.Slice(items, func(i, j int) bool {
-		if items[i].Pinned != items[j].Pinned {
-			return items[i].Pinned
+		items = append(items, page...)
+		if !hasMore {
+			return items, nil
 		}
-		return items[i].UpdatedAt.After(items[j].UpdatedAt)
-	})
-	return items, nil
+		cursor = nextCursor
+	}
 }
 
 func (s *Store) CreateSession(workspaceID string) (*model.Session, error) {

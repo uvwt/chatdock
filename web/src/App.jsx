@@ -9,7 +9,7 @@ import { buildToolEventDetail } from './lib/toolEventDetails.js';
 import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js';
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, guideChatJob, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
-import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessionToolEvent, fetchSessions, pinSession, renameSession, searchSessions, updateSessionModel } from './lib/sessionApi.js';
+import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessionToolEvent, pinSession, renameSession, updateSessionModel } from './lib/sessionApi.js';
 import { createModelProvider as createModelProviderRequest, createWorkspaceRecord, deleteModelProvider as deleteModelProviderRequest, deleteScheduledTaskRecord, deleteWorkspaceRecord, fetchProviderModels as fetchProviderModelsRequest, fetchWorkspacePromptPreview, fetchScheduledTaskRuns, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest, updateModelProvider as updateModelProviderRequest } from './lib/settingsApi.js';
 import { useAttachments } from './hooks/useAttachments.js';
 import { useAgentTasks } from './hooks/useAgentTasks.js';
@@ -18,6 +18,7 @@ import { chatStreamAssistantAfterEvent, chatStreamStatsAfterEvent, projectsChatS
 import { appendInlineReasoningPart, appendInlineTextPart } from './lib/toolEvents.js';
 import { providerChoiceID, providerKeyRows, providerLabel, providerPayloadForModelAppend, providerPayloadFromFormValues, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
 import { useSettingsData } from './hooks/useSettingsData.js';
+import { useSessionList } from './hooks/useSessionList.js';
 import { useVisualViewportLayout } from './hooks/useVisualViewportLayout.js';
 import { buildQuickActions } from './lib/quickActions.js';
 import { scheduledTaskSessionRows, visibleSessionRows } from './lib/sessionPresentation.js';
@@ -48,10 +49,6 @@ export default function App() {
   const [availableModels, setAvailableModels] = useState([]);
   const [candidateProviderID, setCandidateProviderID] = useState('');
   const [loadingModels, setLoadingModels] = useState(false);
-  const [sessions, setSessions] = useState([]);
-  const [sessionSearch, setSessionSearch] = useState('');
-  const [sessionSearchResults, setSessionSearchResults] = useState([]);
-  const [sessionSearchBusy, setSessionSearchBusy] = useState(false);
   const [sessionMenuID, setSessionMenuID] = useState('');
   const [current, setCurrent] = useState(null);
   const [currentTitle, setCurrentTitle] = useState('未选择会话');
@@ -191,6 +188,22 @@ export default function App() {
   }, [selectedWorkspaceID]);
 
   const api = useMemo(() => createJsonApi({ authHeaders, onUnauthorized: setAuthPage }), [authHeaders]);
+  const {
+    sessions,
+    sessionSearch,
+    setSessionSearch,
+    sessionSearchResults,
+    sessionSearchBusy,
+    sessionsHasMore,
+    sessionsLoadingMore,
+    sessionSearchHasMore,
+    sessionSearchLoadingMore,
+    loadSessions,
+    loadMoreSessions,
+    loadMoreSearchSessions,
+    upsertSession,
+    removeSession,
+  } = useSessionList(api);
 
   const {
     setupStatus,
@@ -289,35 +302,6 @@ export default function App() {
     if (fallbackToDefault || next.provider_id || next.model) setChatModel(next);
   }, []);
 
-  const loadSessions = useCallback(async () => {
-    const list = await fetchSessions(api);
-    setSessions(list || []);
-  }, [api]);
-
-
-  useEffect(() => {
-    const q = sessionSearch.trim();
-    if (!q) {
-      setSessionSearchResults([]);
-      setSessionSearchBusy(false);
-      return;
-    }
-    let stopped = false;
-    setSessionSearchBusy(true);
-    const timer = window.setTimeout(async () => {
-      try {
-        const data = await searchSessions(api, q);
-        if (!stopped) setSessionSearchResults(data.sessions || []);
-      } catch {
-        if (!stopped) setSessionSearchResults([]);
-      } finally {
-        if (!stopped) setSessionSearchBusy(false);
-      }
-    }, 260);
-    return () => { stopped = true; window.clearTimeout(timer); };
-  }, [api, sessionSearch]);
-
-
   const refreshProductState = useCallback(async () => {
     await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
   }, [loadSetupStatus, loadWorkspaces, loadModelProviders, loadDataStatus, loadSystemStatus]);
@@ -338,9 +322,9 @@ export default function App() {
     setMessages(s.messages || []);
     clearAttachments();
     applySessionModel(s);
-    await loadSessions();
+    upsertSession(s);
     return true;
-  }, [api, applySessionModel, clearAttachments, loadSessions]);
+  }, [api, applySessionModel, clearAttachments, upsertSession]);
 
   const refreshAfterLogin = useCallback(async () => {
     const workspaceData = await loadWorkspaceSummaries();
@@ -552,10 +536,10 @@ export default function App() {
     setMessages(s.messages || []);
     clearAttachments();
     applySessionModel(s, { fallbackToDefault: false });
-    if (refreshList) await loadSessions();
+    if (refreshList) upsertSession(s);
     if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
     return s;
-  }, [api, applySessionModel, clearAttachments, loadSessions]);
+  }, [api, applySessionModel, clearAttachments, upsertSession]);
 
   const createSession = useCallback(() => {
     if (busy) detachActiveStream();
@@ -594,13 +578,13 @@ export default function App() {
       setCurrentTitle(s.title || summary?.title || '新会话');
       setMessages(s.messages || []);
       applySessionModel(s);
-      await loadSessions();
+      upsertSession(s);
     } catch (e) {
       if (sessionOpenSeqRef.current !== seq) return;
       setMessages([{ role: 'empty', content: '会话加载失败：' + e.message }]);
       showToast('会话加载失败：' + e.message, 'error');
     }
-  }, [api, applySessionModel, busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, loadSessions, messages.length, showToast]);
+  }, [api, applySessionModel, busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, messages.length, showToast, upsertSession]);
 
   const newSession = useCallback(async () => { await createSession(); }, [createSession]);
 
@@ -611,9 +595,9 @@ export default function App() {
     const s = await renameSession(api, current, values.title.trim());
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
-    await loadSessions();
+    upsertSession(s);
     showToast('会话标题已保存', 'success');
-  }, [api, current, currentTitle, loadSessions, showDialog, showToast]);
+  }, [api, current, currentTitle, showDialog, showToast, upsertSession]);
 
   const renameSessionByID = useCallback(async (id, title = '') => {
     if (!id || busy) return;
@@ -625,9 +609,9 @@ export default function App() {
       setCurrentTitle(s.title || '新会话');
       setMessages(s.messages || []);
     }
-    await loadSessions();
+    upsertSession(s);
     showToast('会话标题已保存', 'success');
-  }, [api, busy, current, loadSessions, showDialog, showToast]);
+  }, [api, busy, current, showDialog, showToast, upsertSession]);
 
   const deleteSessionByID = useCallback(async (id, title = '当前会话') => {
     if (!id || busy) return;
@@ -649,9 +633,10 @@ export default function App() {
       setChatModel({ provider_id: '', model: '' });
       if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
     }
+    removeSession(id);
     await loadSessions();
     showToast('会话已删除', 'success');
-  }, [api, busy, current, loadSessions, showDialog, showToast]);
+  }, [api, busy, current, loadSessions, removeSession, showDialog, showToast]);
 
   const deleteCurrent = useCallback(async () => {
     if (!current) return;
@@ -687,13 +672,13 @@ export default function App() {
       setCurrentTitle(s.title || '会话副本');
       setMessages(s.messages || []);
       applySessionModel(s);
-      await loadSessions();
+      upsertSession(s);
       if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
       showToast('会话已复制', 'success');
     } catch (e) {
       showToast('复制会话失败：' + e.message, 'error');
     }
-  }, [api, applySessionModel, busy, current, loadSessions, showToast]);
+  }, [api, applySessionModel, busy, current, showToast, upsertSession]);
 
 
   const branchCurrent = useCallback(async (messageIndex = messages.length - 1) => {
@@ -705,14 +690,14 @@ export default function App() {
       setMessages(s.messages || []);
       clearAttachments();
       applySessionModel(s);
-      await loadSessions();
+      upsertSession(s);
       if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
       closeSidebarOnMobile();
       showToast('已在新聊天中创建分支对话', 'success');
     } catch (e) {
       showToast('创建分支对话失败：' + e.message, 'error');
     }
-  }, [api, applySessionModel, busy, closeSidebarOnMobile, current, loadSessions, messages.length, showToast]);
+  }, [api, applySessionModel, busy, closeSidebarOnMobile, current, messages.length, showToast, upsertSession]);
 
   const pinCurrent = useCallback(async () => {
     if (!current) return;
@@ -721,9 +706,10 @@ export default function App() {
     const s = await pinSession(api, current, nextPinned);
     setCurrentTitle(s.title || currentTitle || '新会话');
     setMessages(s.messages || []);
+    upsertSession(s);
     await loadSessions();
     showToast(nextPinned ? '会话已置顶' : '已取消置顶', 'success');
-  }, [api, current, currentTitle, loadSessions, sessions, showToast]);
+  }, [api, current, currentTitle, loadSessions, sessions, showToast, upsertSession]);
 
   const pinSessionByID = useCallback(async (id, pinned = false) => {
     if (!id || busy) return;
@@ -734,9 +720,10 @@ export default function App() {
       setCurrentTitle(s.title || currentTitle || '新会话');
       setMessages(s.messages || []);
     }
+    upsertSession(s);
     await loadSessions();
     showToast(nextPinned ? '会话已置顶' : '已取消置顶', 'success');
-  }, [api, busy, current, currentTitle, loadSessions, showToast]);
+  }, [api, busy, current, currentTitle, loadSessions, showToast, upsertSession]);
 
   const appendToActiveAssistant = useCallback((patcher) => {
     setMessages(prev => prev.map((m, index) => index === prev.length - 1 && m.role === 'assistant-stream' ? patcher(m) : m));
@@ -831,7 +818,7 @@ export default function App() {
           pendingReasoningRef.current = '';
           finishActiveAssistant(finalSession);
           setCurrentTitle(finalSession.title || currentTitle || '新会话');
-          loadSessions().catch(() => { });
+          upsertSession(finalSession);
         }
       } catch (e) {
         if (!abort.signal.aborted && !stopped) {
@@ -852,7 +839,7 @@ export default function App() {
     }
     resumeRunningJob();
     return () => { stopped = true; abort.abort(); };
-  }, [current, api, authHeaders, handleChatStreamEvent, appendToActiveAssistant, currentTitle, loadSessions, finishActiveAssistant]);
+  }, [current, api, authHeaders, handleChatStreamEvent, appendToActiveAssistant, currentTitle, finishActiveAssistant, upsertSession]);
 
   const activeWorkspace = useMemo(() => workspaceSummaries.find(w => w.name === selectedWorkspaceID) || workspaceSummaries.find(w => w.active) || workspaceSummaries[0] || null, [selectedWorkspaceID, workspaceSummaries]);
   useEffect(() => {
@@ -895,11 +882,12 @@ export default function App() {
       updateSessionModel(api, current, { providerID: next.provider_id, model: next.model })
         .then(session => {
           applySessionModel(session, { fallbackToDefault: false });
-          return loadSessions();
+          upsertSession(session);
+          return session;
         })
         .catch(error => showToast('会话模型保存失败：' + error.message, 'error'));
     }
-  }, [api, applySessionModel, current, loadSessions, showToast]);
+  }, [api, applySessionModel, current, showToast, upsertSession]);
 
   useEffect(() => {
     setInput(localStorage.getItem(draftKey) || '');
@@ -954,7 +942,7 @@ export default function App() {
           finishActiveAssistant(finalSession);
           setCurrentTitle(finalSession.title || fallbackTitle);
         }
-        loadSessions().catch(() => { });
+        upsertSession(finalSession);
       }
     } catch (error) {
       if (abort.signal.aborted) {
@@ -980,7 +968,7 @@ export default function App() {
         setStreamPaused(false);
       }
     }
-  }, [appendAnswer, appendReasoning, appendToActiveAssistant, authHeaders, finishActiveAssistant, handleChatStreamEvent, loadSessions, selectedChatModel, selectedModelProvider]);
+  }, [appendAnswer, appendReasoning, appendToActiveAssistant, authHeaders, finishActiveAssistant, handleChatStreamEvent, loadSessions, selectedChatModel, selectedModelProvider, upsertSession]);
 
   const sendMsg = useCallback(async (overrideText) => {
     if (busy) return;
@@ -1043,7 +1031,7 @@ export default function App() {
       const next = await editSessionMessage(api, current, { messageIndex, messageID, content });
       const nextMessages = next.messages || [];
       setMessages(nextMessages);
-      await loadSessions();
+      upsertSession(next);
       showToast('已替换该消息，正在重新生成回复', 'success');
       void regenerateEditedReply(current, nextMessages, next.title || currentTitle || '新会话');
     } catch (error) {
@@ -1051,7 +1039,7 @@ export default function App() {
       showToast('编辑失败：' + message, 'error');
       throw error;
     }
-  }, [api, busy, current, currentTitle, loadSessions, openSettings, regenerateEditedReply, selectedChatModel, selectedModelBaseURL, showToast]);
+  }, [api, busy, current, currentTitle, openSettings, regenerateEditedReply, selectedChatModel, selectedModelBaseURL, showToast, upsertSession]);
 
   const guideActiveJob = useCallback(async () => {
     if (!busy) return;
@@ -1411,7 +1399,6 @@ export default function App() {
       setSelectedScheduledTaskID(id);
       setSelectedScheduledTaskRuns(data.runs || []);
       setSessionSearch('');
-      setSessionSearchResults([]);
     } catch (e) { showToast('读取任务会话失败：' + e.message, 'error'); }
   }, [api, showToast]);
 
@@ -1429,7 +1416,6 @@ export default function App() {
       setSelectedScheduledTaskID(id);
       setSelectedScheduledTaskRuns(runs);
       setSessionSearch('');
-      setSessionSearchResults([]);
       closeSettings();
       showToast(runs.length ? ('已在侧边栏展示 ' + runs.length + ' 条运行会话') : '这个任务还没有运行记录', runs.length ? 'success' : 'info');
     } catch (e) { showToast('读取运行记录失败：' + e.message, 'error'); }
@@ -1512,6 +1498,10 @@ export default function App() {
   const filteredSessions = useMemo(() => visibleSessionRows({
     sessionSearch, sessionSearchResults, selectedScheduledTaskID, selectedScheduledTaskSessions, sessions,
   }), [selectedScheduledTaskID, selectedScheduledTaskSessions, sessionSearch, sessionSearchResults, sessions]);
+  const searchingSessions = !!sessionSearch.trim();
+  const visibleSessionsHasMore = !selectedScheduledTaskID && (searchingSessions ? sessionSearchHasMore : sessionsHasMore);
+  const visibleSessionsLoadingMore = searchingSessions ? sessionSearchLoadingMore : sessionsLoadingMore;
+  const loadMoreVisibleSessions = selectedScheduledTaskID ? null : (searchingSessions ? loadMoreSearchSessions : loadMoreSessions);
 
   const currentSummary = useMemo(() => sessions.find(s => s.id === current) || null, [current, sessions]);
   const currentPinned = !!currentSummary?.pinned;
@@ -1555,8 +1545,9 @@ export default function App() {
     {settingsOpen ? <div id="settingsPage" className="settings-page"><Suspense fallback={<div className="empty compact" role="status">正在加载配置中心…</div>}>{settingsPanel}</Suspense></div> : <div id="app" className={appClass}>
       <Sidebar
         activeWorkspace={activeWorkspace} activeScheduledTasks={activeScheduledTasks} busy={busy} clearScheduledTaskRunList={clearScheduledTaskRunList}
-        current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} newSession={newSession}
-        openScheduledTaskRunList={openScheduledTaskRunList} openSession={openSession} openSettings={openSettings}
+        current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions}
+        hasMoreSessions={visibleSessionsHasMore} loadingMoreSessions={visibleSessionsLoadingMore} newSession={newSession}
+        onLoadMoreSessions={loadMoreVisibleSessions} openScheduledTaskRunList={openScheduledTaskRunList} openSession={openSession} openSettings={openSettings}
         pinSessionByID={pinSessionByID} workspaceSummaries={workspaceSummaries} renameSessionByID={renameSessionByID}
         selectedScheduledTask={selectedScheduledTask} selectedScheduledTaskID={selectedScheduledTaskID} selectedScheduledTaskSessions={selectedScheduledTaskSessions}
         sessionMenuID={sessionMenuID} sessionSearch={sessionSearch} sessionSearchBusy={sessionSearchBusy}
