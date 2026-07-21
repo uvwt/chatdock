@@ -62,6 +62,7 @@ CHATDOCK_AUTH_CREDENTIAL=your-pass           # 可选；启用账号密码登录
 CHATDOCK_EMBEDDING_BASE_URL=http://m3/v1     # 可选；OpenAI 兼容 /embeddings，用于工具向量混合搜索
 CHATDOCK_EMBEDDING_API_KEY=your-embedding-key # 可选；M3 embedding 服务密钥
 CHATDOCK_EMBEDDING_MODEL=BAAI/bge-m3         # 可选；默认 BAAI/bge-m3
+CHATDOCK_IMAGE_DNS_SERVER=223.5.5.5:53        # 可选；仅供公网图片加载器绕过代理 Fake-IP DNS，不影响 MCP/模型等内部地址
 ```
 
 ## 前后端一体化构建

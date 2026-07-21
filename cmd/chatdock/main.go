@@ -27,6 +27,7 @@ func main() {
 		EmbeddingModel:        getenv("CHATDOCK_EMBEDDING_MODEL", "BAAI/bge-m3"),
 		AgentDockContextURL:   os.Getenv("CHATDOCK_AGENTDOCK_CONTEXT_URL"),
 		AgentDockContextToken: os.Getenv("CHATDOCK_AGENTDOCK_CONTEXT_TOKEN"),
+		ImageDNSServer:        os.Getenv("CHATDOCK_IMAGE_DNS_SERVER"),
 	}
 
 	app, err := chatdock.NewApp(cfg)

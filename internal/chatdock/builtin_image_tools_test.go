@@ -13,7 +13,7 @@ import (
 func TestRejectPrivateHostHonorsCanceledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err := rejectPrivateHost(ctx, "example.invalid")
+	err := rejectPrivateHost(ctx, "example.invalid", net.DefaultResolver)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context cancellation, got %v", err)
 	}
@@ -28,7 +28,7 @@ func TestPublicImageTransportRejectsPrivateDialTarget(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, err := probeImageURL(context.Background(), server.URL)
+	_, err := probeImageURL(context.Background(), server.URL, net.DefaultResolver)
 	if err == nil || !strings.Contains(err.Error(), "private or localhost") {
 		t.Fatalf("expected private target rejection, got %v", err)
 	}
@@ -40,11 +40,38 @@ func TestPublicImageTransportRejectsPrivateDialTarget(t *testing.T) {
 func TestPublicImageTransportHonorsCanceledDialContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	transport := publicImageTransport()
+	transport := publicImageTransport(net.DefaultResolver)
 	defer transport.CloseIdleConnections()
 	_, err := transport.DialContext(ctx, "tcp", "example.invalid:80")
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected canceled dial, got %v", err)
+	}
+}
+
+func TestNewImageDNSResolverUsesConfiguredServer(t *testing.T) {
+	listener, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	resolver, err := newImageDNSResolver(listener.LocalAddr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, err := resolver.Dial(context.Background(), "udp", "ignored:53")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if got, want := conn.RemoteAddr().String(), listener.LocalAddr().String(); got != want {
+		t.Fatalf("resolver dialed %s, want %s", got, want)
+	}
+}
+
+func TestNewImageDNSResolverRejectsHostnames(t *testing.T) {
+	if _, err := newImageDNSResolver("dns.example:53"); err == nil || !strings.Contains(err.Error(), "IP address") {
+		t.Fatalf("expected numeric DNS server validation error, got %v", err)
 	}
 }
 
