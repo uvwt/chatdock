@@ -35,6 +35,8 @@ type MCPToolLoopOptions struct {
 	AfterToolRound func() ([]map[string]any, error)
 }
 
+const finalToolResponseInstruction = "请根据已经完成的工具调用结果给出明确、完整的最终答复。如果工具调用失败，请说明失败原因和下一步。不要继续调用工具，也不要返回空内容。"
+
 func (c *ChatClient) CompleteWithMCPTools(ctx context.Context, cfg model.ModelConfig, history []model.Message, tools []mcp.MCPTool, call func(string, map[string]any) (any, error)) (string, error) {
 	return c.CompleteWithMCPToolsEvents(ctx, cfg, history, tools, call, nil)
 }
@@ -65,6 +67,8 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 	}
 
 	var visibleAnswer strings.Builder
+	toolRounds := 0
+	finalResponseRequested := false
 	for {
 		resp, err := c.streamChatWithRawMessages(ctx, cfg, messages, openAITools, emit)
 		if err != nil {
@@ -82,12 +86,25 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 						messages = append(messages, map[string]any{"role": "assistant", "content": resp.Content})
 					}
 					messages = append(messages, guidanceMessages...)
+					openAITools = currentTools()
 					continue
 				}
+			}
+			if strings.TrimSpace(resp.Content) == "" {
+				if toolRounds == 0 || finalResponseRequested {
+					return strings.TrimSpace(visibleAnswer.String()), ErrEmptyModelContent
+				}
+				// 某些 OpenAI 兼容网关会在工具链结束后返回空的 stop 帧。
+				// 再请求一次无工具的最终答复，避免把“无答案”误记为成功。
+				messages = append(messages, map[string]any{"role": "user", "content": finalToolResponseInstruction})
+				openAITools = nil
+				finalResponseRequested = true
+				continue
 			}
 			return strings.TrimSpace(visibleAnswer.String()), nil
 		}
 
+		toolRounds++
 		messages = append(messages, assistantToolCallMessage(resp))
 		toolMessages, modelMessages, err := executeModelToolCalls(resp.ToolCalls, call, emit)
 		if err != nil {
@@ -111,8 +128,13 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 }
 
 func (c *ChatClient) completeWithMCPToolsBlocking(ctx context.Context, cfg model.ModelConfig, messages []map[string]any, currentTools func() []map[string]any, call func(string, map[string]any) (any, error)) (string, error) {
+	toolRounds := 0
+	finalResponseRequested := false
 	for {
 		openAITools := currentTools()
+		if finalResponseRequested {
+			openAITools = nil
+		}
 		resp, err := c.completeChatWithRawMessages(ctx, cfg, messages, openAITools)
 		if err != nil {
 			return "", err
@@ -122,8 +144,17 @@ func (c *ChatClient) completeWithMCPToolsBlocking(ctx context.Context, cfg model
 			if cfg.HideThinking {
 				answer = StripThinkingContent(answer)
 			}
+			if answer == "" {
+				if toolRounds == 0 || finalResponseRequested {
+					return "", ErrEmptyModelContent
+				}
+				messages = append(messages, map[string]any{"role": "user", "content": finalToolResponseInstruction})
+				finalResponseRequested = true
+				continue
+			}
 			return answer, nil
 		}
+		toolRounds++
 		messages = append(messages, assistantToolCallMessage(resp))
 		toolMessages, modelMessages, err := executeModelToolCalls(resp.ToolCalls, call, nil)
 		if err != nil {
