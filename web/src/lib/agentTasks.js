@@ -1,4 +1,6 @@
 const statusOrder = { blocked: 0, active: 1, completed: 2 };
+const liveTaskPollIntervalMS = 2000;
+const idleTaskPollIntervalMS = 15000;
 
 export function normalizeAgentTask(task = {}) {
   const steps = Array.isArray(task.steps) ? task.steps.map(normalizeAgentTaskStep) : [];
@@ -70,6 +72,12 @@ export function agentTaskStepMeta(status) {
 
 export function activeAgentTaskCount(tasks = []) {
   return tasks.reduce((count, task) => count + (task.status === 'active' || task.status === 'blocked' ? 1 : 0), 0);
+}
+
+export function agentTaskPollInterval(task, busy = false) {
+  return busy || task?.status === 'active' || task?.status === 'blocked'
+    ? liveTaskPollIntervalMS
+    : idleTaskPollIntervalMS;
 }
 
 function normalizeAgentTaskStep(step = {}) {

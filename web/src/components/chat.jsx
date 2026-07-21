@@ -220,6 +220,7 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEd
   return <div className={'msg ' + role}>{text ? <div>{text}</div> : null}<AttachmentList attachments={message.attachments || []} onDownload={onDownloadAttachment} /></div>;
 }
 
+export const MemoizedMessageView = React.memo(MessageView);
 
 export function EmptyState({ createSession, openSettings, openWorkspacePicker, busy, hasWorkspaces, setInput, modelReady }) {
   const flowSteps = [

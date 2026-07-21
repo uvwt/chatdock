@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { activeAgentTaskCount, agentTaskProgress, agentTaskStatusMeta, normalizeAgentTaskDetail, sortAgentTasks } from './agentTasks.js';
+import { activeAgentTaskCount, agentTaskPollInterval, agentTaskProgress, agentTaskStatusMeta, normalizeAgentTaskDetail, sortAgentTasks } from './agentTasks.js';
 
 test('normalizes task detail and derives current step', () => {
   const task = normalizeAgentTaskDetail({
@@ -34,4 +34,12 @@ test('sorts blocked and active tasks before completed tasks', () => {
 
 test('uses completion state for step-less completed tasks', () => {
   assert.deepEqual(agentTaskProgress({ status: 'completed' }), { completed: 0, total: 0, percent: 100, text: '已完成' });
+});
+
+test('polls active work quickly and idle sessions conservatively', () => {
+  assert.equal(agentTaskPollInterval({ status: 'active' }), 2000);
+  assert.equal(agentTaskPollInterval({ status: 'blocked' }), 2000);
+  assert.equal(agentTaskPollInterval({ status: 'completed' }), 15000);
+  assert.equal(agentTaskPollInterval(null), 15000);
+  assert.equal(agentTaskPollInterval(null, true), 2000);
 });

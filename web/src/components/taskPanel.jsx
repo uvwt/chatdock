@@ -78,8 +78,8 @@ export function TaskPanel({ available, deletingTaskID, detailError, detailLoadin
     </div>
 
     <footer className="agent-task-panel-foot">
-      <span>{available ? (lastUpdatedAt ? `更新于 ${formatTaskTime(lastUpdatedAt)}` : '等待首次同步') : '等待 AgentDock 配置'}</span>
-      <span>{available ? '每 2 秒同步' : '当前不发起轮询'}</span>
+      <span>{available ? (lastUpdatedAt ? `最近变化 ${formatTaskTime(lastUpdatedAt)}` : '等待首次同步') : '等待 AgentDock 配置'}</span>
+      <span>{available ? '面板打开时每 2 秒同步' : '当前不发起轮询'}</span>
     </footer>
   </section>;
 }
