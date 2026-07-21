@@ -12,6 +12,47 @@ import (
 
 const scheduledTablesMigratedKey = "scheduled_tables_migrated"
 
+// legacyScheduledTask 只服务一次性 JSON 数据迁移，业务接口不再接受 daily/time_of_day。
+type legacyScheduledTask struct {
+	model.ScheduledTask
+	TimeOfDay string `json:"time_of_day"`
+}
+
+func migrateLegacyScheduledTask(legacy legacyScheduledTask) (model.ScheduledTask, error) {
+	task := legacy.ScheduledTask
+	if task.ScheduleType != "daily" {
+		if task.ScheduleType == scheduleTypeCron {
+			expressions, timezone, nextRunAt, err := normalizeCronSchedule(task.CronExpressions, task.Timezone, time.Now())
+			if err != nil {
+				return model.ScheduledTask{}, err
+			}
+			task.CronExpressions = expressions
+			task.Timezone = timezone
+			if task.NextRunAt.IsZero() {
+				task.NextRunAt = nextRunAt
+			}
+		}
+		return task, nil
+	}
+
+	parsed, err := time.Parse("15:04", strings.TrimSpace(legacy.TimeOfDay))
+	if err != nil {
+		return model.ScheduledTask{}, fmt.Errorf("invalid legacy time_of_day %q: %w", legacy.TimeOfDay, err)
+	}
+	expression := fmt.Sprintf("%d %d * * *", parsed.Minute(), parsed.Hour())
+	expressions, timezone, nextRunAt, err := normalizeCronSchedule([]string{expression}, "", time.Now())
+	if err != nil {
+		return model.ScheduledTask{}, err
+	}
+	task.ScheduleType = scheduleTypeCron
+	task.CronExpressions = expressions
+	task.Timezone = timezone
+	if task.NextRunAt.IsZero() {
+		task.NextRunAt = nextRunAt
+	}
+	return task, nil
+}
+
 func (s *Store) migrateScheduledJSONToTables() error {
 	migrated, err := s.metaValue(scheduledTablesMigratedKey)
 	if err != nil {
@@ -45,14 +86,18 @@ func (s *Store) migrateScheduledJSONToTables() error {
 	for _, item := range items {
 		switch item.key {
 		case "scheduled_tasks":
-			var tasks []model.ScheduledTask
+			var tasks []legacyScheduledTask
 			if strings.TrimSpace(item.value) == "" {
 				continue
 			}
 			if err := json.Unmarshal([]byte(item.value), &tasks); err != nil {
 				return fmt.Errorf("migrate scheduled_tasks for %s: %w", item.prompt, err)
 			}
-			for _, task := range tasks {
+			for _, legacyTask := range tasks {
+				task, err := migrateLegacyScheduledTask(legacyTask)
+				if err != nil {
+					return fmt.Errorf("migrate scheduled task %s for %s: %w", legacyTask.ID, item.prompt, err)
+				}
 				if err := upsertScheduledTaskTx(tx, item.prompt, normalizeScheduledTaskForDB(task)); err != nil {
 					return err
 				}
@@ -78,12 +123,24 @@ func (s *Store) migrateScheduledJSONToTables() error {
 	return tx.Commit()
 }
 
+func normalizeStoredCronExpressions(expressions []string) []string {
+	out := make([]string, 0, len(expressions))
+	for _, expression := range expressions {
+		expression = strings.TrimSpace(expression)
+		if expression != "" {
+			out = append(out, expression)
+		}
+	}
+	return out
+}
+
 func normalizeScheduledTaskForDB(task model.ScheduledTask) model.ScheduledTask {
 	task.ID = strings.TrimSpace(task.ID)
 	task.Title = strings.TrimSpace(task.Title)
 	task.Prompt = strings.TrimSpace(task.Prompt)
 	task.ScheduleType = strings.TrimSpace(task.ScheduleType)
-	task.TimeOfDay = strings.TrimSpace(task.TimeOfDay)
+	task.CronExpressions = normalizeStoredCronExpressions(task.CronExpressions)
+	task.Timezone = strings.TrimSpace(task.Timezone)
 	task.ContextMode = normalizeScheduledTaskContextMode(task.ContextMode)
 	task.LastStatus = strings.TrimSpace(task.LastStatus)
 	task.LastError = strings.TrimSpace(task.LastError)
@@ -128,14 +185,18 @@ func normalizeScheduledRunRecordForDB(record model.ScheduledTaskRunRecord) model
 	return record
 }
 
-func upsertScheduledTaskTx(tx sqlWriter, prompt string, task model.ScheduledTask) error {
-	prompt = strings.TrimSpace(prompt)
-	if prompt == "" {
-		prompt = defaultWorkspaceID
+func upsertScheduledTaskTx(tx sqlWriter, workspaceID string, task model.ScheduledTask) error {
+	workspaceID = strings.TrimSpace(workspaceID)
+	if workspaceID == "" {
+		workspaceID = defaultWorkspaceID
 	}
-	_, err := tx.Exec(`INSERT INTO scheduled_tasks(workspace_id, id, title, task_prompt, enabled, running, schedule_type, run_at, time_of_day, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(workspace_id, id) DO UPDATE SET title = excluded.title, task_prompt = excluded.task_prompt, enabled = excluded.enabled, running = excluded.running, schedule_type = excluded.schedule_type, run_at = excluded.run_at, time_of_day = excluded.time_of_day, interval_minutes = excluded.interval_minutes, context_mode = excluded.context_mode, next_run_at = excluded.next_run_at, last_run_at = excluded.last_run_at, last_status = excluded.last_status, last_error = excluded.last_error, session_id = excluded.session_id, created_at = excluded.created_at, updated_at = excluded.updated_at`,
-		prompt, task.ID, task.Title, task.Prompt, boolInt(task.Enabled), boolInt(task.Running), task.ScheduleType, formatOptionalTime(task.RunAt), task.TimeOfDay, task.IntervalMinutes, task.ContextMode, formatScheduleDBTime(task.NextRunAt), formatOptionalTime(task.LastRunAt), task.LastStatus, task.LastError, task.SessionID, formatScheduleDBTime(task.CreatedAt), formatScheduleDBTime(task.UpdatedAt))
+	cronExpressions, err := json.Marshal(task.CronExpressions)
+	if err != nil {
+		return fmt.Errorf("encode scheduled task cron expressions: %w", err)
+	}
+	_, err = tx.Exec(`INSERT INTO scheduled_tasks(workspace_id, id, title, task_prompt, enabled, running, schedule_type, run_at, cron_expressions, timezone, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(workspace_id, id) DO UPDATE SET title = excluded.title, task_prompt = excluded.task_prompt, enabled = excluded.enabled, running = excluded.running, schedule_type = excluded.schedule_type, run_at = excluded.run_at, cron_expressions = excluded.cron_expressions, timezone = excluded.timezone, interval_minutes = excluded.interval_minutes, context_mode = excluded.context_mode, next_run_at = excluded.next_run_at, last_run_at = excluded.last_run_at, last_status = excluded.last_status, last_error = excluded.last_error, session_id = excluded.session_id, created_at = excluded.created_at, updated_at = excluded.updated_at`,
+		workspaceID, task.ID, task.Title, task.Prompt, boolInt(task.Enabled), boolInt(task.Running), task.ScheduleType, formatOptionalTime(task.RunAt), string(cronExpressions), task.Timezone, task.IntervalMinutes, task.ContextMode, formatScheduleDBTime(task.NextRunAt), formatOptionalTime(task.LastRunAt), task.LastStatus, task.LastError, task.SessionID, formatScheduleDBTime(task.CreatedAt), formatScheduleDBTime(task.UpdatedAt))
 	return err
 }
 
@@ -152,8 +213,8 @@ ON CONFLICT(workspace_id, id) DO UPDATE SET task_id = excluded.task_id, task_tit
 	return err
 }
 
-func loadScheduledTasksForWorkspaceLocked(reader sqlQueryer, prompt string) ([]model.ScheduledTask, error) {
-	rows, err := reader.Query(`SELECT id, title, task_prompt, enabled, running, schedule_type, run_at, time_of_day, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks WHERE workspace_id = ?`, prompt)
+func loadScheduledTasksForWorkspaceLocked(reader sqlQueryer, workspaceID string) ([]model.ScheduledTask, error) {
+	rows, err := reader.Query(`SELECT id, title, task_prompt, enabled, running, schedule_type, run_at, cron_expressions, timezone, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks WHERE workspace_id = ?`, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -180,9 +241,12 @@ func scanScheduledTasks(rows *sql.Rows) ([]model.ScheduledTask, error) {
 func scanScheduledTask(scanner interface{ Scan(...any) error }) (model.ScheduledTask, error) {
 	var task model.ScheduledTask
 	var enabled, running int
-	var runAt, nextRunAt, lastRunAt, createdAt, updatedAt string
-	if err := scanner.Scan(&task.ID, &task.Title, &task.Prompt, &enabled, &running, &task.ScheduleType, &runAt, &task.TimeOfDay, &task.IntervalMinutes, &task.ContextMode, &nextRunAt, &lastRunAt, &task.LastStatus, &task.LastError, &task.SessionID, &createdAt, &updatedAt); err != nil {
+	var runAt, cronExpressions, nextRunAt, lastRunAt, createdAt, updatedAt string
+	if err := scanner.Scan(&task.ID, &task.Title, &task.Prompt, &enabled, &running, &task.ScheduleType, &runAt, &cronExpressions, &task.Timezone, &task.IntervalMinutes, &task.ContextMode, &nextRunAt, &lastRunAt, &task.LastStatus, &task.LastError, &task.SessionID, &createdAt, &updatedAt); err != nil {
 		return model.ScheduledTask{}, err
+	}
+	if err := json.Unmarshal([]byte(cronExpressions), &task.CronExpressions); err != nil {
+		return model.ScheduledTask{}, fmt.Errorf("decode scheduled task %s cron expressions: %w", task.ID, err)
 	}
 	task.Enabled = enabled != 0
 	task.Running = running != 0

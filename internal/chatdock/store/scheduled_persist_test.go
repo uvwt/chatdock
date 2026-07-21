@@ -7,57 +7,53 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func TestNextDailyRunUsesConfiguredScheduleTimezone(t *testing.T) {
-	t.Setenv("CHATDOCK_TIMEZONE", "Asia/Shanghai")
+func TestNextCronRunUsesTaskTimezoneAndEarliestExpression(t *testing.T) {
 	now := time.Date(2026, 7, 6, 2, 50, 0, 0, time.UTC) // 10:50 in Asia/Shanghai.
-	got := nextDailyRun(now, "20:30")
-	loc := scheduleLocation()
-	if got.In(loc).Format("2006-01-02 15:04") != "2026-07-06 20:30" {
-		t.Fatalf("next daily run = %s, want 2026-07-06 20:30 in %s", got.In(loc), loc)
+	got, err := nextCronRun(now, []string{"30 20 * * *", "0 12 * * *"}, "Asia/Shanghai")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if got.UTC().Format(time.RFC3339) != "2026-07-06T12:30:00Z" {
-		t.Fatalf("next daily run UTC = %s, want 2026-07-06T12:30:00Z", got.UTC().Format(time.RFC3339))
+	location, _ := time.LoadLocation("Asia/Shanghai")
+	if got.In(location).Format("2006-01-02 15:04") != "2026-07-06 12:00" {
+		t.Fatalf("next cron run = %s, want 2026-07-06 12:00 in %s", got.In(location), location)
+	}
+	if got.UTC().Format(time.RFC3339) != "2026-07-06T04:00:00Z" {
+		t.Fatalf("next cron run UTC = %s, want 2026-07-06T04:00:00Z", got.UTC().Format(time.RFC3339))
 	}
 }
 
-func TestNextDailyRunKeepsWallClockAcrossDSTChanges(t *testing.T) {
-	t.Setenv("CHATDOCK_TIMEZONE", "America/New_York")
-	loc := scheduleLocation()
+func TestNextCronRunKeepsWallClockAcrossDSTChanges(t *testing.T) {
+	location, _ := time.LoadLocation("America/New_York")
 	cases := map[string]struct {
 		now        time.Time
 		wantDate   string
 		wantOffset string
 	}{
-		"spring forward": {now: time.Date(2026, 3, 7, 10, 0, 0, 0, loc), wantDate: "2026-03-08 09:00", wantOffset: "-04:00"},
-		"fall back":      {now: time.Date(2026, 10, 31, 10, 0, 0, 0, loc), wantDate: "2026-11-01 09:00", wantOffset: "-05:00"},
+		"spring forward": {now: time.Date(2026, 3, 7, 10, 0, 0, 0, location), wantDate: "2026-03-08 09:00", wantOffset: "-04:00"},
+		"fall back":      {now: time.Date(2026, 10, 31, 10, 0, 0, 0, location), wantDate: "2026-11-01 09:00", wantOffset: "-05:00"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := nextDailyRun(tc.now, "09:00")
-			if got.In(loc).Format("2006-01-02 15:04") != tc.wantDate {
-				t.Fatalf("next daily run = %s, want %s", got.In(loc), tc.wantDate)
+			got, err := nextCronRun(tc.now, []string{"0 9 * * *"}, "America/New_York")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.In(location).Format("2006-01-02 15:04") != tc.wantDate {
+				t.Fatalf("next cron run = %s, want %s", got.In(location), tc.wantDate)
 			}
 			if got.Format("-07:00") != tc.wantOffset {
-				t.Fatalf("next daily run offset = %s, want %s", got.Format("-07:00"), tc.wantOffset)
+				t.Fatalf("next cron run offset = %s, want %s", got.Format("-07:00"), tc.wantOffset)
 			}
 		})
 	}
 }
 
-func TestRepairDailyNextRunFixesOldUTCStoredTime(t *testing.T) {
-	t.Setenv("CHATDOCK_TIMEZONE", "Asia/Shanghai")
-	task := model.ScheduledTask{
-		ScheduleType: scheduleTypeDaily,
-		TimeOfDay:    "20:30",
-		NextRunAt:    time.Date(2026, 7, 6, 20, 30, 0, 0, time.UTC), // Old bug: 20:30 UTC, 04:30 local next day.
+func TestNormalizeCronScheduleRejectsInvalidConfiguration(t *testing.T) {
+	if _, _, _, err := normalizeCronSchedule([]string{"not a cron"}, "Asia/Shanghai", time.Now()); err == nil {
+		t.Fatal("invalid cron expression should fail")
 	}
-	now := time.Date(2026, 7, 6, 2, 50, 0, 0, time.UTC)
-	if !repairScheduledTaskNextRun(&task, now) {
-		t.Fatal("expected repair for UTC-stored daily next_run_at")
-	}
-	loc := scheduleLocation()
-	if task.NextRunAt.In(loc).Format("2006-01-02 15:04") != "2026-07-06 20:30" {
-		t.Fatalf("repaired next_run_at = %s, want local 2026-07-06 20:30", task.NextRunAt.In(loc))
+	if _, _, _, err := normalizeCronSchedule([]string{"0 9 * * *"}, "Mars/Base", time.Now()); err == nil {
+		t.Fatal("invalid timezone should fail")
 	}
 }
 

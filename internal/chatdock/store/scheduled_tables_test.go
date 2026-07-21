@@ -9,6 +9,7 @@ import (
 )
 
 func TestScheduledJSONMigratesToTables(t *testing.T) {
+	t.Setenv("CHATDOCK_TIMEZONE", "Asia/Shanghai")
 	st, err := NewStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -21,7 +22,7 @@ func TestScheduledJSONMigratesToTables(t *testing.T) {
 		t.Fatal(err)
 	}
 	next := time.Date(2026, 7, 6, 12, 30, 0, 0, time.FixedZone("CST", 8*3600))
-	legacyTasks := []model.ScheduledTask{{ID: "task-legacy", Title: "旧任务", Prompt: "执行旧任务", Enabled: true, ScheduleType: "daily", TimeOfDay: "12:30", ContextMode: model.ScheduledTaskContextStateless, NextRunAt: next, CreatedAt: next.Add(-time.Hour), UpdatedAt: next.Add(-time.Minute)}}
+	legacyTasks := []legacyScheduledTask{{ScheduledTask: model.ScheduledTask{ID: "task-legacy", Title: "旧任务", Prompt: "执行旧任务", Enabled: true, ScheduleType: "daily", ContextMode: model.ScheduledTaskContextStateless, NextRunAt: next, CreatedAt: next.Add(-time.Hour), UpdatedAt: next.Add(-time.Minute)}, TimeOfDay: "12:30"}}
 	rawTasks, _ := json.Marshal(legacyTasks)
 	if err := st.setWorkspaceRawLocked(defaultWorkspaceID, "scheduled_tasks", string(rawTasks)); err != nil {
 		st.mu.Unlock()
@@ -43,8 +44,11 @@ func TestScheduledJSONMigratesToTables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tasks.Tasks) != 1 || tasks.Tasks[0].ID != "task-legacy" || tasks.Tasks[0].Title != "旧任务" {
+	if len(tasks.Tasks) != 1 || tasks.Tasks[0].ID != "task-legacy" || tasks.Tasks[0].ScheduleType != scheduleTypeCron {
 		t.Fatalf("unexpected migrated tasks: %#v", tasks.Tasks)
+	}
+	if len(tasks.Tasks[0].CronExpressions) != 1 || tasks.Tasks[0].CronExpressions[0] != "30 12 * * *" || tasks.Tasks[0].Timezone != "Asia/Shanghai" {
+		t.Fatalf("legacy daily schedule was not converted: %#v", tasks.Tasks[0])
 	}
 	runs, err := st.ListScheduledTaskRuns("default", "task-legacy", 10)
 	if err != nil {

@@ -35,7 +35,7 @@ func TestScheduledTasksAPI(t *testing.T) {
 	}
 
 	id := result.Tasks[0].ID
-	r = httptest.NewRequest(http.MethodPut, "/api/scheduled-tasks/"+id, bytes.NewReader([]byte(`{"title":"日报","prompt":"总结今天","enabled":false,"schedule_type":"daily","time_of_day":"09:30"}`)))
+	r = httptest.NewRequest(http.MethodPut, "/api/scheduled-tasks/"+id, bytes.NewReader([]byte(`{"title":"日报","prompt":"总结今天","enabled":false,"schedule_type":"cron","cron_expressions":["30 9 * * *","0 18 * * *"],"timezone":"Asia/Shanghai"}`)))
 	w = httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
@@ -47,6 +47,21 @@ func TestScheduledTasksAPI(t *testing.T) {
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("delete scheduled task status %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestScheduledTasksAPIRejectsLegacyDailySchedule(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := httptest.NewRequest(http.MethodPost, "/api/scheduled-tasks", bytes.NewReader([]byte(`{"title":"旧日报","prompt":"总结今天","enabled":true,"schedule_type":"daily"}`)))
+	w := httptest.NewRecorder()
+
+	app.routes().ServeHTTP(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("legacy daily schedule status = %d, want %d: %s", w.Code, http.StatusBadRequest, w.Body.String())
 	}
 }
 

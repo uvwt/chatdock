@@ -15,7 +15,8 @@ type ScheduledTask struct {
 	Enabled         bool       `json:"enabled"`
 	ScheduleType    string     `json:"schedule_type"`
 	RunAt           *time.Time `json:"run_at,omitempty"`
-	TimeOfDay       string     `json:"time_of_day,omitempty"`
+	CronExpressions []string   `json:"cron_expressions,omitempty"`
+	Timezone        string     `json:"timezone,omitempty"`
 	IntervalMinutes int        `json:"interval_minutes,omitempty"`
 	ContextMode     string     `json:"context_mode,omitempty"`
 	NextRunAt       time.Time  `json:"next_run_at"`
@@ -29,15 +30,16 @@ type ScheduledTask struct {
 }
 
 type ScheduledTaskRequest struct {
-	Title           string `json:"title"`
-	Prompt          string `json:"prompt"`
-	Enabled         bool   `json:"enabled"`
-	ScheduleType    string `json:"schedule_type"`
-	RunAt           string `json:"run_at"`
-	TimeOfDay       string `json:"time_of_day"`
-	IntervalMinutes int    `json:"interval_minutes"`
-	ContextMode     string `json:"context_mode"`
-	Reschedule      bool   `json:"reschedule"`
+	Title           string   `json:"title"`
+	Prompt          string   `json:"prompt"`
+	Enabled         bool     `json:"enabled"`
+	ScheduleType    string   `json:"schedule_type"`
+	RunAt           string   `json:"run_at"`
+	CronExpressions []string `json:"cron_expressions"`
+	Timezone        string   `json:"timezone"`
+	IntervalMinutes int      `json:"interval_minutes"`
+	ContextMode     string   `json:"context_mode"`
+	Reschedule      bool     `json:"reschedule"`
 }
 
 type ScheduledTaskResponse struct {

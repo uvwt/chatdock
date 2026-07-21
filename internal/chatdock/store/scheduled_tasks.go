@@ -10,8 +10,8 @@ import (
 
 const (
 	scheduleTypeOnce     = "once"
-	scheduleTypeDaily    = "daily"
 	scheduleTypeInterval = "interval"
+	scheduleTypeCron     = "cron"
 )
 
 func (s *Store) ListScheduledTasks(workspaceID string) (model.ScheduledTaskResponse, error) {

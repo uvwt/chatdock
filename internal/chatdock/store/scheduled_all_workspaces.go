@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -16,7 +17,7 @@ type DueScheduledTask struct {
 func (s *Store) DueScheduledTasksAllWorkspaces(now time.Time) (items []DueScheduledTask, err error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	rows, err := s.db.Query(`SELECT workspace_id, id, title, task_prompt, enabled, running, schedule_type, run_at, time_of_day, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks WHERE enabled = 1 AND running = 0 AND next_run_at != '' AND next_run_at <= ? ORDER BY next_run_at ASC`, formatScheduleDBTime(now))
+	rows, err := s.db.Query(`SELECT workspace_id, id, title, task_prompt, enabled, running, schedule_type, run_at, cron_expressions, timezone, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks WHERE enabled = 1 AND running = 0 AND next_run_at != '' AND next_run_at <= ? ORDER BY next_run_at ASC`, formatScheduleDBTime(now))
 	if err != nil {
 		return nil, err
 	}
@@ -26,9 +27,12 @@ func (s *Store) DueScheduledTasksAllWorkspaces(now time.Time) (items []DueSchedu
 		var workspaceID string
 		var task model.ScheduledTask
 		var enabled, running int
-		var runAt, nextRunAt, lastRunAt, createdAt, updatedAt string
-		if err := rows.Scan(&workspaceID, &task.ID, &task.Title, &task.Prompt, &enabled, &running, &task.ScheduleType, &runAt, &task.TimeOfDay, &task.IntervalMinutes, &task.ContextMode, &nextRunAt, &lastRunAt, &task.LastStatus, &task.LastError, &task.SessionID, &createdAt, &updatedAt); err != nil {
+		var runAt, cronExpressions, nextRunAt, lastRunAt, createdAt, updatedAt string
+		if err := rows.Scan(&workspaceID, &task.ID, &task.Title, &task.Prompt, &enabled, &running, &task.ScheduleType, &runAt, &cronExpressions, &task.Timezone, &task.IntervalMinutes, &task.ContextMode, &nextRunAt, &lastRunAt, &task.LastStatus, &task.LastError, &task.SessionID, &createdAt, &updatedAt); err != nil {
 			return nil, err
+		}
+		if err := json.Unmarshal([]byte(cronExpressions), &task.CronExpressions); err != nil {
+			return nil, fmt.Errorf("decode scheduled task %s cron expressions: %w", task.ID, err)
 		}
 		task.Enabled = enabled != 0
 		task.Running = running != 0

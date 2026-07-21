@@ -12,6 +12,7 @@ type sqliteSchemaMigration struct {
 	Version    int
 	Name       string
 	Statements []string
+	Apply      func(*sql.Tx) error
 }
 
 var sqliteSchemaMigrations = []sqliteSchemaMigration{
@@ -22,6 +23,7 @@ var sqliteSchemaMigrations = []sqliteSchemaMigration{
 	{Version: 5, Name: "sessions_model", Statements: []string{`ALTER TABLE sessions ADD COLUMN model TEXT NOT NULL DEFAULT ''`}},
 	{Version: 6, Name: "tool_embeddings_embedding_blob", Statements: []string{`ALTER TABLE tool_embeddings ADD COLUMN embedding_blob BLOB NOT NULL DEFAULT x''`}},
 	{Version: 7, Name: "session_messages_error_json", Statements: []string{`ALTER TABLE session_messages ADD COLUMN error_json TEXT NOT NULL DEFAULT ''`}},
+	{Version: 8, Name: "scheduled_tasks_cron", Apply: migrateScheduledTasksCronSchema},
 }
 
 func (s *Store) ensureSQLiteSchemaUpdates() error {
@@ -66,6 +68,11 @@ func (s *Store) runSQLiteSchemaMigration(migration sqliteSchemaMigration) error 
 			if isSQLiteSchemaAlreadyAppliedError(err) {
 				continue
 			}
+			return fmt.Errorf("apply sqlite migration %03d %s: %w", migration.Version, migration.Name, err)
+		}
+	}
+	if migration.Apply != nil {
+		if err := migration.Apply(tx); err != nil {
 			return fmt.Errorf("apply sqlite migration %03d %s: %w", migration.Version, migration.Name, err)
 		}
 	}

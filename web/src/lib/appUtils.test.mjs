@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { agentTaskDataEnabled, fmtBytes, fmtDuration, logoutAndReload, normalizeSettingsModule, runStatusClass, runStatusLabel, setSettingsDocumentScroll, taskStatusClass, taskStatusLabel } from './appUtils.js';
+import { agentTaskDataEnabled, cronSchedulePayload, fmtBytes, fmtDuration, logoutAndReload, normalizeSettingsModule, runStatusClass, runStatusLabel, scheduleSummary, setSettingsDocumentScroll, taskStatusClass, taskStatusLabel } from './appUtils.js';
 
 test('format helpers keep compact Chinese UI labels', () => {
   assert.equal(fmtBytes(1536), '1.5 KB');
@@ -35,4 +35,24 @@ test('AgentDock task polling starts only after setup and runtime configuration a
   assert.equal(agentTaskDataEnabled({needs_setup: false}, {agentdock_tasks_configured: false}), false);
   assert.equal(agentTaskDataEnabled({needs_setup: false}, {agentdock_tasks_configured: true}), true);
   assert.equal(agentTaskDataEnabled({needs_setup: false}, {agentdock_tasks_configured: true}, true), false);
+});
+
+
+test('Cron schedule summary shows every expression and timezone', () => {
+  const summary = scheduleSummary({
+    schedule_type: 'cron',
+    cron_expressions: ['30 9 * * *', '0 18 * * *'],
+    timezone: 'Asia/Shanghai',
+  });
+
+  assert.match(summary, /Cron：30 9 \* \* \*；0 18 \* \* \*/);
+  assert.match(summary, /Asia\/Shanghai/);
+});
+
+
+test('cronSchedulePayload trims blank lines and timezone', () => {
+  assert.deepEqual(cronSchedulePayload({cron_expressions: ' 30 9 * * * \n\n0 18 * * * ', timezone: ' Asia/Shanghai '}), {
+    cron_expressions: ['30 9 * * *', '0 18 * * *'],
+    timezone: 'Asia/Shanghai',
+  });
 });

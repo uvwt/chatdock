@@ -40,12 +40,12 @@ func TestBuiltinScheduledTaskToolCRUD(t *testing.T) {
 		t.Fatalf("list should find created task: %#v", tasks)
 	}
 
-	updated, err := app.callBuiltinScheduledTaskTool(context.Background(), "default", builtinToolUpdateScheduledTask, map[string]any{"id": id, "enabled": false, "time_of_day": "09:30", "schedule_type": "daily"})
+	updated, err := app.callBuiltinScheduledTaskTool(context.Background(), "default", builtinToolUpdateScheduledTask, map[string]any{"id": id, "enabled": false, "schedule_type": "cron", "cron_expressions": []any{"30 9 * * *", "0 18 * * *"}, "timezone": "Asia/Shanghai"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	updatedTasks := updated.(model.ScheduledTaskResponse).Tasks
-	if len(updatedTasks) != 1 || updatedTasks[0].Enabled || updatedTasks[0].ScheduleType != "daily" || updatedTasks[0].TimeOfDay != "09:30" {
+	if len(updatedTasks) != 1 || updatedTasks[0].Enabled || updatedTasks[0].ScheduleType != "cron" || len(updatedTasks[0].CronExpressions) != 2 || updatedTasks[0].Timezone != "Asia/Shanghai" {
 		t.Fatalf("unexpected updated tasks: %#v", updatedTasks)
 	}
 

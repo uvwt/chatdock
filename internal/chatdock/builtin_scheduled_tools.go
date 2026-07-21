@@ -23,9 +23,10 @@ func builtinScheduledTaskTools() []mcp.MCPTool {
 		"title":            map[string]any{"type": "string", "description": "任务标题，必须简短明确"},
 		"prompt":           map[string]any{"type": "string", "description": "任务触发时发给模型的用户提示词"},
 		"enabled":          map[string]any{"type": "boolean", "description": "是否启用任务，创建时默认 true"},
-		"schedule_type":    map[string]any{"type": "string", "enum": []string{"once", "daily", "interval"}, "description": "once=指定时间一次，daily=每天固定时间，interval=按分钟间隔"},
+		"schedule_type":    map[string]any{"type": "string", "enum": []string{"once", "interval", "cron"}, "description": "once=指定时间一次，interval=按分钟间隔，cron=Cron 计划"},
 		"run_at":           map[string]any{"type": "string", "description": "once 使用，RFC3339 或本地时间 yyyy-MM-ddTHH:mm / yyyy-MM-dd HH:mm"},
-		"time_of_day":      map[string]any{"type": "string", "description": "daily 使用，HH:MM"},
+		"cron_expressions": map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "cron 使用，标准五段 Cron 表达式数组；多个表达式表示多个独立触发时间"},
+		"timezone":         map[string]any{"type": "string", "description": "cron 使用，IANA 时区，例如 Asia/Shanghai；省略时使用服务默认时区"},
 		"interval_minutes": map[string]any{"type": "integer", "description": "interval 使用，间隔分钟，1 到 525600"},
 		"context_mode":     map[string]any{"type": "string", "enum": []string{"stateless", "last_result", "session"}, "description": "上下文模式：stateless=每次独立执行，last_result=带上次结果，session=连续会话"},
 	}
@@ -181,8 +182,13 @@ func scheduledTaskRequestFromArgs(args map[string]any, previous *model.Scheduled
 	if value, ok := optionalStringArg(args, "run_at"); ok {
 		input.RunAt = value
 	}
-	if value, ok := optionalStringArg(args, "time_of_day"); ok {
-		input.TimeOfDay = value
+	if value, ok, err := optionalStringSliceArg(args, "cron_expressions"); err != nil {
+		return model.ScheduledTaskRequest{}, err
+	} else if ok {
+		input.CronExpressions = value
+	}
+	if value, ok := optionalStringArg(args, "timezone"); ok {
+		input.Timezone = value
 	}
 	if value, ok, err := optionalIntArg(args, "interval_minutes"); err != nil {
 		return model.ScheduledTaskRequest{}, err
@@ -196,7 +202,7 @@ func scheduledTaskRequestFromArgs(args map[string]any, previous *model.Scheduled
 }
 
 func requestFromScheduledTask(task model.ScheduledTask) model.ScheduledTaskRequest {
-	input := model.ScheduledTaskRequest{Title: task.Title, Prompt: task.Prompt, Enabled: task.Enabled, ScheduleType: task.ScheduleType, TimeOfDay: task.TimeOfDay, IntervalMinutes: task.IntervalMinutes, ContextMode: task.ContextMode}
+	input := model.ScheduledTaskRequest{Title: task.Title, Prompt: task.Prompt, Enabled: task.Enabled, ScheduleType: task.ScheduleType, CronExpressions: append([]string(nil), task.CronExpressions...), Timezone: task.Timezone, IntervalMinutes: task.IntervalMinutes, ContextMode: task.ContextMode}
 	if task.RunAt != nil {
 		input.RunAt = task.RunAt.Format(time.RFC3339)
 	}

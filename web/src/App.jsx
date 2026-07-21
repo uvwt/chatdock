@@ -3,7 +3,7 @@ import { EmptyState, MessageView } from './components/chat.jsx';
 import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
 import { CurrentSessionTask, TaskPanel } from './components/taskPanel.jsx';
 import { DialogHost, LoginPage, Markdown, QuickPalette, WorkspacePicker } from './components/base.jsx';
-import { agentTaskDataEnabled, defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtTime, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath } from './lib/appUtils.js';
+import { agentTaskDataEnabled, cronSchedulePayload, defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtTime, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath } from './lib/appUtils.js';
 import { attachmentLooksLikeImage, chatErrorDetails, contextPreviewText, finalAssistantMessageFromSession, readableChatError, scheduledTaskContextLabel, scheduledTaskRunsText, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
 import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js';
@@ -21,7 +21,6 @@ import { useSettingsData } from './hooks/useSettingsData.js';
 import { useVisualViewportLayout } from './hooks/useVisualViewportLayout.js';
 import { buildQuickActions } from './lib/quickActions.js';
 import { scheduledTaskSessionRows, visibleSessionRows } from './lib/sessionPresentation.js';
-
 const SettingsPanel = lazy(() => import('./components/settings.jsx').then(module => ({default: module.SettingsPanel})));
 export default function App() {
   useVisualViewportLayout();
@@ -1346,12 +1345,13 @@ export default function App() {
       title: existing ? '编辑自动化任务' : '新增自动化任务', message: existing ? '普通保存会保留下一次运行时间；需要从现在重新计算时勾选“保存后重新计时”。' : '选择调度类型后，只需要填写对应的时间字段。', confirmText: existing ? '保存任务' : '新增任务', fields: [
         { name: 'title', label: '任务标题', value: existing ? existing.title : '', required: true },
         { name: 'prompt', label: '任务提示词', type: 'textarea', rows: 6, value: existing ? (existing.prompt || '') : '', required: true },
-        { name: 'schedule_type', label: '调度类型', type: 'select', value: existing ? existing.schedule_type : 'once', options: [{ value: 'once', label: '一次性' }, { value: 'daily', label: '每天固定时间' }, { value: 'interval', label: '按分钟间隔' }] },
+        { name: 'schedule_type', label: '调度类型', type: 'select', value: existing ? existing.schedule_type : 'once', options: [{ value: 'once', label: '一次性' }, { value: 'interval', label: '按分钟间隔' }, { value: 'cron', label: 'Cron 计划' }] },
         { name: 'run_at', label: '一次性运行时间', type: 'datetime-local', value: existing && existing.run_at ? existing.run_at.slice(0, 16) : defaultRunAtValue(), showWhen: { schedule_type: 'once' } },
-        { name: 'time_of_day', label: '每天运行时间', type: 'time', value: existing ? (existing.time_of_day || '09:00') : '09:00', showWhen: { schedule_type: 'daily' } },
         { name: 'interval_minutes', label: '间隔分钟数', type: 'number', min: 1, step: 1, value: existing && existing.interval_minutes ? String(existing.interval_minutes) : '60', showWhen: { schedule_type: 'interval' }, hint: '当前本地调度器最低按分钟执行；过短间隔会更频繁占用模型额度。' },
+        { name: 'cron_expressions', label: 'Cron 表达式', type: 'textarea', rows: 4, value: existing ? (existing.cron_expressions || []).join('\n') : '0 9 * * *', showWhen: { schedule_type: 'cron' }, hint: '使用标准五段 Cron；每行一条，可配置每天多个独立时间点。' },
+        { name: 'timezone', label: '时区', value: existing ? (existing.timezone || 'Asia/Shanghai') : (Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai'), showWhen: { schedule_type: 'cron' }, hint: '填写 IANA 时区，例如 Asia/Shanghai。' },
         { name: 'context_mode', label: '上下文模式', type: 'select', value: existing ? (existing.context_mode || 'stateless') : 'stateless', options: [{ value: 'stateless', label: '每次独立执行，最省 token' }, { value: 'last_result', label: '带上次运行结果' }, { value: 'session', label: '连续会话，保留完整上下文' }], hint: '默认独立执行：只使用本次任务提示词；需要长期上下文时再选择连续会话。' },
-        ...(existing ? [{ name: 'reschedule', label: '保存后重新计时', type: 'checkbox', value: false, hint: '关闭时仅保存内容；开启时 interval 从当前时间重新计算下一次运行。' }] : []),
+        ...(existing ? [{ name: 'reschedule', label: '保存后重新计时', type: 'checkbox', value: false, hint: '关闭时仅保存内容；开启后会按当前时间重新计算 interval 或 Cron 的下一次运行。' }] : []),
       ]
     });
     if (!values) return;
@@ -1359,12 +1359,12 @@ export default function App() {
     const promptValue = (values.prompt || '').trim();
     const typeValue = (values.schedule_type || '').trim().toLowerCase();
     if (!titleValue || !promptValue) { showToast('任务标题和提示词不能为空', 'error'); return; }
-    if (!['once', 'daily', 'interval'].includes(typeValue)) { showToast('调度类型只能是 once、daily 或 interval', 'error'); return; }
+    if (!['once', 'interval', 'cron'].includes(typeValue)) { showToast('调度类型只能是 once、interval 或 cron', 'error'); return; }
     const contextMode = ['stateless', 'last_result', 'session'].includes(values.context_mode) ? values.context_mode : 'stateless';
     const payload = { title: titleValue, prompt: promptValue, enabled: existing ? !!existing.enabled : true, schedule_type: typeValue, context_mode: contextMode, reschedule: !!values.reschedule };
     if (typeValue === 'once') payload.run_at = values.run_at || '';
-    if (typeValue === 'daily') payload.time_of_day = values.time_of_day || '';
     if (typeValue === 'interval') payload.interval_minutes = Math.floor(Number(values.interval_minutes || 0));
+    if (typeValue === 'cron') Object.assign(payload, cronSchedulePayload(values));
     const data = await saveScheduledTaskRecord(api, existing, payload);
     setScheduledTasks(data.tasks || []);
     const savedTask = (data.tasks || []).find(task => task.id === (existing?.id || '')) || (data.tasks || [])[0];
@@ -1376,7 +1376,7 @@ export default function App() {
     const existing = scheduledTasks.find(t => t.id === id);
     if (!existing) return;
     try {
-      const payload = { title: existing.title, prompt: existing.prompt, enabled: !!enabled, schedule_type: existing.schedule_type, run_at: existing.run_at || '', time_of_day: existing.time_of_day || '', interval_minutes: existing.interval_minutes || 0, context_mode: existing.context_mode || 'stateless' };
+      const payload = { title: existing.title, prompt: existing.prompt, enabled: !!enabled, schedule_type: existing.schedule_type, run_at: existing.run_at || '', cron_expressions: existing.cron_expressions || [], timezone: existing.timezone || '', interval_minutes: existing.interval_minutes || 0, context_mode: existing.context_mode || 'stateless' };
       const data = await saveScheduledTaskRecord(api, existing, payload);
       setScheduledTasks(data.tasks || []);
       showToast(enabled ? '自动化任务已启用' : '自动化任务已停用', 'success');

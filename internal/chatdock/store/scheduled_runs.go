@@ -82,17 +82,29 @@ func finishScheduledTaskState(task model.ScheduledTask, sessionID string, starte
 	task.SessionID = sessionID
 	task.LastRunAt = &startedAt
 	task.UpdatedAt = finishedAt
+
 	status := "success"
 	errorText := ""
 	if runErr != nil {
 		status = "failed"
 		errorText = runErr.Error()
 	}
+	if !manual {
+		advanced, advanceErr := advanceScheduledTask(task, startedAt)
+		task = advanced
+		if advanceErr != nil {
+			// 计划损坏时停用任务，避免调度器每 30 秒重复捞取同一条无法前进的记录。
+			task.Enabled = false
+			status = "failed"
+			if errorText == "" {
+				errorText = "advance scheduled task: " + advanceErr.Error()
+			} else {
+				errorText += "; advance scheduled task: " + advanceErr.Error()
+			}
+		}
+	}
 	task.LastStatus = status
 	task.LastError = errorText
-	if !manual {
-		task = advanceScheduledTask(task, startedAt)
-	}
 	return task, status, errorText
 }
 

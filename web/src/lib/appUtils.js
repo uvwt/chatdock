@@ -113,12 +113,22 @@ export function defaultRunAtValue() {
   return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
 
+export function cronSchedulePayload(values = {}) {
+  return {
+    cron_expressions: String(values.cron_expressions || '').split(/\r?\n/).map(value => value.trim()).filter(Boolean),
+    timezone: String(values.timezone || '').trim(),
+  };
+}
+
 export function scheduleSummary(t) {
   const next = t.next_run_at ? fmtTime(t.next_run_at) : '未计划';
   const last = t.last_run_at ? fmtTime(t.last_run_at) : '未运行';
   let plan = '一次性：' + (t.run_at ? fmtTime(t.run_at) : next);
-  if (t.schedule_type === 'daily') plan = '每天 ' + (t.time_of_day || '--:--');
   if (t.schedule_type === 'interval') plan = '每 ' + (t.interval_minutes || 0) + ' 分钟';
+  if (t.schedule_type === 'cron') {
+    const expressions = Array.isArray(t.cron_expressions) ? t.cron_expressions.join('；') : '--';
+    plan = 'Cron：' + expressions + (t.timezone ? ' · ' + t.timezone : '');
+  }
   return plan + ' · 下次：' + next + ' · 上次：' + last;
 }
 

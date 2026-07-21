@@ -9,6 +9,7 @@ import (
 )
 
 func TestSQLiteWorkspaceSchemaMigratesLegacyPromptTables(t *testing.T) {
+	t.Setenv("CHATDOCK_TIMEZONE", "Asia/Shanghai")
 	dataDir := t.TempDir()
 	db, err := sql.Open("sqlite3", filepath.Join(dataDir, "chatdock.sqlite")+"?_foreign_keys=on")
 	if err != nil {
@@ -27,6 +28,7 @@ func TestSQLiteWorkspaceSchemaMigratesLegacyPromptTables(t *testing.T) {
 		`INSERT INTO prompt_kv(prompt, key, value, updated_at) VALUES('research', 'config', '{"model":"demo","system_prompt":"研究"}', '2026-01-02T00:00:00Z')`,
 		`INSERT INTO sessions(prompt, id, json, created_at, updated_at) VALUES('research', 's1', '{"id":"s1","messages":[]}', '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z')`,
 		`INSERT INTO scheduled_tasks(prompt, id, title, task_prompt, enabled, schedule_type, interval_minutes, next_run_at, created_at, updated_at) VALUES('research', 'task1', '日报', '总结', 1, 'interval', 60, '2026-01-02T01:00:00Z', '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z')`,
+		`INSERT INTO scheduled_tasks(prompt, id, title, task_prompt, enabled, schedule_type, time_of_day, next_run_at, created_at, updated_at) VALUES('research', 'task2', '早晚简报', '总结', 1, 'daily', '09:30', '2026-01-02T01:30:00Z', '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z')`,
 	}
 	for _, stmt := range legacyStatements {
 		if _, err := db.Exec(stmt); err != nil {
@@ -68,6 +70,23 @@ func TestSQLiteWorkspaceSchemaMigratesLegacyPromptTables(t *testing.T) {
 			t.Fatalf("workspace_id column missing on %s", table)
 		}
 	}
+	hasTimeOfDay, err := sqliteColumnExists(store.db, "scheduled_tasks", "time_of_day")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasTimeOfDay {
+		t.Fatal("legacy time_of_day column remains after cron migration")
+	}
+	for _, column := range []string{"cron_expressions", "timezone"} {
+		hasColumn, err := sqliteColumnExists(store.db, "scheduled_tasks", column)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !hasColumn {
+			t.Fatalf("cron migration column missing: %s", column)
+		}
+	}
+
 	var oldIndexCount int
 	if err := store.db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name LIKE '%prompt%'`).Scan(&oldIndexCount); err != nil {
 		t.Fatal(err)
@@ -85,10 +104,17 @@ func TestSQLiteWorkspaceSchemaMigratesLegacyPromptTables(t *testing.T) {
 	if err := store.db.QueryRow(`SELECT COUNT(*) FROM sessions WHERE workspace_id = 'research' AND id = 's1'`).Scan(&sessionCount); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.db.QueryRow(`SELECT COUNT(*) FROM scheduled_tasks WHERE workspace_id = 'research' AND id = 'task1'`).Scan(&taskCount); err != nil {
+	if err := store.db.QueryRow(`SELECT COUNT(*) FROM scheduled_tasks WHERE workspace_id = 'research'`).Scan(&taskCount); err != nil {
 		t.Fatal(err)
 	}
-	if workspaceCount != 1 || kvCount != 1 || sessionCount != 1 || taskCount != 1 {
+	var scheduleType, cronExpressions, timezone string
+	if err := store.db.QueryRow(`SELECT schedule_type, cron_expressions, timezone FROM scheduled_tasks WHERE workspace_id = 'research' AND id = 'task2'`).Scan(&scheduleType, &cronExpressions, &timezone); err != nil {
+		t.Fatal(err)
+	}
+	if scheduleType != "cron" || cronExpressions != `["30 9 * * *"]` || timezone != "Asia/Shanghai" {
+		t.Fatalf("legacy daily row was not converted: type=%q cron=%q timezone=%q", scheduleType, cronExpressions, timezone)
+	}
+	if workspaceCount != 1 || kvCount != 1 || sessionCount != 1 || taskCount != 2 {
 		t.Fatalf("migrated data mismatch: workspace=%d kv=%d sessions=%d tasks=%d", workspaceCount, kvCount, sessionCount, taskCount)
 	}
 }

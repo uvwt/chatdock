@@ -2,7 +2,7 @@ package store
 
 import (
 	"fmt"
-	"os"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -21,15 +21,11 @@ func (s *Store) loadScheduledTasksForWorkspaceLocked(workspaceID string) ([]mode
 		return nil, err
 	}
 	changed := false
-	now := time.Now()
 	for i := range tasks {
 		tasks[i].ContextMode = normalizeScheduledTaskContextMode(tasks[i].ContextMode)
 		if tasks[i].Running && time.Since(tasks[i].UpdatedAt) > 2*time.Hour {
 			tasks[i].Running = false
 			tasks[i].LastError = "上次运行异常中断，已自动恢复为可运行状态"
-			changed = true
-		}
-		if repairScheduledTaskNextRun(&tasks[i], now) {
 			changed = true
 		}
 	}
@@ -112,13 +108,6 @@ func normalizeScheduledTaskInput(input model.ScheduledTaskRequest, previous *mod
 		}
 		task.RunAt = &runAt
 		task.NextRunAt = runAt
-	case scheduleTypeDaily:
-		tod, err := normalizeTimeOfDay(input.TimeOfDay)
-		if err != nil {
-			return model.ScheduledTask{}, err
-		}
-		task.TimeOfDay = tod
-		task.NextRunAt = nextDailyRun(now, tod)
 	case scheduleTypeInterval:
 		if input.IntervalMinutes <= 0 {
 			return model.ScheduledTask{}, fmt.Errorf("interval_minutes must be greater than 0")
@@ -128,6 +117,14 @@ func normalizeScheduledTaskInput(input model.ScheduledTaskRequest, previous *mod
 		}
 		task.IntervalMinutes = input.IntervalMinutes
 		task.NextRunAt = now.Add(time.Duration(input.IntervalMinutes) * time.Minute)
+	case scheduleTypeCron:
+		expressions, timezone, nextRunAt, err := normalizeCronSchedule(input.CronExpressions, input.Timezone, now)
+		if err != nil {
+			return model.ScheduledTask{}, err
+		}
+		task.CronExpressions = expressions
+		task.Timezone = timezone
+		task.NextRunAt = nextRunAt
 	default:
 		return model.ScheduledTask{}, fmt.Errorf("unsupported schedule_type: %s", scheduleType)
 	}
@@ -146,7 +143,7 @@ func shouldPreserveScheduledTaskNextRun(next model.ScheduledTask, previous model
 	if next.ScheduleType != previous.ScheduleType {
 		return false
 	}
-	if next.IntervalMinutes != previous.IntervalMinutes || next.TimeOfDay != previous.TimeOfDay {
+	if next.IntervalMinutes != previous.IntervalMinutes || next.Timezone != previous.Timezone || !slices.Equal(next.CronExpressions, previous.CronExpressions) {
 		return false
 	}
 	if (next.RunAt == nil) != (previous.RunAt == nil) {
@@ -169,18 +166,22 @@ func normalizeScheduledTaskContextMode(value string) string {
 	}
 }
 
-func advanceScheduledTask(task model.ScheduledTask, now time.Time) model.ScheduledTask {
+func advanceScheduledTask(task model.ScheduledTask, now time.Time) (model.ScheduledTask, error) {
 	switch task.ScheduleType {
 	case scheduleTypeOnce:
 		task.Enabled = false
-	case scheduleTypeDaily:
-		task.NextRunAt = nextDailyRun(now.Add(time.Minute), task.TimeOfDay)
 	case scheduleTypeInterval:
 		if task.IntervalMinutes > 0 {
 			task.NextRunAt = now.Add(time.Duration(task.IntervalMinutes) * time.Minute)
 		}
+	case scheduleTypeCron:
+		nextRunAt, err := nextCronRun(now, task.CronExpressions, task.Timezone)
+		if err != nil {
+			return task, err
+		}
+		task.NextRunAt = nextRunAt
 	}
-	return task
+	return task, nil
 }
 
 func parseTaskTime(value string) (time.Time, error) {
@@ -209,54 +210,6 @@ func parseTaskTime(value string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("run_at must be RFC3339 or local datetime: %w", lastErr)
 }
 
-func normalizeTimeOfDay(value string) (string, error) {
-	value = strings.TrimSpace(value)
-	parsed, err := time.Parse("15:04", value)
-	if err != nil {
-		return "", fmt.Errorf("time_of_day must use HH:MM format")
-	}
-	return parsed.Format("15:04"), nil
-}
-
-func nextDailyRun(now time.Time, timeOfDay string) time.Time {
-	loc := scheduleLocation()
-	localNow := now.In(loc)
-	parsed, _ := time.Parse("15:04", timeOfDay)
-	next := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), parsed.Hour(), parsed.Minute(), 0, 0, loc)
-	if !next.After(localNow) {
-		next = time.Date(localNow.Year(), localNow.Month(), localNow.Day()+1, parsed.Hour(), parsed.Minute(), 0, 0, loc)
-	}
-	return next
-}
-
-func scheduleLocation() *time.Location {
-	name := strings.TrimSpace(os.Getenv("CHATDOCK_TIMEZONE"))
-	if name == "" {
-		name = "Asia/Shanghai"
-	}
-	loc, err := time.LoadLocation(name)
-	if err == nil {
-		return loc
-	}
-	return time.FixedZone("CST", 8*60*60)
-}
-
-func repairScheduledTaskNextRun(task *model.ScheduledTask, now time.Time) bool {
-	if task == nil || task.ScheduleType != scheduleTypeDaily || strings.TrimSpace(task.TimeOfDay) == "" {
-		return false
-	}
-	if _, err := normalizeTimeOfDay(task.TimeOfDay); err != nil {
-		return false
-	}
-	loc := scheduleLocation()
-	localNext := task.NextRunAt.In(loc)
-	if !task.NextRunAt.IsZero() && localNext.Format("15:04") == task.TimeOfDay {
-		return false
-	}
-	task.NextRunAt = nextDailyRun(now, task.TimeOfDay)
-	return true
-}
-
 func normalizeScheduledTaskTitle(title string) (string, error) {
 	title = strings.TrimSpace(title)
 	if title == "" {
@@ -276,5 +229,8 @@ func normalizeScheduledTaskTitle(title string) (string, error) {
 func cloneScheduledTasks(tasks []model.ScheduledTask) []model.ScheduledTask {
 	out := make([]model.ScheduledTask, len(tasks))
 	copy(out, tasks)
+	for i := range out {
+		out[i].CronExpressions = append([]string(nil), tasks[i].CronExpressions...)
+	}
 	return out
 }
