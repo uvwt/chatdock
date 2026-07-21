@@ -462,21 +462,6 @@
   border-color: #edf0f4 !important;
 }
 
-.settings-page .module-nav-group {
-  min-width: 0;
-  display: grid;
-  gap: 4px;
-}
-
-.settings-page .module-group-label {
-  padding: 10px 8px 4px !important;
-  color: #9aa3ad !important;
-  font-size: 11px !important;
-  font-weight: 850;
-  line-height: 1 !important;
-  letter-spacing: .08em;
-}
-
 .settings-page .module-tab::before,
 .settings-page .module-tabs button.module-tab::before {
   content: none !important;

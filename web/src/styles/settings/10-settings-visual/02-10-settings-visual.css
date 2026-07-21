@@ -68,22 +68,6 @@
     border-radius: 18px !important;
   }
 
-  .settings-page .module-nav-group {
-    display: grid !important;
-    gap: 4px !important;
-  }
-
-  .settings-page .module-nav-group + .module-nav-group {
-    margin-top: 6px !important;
-    padding-top: 8px !important;
-  }
-
-  .settings-page .module-group-label {
-    display: block !important;
-    padding: 4px 8px 2px !important;
-    font-size: 10px !important;
-  }
-
   .settings-page .module-tabs .module-tab,
   .settings-page .module-tabs button.module-tab {
     width: 100% !important;
@@ -254,14 +238,6 @@
   }
 
   .settings-page .module-tabs::-webkit-scrollbar {
-    display: none !important;
-  }
-
-  .settings-page .module-nav-group {
-    display: contents !important;
-  }
-
-  .settings-page .module-group-label {
     display: none !important;
   }
 

@@ -116,8 +116,7 @@
   }
 
   .settings-page .settings-mobile-module-select,
-  .settings-page .settings-sidebar-footer,
-  .settings-page .module-group-label {
+  .settings-page .settings-sidebar-footer {
     display: none !important;
   }
 
@@ -139,16 +138,6 @@
 
   .settings-page .module-tabs::-webkit-scrollbar {
     display: none !important;
-  }
-
-  .settings-page .module-nav-group {
-    display: contents !important;
-  }
-
-  .settings-page .module-nav-group + .module-nav-group {
-    margin: 0 !important;
-    padding: 0 !important;
-    border: 0 !important;
   }
 
   .settings-page .module-tab,

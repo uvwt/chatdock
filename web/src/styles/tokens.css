@@ -49,7 +49,7 @@ body.theme-light {
   --gpt-muted-2: #8e8e8e;
   --gpt-accent: #10a37f;
   --gpt-danger: #ef4444;
-  --gpt-chat-width: 768px;
+  --gpt-chat-width: 960px;
   --gpt-msg-width: 960px;
   --gpt-sidebar-width: 260px;
 }

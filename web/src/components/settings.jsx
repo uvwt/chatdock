@@ -13,11 +13,6 @@ const settingsModuleMeta = {
   security: {label: '系统', desc: '查看运行状态、数据库、备份、诊断信息和访问入口。'},
 };
 
-const settingsModuleGroups = [
-  {title: '常用', modules: ['workspace', 'model', 'providers', 'tools', 'automation']},
-  {title: '系统', modules: ['security']},
-];
-
 export function SettingsPanel(props) {
   const {
     activeModule, busy, closeSettings, config, configDirty, mcpConfigDirty, createWorkspace, dataStatus, deleteScheduledTask, deleteWorkspace, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
@@ -76,9 +71,9 @@ export function SettingsPanel(props) {
     </header>
     <div className="settings-sidebar">
       <select className="settings-mobile-module-select" value={activeModule} onChange={e => switchSettingsModule(e.target.value)} aria-label="选择配置模块">
-        {settingsModuleGroups.map(group => <optgroup key={group.title} label={group.title}>{group.modules.filter(m => settingsModules.includes(m)).map(m => <option key={m} value={m}>{moduleLabel(m)}{moduleIsDirty(m) ? ' · 未保存' : ''}</option>)}</optgroup>)}
+        {settingsModules.map(m => <option key={m} value={m}>{moduleLabel(m)}{moduleIsDirty(m) ? ' · 未保存' : ''}</option>)}
       </select>
-      <nav className="module-tabs" aria-label="配置模块">{settingsModuleGroups.map(group => <div className="module-nav-group" key={group.title}><div className="module-group-label">{group.title}</div>{group.modules.filter(m => settingsModules.includes(m)).map(m => { const dirty = moduleIsDirty(m); return <button key={m} className={'module-tab ' + (activeModule === m ? 'active ' : '') + (dirty ? 'dirty' : '')} onClick={() => switchSettingsModule(m)}><span className="module-tab-label">{moduleLabel(m)}</span>{dirty ? <span className="module-tab-dirty" aria-label="有未保存修改">未保存</span> : null}</button>; })}</div>)}</nav>
+      <nav className="module-tabs" aria-label="配置模块">{settingsModules.map(m => { const dirty = moduleIsDirty(m); return <button key={m} className={'module-tab ' + (activeModule === m ? 'active ' : '') + (dirty ? 'dirty' : '')} onClick={() => switchSettingsModule(m)}><span className="module-tab-label">{moduleLabel(m)}</span>{dirty ? <span className="module-tab-dirty" aria-label="有未保存修改">未保存</span> : null}</button>; })}</nav>
       <div className="settings-sidebar-footer"><span>当前工作空间</span><b title={activeWorkspaceName}>{activeWorkspaceName}</b></div>
     </div>
     <main className="settings-content">

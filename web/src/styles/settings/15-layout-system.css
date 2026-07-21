@@ -15,7 +15,7 @@
   overflow: auto !important;
   background:
     radial-gradient(circle at 8% 0%, rgba(16, 163, 127, .08), transparent 30%),
-    linear-gradient(145deg, #f4f7f8 0%, #f7f8fa 46%, #f3f6f8 100%) !important;
+    var(--mobile-bg) !important;
 }
 
 .settings-page .settings {
@@ -35,10 +35,10 @@
   grid-template-rows: 82px minmax(0, 1fr) !important;
   gap: 0 !important;
   overflow: hidden !important;
-  border: 1px solid rgba(214, 222, 230, .92) !important;
+  border: 1px solid var(--mobile-border-strong) !important;
   border-radius: 24px !important;
-  background: #fff !important;
-  box-shadow: 0 28px 70px rgba(23, 36, 50, .10), 0 2px 8px rgba(23, 36, 50, .04) !important;
+  background: var(--mobile-panel) !important;
+  box-shadow: var(--mobile-shadow-raised) !important;
 }
 
 .settings-page .settings-header {
@@ -52,8 +52,8 @@
   justify-content: space-between !important;
   gap: 18px !important;
   border: 0 !important;
-  border-bottom: 1px solid #e8edf2 !important;
-  background: rgba(255, 255, 255, .96) !important;
+  border-bottom: 1px solid var(--mobile-border) !important;
+  background: var(--mobile-panel-translucent) !important;
   box-shadow: none !important;
 }
 
@@ -90,11 +90,11 @@
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  border: 1px solid #dde4eb !important;
+  border: 1px solid var(--mobile-border-strong) !important;
   border-radius: 12px !important;
-  background: #fff !important;
-  color: #263445 !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .04) !important;
+  background: var(--mobile-panel-soft) !important;
+  color: var(--mobile-text) !important;
+  box-shadow: var(--mobile-shadow-soft) !important;
 }
 
 .settings-page .settings-back-button {
@@ -109,13 +109,28 @@
   gap: 8px !important;
 }
 
-.settings-page .settings-refresh-icon {
+.settings-page .settings-header-icon {
   width: 18px !important;
   height: 18px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.7 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
 }
 
 .settings-page .settings-refresh-text {
   display: none !important;
+}
+
+.settings-page input,
+.settings-page textarea,
+.settings-page select,
+.settings-page .session-search,
+.settings-page button.secondary {
+  border-color: var(--mobile-border-strong) !important;
+  background: var(--mobile-panel-soft) !important;
+  color: var(--mobile-text) !important;
 }
 
 .settings-page .settings-sidebar {
@@ -123,8 +138,8 @@
   grid-row: 2 !important;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #e8edf2;
-  background: #f8fafb;
+  border-right: 1px solid var(--mobile-border);
+  background: var(--mobile-panel-soft);
 }
 
 .settings-page .module-tabs {
@@ -135,30 +150,14 @@
   flex: 1 1 auto !important;
   margin: 0 !important;
   padding: 18px 14px !important;
-  display: block !important;
+  display: grid !important;
+  align-content: start !important;
+  gap: 5px !important;
   overflow: auto !important;
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
-}
-
-.settings-page .module-nav-group {
-  display: grid !important;
-  gap: 5px !important;
-}
-
-.settings-page .module-nav-group + .module-nav-group {
-  margin-top: 18px !important;
-  padding-top: 18px !important;
-  border-top: 1px solid #e5eaf0 !important;
-}
-
-.settings-page .module-group-label {
-  margin: 0 10px 6px !important;
-  color: #98a2b3 !important;
-  font-size: 11px !important;
-  letter-spacing: .08em !important;
 }
 
 .settings-page .module-tab {
@@ -171,7 +170,7 @@
   border: 1px solid transparent !important;
   border-radius: 11px !important;
   background: transparent !important;
-  color: #475467 !important;
+  color: var(--mobile-muted) !important;
   box-shadow: none !important;
   text-align: left !important;
 }
@@ -186,15 +185,15 @@
 }
 
 .settings-page .module-tab:hover {
-  background: rgba(255, 255, 255, .72) !important;
-  color: #263445 !important;
+  background: var(--mobile-hover) !important;
+  color: var(--mobile-text) !important;
 }
 
 .settings-page .module-tab.active {
-  border-color: #e1e7ed !important;
-  background: #fff !important;
-  color: #0f6f59 !important;
-  box-shadow: 0 5px 14px rgba(26, 42, 55, .06) !important;
+  border-color: var(--mobile-border-strong) !important;
+  background: var(--mobile-accent-panel) !important;
+  color: var(--mobile-accent-text) !important;
+  box-shadow: none !important;
 }
 
 .settings-page .module-tab.active::before {
@@ -212,19 +211,19 @@
   padding: 12px 13px;
   display: grid;
   gap: 3px;
-  border: 1px solid #e2e8ee;
+  border: 1px solid var(--mobile-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, .78);
+  background: var(--mobile-panel);
 }
 
 .settings-page .settings-sidebar-footer span {
-  color: #98a2b3;
+  color: var(--mobile-muted-weak);
   font-size: 11px;
 }
 
 .settings-page .settings-sidebar-footer b {
   overflow: hidden;
-  color: #344054;
+  color: var(--mobile-text);
   font-size: 13px;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -242,7 +241,7 @@
   min-height: 0;
   padding: 28px 24px 40px;
   overflow-y: auto;
-  background: #fbfcfd;
+  background: var(--mobile-bg);
 }
 
 .settings-page .module-view.active {
@@ -287,10 +286,10 @@
 .settings-page .backup-item,
 .settings-page .backup-health,
 .settings-page .empty.compact {
-  border-color: #e5eaf0 !important;
+  border-color: var(--mobile-border) !important;
   border-radius: 16px !important;
-  background: #fff !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .025), 0 8px 22px rgba(15, 23, 42, .025) !important;
+  background: var(--mobile-panel) !important;
+  box-shadow: var(--mobile-shadow-soft) !important;
 }
 
 .settings-page .settings-section-head,

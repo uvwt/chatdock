@@ -14,16 +14,16 @@
   --settings-weight-section: 650;
   --settings-weight-control: 600;
   --settings-weight-body: 400;
-  --settings-text: #182230;
-  --settings-muted: #667085;
-  --settings-subtle: #98a2b3;
-  --settings-line: #e4e9ef;
+  --settings-text: var(--mobile-text);
+  --settings-muted: var(--mobile-muted);
+  --settings-subtle: var(--mobile-muted-weak);
+  --settings-line: var(--mobile-border);
   --settings-info-bg: #eff6ff;
   --settings-info-line: #b8d4f4;
   --settings-info-text: #245b92;
-  --settings-success-bg: #edf9f4;
-  --settings-success-line: #a9d9c8;
-  --settings-success-text: #087454;
+  --settings-success-bg: var(--mobile-accent-soft);
+  --settings-success-line: var(--mobile-border-strong);
+  --settings-success-text: var(--mobile-accent-text);
   --settings-warning-bg: #fff7e7;
   --settings-warning-line: #efc77b;
   --settings-warning-text: #8a5600;
@@ -115,14 +115,6 @@
   font-weight: var(--settings-weight-body) !important;
   line-height: 1.55 !important;
   letter-spacing: 0 !important;
-}
-
-.settings-page .module-group-label {
-  color: var(--settings-subtle) !important;
-  font-size: 11px !important;
-  font-weight: var(--settings-weight-control) !important;
-  line-height: 1.3 !important;
-  letter-spacing: .06em !important;
 }
 
 .settings-page .module-tab,
@@ -385,9 +377,5 @@
     --settings-type-section-title: 15px;
     --settings-type-body: 14px;
     --settings-type-meta: 13px;
-  }
-
-  .settings-page .module-group-label {
-    font-size: var(--settings-type-caption) !important;
   }
 }

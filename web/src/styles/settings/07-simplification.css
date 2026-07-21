@@ -229,24 +229,6 @@
     border-radius: 14px !important;
   }
 
-  .settings-page .module-nav-group {
-    display: grid !important;
-    gap: 3px !important;
-  }
-
-  .settings-page .module-nav-group + .module-nav-group {
-    margin-top: 6px !important;
-    padding-top: 6px !important;
-    border-top: 1px solid #eef1f4 !important;
-  }
-
-  .settings-page .module-group-label {
-    padding: 2px 7px !important;
-    font-size: 10px !important;
-    color: #9ca3af !important;
-    font-weight: 760 !important;
-  }
-
   .settings-page .module-tab {
     min-height: 32px !important;
     padding: 0 9px !important;

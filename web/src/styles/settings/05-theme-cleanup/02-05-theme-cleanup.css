@@ -193,12 +193,6 @@
     padding: 8px !important;
   }
 
-  .settings-page .module-nav-group {
-    display: flex;
-    gap: 8px;
-  }
-
-  .settings-page .module-group-label,
   .settings-page .module-tab.active::after,
   .settings-page .settings-disclosure > summary > span {
     display: none !important;

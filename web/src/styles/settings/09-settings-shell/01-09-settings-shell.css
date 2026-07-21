@@ -385,15 +385,6 @@
   box-shadow: var(--set-shadow) !important;
 }
 
-.settings-page .module-nav-group + .module-nav-group {
-  border-top: 1px solid var(--set-line) !important;
-}
-
-.settings-page .module-group-label {
-  color: #98a2b3 !important;
-  letter-spacing: .08em !important;
-}
-
 .settings-page .module-tab {
   color: #405064 !important;
   border: 0 !important;
