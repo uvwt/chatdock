@@ -1,0 +1,68 @@
+/* 桌面最终主题层：只统一颜色，不改变侧栏和聊天区域几何。 */
+@media (min-width: 721px) {
+  #app.app aside {
+    border-right-color: var(--gpt-border) !important;
+    background:
+      radial-gradient(circle at 12% -4%, color-mix(in srgb, var(--gpt-accent) 12%, transparent), transparent 32%),
+      var(--gpt-sidebar) !important;
+    color: var(--gpt-text) !important;
+    box-shadow: inset -1px 0 0 var(--gpt-border), 12px 0 38px rgba(0, 0, 0, .16) !important;
+  }
+
+  #app.app aside :is(.brand, .brand-text, .workspace-picker-name, .workspace-picker-meta, .session-search, .session, .session-title, .sidebar-task-item, .sidebar-task-name) {
+    color: var(--gpt-text) !important;
+  }
+
+  #app.app aside :is(.sub, .session-preview, .session-meta, .sidebar-task-meta, .sidebar-section-count),
+  #app.app aside .session-search::placeholder {
+    color: var(--gpt-muted) !important;
+  }
+
+  #app.app aside :is(.sidebar-toggle, .session-search-box, .new) {
+    border-color: var(--gpt-border) !important;
+    background: var(--gpt-surface-2) !important;
+    color: var(--gpt-text) !important;
+    box-shadow: none !important;
+  }
+
+  #app.app aside .sidebar-toggle:hover:not(:disabled),
+  #app.app aside .new:hover:not(:disabled) {
+    background: var(--gpt-sidebar-hover) !important;
+  }
+
+  #app.app aside .workspace-picker-trigger {
+    border-color: color-mix(in srgb, var(--gpt-accent) 30%, var(--gpt-border)) !important;
+    background: color-mix(in srgb, var(--gpt-accent) 10%, var(--gpt-surface-2)) !important;
+    color: var(--gpt-text) !important;
+    box-shadow: none !important;
+  }
+
+  #app.app aside .workspace-picker-trigger:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--gpt-accent) 46%, var(--gpt-border)) !important;
+    background: color-mix(in srgb, var(--gpt-accent) 15%, var(--gpt-surface-2)) !important;
+  }
+
+  #app.app aside .session:hover {
+    border-color: var(--gpt-border) !important;
+    background: var(--gpt-sidebar-hover) !important;
+  }
+
+  #app.app aside .session.active {
+    border-color: color-mix(in srgb, var(--gpt-accent) 36%, var(--gpt-border)) !important;
+    background: color-mix(in srgb, var(--gpt-accent) 13%, var(--gpt-sidebar)) !important;
+    color: var(--gpt-text) !important;
+  }
+
+  #app.app aside .sidebar-task-list.session-list-like .sidebar-task-item.session {
+    color: var(--gpt-text) !important;
+  }
+
+  #app.app aside .sidebar-task-list.session-list-like .sidebar-task-item.session:hover,
+  #app.app aside .sidebar-task-list.session-list-like .sidebar-task-item.session.active {
+    background: color-mix(in srgb, var(--gpt-accent) 12%, var(--gpt-surface-2)) !important;
+  }
+
+  #app.app aside .sidebar-task-list.session-list-like .sidebar-task-name.session-title {
+    color: var(--gpt-text) !important;
+  }
+}
