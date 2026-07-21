@@ -14,8 +14,8 @@ import { createModelProvider as createModelProviderRequest, createWorkspaceRecor
 import { useAttachments } from './hooks/useAttachments.js';
 import { useAgentTasks } from './hooks/useAgentTasks.js';
 import { useCurrentSessionTask } from './hooks/useCurrentSessionTask.js';
+import { useActiveAssistantStream } from './hooks/useActiveAssistantStream.js';
 import { chatStreamAssistantAfterEvent, chatStreamStatsAfterEvent, projectsChatStreamAssistant } from './lib/chatStreamEvents.js';
-import { appendInlineReasoningPart, appendInlineTextPart } from './lib/toolEvents.js';
 import { providerChoiceID, providerKeyRows, providerLabel, providerPayloadForModelAppend, providerPayloadFromFormValues, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
 import { useSettingsData } from './hooks/useSettingsData.js';
 import { useSessionList } from './hooks/useSessionList.js';
@@ -78,6 +78,11 @@ export default function App() {
   const sessionOpenSeqRef = useRef(0);
   const toolEventDetailCacheRef = useRef(new Map());
 
+  const {
+    updateAssistant: appendToActiveAssistant, appendAnswer, appendReasoning,
+    enqueue: enqueueStreamText, flush: flushStreamText, reset: resetStreamText, waitUntilIdle: waitForStreamText,
+  } = useActiveAssistantStream(setMessages);
+
   useEffect(() => { pausedRef.current = streamPaused; }, [streamPaused]);
   useEffect(() => { currentRef.current = current; }, [current]);
   useEffect(() => {
@@ -93,6 +98,7 @@ export default function App() {
   }, [sessionMenuID]);
 
   const detachActiveStream = useCallback(() => {
+    resetStreamText();
     // 切换会话只断开当前页面的 SSE 监听，不取消后端 ChatJob；
     // 这样原会话继续后台生成，用户可以马上去另一个会话发送消息。
     const abort = abortRef.current;
@@ -107,7 +113,7 @@ export default function App() {
     setBusy(false);
     setStreamPaused(false);
     setStreamStats({ state: 'idle', started_at: 0, chars: 0, events: 0, tools: 0, error: '' });
-  }, []);
+  }, [resetStreamText]);
 
   useEffect(() => {
     if (busy && current && activeJobSessionRef.current && activeJobSessionRef.current !== current) {
@@ -725,21 +731,6 @@ export default function App() {
     showToast(nextPinned ? '会话已置顶' : '已取消置顶', 'success');
   }, [api, busy, current, currentTitle, loadSessions, showToast, upsertSession]);
 
-  const appendToActiveAssistant = useCallback((patcher) => {
-    setMessages(prev => prev.map((m, index) => index === prev.length - 1 && m.role === 'assistant-stream' ? patcher(m) : m));
-  }, []);
-
-  const appendAnswer = useCallback((text) => {
-    if (!text) return;
-    appendToActiveAssistant(m => appendInlineTextPart(m, text));
-  }, [appendToActiveAssistant]);
-
-  const appendReasoning = useCallback((text) => {
-    if (!text) return;
-    appendToActiveAssistant(m => appendInlineReasoningPart(m, text));
-  }, [appendToActiveAssistant]);
-
-
   const finishActiveAssistant = useCallback((finalSession) => {
     const finalAssistant = finalAssistantMessageFromSession(finalSession);
     setMessages(prev => prev.map((m, index) => {
@@ -774,13 +765,14 @@ export default function App() {
         pendingReasoningRef.current += reasoning;
         pendingDeltaRef.current += content;
       } else {
-        appendReasoning(reasoning);
-        appendAnswer(content);
+        enqueueStreamText({ reasoning, content });
       }
       return;
     }
 
     if (projectsChatStreamAssistant(event, data)) {
+      // 工具、确认和错误事件必须排在此前文本之后，避免平滑显示改变真实时间线。
+      flushStreamText();
       appendToActiveAssistant(message => chatStreamAssistantAfterEvent(message, event, data));
     }
     if (event === 'message_end' || event === 'done') {
@@ -788,7 +780,7 @@ export default function App() {
       setActiveJobID('');
       if (data.session) setFinalSession(data.session);
     }
-  }, [appendAnswer, appendReasoning, appendToActiveAssistant]);
+  }, [appendToActiveAssistant, enqueueStreamText, flushStreamText]);
 
   useEffect(() => {
     if (!current || busy) return;
@@ -801,6 +793,7 @@ export default function App() {
         const job = (list.jobs || []).find(j => j.status === 'running');
         if (!job) return;
         setBusy(true);
+        resetStreamText();
         activeJobIDRef.current = job.id || '';
         activeJobSessionRef.current = current;
         setActiveJobID(job.id || '');
@@ -814,6 +807,8 @@ export default function App() {
         let finalSession = null;
         await streamChatJobEvents({ jobID: job.id, authHeaders, signal: abort.signal, onEvent: (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; }) });
         if (finalSession && !stopped) {
+          await waitForStreamText();
+          if (stopped) return;
           pendingDeltaRef.current = '';
           pendingReasoningRef.current = '';
           finishActiveAssistant(finalSession);
@@ -822,6 +817,7 @@ export default function App() {
         }
       } catch (e) {
         if (!abort.signal.aborted && !stopped) {
+          flushStreamText();
           const message = readableChatError(e);
           setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
           appendToActiveAssistant(m => ({ ...m, error: chatErrorDetails(e, message), answer: m.answer || '' }));
@@ -838,8 +834,8 @@ export default function App() {
       }
     }
     resumeRunningJob();
-    return () => { stopped = true; abort.abort(); };
-  }, [current, api, authHeaders, handleChatStreamEvent, appendToActiveAssistant, currentTitle, finishActiveAssistant, upsertSession]);
+    return () => { stopped = true; resetStreamText(); abort.abort(); };
+  }, [current, api, authHeaders, handleChatStreamEvent, appendToActiveAssistant, currentTitle, finishActiveAssistant, flushStreamText, resetStreamText, upsertSession, waitForStreamText]);
 
   const activeWorkspace = useMemo(() => workspaceSummaries.find(w => w.name === selectedWorkspaceID) || workspaceSummaries.find(w => w.active) || workspaceSummaries[0] || null, [selectedWorkspaceID, workspaceSummaries]);
   useEffect(() => {
@@ -909,6 +905,7 @@ export default function App() {
     hasImageAttachments = false,
   }) => {
     setBusy(true);
+    resetStreamText();
     setStreamPaused(false);
     setStreamStats({ state: 'connecting', started_at: Date.now(), chars: 0, events: 0, tools: 0, error: '' });
     pausedRef.current = false;
@@ -936,6 +933,7 @@ export default function App() {
         },
       });
       if (finalSession) {
+        await waitForStreamText();
         pendingDeltaRef.current = '';
         pendingReasoningRef.current = '';
         if (currentRef.current === sessionID) {
@@ -947,12 +945,14 @@ export default function App() {
     } catch (error) {
       if (abort.signal.aborted) {
         if (!detachedControllersRef.current.has(abort)) {
+          flushStreamText();
           appendReasoning(pendingReasoningRef.current);
           appendAnswer(pendingDeltaRef.current);
           appendAnswer('\n\n【已中断】');
         }
         await loadSessions().catch(() => { });
       } else {
+        flushStreamText();
         const message = readableChatError(error, hasImageAttachments);
         setStreamStats(prev => ({ ...prev, state: 'error', error: message }));
         appendToActiveAssistant(currentMessage => ({ ...currentMessage, error: chatErrorDetails(error, message), answer: currentMessage.answer || '' }));
@@ -968,7 +968,7 @@ export default function App() {
         setStreamPaused(false);
       }
     }
-  }, [appendAnswer, appendReasoning, appendToActiveAssistant, authHeaders, finishActiveAssistant, handleChatStreamEvent, loadSessions, selectedChatModel, selectedModelProvider, upsertSession]);
+  }, [appendAnswer, appendReasoning, appendToActiveAssistant, authHeaders, finishActiveAssistant, flushStreamText, handleChatStreamEvent, loadSessions, resetStreamText, selectedChatModel, selectedModelProvider, upsertSession, waitForStreamText]);
 
   const sendMsg = useCallback(async (overrideText) => {
     if (busy) return;
