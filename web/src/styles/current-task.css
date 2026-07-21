@@ -1,10 +1,12 @@
 .current-session-task {
-  position: relative;
+  position: absolute;
   z-index: 9;
-  flex: 0 0 auto;
+  left: 50%;
+  bottom: 78px;
   width: min(calc(100% - 36px), var(--gpt-chat-width));
-  margin: 0 auto 8px;
+  margin: 0;
   overflow: hidden;
+  transform: translateX(-50%);
   border: 1px solid rgba(16, 163, 127, .28);
   border-radius: 16px;
   background: color-mix(in srgb, var(--gpt-main) 94%, #10a37f 6%);
@@ -218,8 +220,8 @@ body.theme-light .current-session-task-status.blocked {
 
 @media (max-width: 720px) {
   .current-session-task {
+    bottom: calc(74px + env(safe-area-inset-bottom, 0px));
     width: calc(100% - 20px);
-    margin-bottom: 4px;
     border-radius: 14px;
   }
 

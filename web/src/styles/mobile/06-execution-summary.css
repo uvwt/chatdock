@@ -8,19 +8,6 @@
     margin-top: 0 !important;
   }
 
-  .execution-summary.is-open {
-    position: relative;
-  }
-
-  #app.app .msg.assistant .execution-summary.is-open .execution-summary-trigger {
-    position: absolute !important;
-    z-index: 2;
-    top: 0;
-    right: 0;
-    width: auto !important;
-    grid-template-columns: 16px auto 12px !important;
-  }
-
   #app.app .msg.assistant .execution-summary-trigger {
     min-height: 32px !important;
     grid-template-columns: 16px minmax(0, 1fr) 12px !important;

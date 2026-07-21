@@ -518,10 +518,6 @@
   gap: 8px;
 }
 
-.schedule-builder-grid label {
-  margin: 0;
-}
-
 .schedule-builder-times {
   display: grid;
   gap: 8px;
@@ -545,8 +541,3 @@
   font-size: 12px;
 }
 
-.schedule-builder-notice {
-  padding: 10px;
-  border-radius: 10px;
-  background: var(--panel-soft);
-}
