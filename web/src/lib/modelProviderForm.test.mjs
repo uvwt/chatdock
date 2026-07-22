@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compactModelName, providerKeyInputsFromRows, providerKeyRows, providerPayloadForModelAppend, providerPayloadFromFormValues, uniqueModelNames } from './modelProviderForm.js';
+import { compactModelName, providerKeyInputsFromRows, providerKeyRows, providerPayloadForModelAppend, providerPayloadFromFormValues, uniqueModelNames, workspaceDefaultModelChoice } from './modelProviderForm.js';
 
 test('uniqueModelNames trims separators and deduplicates', () => {
   assert.deepEqual(uniqueModelNames('a\na，b,b'), ['a', 'b']);
@@ -56,4 +56,21 @@ test('providerPayloadFromFormValues trims and normalizes the save payload', () =
 
 test('compactModelName shortens long names', () => {
   assert.equal(compactModelName('1234567890123456789012345'), '123456789012345678901…');
+});
+
+
+test('workspaceDefaultModelChoice prefers the workspace model for its configured provider', () => {
+  const choice = workspaceDefaultModelChoice(
+    {provider_id: 'cpa', model: 'grok-4.5'},
+    {id: 'cpa', default_model: 'claude-opus', models: ['claude-opus', 'grok-4.5']},
+  );
+  assert.deepEqual(choice, {provider_id: 'cpa', model: 'grok-4.5'});
+});
+
+test('workspaceDefaultModelChoice uses provider default outside the workspace provider', () => {
+  const choice = workspaceDefaultModelChoice(
+    {provider_id: 'cpa', model: 'grok-4.5'},
+    {id: 'other', default_model: 'gemini-flash', models: ['gemini-flash']},
+  );
+  assert.deepEqual(choice, {provider_id: 'other', model: 'gemini-flash'});
 });

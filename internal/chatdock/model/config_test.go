@@ -13,6 +13,8 @@ func TestNormalizeModelConfigAppliesStableDefaults(t *testing.T) {
 		BaseURL:            "  ",
 		Model:              " custom-model ",
 		Models:             []string{" custom-model ", "other", "other", ""},
+		FallbackProviderID: " backup-provider ",
+		FallbackModel:      " backup-model ",
 		ContextMode:        "unexpected",
 		MaxContextMessages: -1,
 		Temperature:        2.1,
@@ -24,6 +26,9 @@ func TestNormalizeModelConfigAppliesStableDefaults(t *testing.T) {
 	}
 	if cfg.Model != "custom-model" || !reflect.DeepEqual(cfg.Models, []string{"custom-model", "other"}) {
 		t.Fatalf("model names were not normalized: model=%q models=%#v", cfg.Model, cfg.Models)
+	}
+	if cfg.FallbackProviderID != "backup-provider" || cfg.FallbackModel != "backup-model" {
+		t.Fatalf("fallback model was not normalized: %#v", cfg)
 	}
 	if cfg.ContextMode != ContextModeAuto || cfg.MaxContextMessages != 12 || cfg.Temperature != 0.7 {
 		t.Fatalf("context defaults were not applied: %#v", cfg)
@@ -61,14 +66,19 @@ func TestNormalizeModelConfigBoundsCustomContextMessages(t *testing.T) {
 
 func TestToPublicModelConfigRedactsSecretsAndCopiesModels(t *testing.T) {
 	cfg := NormalizeModelConfig(ModelConfig{
-		APIKey:          " secret ",
-		EmbeddingAPIKey: " embedding-secret ",
-		Model:           "primary",
-		Models:          []string{"primary", "secondary"},
+		APIKey:             " secret ",
+		EmbeddingAPIKey:    " embedding-secret ",
+		Model:              "primary",
+		Models:             []string{"primary", "secondary"},
+		FallbackProviderID: "backup",
+		FallbackModel:      "backup-model",
 	})
 	public := ToPublicModelConfig(cfg)
 	if !public.HasAPIKey || !public.HasEmbeddingAPIKey {
 		t.Fatalf("secret presence flags missing: %#v", public)
+	}
+	if public.FallbackProviderID != "backup" || public.FallbackModel != "backup-model" {
+		t.Fatalf("fallback selection missing from public config: %#v", public)
 	}
 	public.Models[0] = "changed"
 	if cfg.Models[0] != "primary" {

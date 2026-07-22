@@ -14,7 +14,8 @@ type scheduledSessionCompletionResult struct {
 
 func (a *App) completeScheduledSessionWithRecordedEvents(ctx context.Context, workspaceID string, sessionID string, cfg model.ModelConfig, history []model.Message) (scheduledSessionCompletionResult, error) {
 	recorder := newAssistantOutputRecorder(a, workspaceID, sessionID, "")
-	finalAnswer, runErr := a.completeWithRecordedTools(ctx, workspaceID, "", sessionID, cfg, history, recorder.emit)
+	fallbackCfg := a.resolveFallbackModelConfig(ctx, sessionID, cfg)
+	finalAnswer, _, runErr := a.completeWithRecordedTools(ctx, workspaceID, "", sessionID, cfg, fallbackCfg, history, recorder.emit)
 	recorder.useFinalAnswer(finalAnswer)
 	recorder.ensureFailureAnswer(runErr)
 	if runErr != nil {

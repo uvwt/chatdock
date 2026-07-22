@@ -189,6 +189,43 @@ func TestCompleteWithMCPToolsBlockingRecoversEmptyTerminalResponseAfterTools(t *
 	}
 }
 
+func TestCompleteWithMCPToolsBlockingMarksToolActivityBeforeSideEffect(t *testing.T) {
+	requestCount := 0
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		w.Header().Set("Content-Type", "application/json")
+		if requestCount == 1 {
+			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"call_status","type":"function","function":{"name":"status","arguments":"{}"}}]}}]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"完成"}}]}`))
+	}))
+	defer modelServer.Close()
+
+	marked := false
+	client := NewChatClient()
+	answer, err := client.CompleteWithMCPToolsEvents(
+		context.Background(),
+		model.ModelConfig{BaseURL: modelServer.URL, Model: "fake"},
+		[]model.Message{{Role: "user", Content: "检查状态"}},
+		[]mcp.MCPTool{{Name: "status", FullName: "status", InputSchema: map[string]any{"type": "object"}}},
+		func(string, map[string]any) (any, error) {
+			if !marked {
+				t.Fatal("tool activity must be marked before the tool side effect runs")
+			}
+			return map[string]any{"ok": true}, nil
+		},
+		nil,
+		MCPToolLoopOptions{OnToolCall: func() { marked = true }},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if answer != "完成" || !marked || requestCount != 2 {
+		t.Fatalf("unexpected blocking tool result: answer=%q marked=%v requests=%d", answer, marked, requestCount)
+	}
+}
+
 func openAIToolNames(value any) map[string]bool {
 	names := map[string]bool{}
 	tools, _ := value.([]any)

@@ -29,6 +29,8 @@ func NormalizeModelConfig(cfg ModelConfig) ModelConfig {
 	cfg.BaseURL = strings.TrimSpace(cfg.BaseURL)
 	cfg.ProviderID = strings.TrimSpace(cfg.ProviderID)
 	cfg.Model = strings.TrimSpace(cfg.Model)
+	cfg.FallbackProviderID = strings.TrimSpace(cfg.FallbackProviderID)
+	cfg.FallbackModel = strings.TrimSpace(cfg.FallbackModel)
 	cfg.EmbeddingBaseURL = strings.TrimSpace(cfg.EmbeddingBaseURL)
 	cfg.EmbeddingAPIKey = strings.TrimSpace(cfg.EmbeddingAPIKey)
 	cfg.EmbeddingModel = strings.TrimSpace(cfg.EmbeddingModel)
@@ -71,6 +73,8 @@ func ToPublicModelConfig(cfg ModelConfig) PublicModelConfig {
 		HasAPIKey:          strings.TrimSpace(cfg.APIKey) != "",
 		Model:              cfg.Model,
 		Models:             append([]string(nil), cfg.Models...),
+		FallbackProviderID: cfg.FallbackProviderID,
+		FallbackModel:      cfg.FallbackModel,
 		SystemPrompt:       cfg.SystemPrompt,
 		ContextMode:        cfg.ContextMode,
 		MaxContextMessages: cfg.MaxContextMessages,

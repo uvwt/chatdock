@@ -19,6 +19,24 @@ test('chatStreamStatsAfterEvent counts tool and lifecycle events', () => {
   assert.equal(failed.state, 'error');
 });
 
+test('model fallback is projected as a visible execution event', () => {
+  assert.equal(projectsChatStreamAssistant('model_fallback', {}), true);
+  const stats = chatStreamStatsAfterEvent(idleStats(), 'model_fallback', {});
+  assert.equal(stats.events, 1);
+
+  const message = chatStreamAssistantAfterEvent({ role: 'assistant-stream', events: [] }, 'model_fallback', {
+    from_provider_id: 'primary',
+    from_model: 'primary-model',
+    to_provider_id: 'backup',
+    to_model: 'backup-model',
+    reason: '上游不可用',
+  });
+  assert.equal(message.events.length, 1);
+  assert.equal(message.events[0].text, '切换备用模型');
+  assert.equal(message.events[0].meta, 'backup · backup-model');
+  assert.equal(message.events[0].details.data.reason, '上游不可用');
+});
+
 test('chatStreamAssistantAfterEvent projects tool and confirmation events', () => {
   const started = chatStreamAssistantAfterEvent({ role: 'assistant-stream', events: [] }, 'tool_call_start', {
     tool: 'DockMini__exec_command',

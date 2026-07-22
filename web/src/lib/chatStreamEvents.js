@@ -9,6 +9,7 @@ const assistantEventNames = new Set([
   'tool_call_result',
   'tool_confirmation_required',
   'tool_confirmation_resolved',
+  'model_fallback',
   'job_cancelled',
   'guidance_queued',
   'guidance_injected',
@@ -22,6 +23,7 @@ export function chatStreamStatsAfterEvent(stats, event, data = {}, paused = fals
       return { ...stats, state: paused ? 'paused' : 'streaming', chars: stats.chars + chars };
     }
     case 'tool_setup_ready':
+    case 'model_fallback':
     case 'tool_call_result':
     case 'guidance_queued':
     case 'guidance_injected':
@@ -71,6 +73,14 @@ export function chatStreamAssistantAfterEvent(message, event, data = {}) {
       return appendToolStartEvent(message, event, data);
     case 'tool_call_result':
       return mergeToolResultEvent(message, event, data);
+    case 'model_fallback':
+      return appendEvent(message, {
+        kind: 'tool',
+        phase: 'done',
+        text: '切换备用模型',
+        meta: [data.to_provider_id, data.to_model].filter(Boolean).join(' · '),
+        details: { event, data },
+      });
     case 'tool_confirmation_required':
       return appendEvent(message, {
         kind: 'confirm',

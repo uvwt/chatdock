@@ -33,13 +33,14 @@ func (a *App) startChatJob(ctx context.Context, workspaceID string, input model.
 	if err != nil {
 		return storepkg.ChatJob{}, nil, err
 	}
+	fallbackCfg := a.resolveFallbackModelConfig(withRequestID(ctx, requestID), input.SessionID, cfg)
 	jobCtx, cancel := context.WithCancel(withRequestID(a.lifecycleCtx, requestID))
 	a.registerChatJobCancel(job.ID, cancel)
 	logInfo("chat_job_started", logFields{"request_id": requestID, "job_id": job.ID, "session_id": input.SessionID, "provider_id": cfg.ProviderID, "model": cfg.Model})
 	launched = true
 	go func() {
 		defer a.backgroundWG.Done()
-		a.runChatJob(jobCtx, workspaceID, job.ID, input.SessionID, cfg, history)
+		a.runChatJob(jobCtx, workspaceID, job.ID, input.SessionID, cfg, fallbackCfg, history)
 	}()
 	return job, session, nil
 }
@@ -79,12 +80,12 @@ func (a *App) cancelChatJob(workspaceID string, jobID string) (storepkg.ChatJob,
 	return a.store.InterruptChatJob(workspaceID, jobID, "用户已停止生成。")
 }
 
-func (a *App) runChatJob(ctx context.Context, workspaceID string, jobID string, sessionID string, cfg model.ModelConfig, history []model.Message) {
+func (a *App) runChatJob(ctx context.Context, workspaceID string, jobID string, sessionID string, cfg model.ModelConfig, fallbackCfg *model.ModelConfig, history []model.Message) {
 	defer a.unregisterChatJobCancel(jobID)
 	defer a.clearChatJobGuidance(jobID)
 
 	recorder := newAssistantOutputRecorder(a, workspaceID, sessionID, jobID)
-	finalAnswer, runErr := a.completeWithRecordedTools(ctx, workspaceID, jobID, sessionID, cfg, history, recorder.emit)
+	finalAnswer, usedCfg, runErr := a.completeWithRecordedTools(ctx, workspaceID, jobID, sessionID, cfg, fallbackCfg, history, recorder.emit)
 	if err := recorder.flushDeltaEvent(true); err != nil && runErr == nil {
 		runErr = err
 	}
@@ -97,7 +98,7 @@ func (a *App) runChatJob(ctx context.Context, workspaceID string, jobID string, 
 		status = "failed"
 		runErr = err
 	}
-	a.finishChatJob(ctx, workspaceID, sessionID, jobID, status, cfg, recorder, runErr)
+	a.finishChatJob(ctx, workspaceID, sessionID, jobID, status, usedCfg, recorder, runErr)
 }
 
 func newMessageError(requestID string, rawMessage string) model.MessageError {

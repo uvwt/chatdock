@@ -77,6 +77,17 @@ export function providerLabel(provider) {
   return provider?.name || provider?.id || '供应商';
 }
 
+export function workspaceDefaultModelChoice(config = {}, provider = null) {
+  const providerID = String(providerChoiceID(provider) || '').trim();
+  const workspaceProviderID = String(config?.provider_id || '').trim();
+  const workspaceModel = String(config?.model || '').trim();
+  const providerModel = String(provider?.default_model || provider?.models?.[0] || '').trim();
+  return {
+    provider_id: providerID,
+    model: providerID && providerID === workspaceProviderID && workspaceModel ? workspaceModel : providerModel,
+  };
+}
+
 export function compactModelName(name) {
   name = String(name || '').trim();
   return name.length > 22 ? name.slice(0, 21) + '…' : name;

@@ -16,26 +16,28 @@ type activeToolRun struct {
 	StartedAt map[string]time.Time
 }
 
-func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string, jobID string, sessionID string, cfg model.ModelConfig, history []model.Message, emit func(string, any) error) (string, error) {
+func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string, jobID string, sessionID string, cfg model.ModelConfig, fallbackCfg *model.ModelConfig, history []model.Message, emit func(string, any) error) (string, model.ModelConfig, error) {
 	history = a.prepareVisionAttachmentURLs(history)
 	history = a.appendAgentDockRuntimeContext(ctx, history)
 
 	allTools, mcpConfig, mcpReady, err := a.loadConversationTools(ctx, workspaceID, emit)
 	if err != nil {
-		return "", err
+		return "", cfg, err
 	}
 	if len(allTools) == 0 {
-		if emit != nil {
-			return a.client.Stream(ctx, cfg, history, func(delta llm.StreamDelta) error { return emit("delta", delta) })
-		}
-		return a.client.Complete(ctx, cfg, history)
+		return completeModelWithFallback(ctx, cfg, fallbackCfg, emit, func(attemptCfg model.ModelConfig, attemptEmit func(string, any) error, _ func()) (string, error) {
+			if attemptEmit != nil {
+				return a.client.Stream(ctx, attemptCfg, history, func(delta llm.StreamDelta) error { return attemptEmit("delta", delta) })
+			}
+			return a.client.Complete(ctx, attemptCfg, history)
+		})
 	}
 
 	toolSet := newConversationToolSet(allTools, mcpConfig)
 	visibleTools := toolSet.tools()
 	if emit != nil {
 		if err := emit("tool_setup_ready", map[string]any{"mode": "dynamic", "tool_count": len(allTools), "exposed_tool_count": len(visibleTools), "builtin_tool_count": len(builtinChatDockTools()), "on_demand_tool_count": len(toolSet.onDemand.tools)}); err != nil {
-			return "", err
+			return "", cfg, err
 		}
 	}
 	recorder := &activeToolRun{LastArgs: map[string]any{}, StartedAt: map[string]time.Time{}}
@@ -49,18 +51,21 @@ func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string,
 		toolEmit = nil
 	}
 
-	answer, runErr := a.client.CompleteWithMCPToolsEvents(ctx, cfg, history, visibleTools, func(name string, args map[string]any) (any, error) {
-		return a.callVisibleConversationTool(ctx, workspaceID, toolSet, runRealTool, name, args)
-	}, toolEmit, llm.MCPToolLoopOptions{
-		RefreshTools: toolSet.tools,
-		AfterToolRound: func() ([]map[string]any, error) {
-			return a.consumeChatJobGuidance(jobID, emit)
-		},
+	answer, usedCfg, runErr := completeModelWithFallback(ctx, cfg, fallbackCfg, toolEmit, func(attemptCfg model.ModelConfig, attemptEmit func(string, any) error, markStarted func()) (string, error) {
+		return a.client.CompleteWithMCPToolsEvents(ctx, attemptCfg, history, visibleTools, func(name string, args map[string]any) (any, error) {
+			return a.callVisibleConversationTool(ctx, workspaceID, toolSet, runRealTool, name, args)
+		}, attemptEmit, llm.MCPToolLoopOptions{
+			RefreshTools: toolSet.tools,
+			OnToolCall:   markStarted,
+			AfterToolRound: func() ([]map[string]any, error) {
+				return a.consumeChatJobGuidance(jobID, emit)
+			},
+		})
 	})
 	if finishErr := a.finishRecordedToolRun(recorder, runErr, emit); finishErr != nil && runErr == nil {
 		runErr = finishErr
 	}
-	return answer, runErr
+	return answer, usedCfg, runErr
 }
 
 func (a *App) toolRunEmitter(workspaceID string, sessionID string, recorder *activeToolRun, emit func(string, any) error) func(string, any) error {

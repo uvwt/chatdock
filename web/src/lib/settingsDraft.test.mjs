@@ -5,6 +5,8 @@ import { mcpConfigDraftChanged, workspaceConfigDraftChanged } from './settingsDr
 const savedWorkspaceConfig = {
   provider_id: 'provider-a',
   model: 'model-a',
+  fallback_provider_id: '',
+  fallback_model: '',
   system_prompt: '保持简洁',
   context_mode: 'auto',
   max_context_messages: 12,
@@ -29,6 +31,7 @@ test('workspace config draft ignores derived display fields and numeric input ty
 
 test('workspace config draft detects submitted field changes', () => {
   assert.equal(workspaceConfigDraftChanged({...savedWorkspaceConfig, model: 'model-b'}, savedWorkspaceConfig), true);
+  assert.equal(workspaceConfigDraftChanged({...savedWorkspaceConfig, fallback_provider_id: 'provider-b', fallback_model: 'model-c'}, savedWorkspaceConfig), true);
   assert.equal(workspaceConfigDraftChanged({...savedWorkspaceConfig, hide_thinking: true}, savedWorkspaceConfig), true);
   assert.equal(workspaceConfigDraftChanged({...savedWorkspaceConfig, embedding_api_key: 'new-key'}, savedWorkspaceConfig), true);
 });

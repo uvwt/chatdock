@@ -373,6 +373,9 @@ func (s *Store) DeleteModelProvider(id string) error {
 		if cfg.ProviderID == id {
 			return fmt.Errorf("model provider is used by workspace: %s", workspaceID)
 		}
+		if cfg.FallbackProviderID == id {
+			return fmt.Errorf("model provider is used as fallback by workspace: %s", workspaceID)
+		}
 	}
 
 	records, err := s.loadModelProviderRecordsLocked()

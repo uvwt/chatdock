@@ -16,7 +16,7 @@ import { useAgentTasks } from './hooks/useAgentTasks.js';
 import { useCurrentSessionTask } from './hooks/useCurrentSessionTask.js';
 import { useActiveAssistantStream } from './hooks/useActiveAssistantStream.js';
 import { chatStreamAssistantAfterEvent, chatStreamStatsAfterEvent, projectsChatStreamAssistant } from './lib/chatStreamEvents.js';
-import { providerChoiceID, providerKeyRows, providerLabel, providerPayloadForModelAppend, providerPayloadFromFormValues, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
+import { providerChoiceID, providerKeyRows, providerLabel, providerPayloadForModelAppend, providerPayloadFromFormValues, sessionModelChoice, uniqueModelNames, workspaceDefaultModelChoice } from './lib/modelProviderForm.js';
 import { useSettingsData } from './hooks/useSettingsData.js';
 import { useSessionList } from './hooks/useSessionList.js';
 import { useVisualViewportLayout } from './hooks/useVisualViewportLayout.js';
@@ -858,7 +858,7 @@ export default function App() {
       || providerChoices[0]
       || null;
   }, [chatModel.provider_id, config.provider_id, providerChoices]);
-  const selectedChatModel = chatModel.model || selectedModelProvider?.default_model || selectedModelProvider?.models?.[0] || config.model || '';
+  const selectedChatModel = chatModel.model || workspaceDefaultModelChoice(config, selectedModelProvider).model;
   const selectedModelBaseURL = selectedModelProvider?.base_url || config.base_url || '';
 
   useEffect(() => {
@@ -866,7 +866,7 @@ export default function App() {
     const stillValid = providerChoices.some(provider => provider.choice_id === chatModel.provider_id && (!chatModel.model || provider.models.includes(chatModel.model)));
     if (stillValid) return;
     const provider = providerChoices.find(item => item.choice_id === (config.provider_id || '')) || providerChoices[0];
-    setChatModel({ provider_id: provider.choice_id, model: provider.default_model || provider.models[0] || config.model || '' });
+    setChatModel(workspaceDefaultModelChoice(config, provider));
   }, [chatModel.model, chatModel.provider_id, config.model, config.provider_id, providerChoices]);
 
   const selectChatModel = useCallback((provider, modelName) => {
@@ -1141,6 +1141,8 @@ export default function App() {
     await saveWorkspaceConfig(api, workspaceID, {
       provider_id: config.provider_id,
       model: config.model,
+      fallback_provider_id: config.fallback_provider_id,
+      fallback_model: config.fallback_model,
       system_prompt: config.system_prompt,
       context_mode: config.context_mode || 'auto',
       max_context_messages: Number(config.max_context_messages || 12),

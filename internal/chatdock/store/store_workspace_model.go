@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -85,6 +86,9 @@ func (s *Store) saveModelConfigForWorkspaceLocked(workspaceID string, next model
 	if err != nil {
 		return model.ModelConfig{}, err
 	}
+	if err := normalizeFallbackModelSelectionWith(tx, &merged); err != nil {
+		return model.ModelConfig{}, err
+	}
 	if err := setWorkspaceJSONWith(tx, workspaceID, "config", merged, time.Now()); err != nil {
 		return model.ModelConfig{}, err
 	}
@@ -92,6 +96,36 @@ func (s *Store) saveModelConfigForWorkspaceLocked(workspaceID string, next model
 		return model.ModelConfig{}, err
 	}
 	return merged, nil
+}
+
+func normalizeFallbackModelSelectionWith(reader sqlQueryer, cfg *model.ModelConfig) error {
+	providerID := normalizeProviderID(cfg.FallbackProviderID)
+	if providerID == "" {
+		cfg.FallbackProviderID = ""
+		cfg.FallbackModel = ""
+		return nil
+	}
+
+	providerCfg, ok, err := modelProviderConfigWith(reader, providerID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("fallback model provider not found: %s", providerID)
+	}
+	modelName := strings.TrimSpace(cfg.FallbackModel)
+	if modelName == "" {
+		modelName = providerCfg.Model
+	}
+	if modelName == "" {
+		return fmt.Errorf("fallback model is required")
+	}
+	if providerCfg.ProviderID == cfg.ProviderID && modelName == cfg.Model {
+		return fmt.Errorf("fallback model must differ from primary model")
+	}
+	cfg.FallbackProviderID = providerCfg.ProviderID
+	cfg.FallbackModel = modelName
+	return nil
 }
 
 func upsertProviderFromConfigWith(db sqlQueryWriter, workspaceID string, cfg model.ModelConfig) error {

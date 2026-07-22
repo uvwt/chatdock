@@ -86,6 +86,50 @@ func (s *Store) resolveChatModelConfigLocked(base model.ModelConfig, providerID 
 	return next, nil
 }
 
+// ResolveFallbackModelConfig 把工作空间保存的备用供应商选择解析成可直接调用的完整配置。
+// 备用模型只继承当前请求的提示词、上下文和采样参数，不改变当前会话选中的主模型。
+func (s *Store) ResolveFallbackModelConfig(base model.ModelConfig) (*model.ModelConfig, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	base = model.NormalizeModelConfig(base)
+	providerID := normalizeProviderID(base.FallbackProviderID)
+	modelName := strings.TrimSpace(base.FallbackModel)
+	if providerID == "" && modelName == "" {
+		return nil, nil
+	}
+	if providerID == "" {
+		return nil, fmt.Errorf("fallback model provider is required")
+	}
+	providerCfg, ok, err := s.modelProviderConfigLocked(providerID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, fmt.Errorf("fallback model provider not found: %s", providerID)
+	}
+	if modelName == "" {
+		modelName = providerCfg.Model
+	}
+	if modelName == "" {
+		return nil, fmt.Errorf("fallback model is required")
+	}
+
+	fallback := base
+	fallback.ProviderID = providerCfg.ProviderID
+	fallback.BaseURL = providerCfg.BaseURL
+	fallback.APIKey = providerCfg.APIKey
+	fallback.Model = modelName
+	fallback.Models = append([]string(nil), providerCfg.Models...)
+	fallback.FallbackProviderID = ""
+	fallback.FallbackModel = ""
+	fallback = model.NormalizeModelConfig(fallback)
+	if fallback.ProviderID == base.ProviderID && fallback.Model == base.Model {
+		return nil, nil
+	}
+	return &fallback, nil
+}
+
 func applyProviderToConfigWith(reader sqlQueryer, cfg model.ModelConfig) (model.ModelConfig, error) {
 	cfg = model.NormalizeModelConfig(cfg)
 	providerCfg, ok, err := modelProviderConfigWith(reader, cfg.ProviderID)

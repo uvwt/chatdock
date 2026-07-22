@@ -8,6 +8,8 @@ export function workspaceConfigDraftSignature(config = {}) {
   return JSON.stringify({
     provider_id: String(config.provider_id || ''),
     model: String(config.model || ''),
+    fallback_provider_id: String(config.fallback_provider_id || ''),
+    fallback_model: String(config.fallback_model || ''),
     system_prompt: String(config.system_prompt || ''),
     context_mode: String(config.context_mode || 'auto'),
     max_context_messages: finiteNumber(config.max_context_messages, 12),

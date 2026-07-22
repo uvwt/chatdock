@@ -33,6 +33,7 @@ type ModelChatResponse struct {
 type MCPToolLoopOptions struct {
 	RefreshTools   func() []mcp.MCPTool
 	AfterToolRound func() ([]map[string]any, error)
+	OnToolCall     func()
 }
 
 const finalToolResponseInstruction = "请根据已经完成的工具调用结果给出明确、完整的最终答复。如果工具调用失败，请说明失败原因和下一步。不要继续调用工具，也不要返回空内容。"
@@ -63,7 +64,7 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 	}
 
 	if emit == nil {
-		return c.completeWithMCPToolsBlocking(ctx, cfg, messages, currentTools, call)
+		return c.completeWithMCPToolsBlocking(ctx, cfg, messages, currentTools, call, loopOptions)
 	}
 
 	var visibleAnswer strings.Builder
@@ -104,6 +105,9 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 			return strings.TrimSpace(visibleAnswer.String()), nil
 		}
 
+		if loopOptions.OnToolCall != nil {
+			loopOptions.OnToolCall()
+		}
 		toolRounds++
 		messages = append(messages, assistantToolCallMessage(resp))
 		toolMessages, modelMessages, err := executeModelToolCalls(resp.ToolCalls, call, emit)
@@ -127,7 +131,7 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 	}
 }
 
-func (c *ChatClient) completeWithMCPToolsBlocking(ctx context.Context, cfg model.ModelConfig, messages []map[string]any, currentTools func() []map[string]any, call func(string, map[string]any) (any, error)) (string, error) {
+func (c *ChatClient) completeWithMCPToolsBlocking(ctx context.Context, cfg model.ModelConfig, messages []map[string]any, currentTools func() []map[string]any, call func(string, map[string]any) (any, error), options MCPToolLoopOptions) (string, error) {
 	toolRounds := 0
 	finalResponseRequested := false
 	for {
@@ -153,6 +157,9 @@ func (c *ChatClient) completeWithMCPToolsBlocking(ctx context.Context, cfg model
 				continue
 			}
 			return answer, nil
+		}
+		if options.OnToolCall != nil {
+			options.OnToolCall()
 		}
 		toolRounds++
 		messages = append(messages, assistantToolCallMessage(resp))

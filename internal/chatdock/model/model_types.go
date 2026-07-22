@@ -6,6 +6,8 @@ type ModelConfig struct {
 	APIKey             string   `json:"api_key,omitempty"`
 	Model              string   `json:"model"`
 	Models             []string `json:"models,omitempty"`
+	FallbackProviderID string   `json:"fallback_provider_id,omitempty"`
+	FallbackModel      string   `json:"fallback_model,omitempty"`
 	SystemPrompt       string   `json:"system_prompt"`
 	ContextMode        string   `json:"context_mode,omitempty"`
 	MaxContextMessages int      `json:"max_context_messages"`
@@ -22,6 +24,8 @@ type PublicModelConfig struct {
 	HasAPIKey          bool     `json:"has_api_key"`
 	Model              string   `json:"model"`
 	Models             []string `json:"models,omitempty"`
+	FallbackProviderID string   `json:"fallback_provider_id,omitempty"`
+	FallbackModel      string   `json:"fallback_model,omitempty"`
 	SystemPrompt       string   `json:"system_prompt"`
 	ContextMode        string   `json:"context_mode,omitempty"`
 	MaxContextMessages int      `json:"max_context_messages"`

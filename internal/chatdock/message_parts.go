@@ -21,7 +21,26 @@ func (r *messagePartsRecorder) record(event string, value any) {
 		r.recordToolStart(value)
 	case "tool_call_result":
 		r.recordToolResult(value)
+	case "model_fallback":
+		r.recordModelFallback(value)
 	}
+}
+
+func (r *messagePartsRecorder) recordModelFallback(value any) {
+	data := mapValue(value)
+	toProvider := stringValue(data["to_provider_id"])
+	toModel := stringValue(data["to_model"])
+	meta := strings.Trim(strings.Join([]string{toProvider, toModel}, " · "), " ·")
+	event := model.MessageEvent{
+		Kind:    "tool",
+		Phase:   "done",
+		CallKey: "model_fallback::" + toProvider + "::" + toModel,
+		Text:    "切换备用模型",
+		Meta:    meta,
+		Details: map[string]any{"event": "model_fallback", "data": data},
+	}
+	r.events = append(r.events, event)
+	r.parts = append(r.parts, model.MessagePart{Kind: "tool", CallKey: event.CallKey, Event: cloneEventPointer(event)})
 }
 
 func (r *messagePartsRecorder) recordDelta(value any) {

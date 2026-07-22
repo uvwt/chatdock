@@ -34,7 +34,7 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	answer, err := a.completeWithOptionalTools(r.Context(), workspaceID, input.SessionID, cfg, history)
+	answer, usedCfg, err := a.completeWithOptionalTools(r.Context(), workspaceID, input.SessionID, cfg, history)
 	if err != nil {
 		a.persistSessionChatError(workspaceID, input.SessionID, requestIDFromRequest(r), err)
 		writeError(w, http.StatusBadGateway, err)
@@ -46,7 +46,7 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	if renamed, titleErr := a.maybeGenerateSessionTitle(r.Context(), workspaceID, input.SessionID, cfg); titleErr != nil {
+	if renamed, titleErr := a.maybeGenerateSessionTitle(r.Context(), workspaceID, input.SessionID, usedCfg); titleErr != nil {
 		logError("session_title_generation_failed", titleErr, logFields{"request_id": requestIDFromRequest(r), "session_id": input.SessionID})
 	} else {
 		session = renamed
@@ -87,8 +87,9 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 	streamChatJobEvents(r, w, flusher, a, a.workspaceIDFromRequest(r), job.ID, 0)
 }
 
-func (a *App) completeWithOptionalTools(ctx context.Context, workspaceID string, sessionID string, cfg model.ModelConfig, history []model.Message) (string, error) {
-	return a.completeWithRecordedTools(ctx, workspaceID, "", sessionID, cfg, history, nil)
+func (a *App) completeWithOptionalTools(ctx context.Context, workspaceID string, sessionID string, cfg model.ModelConfig, history []model.Message) (string, model.ModelConfig, error) {
+	fallbackCfg := a.resolveFallbackModelConfig(ctx, sessionID, cfg)
+	return a.completeWithRecordedTools(ctx, workspaceID, "", sessionID, cfg, fallbackCfg, history, nil)
 }
 
 func isClientCanceled(ctx context.Context, err error) bool {

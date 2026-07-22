@@ -155,6 +155,7 @@ function ModelModule({ config, configDirty, saveState, setConfig, saveConfig, sh
   const update = (key, value) => setConfig(c => ({...c, [key]: value}));
   const providerModels = (provider) => normalizeModelNames([...(provider?.models || []), provider?.default_model].filter(Boolean));
   const activeProvider = providers.find(p => p.id === config.provider_id) || providers[0] || null;
+  const fallbackProvider = providers.find(p => p.id === config.fallback_provider_id) || null;
   const chooseProvider = (id) => setConfig(c => {
     const provider = providers.find(p => p.id === id) || providers[0] || null;
     const models = providerModels(provider);
@@ -165,7 +166,16 @@ function ModelModule({ config, configDirty, saveState, setConfig, saveConfig, sh
     const models = normalizeModelNames([...(c.models || []), name]);
     return {...c, model: name, models};
   });
+  const chooseFallbackProvider = (id) => setConfig(c => {
+    const provider = providers.find(p => p.id === id) || null;
+    if (!provider) return {...c, fallback_provider_id: '', fallback_model: ''};
+    const models = providerModels(provider);
+    const model = models.includes(c.fallback_model) ? c.fallback_model : (provider.default_model || models[0] || '');
+    return {...c, fallback_provider_id: provider.id, fallback_model: model};
+  });
+  const chooseFallbackModel = (name) => setConfig(c => ({...c, fallback_model: name}));
   const selectedProviderModels = providerModels(activeProvider);
+  const fallbackModels = normalizeModelNames([...providerModels(fallbackProvider), config.fallback_model].filter(Boolean));
   const contextMode = config.context_mode || 'auto';
   const saving = saveState?.status === 'saving';
   return <>
@@ -174,8 +184,11 @@ function ModelModule({ config, configDirty, saveState, setConfig, saveConfig, sh
       <div className="model-quick-grid">
         <label>供应商<select value={activeProvider?.id || ''} onChange={e => chooseProvider(e.target.value)}>{providers.length ? providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>) : <option value="">未配置供应商</option>}</select></label>
         <label>模型<input value={config.model || ''} onChange={e => chooseModel(e.target.value)} placeholder={activeProvider?.default_model || 'gpt-4o-mini'} /></label>
+        <label>备用供应商<select value={fallbackProvider?.id || ''} onChange={e => chooseFallbackProvider(e.target.value)}><option value="">不使用备用模型</option>{providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>)}</select></label>
+        <label>备用模型<select value={config.fallback_model || ''} onChange={e => chooseFallbackModel(e.target.value)} disabled={!fallbackProvider}><option value="">{fallbackProvider ? '使用供应商默认模型' : '先选择备用供应商'}</option>{fallbackModels.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
       </div>
       {selectedProviderModels.length ? <div className="model-options compact-model-options">{selectedProviderModels.map(name => <button key={name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => chooseModel(name)}>{name}</button>)}</div> : <div className="hint">没有可用模型。去“供应商”页添加模型或候选模型。</div>}
+      <div className="hint model-fallback-hint">主模型在尚未输出内容或执行工具前失败时自动切换；备用模型不会永久覆盖当前会话选择。</div>
     </section>
     <div className="model-inline-grid">
       <section className="settings-section model-inline-card reply-inline-card">
