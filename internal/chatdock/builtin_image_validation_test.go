@@ -2,13 +2,12 @@ package chatdock
 
 import (
 	"context"
-	"net"
 	"strings"
 	"testing"
 )
 
 func TestValidatePublicHTTPImageURLRejectsEmbeddedCredentialsBeforeDNS(t *testing.T) {
-	_, err := validatePublicHTTPImageURL(context.Background(), "https://user:secret@example.invalid/image.png", net.DefaultResolver)
+	_, err := validatePublicHTTPImageURL(context.Background(), "https://user:secret@example.invalid/image.png")
 	if err == nil || !strings.Contains(err.Error(), "credentials are not allowed") {
 		t.Fatalf("userinfo URL error = %v", err)
 	}

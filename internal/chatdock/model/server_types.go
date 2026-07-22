@@ -13,7 +13,6 @@ type ServerConfig struct {
 	EmbeddingModel        string
 	AgentDockContextURL   string
 	AgentDockContextToken string
-	ImageDNSServer        string
 }
 
 type AuthStatusResponse struct {

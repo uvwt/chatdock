@@ -46,18 +46,18 @@ func isBuiltinImageTool(name string) bool {
 func (a *App) callBuiltinImageTool(ctx context.Context, name string, args map[string]any) (any, error) {
 	switch name {
 	case builtinToolLoadImageURL:
-		return loadImageURLForModel(ctx, args, a.imageDNSResolver)
+		return loadImageURLForModel(ctx, args)
 	default:
 		return nil, fmt.Errorf("unknown builtin image tool: %s", name)
 	}
 }
 
-func loadImageURLForModel(ctx context.Context, args map[string]any, resolver *net.Resolver) (map[string]any, error) {
+func loadImageURLForModel(ctx context.Context, args map[string]any) (map[string]any, error) {
 	rawURL, err := requiredStringArg(args, "url")
 	if err != nil {
 		return nil, err
 	}
-	parsed, err := validatePublicHTTPImageURL(ctx, rawURL, resolver)
+	parsed, err := validatePublicHTTPImageURL(ctx, rawURL)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func loadImageURLForModel(ctx context.Context, args map[string]any, resolver *ne
 		return nil, fmt.Errorf("detail must be one of: auto, low, high")
 	}
 
-	meta, err := probeImageURL(ctx, parsed.String(), resolver)
+	meta, err := probeImageURL(ctx, parsed.String())
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ type imageURLMeta struct {
 	SizeBytes int64
 }
 
-func validatePublicHTTPImageURL(ctx context.Context, raw string, resolver *net.Resolver) (*url.URL, error) {
+func validatePublicHTTPImageURL(ctx context.Context, raw string) (*url.URL, error) {
 	parsed, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil {
 		return nil, err
@@ -117,17 +117,17 @@ func validatePublicHTTPImageURL(ctx context.Context, raw string, resolver *net.R
 	if parsed.User != nil {
 		return nil, fmt.Errorf("url credentials are not allowed")
 	}
-	if err := rejectPrivateHost(ctx, parsed.Hostname(), resolver); err != nil {
+	if err := rejectPrivateHost(ctx, parsed.Hostname()); err != nil {
 		return nil, err
 	}
 	return parsed, nil
 }
 
-func probeImageURL(ctx context.Context, rawURL string, resolver *net.Resolver) (imageURLMeta, error) {
+func probeImageURL(ctx context.Context, rawURL string) (imageURLMeta, error) {
 	ctx, cancel := context.WithTimeout(ctx, 25*time.Second)
 	defer cancel()
 
-	transport := publicImageTransport(resolver)
+	transport := publicImageTransport()
 	defer transport.CloseIdleConnections()
 	client := &http.Client{
 		Timeout:   25 * time.Second,
@@ -142,7 +142,7 @@ func probeImageURL(ctx context.Context, rawURL string, resolver *net.Resolver) (
 			if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
 				return fmt.Errorf("redirect url must use http or https")
 			}
-			return rejectPrivateHost(req.Context(), req.URL.Hostname(), resolver)
+			return rejectPrivateHost(req.Context(), req.URL.Hostname())
 		},
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
@@ -205,30 +205,7 @@ func canonicalImageMIME(mimeType string) string {
 	return strings.ToLower(strings.TrimSpace(mimeType))
 }
 
-func newImageDNSResolver(rawServer string) (*net.Resolver, error) {
-	server := strings.TrimSpace(rawServer)
-	if server == "" {
-		return net.DefaultResolver, nil
-	}
-
-	if addr, err := netip.ParseAddr(server); err == nil {
-		server = netip.AddrPortFrom(addr, 53).String()
-	}
-	addrPort, err := netip.ParseAddrPort(server)
-	if err != nil || addrPort.Port() == 0 {
-		return nil, fmt.Errorf("CHATDOCK_IMAGE_DNS_SERVER must be an IP address with an optional port")
-	}
-	server = addrPort.String()
-	dialer := &net.Dialer{Timeout: 3 * time.Second}
-	return &net.Resolver{
-		PreferGo: true,
-		Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
-			return dialer.DialContext(ctx, network, server)
-		},
-	}, nil
-}
-
-func publicImageTransport(resolver *net.Resolver) *http.Transport {
+func publicImageTransport() *http.Transport {
 	dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}
 	return &http.Transport{
 		Proxy:                 nil,
@@ -241,7 +218,7 @@ func publicImageTransport(resolver *net.Resolver) *http.Transport {
 			if err != nil {
 				return nil, err
 			}
-			ips, err := resolvePublicHostIPs(ctx, host, resolver)
+			ips, err := resolvePublicHostIPs(ctx, host)
 			if err != nil {
 				return nil, err
 			}
@@ -258,7 +235,7 @@ func publicImageTransport(resolver *net.Resolver) *http.Transport {
 	}
 }
 
-func resolvePublicHostIPs(parent context.Context, host string, resolver *net.Resolver) ([]net.IP, error) {
+func resolvePublicHostIPs(parent context.Context, host string) ([]net.IP, error) {
 	if err := parent.Err(); err != nil {
 		return nil, err
 	}
@@ -278,10 +255,7 @@ func resolvePublicHostIPs(parent context.Context, host string, resolver *net.Res
 	}
 	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	defer cancel()
-	if resolver == nil {
-		resolver = net.DefaultResolver
-	}
-	ips, err := resolver.LookupIP(ctx, "ip", lower)
+	ips, err := net.DefaultResolver.LookupIP(ctx, "ip", lower)
 	if err != nil {
 		// Go 在不同系统解析器上可能返回不包装 context.Canceled 的
 		// *net.DNSError（例如 "operation was canceled"）。对外统一返回
@@ -302,8 +276,8 @@ func resolvePublicHostIPs(parent context.Context, host string, resolver *net.Res
 	return ips, nil
 }
 
-func rejectPrivateHost(parent context.Context, host string, resolver *net.Resolver) error {
-	_, err := resolvePublicHostIPs(parent, host, resolver)
+func rejectPrivateHost(parent context.Context, host string) error {
+	_, err := resolvePublicHostIPs(parent, host)
 	return err
 }
 

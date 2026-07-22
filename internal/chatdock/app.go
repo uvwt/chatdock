@@ -42,7 +42,6 @@ type App struct {
 	agentDockContextMu    sync.Mutex
 	agentDockContext      string
 	agentDockContextUntil time.Time
-	imageDNSResolver      *net.Resolver
 }
 
 func normalizeServerConfig(cfg model.ServerConfig) model.ServerConfig {
@@ -55,10 +54,6 @@ func normalizeServerConfig(cfg model.ServerConfig) model.ServerConfig {
 
 func NewApp(cfg model.ServerConfig) (*App, error) {
 	cfg = normalizeServerConfig(cfg)
-	imageDNSResolver, err := newImageDNSResolver(cfg.ImageDNSServer)
-	if err != nil {
-		return nil, fmt.Errorf("configure image DNS resolver: %w", err)
-	}
 	st, err := storepkg.NewStore(cfg.DataDir)
 	if err != nil {
 		return nil, err
@@ -66,18 +61,17 @@ func NewApp(cfg model.ServerConfig) (*App, error) {
 
 	lifecycleCtx, lifecycleCancel := context.WithCancel(context.Background())
 	app := &App{
-		cfg:              cfg,
-		lifecycleCtx:     lifecycleCtx,
-		lifecycleCancel:  lifecycleCancel,
-		store:            st,
-		client:           llm.NewChatClient(),
-		mcpClient:        mcp.NewMCPClient(),
-		jobCancel:        make(map[string]context.CancelFunc),
-		jobGuidance:      make(map[string][]chatJobGuidance),
-		confirmations:    make(map[string]*MCPConfirmation),
-		running:          make(map[string]bool),
-		embeddingMemo:    make(map[string][]float64),
-		imageDNSResolver: imageDNSResolver,
+		cfg:             cfg,
+		lifecycleCtx:    lifecycleCtx,
+		lifecycleCancel: lifecycleCancel,
+		store:           st,
+		client:          llm.NewChatClient(),
+		mcpClient:       mcp.NewMCPClient(),
+		jobCancel:       make(map[string]context.CancelFunc),
+		jobGuidance:     make(map[string][]chatJobGuidance),
+		confirmations:   make(map[string]*MCPConfirmation),
+		running:         make(map[string]bool),
+		embeddingMemo:   make(map[string][]float64),
 	}
 	app.server = &http.Server{
 		Addr:              cfg.Addr,
