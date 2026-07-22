@@ -74,3 +74,8 @@ test('workspaceDefaultModelChoice uses provider default outside the workspace pr
   );
   assert.deepEqual(choice, {provider_id: 'other', model: 'gemini-flash'});
 });
+
+test('workspaceDefaultModelChoice keeps the workspace model while providers are still loading', () => {
+  const choice = workspaceDefaultModelChoice({provider_id: 'cpa', model: 'grok-4.5'}, null);
+  assert.deepEqual(choice, {provider_id: '', model: 'grok-4.5'});
+});

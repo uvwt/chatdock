@@ -84,7 +84,7 @@ export function workspaceDefaultModelChoice(config = {}, provider = null) {
   const providerModel = String(provider?.default_model || provider?.models?.[0] || '').trim();
   return {
     provider_id: providerID,
-    model: providerID && providerID === workspaceProviderID && workspaceModel ? workspaceModel : providerModel,
+    model: !providerID || providerID === workspaceProviderID ? (workspaceModel || providerModel) : providerModel,
   };
 }
 
