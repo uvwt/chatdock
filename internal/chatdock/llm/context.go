@@ -10,9 +10,11 @@ import (
 type ContextMessage = chatContextMessage
 
 type chatContextMessage struct {
-	Role             string
-	Content          string
-	ModelAttachments []model.AttachmentRecord
+	Role               string
+	Content            string
+	ModelAttachments   []model.AttachmentRecord
+	Events             []model.MessageEvent
+	IncludeToolHistory bool
 }
 
 func BuildChatMessages(cfg model.ModelConfig, history []model.Message) []map[string]string {
@@ -57,6 +59,7 @@ func buildChatContextMessages(cfg model.ModelConfig, history []model.Message) []
 	recentCount, summarizeOld := contextPlan(cfg)
 	valid := validChatHistory(history)
 	historySystems, conversation := splitHistorySystemMessages(valid)
+	toolHistoryIndexes := historicalToolMessageIndexSet(conversation)
 	start := len(conversation) - recentCount
 	if start < 0 {
 		start = 0
@@ -80,8 +83,14 @@ func buildChatContextMessages(cfg model.ModelConfig, history []model.Message) []
 	for _, item := range historySystems {
 		messages = append(messages, chatContextMessage{Role: item.Role, Content: item.Content, ModelAttachments: item.ModelAttachments})
 	}
-	for _, item := range conversation[start:] {
-		messages = append(messages, chatContextMessage{Role: item.Role, Content: item.Content, ModelAttachments: item.ModelAttachments})
+	for offset, item := range conversation[start:] {
+		messages = append(messages, chatContextMessage{
+			Role:               item.Role,
+			Content:            item.Content,
+			ModelAttachments:   item.ModelAttachments,
+			Events:             item.Events,
+			IncludeToolHistory: toolHistoryIndexes[start+offset],
+		})
 	}
 	return messages
 }

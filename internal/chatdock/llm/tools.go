@@ -617,7 +617,13 @@ func MCPToolsToOpenAITools(tools []mcp.MCPTool) []map[string]any {
 func BuildChatMessagesAny(cfg model.ModelConfig, history []model.Message) []map[string]any {
 	prepared := buildChatContextMessages(cfg, history)
 	messages := make([]map[string]any, 0, len(prepared)*2)
-	for _, item := range prepared {
+	for index, item := range prepared {
+		if item.IncludeToolHistory {
+			if historical := historicalAssistantMessages(item, index); len(historical) > 0 {
+				messages = append(messages, historical...)
+				continue
+			}
+		}
 		if strings.TrimSpace(item.Content) != "" {
 			messages = append(messages, map[string]any{"role": item.Role, "content": messageContentForModel(item)})
 		}

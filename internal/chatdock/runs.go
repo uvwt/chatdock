@@ -17,6 +17,10 @@ type activeToolRun struct {
 }
 
 func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string, jobID string, sessionID string, cfg model.ModelConfig, fallbackCfg *model.ModelConfig, history []model.Message, emit func(string, any) error) (string, model.ModelConfig, error) {
+	toolMessageIndexes := llm.HistoricalToolMessageIndexes(history)
+	if err := a.store.HydrateMessageEventDetails(workspaceID, sessionID, history, toolMessageIndexes); err != nil {
+		return "", cfg, err
+	}
 	history = a.prepareVisionAttachmentURLs(history)
 	history = a.appendAgentDockRuntimeContext(ctx, history)
 
