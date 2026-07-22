@@ -19,6 +19,12 @@ test('chatStreamStatsAfterEvent counts tool and lifecycle events', () => {
   assert.equal(failed.state, 'error');
 });
 
+test('tool setup success stays out of the visible assistant timeline', () => {
+  assert.equal(projectsChatStreamAssistant('tool_setup_ready', { tool_count: 4 }), false);
+  const message = { role: 'assistant-stream', answer: '', events: [] };
+  assert.equal(chatStreamAssistantAfterEvent(message, 'tool_setup_ready', { tool_count: 4 }), message);
+});
+
 test('model fallback is projected as a visible execution event', () => {
   assert.equal(projectsChatStreamAssistant('model_fallback', {}), true);
   const stats = chatStreamStatsAfterEvent(idleStats(), 'model_fallback', {});

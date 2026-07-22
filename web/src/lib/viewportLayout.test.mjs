@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   isTextEntryTarget,
+  nextMessageAutoFollowState,
   normalizeViewportMetrics,
   shouldKeepMessagesAtBottom,
   shouldUseComposerKeyboardLayout,
@@ -42,4 +43,27 @@ test('shouldKeepMessagesAtBottom only follows a conversation near its bottom edg
   assert.equal(shouldKeepMessagesAtBottom({ scrollHeight: 1000, scrollTop: 490, clientHeight: 400 }), true);
   assert.equal(shouldKeepMessagesAtBottom({ scrollHeight: 1000, scrollTop: 300, clientHeight: 400 }), false);
   assert.equal(shouldKeepMessagesAtBottom(null), false);
+});
+
+test('message auto-follow pauses after upward scrolling and resumes near the bottom', () => {
+  const movedUp = nextMessageAutoFollowState(
+    { scrollHeight: 1200, scrollTop: 520, clientHeight: 400 },
+    700,
+    false,
+  );
+  assert.deepEqual(movedUp, { scrollTop: 520, paused: true, stickToBottom: false });
+
+  const stillReading = nextMessageAutoFollowState(
+    { scrollHeight: 1320, scrollTop: 540, clientHeight: 400 },
+    movedUp.scrollTop,
+    movedUp.paused,
+  );
+  assert.deepEqual(stillReading, { scrollTop: 540, paused: true, stickToBottom: false });
+
+  const returnedToBottom = nextMessageAutoFollowState(
+    { scrollHeight: 1320, scrollTop: 900, clientHeight: 400 },
+    stillReading.scrollTop,
+    stillReading.paused,
+  );
+  assert.deepEqual(returnedToBottom, { scrollTop: 900, paused: false, stickToBottom: true });
 });

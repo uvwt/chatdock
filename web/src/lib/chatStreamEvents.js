@@ -3,7 +3,6 @@ import { streamErrorMessage } from './chatPresentation.js';
 import { appendToolStartEvent, mergeToolResultEvent } from './toolEvents.js';
 
 const assistantEventNames = new Set([
-  'tool_setup_ready',
   'tool_setup_error',
   'tool_call_start',
   'tool_call_result',
@@ -59,14 +58,6 @@ export function projectsChatStreamAssistant(event, data = {}) {
 
 export function chatStreamAssistantAfterEvent(message, event, data = {}) {
   switch (event) {
-    case 'tool_setup_ready':
-      return appendEvent(message, {
-        kind: 'tool',
-        text: data.mode === 'discovery'
-          ? `已准备可用工具索引：${data.tool_count || 0} 个工具`
-          : `MCP 已接入：${data.tool_count || 0} 个工具`,
-        details: { event, data },
-      });
     case 'tool_setup_error':
       return appendEvent(message, { kind: 'tool', text: `⚠️ MCP 未接入：${data.message || '工具初始化失败'}`, details: { event, data } });
     case 'tool_call_start':

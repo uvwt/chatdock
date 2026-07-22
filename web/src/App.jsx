@@ -20,6 +20,7 @@ import { providerChoiceID, providerKeyRows, providerLabel, providerPayloadForMod
 import { useSettingsData } from './hooks/useSettingsData.js';
 import { useSessionList } from './hooks/useSessionList.js';
 import { useVisualViewportLayout } from './hooks/useVisualViewportLayout.js';
+import { useMessageAutoFollow } from './hooks/useMessageAutoFollow.js';
 import { buildQuickActions } from './lib/quickActions.js';
 import { scheduledTaskSessionRows, visibleSessionRows } from './lib/sessionPresentation.js';
 const SettingsPanel = lazy(() => import('./components/settings.jsx').then(module => ({default: module.SettingsPanel})));
@@ -62,6 +63,17 @@ export default function App() {
   const [selectedScheduledTaskRuns, setSelectedScheduledTaskRuns] = useState([]);
   const [taskSearch, setTaskSearch] = useState('');
 
+  const {
+    messagesRef,
+    scrollToLatestModelMessage,
+    resetMessageAutoFollow,
+    handleMessagesScroll,
+    handleMessagesWheel,
+    handleMessagesTouchStart,
+    handleMessagesTouchMove,
+    handleMessagesTouchEnd,
+  } = useMessageAutoFollow({ messages, setShowJumpToLatest });
+
   const abortRef = useRef(null);
   const activeJobIDRef = useRef('');
   const activeJobSessionRef = useRef('');
@@ -70,9 +82,6 @@ export default function App() {
   const pausedRef = useRef(false);
   const pendingDeltaRef = useRef('');
   const pendingReasoningRef = useRef('');
-  const messagesRef = useRef(null);
-  const stickToBottomRef = useRef(true);
-  const forceScrollRef = useRef(false);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const sessionOpenSeqRef = useRef(0);
@@ -395,67 +404,6 @@ export default function App() {
     }
   }, [settingsOpen, activeModule, loadMCPStatus, loadDataStatus, loadSystemStatus, showToast]);
 
-  const latestModelMessageElement = useCallback(() => {
-    const box = messagesRef.current;
-    if (!box) return null;
-    const nodes = box.querySelectorAll('[data-model-message="true"]');
-    return nodes[nodes.length - 1] || null;
-  }, []);
-
-  const updateJumpToLatestVisibility = useCallback(() => {
-    const box = messagesRef.current;
-    if (!box) return;
-    const latest = latestModelMessageElement();
-    const bottomGap = box.scrollHeight - box.scrollTop - box.clientHeight;
-    if (!latest) {
-      setShowJumpToLatest(messages.length > 0 && bottomGap > 160);
-      return;
-    }
-    const latestTop = latest.offsetTop - box.scrollTop;
-    const latestBottom = latestTop + latest.offsetHeight;
-    // 只在用户确实停在“最新模型消息”上方时出现；如果用户已经在最新回复内部阅读，不打扰。
-    const shouldShow = bottomGap > 160 && latestTop > box.clientHeight - 96 && latestBottom > box.clientHeight;
-    setShowJumpToLatest(prev => prev === shouldShow ? prev : shouldShow);
-  }, [latestModelMessageElement, messages.length]);
-
-  const scrollToLatestModelMessage = useCallback(() => {
-    const box = messagesRef.current;
-    if (!box) return;
-    const latest = latestModelMessageElement();
-    if (latest) {
-      box.scrollTo({ top: Math.max(0, latest.offsetTop - 14), behavior: 'smooth' });
-    } else {
-      box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
-    }
-    window.setTimeout(updateJumpToLatestVisibility, 360);
-  }, [latestModelMessageElement, updateJumpToLatestVisibility]);
-
-  useEffect(() => {
-    const box = messagesRef.current;
-    if (!box) return;
-    if (!messages.length) {
-      // 空状态本身可能高于手机视口；此时不要沿用聊天流的“贴底”策略。
-      box.scrollTop = 0;
-      forceScrollRef.current = false;
-      stickToBottomRef.current = true;
-      setShowJumpToLatest(false);
-      return;
-    }
-    if (forceScrollRef.current || stickToBottomRef.current) {
-      box.scrollTop = box.scrollHeight;
-      forceScrollRef.current = false;
-    }
-    window.requestAnimationFrame(updateJumpToLatestVisibility);
-  }, [messages, updateJumpToLatestVisibility]);
-
-  const handleMessagesScroll = useCallback(() => {
-    const box = messagesRef.current;
-    if (!box) return;
-    // 用户手动上滑时停止跟随流式输出；只有接近底部时继续自动贴底。
-    stickToBottomRef.current = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
-    updateJumpToLatestVisibility();
-  }, [updateJumpToLatestVisibility]);
-
   const setSidebarCollapsed = useCallback((value) => {
     setSidebarCollapsedState(value);
     localStorage.setItem('chatdock.sidebarCollapsed', value ? '1' : '0');
@@ -572,8 +520,7 @@ export default function App() {
     setCurrent(id);
     setCurrentTitle(summary?.title || '正在加载会话…');
     clearAttachments();
-    stickToBottomRef.current = true;
-    forceScrollRef.current = true;
+    resetMessageAutoFollow();
     if (!messages.length) setMessages([{ role: 'empty', content: '正在加载会话…' }]);
     if (window.location.pathname !== sessionPath(id)) window.history.pushState({ chatdock: true }, '', sessionPath(id));
     closeSidebarOnMobile();
@@ -590,7 +537,7 @@ export default function App() {
       setMessages([{ role: 'empty', content: '会话加载失败：' + e.message }]);
       showToast('会话加载失败：' + e.message, 'error');
     }
-  }, [api, applySessionModel, busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, messages.length, showToast, upsertSession]);
+  }, [api, applySessionModel, busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, messages.length, resetMessageAutoFollow, showToast, upsertSession]);
 
   const newSession = useCallback(async () => { await createSession(); }, [createSession]);
 
@@ -914,8 +861,7 @@ export default function App() {
     const abort = new AbortController();
     abortRef.current = abort;
     activeJobSessionRef.current = sessionID;
-    forceScrollRef.current = true;
-    stickToBottomRef.current = true;
+    resetMessageAutoFollow();
     try {
       setStreamStats(prev => ({ ...prev, state: 'streaming' }));
       let finalSession = null;
@@ -968,7 +914,7 @@ export default function App() {
         setStreamPaused(false);
       }
     }
-  }, [appendAnswer, appendReasoning, appendToActiveAssistant, authHeaders, finishActiveAssistant, flushStreamText, handleChatStreamEvent, loadSessions, resetStreamText, selectedChatModel, selectedModelProvider, upsertSession, waitForStreamText]);
+  }, [appendAnswer, appendReasoning, appendToActiveAssistant, authHeaders, finishActiveAssistant, flushStreamText, handleChatStreamEvent, loadSessions, resetMessageAutoFollow, resetStreamText, selectedChatModel, selectedModelProvider, upsertSession, waitForStreamText]);
 
   const sendMsg = useCallback(async (overrideText) => {
     if (busy) return;
@@ -1565,7 +1511,7 @@ export default function App() {
           showContextPreview={showContextPreview} sidebarCollapsed={sidebarCollapsed} taskPanelAvailable={taskDataEnabled} taskPanelOpen={taskPanelOpen}
           taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
         />
-        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!workspaceSummaries.length} setInput={setInput} modelReady={modelReady} />}</div>
+        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!workspaceSummaries.length} setInput={setInput} modelReady={modelReady} />}</div>
         {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息">↓</button> : null}
         <CurrentSessionTask
           error={currentSessionTask.error} loading={currentSessionTask.loading} onRefresh={currentSessionTask.refresh}

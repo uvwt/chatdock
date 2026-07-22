@@ -149,7 +149,9 @@ function AssistantContent({ message, streaming = false, hideThinking = false, on
         onInspectToolEvent={onInspectToolEvent}
       />;
     })}
-    {!blocks.length && streaming ? <div className="answer" aria-live="polite" /> : null}
+    {!blocks.length && streaming ? <div className="assistant-waiting" role="status" aria-label="模型正在生成">
+      <span className="assistant-waiting-dot" aria-hidden="true" />
+    </div> : null}
     <ErrorNotice error={message.error} />
   </>;
 }

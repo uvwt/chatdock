@@ -33,3 +33,22 @@ export function shouldKeepMessagesAtBottom(messageBox, threshold = 120) {
   const bottomGap = messageBox.scrollHeight - messageBox.scrollTop - messageBox.clientHeight;
   return bottomGap <= threshold;
 }
+
+export function nextMessageAutoFollowState(messageBox, previousScrollTop = 0, paused = false, threshold = 24) {
+  if (!messageBox) {
+    return { scrollTop: previousScrollTop, paused, stickToBottom: false };
+  }
+
+  const scrollTop = Number(messageBox.scrollTop) || 0;
+  const bottomGap = Math.max(0, (Number(messageBox.scrollHeight) || 0) - scrollTop - (Number(messageBox.clientHeight) || 0));
+  const nearBottom = bottomGap <= threshold;
+  const movedUp = scrollTop < previousScrollTop - 1;
+
+  // 用户上滑后持续暂停自动跟随；只有真正回到底部附近才恢复。
+  const nextPaused = nearBottom ? false : (paused || movedUp);
+  return {
+    scrollTop,
+    paused: nextPaused,
+    stickToBottom: nearBottom && !nextPaused,
+  };
+}

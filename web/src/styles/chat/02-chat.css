@@ -125,10 +125,26 @@ body.theme-light .composer {
   cursor: not-allowed;
 }
 
-.msg.assistant .answer:empty::before {
-  content: '正在连接模型…';
-  color: var(--gpt-muted-2);
-  font-style: italic;
+.assistant-waiting {
+  padding: 6px 0 14px;
+}
+
+.assistant-waiting-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gpt-muted-2);
+  animation: assistant-waiting-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes assistant-waiting-pulse {
+  0%, 100% { opacity: .4; transform: scale(.62); }
+  50% { opacity: 1; transform: scale(1.38); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-waiting-dot { animation: none; }
 }
 
 .session-search-meta {
