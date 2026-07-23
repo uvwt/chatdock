@@ -15,7 +15,7 @@ func (s *Store) SetupStatus() (SetupStatus, error) {
 		s.mu.RUnlock()
 		return SetupStatus{}, err
 	}
-	workspaces, err := listWorkspaceSummariesWith(s.db, defaultWorkspaceID)
+	projectCount, err := projectCountWith(s.db)
 	s.mu.RUnlock()
 	if err != nil {
 		return SetupStatus{}, err
@@ -32,20 +32,12 @@ func (s *Store) SetupStatus() (SetupStatus, error) {
 			}
 		}
 	}
-	return SetupStatus{NeedsSetup: len(workspaces) == 0 || !hasProvider, HasModelProvider: hasProvider, HasAPIKey: hasKey, HasWorkspace: len(workspaces) > 0, ActiveWorkspace: defaultWorkspaceID, WorkspaceCount: len(workspaces), DataDir: dataDir}, nil
+	return SetupStatus{NeedsSetup: !hasProvider, HasModelProvider: hasProvider, HasAPIKey: hasKey, ProjectCount: projectCount, DataDir: dataDir}, nil
 }
 
 func (s *Store) InitializeSetup(input SetupInitRequest) (SetupStatus, error) {
-	name := strings.TrimSpace(input.WorkspaceName)
-	if name == "" {
-		name = defaultWorkspaceID
-	}
-	name, err := normalizeWorkspaceID(name)
-	if err != nil {
-		return SetupStatus{}, err
-	}
 	cfg := model.DefaultModelConfig()
-	cfg.ProviderID = providerIDFromWorkspace(name)
+	cfg.ProviderID = "provider_default"
 	cfg.BaseURL = strings.TrimSpace(input.BaseURL)
 	cfg.APIKey = strings.TrimSpace(input.APIKey)
 	cfg.Model = strings.TrimSpace(input.Model)
@@ -55,13 +47,13 @@ func (s *Store) InitializeSetup(input SetupInitRequest) (SetupStatus, error) {
 	}
 	cfg = model.NormalizeModelConfig(cfg)
 
-	if err := s.initializeSetupRecords(name, cfg); err != nil {
+	if err := s.initializeSetupRecords(cfg); err != nil {
 		return SetupStatus{}, err
 	}
 	return s.SetupStatus()
 }
 
-func (s *Store) initializeSetupRecords(name string, cfg model.ModelConfig) error {
+func (s *Store) initializeSetupRecords(cfg model.ModelConfig) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -71,16 +63,13 @@ func (s *Store) initializeSetupRecords(name string, cfg model.ModelConfig) error
 	}
 	defer func() { _ = tx.Rollback() }()
 	now := time.Now()
-	if _, err := tx.Exec(`INSERT OR IGNORE INTO workspaces(name, created_at, updated_at) VALUES(?, ?, ?)`, name, formatDBTime(now), formatDBTime(now)); err != nil {
+	if err := upsertProviderFromConfigWith(tx, cfg); err != nil {
 		return err
 	}
-	if err := upsertProviderFromConfigWith(tx, name, cfg); err != nil {
+	if err := setGlobalJSONWith(tx, "config", cfg, now); err != nil {
 		return err
 	}
-	if err := setWorkspaceJSONWith(tx, name, "config", cfg, now); err != nil {
-		return err
-	}
-	if err := setWorkspaceRawWith(tx, name, "mcp", DefaultMCPConfig(), now); err != nil {
+	if err := setGlobalRawWith(tx, "mcp", DefaultMCPConfig(), now); err != nil {
 		return err
 	}
 	return tx.Commit()

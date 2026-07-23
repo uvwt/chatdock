@@ -8,12 +8,12 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func (s *Store) modelConfigForWorkspaceLocked(prompt string) (model.ModelConfig, error) {
-	return modelConfigForWorkspaceWith(s.db, prompt)
+func (s *Store) modelConfigLocked() (model.ModelConfig, error) {
+	return modelConfigWith(s.db)
 }
 
-func modelConfigForWorkspaceWith(reader sqlQueryer, prompt string) (model.ModelConfig, error) {
-	raw, ok, err := getWorkspaceRawWith(reader, prompt, "config")
+func modelConfigWith(reader sqlQueryer) (model.ModelConfig, error) {
+	raw, ok, err := getGlobalRawWith(reader, "config")
 	if err != nil {
 		return model.ModelConfig{}, err
 	}
@@ -67,7 +67,7 @@ func (s *Store) resolveChatModelConfigLocked(base model.ModelConfig, providerID 
 		if !ok {
 			return model.ModelConfig{}, invalidChatRequest("model provider not found: %s", providerID)
 		}
-		// 供应商选择只切换连接、密钥和模型；当前会话的系统提示词和上下文策略继续沿用当前工作空间。
+		// 供应商选择只切换连接、密钥和模型；系统提示词和上下文策略继续沿用全局配置。
 		next.ProviderID = providerCfg.ProviderID
 		next.BaseURL = providerCfg.BaseURL
 		next.APIKey = providerCfg.APIKey

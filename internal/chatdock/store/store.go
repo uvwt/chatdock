@@ -13,9 +13,8 @@ import (
 )
 
 const (
-	defaultWorkspaceID = "default"
-	privateDirMode     = 0o700
-	privateFileMode    = 0o600
+	privateDirMode  = 0o700
+	privateFileMode = 0o600
 )
 
 type Store struct {
@@ -51,32 +50,8 @@ func NewStore(dataDir string) (*Store, error) {
 	if err := store.initSQLite(); err != nil {
 		return nil, closeStoreAfterInitError(db, "init sqlite", err)
 	}
-	if err := store.migrateLegacyData(); err != nil {
-		return nil, closeStoreAfterInitError(db, "migrate legacy data", err)
-	}
-	if err := store.migrateScheduledJSONToTables(); err != nil {
-		return nil, closeStoreAfterInitError(db, "migrate scheduled tasks", err)
-	}
-	if err := store.migrateSessionJSONToTables(); err != nil {
-		return nil, closeStoreAfterInitError(db, "migrate sessions", err)
-	}
-	if err := store.migrateAttachmentBlobs(); err != nil {
-		return nil, closeStoreAfterInitError(db, "migrate attachment blobs", err)
-	}
-	if err := store.migrateToolEmbeddingBlobs(); err != nil {
-		return nil, closeStoreAfterInitError(db, "migrate tool embedding blobs", err)
-	}
-	if err := store.migrateModelProviderAPIKeys(); err != nil {
-		return nil, closeStoreAfterInitError(db, "migrate model provider api keys", err)
-	}
 	if err := store.EnsureGlobalModelProviders(); err != nil {
 		return nil, closeStoreAfterInitError(db, "ensure global model providers", err)
-	}
-	store.mu.Lock()
-	err = store.ensureWorkspaceDefaultsLocked(defaultWorkspaceID)
-	store.mu.Unlock()
-	if err != nil {
-		return nil, closeStoreAfterInitError(db, "ensure default workspace", err)
 	}
 	if err := store.recoverInterruptedWork(); err != nil {
 		return nil, closeStoreAfterInitError(db, "recover interrupted work", err)

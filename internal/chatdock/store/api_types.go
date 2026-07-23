@@ -6,33 +6,19 @@ type SetupStatus struct {
 	NeedsSetup       bool   `json:"needs_setup"`
 	HasModelProvider bool   `json:"has_model_provider"`
 	HasAPIKey        bool   `json:"has_api_key"`
-	HasWorkspace     bool   `json:"has_workspace"`
-	ActiveWorkspace  string `json:"active_workspace"`
-	WorkspaceCount   int    `json:"workspace_count"`
+	ProjectCount     int    `json:"project_count"`
 	DataDir          string `json:"data_dir"`
 }
 
 type SetupInitRequest struct {
-	WorkspaceName string `json:"workspace_name"`
-	BaseURL       string `json:"base_url"`
-	APIKey        string `json:"api_key"`
-	Model         string `json:"model"`
-	SystemPrompt  string `json:"system_prompt"`
-}
-
-type WorkspaceReadiness struct {
-	WorkspaceID      string `json:"workspace_id"`
-	Ready            bool   `json:"ready"`
-	HasModelProvider bool   `json:"has_model_provider"`
-	HasAPIKey        bool   `json:"has_api_key"`
-	Model            string `json:"model"`
-	ProviderID       string `json:"provider_id"`
-	Reason           string `json:"reason,omitempty"`
+	BaseURL      string `json:"base_url"`
+	APIKey       string `json:"api_key"`
+	Model        string `json:"model"`
+	SystemPrompt string `json:"system_prompt"`
 }
 
 type MCPConfirmationRecord struct {
 	ID          string         `json:"id"`
-	WorkspaceID string         `json:"workspace_id"`
 	SessionID   string         `json:"session_id,omitempty"`
 	Tool        string         `json:"tool"`
 	Arguments   map[string]any `json:"arguments,omitempty"`
@@ -96,39 +82,6 @@ type ModelProviderInput struct {
 	APIKeys       []ModelProviderAPIKeyInput `json:"api_keys,omitempty"`
 }
 
-type Workspace struct {
-	ID              string    `json:"id"`
-	Name            string    `json:"name"`
-	Description     string    `json:"description,omitempty"`
-	Icon            string    `json:"icon,omitempty"`
-	ProviderID      string    `json:"provider_id"`
-	Model           string    `json:"model"`
-	Models          []string  `json:"models,omitempty"`
-	SystemPrompt    string    `json:"system_prompt"`
-	ContextLimit    int       `json:"context_limit"`
-	Temperature     float64   `json:"temperature"`
-	HideThinking    bool      `json:"hide_thinking"`
-	Ready           bool      `json:"ready"`
-	ReadinessReason string    `json:"readiness_reason,omitempty"`
-	TaskCount       int       `json:"task_count"`
-	SessionCount    int       `json:"session_count"`
-	Active          bool      `json:"active"`
-	Archived        bool      `json:"archived"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
-}
-
-type WorkspaceResponse struct {
-	Active     string      `json:"active"`
-	Workspaces []Workspace `json:"workspaces"`
-}
-
-type PromptPreviewResponse struct {
-	WorkspaceID   string `json:"workspace_id"`
-	WorkspaceName string `json:"workspace_name"`
-	Content       string `json:"content"`
-}
-
 type BackupInfo struct {
 	Name       string    `json:"name"`
 	Path       string    `json:"path"`
@@ -157,8 +110,7 @@ type DataStatus struct {
 	LatestBackupAt         time.Time    `json:"latest_backup_at,omitempty"`
 	LatestBackupAgeSeconds int64        `json:"latest_backup_age_seconds,omitempty"`
 	Backups                []BackupInfo `json:"backups,omitempty"`
-	ActiveWorkspace        string       `json:"active_workspace"`
-	WorkspaceCount         int          `json:"workspace_count"`
+	ProjectCount           int          `json:"project_count"`
 	SessionCount           int          `json:"session_count"`
 }
 

@@ -16,14 +16,11 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /api/model-providers/models", a.handleListProviderModels)
 	mux.HandleFunc("PUT /api/model-providers/{id}", a.handleUpdateModelProvider)
 	mux.HandleFunc("DELETE /api/model-providers/{id}", a.handleDeleteModelProvider)
-	mux.HandleFunc("GET /api/workspaces", a.handleListWorkspaces)
-	mux.HandleFunc("POST /api/workspaces", a.handleCreateWorkspace)
-	mux.HandleFunc("DELETE /api/workspaces/{id}", a.handleDeleteWorkspace)
-	mux.HandleFunc("POST /api/workspaces/{id}/select", a.handleSelectWorkspace)
-	mux.HandleFunc("GET /api/workspaces/{id}/readiness", a.handleWorkspaceReadiness)
-	mux.HandleFunc("GET /api/workspaces/{id}/config", a.handleGetWorkspaceConfig)
-	mux.HandleFunc("POST /api/workspaces/{id}/config", a.handleSaveWorkspaceConfig)
-	mux.HandleFunc("GET /api/workspaces/{id}/prompt-preview", a.handleWorkspacePromptPreview)
+	mux.HandleFunc("GET /api/projects", a.handleListProjects)
+	mux.HandleFunc("POST /api/projects", a.handleCreateProject)
+	mux.HandleFunc("PUT /api/projects/{id}", a.handleUpdateProject)
+	mux.HandleFunc("DELETE /api/projects/{id}", a.handleDeleteProject)
+	mux.HandleFunc("GET /api/projects/{id}/prompt-preview", a.handleProjectPromptPreview)
 	mux.HandleFunc("GET /api/data/status", a.handleDataStatus)
 	mux.HandleFunc("GET /api/system/status", a.handleSystemStatus)
 	mux.HandleFunc("GET /api/config", a.handleGetConfig)
@@ -75,5 +72,5 @@ func (a *App) routes() http.Handler {
 
 	mux.Handle("/", a.webHandler())
 
-	return logRequest(securityHeaders(gzipMiddleware(a.authMiddleware(a.workspaceScopeMiddleware(mux)))))
+	return logRequest(securityHeaders(gzipMiddleware(a.authMiddleware(mux))))
 }

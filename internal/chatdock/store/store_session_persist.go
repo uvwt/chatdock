@@ -9,12 +9,8 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func (s *Store) sessionForWorkspaceLocked(workspaceID string, sessionID string) (*model.Session, bool, error) {
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return nil, false, err
-	}
-	sessions, err := loadSessionsFromTablesLocked(s.db, workspaceID)
+func (s *Store) sessionLocked(sessionID string) (*model.Session, bool, error) {
+	sessions, err := loadSessionsFromTablesLocked(s.db)
 	if err != nil {
 		return nil, false, err
 	}
@@ -22,11 +18,7 @@ func (s *Store) sessionForWorkspaceLocked(workspaceID string, sessionID string) 
 	return session, ok, nil
 }
 
-func (s *Store) saveSessionForWorkspaceLocked(workspaceID string, session *model.Session) error {
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return err
-	}
+func (s *Store) saveSessionLocked(session *model.Session) error {
 	if err := prepareSessionForPersistence(session); err != nil {
 		return err
 	}
@@ -35,17 +27,13 @@ func (s *Store) saveSessionForWorkspaceLocked(workspaceID string, session *model
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err := persistSessionTx(tx, workspaceID, session); err != nil {
+	if err := persistSessionTx(tx, session); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
-func (s *Store) saveSessionAndBindAttachmentsLocked(workspaceID string, session *model.Session, attachmentIDs []string, messageID string) error {
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return err
-	}
+func (s *Store) saveSessionAndBindAttachmentsLocked(session *model.Session, attachmentIDs []string, messageID string) error {
 	if err := prepareSessionForPersistence(session); err != nil {
 		return err
 	}
@@ -60,10 +48,10 @@ func (s *Store) saveSessionAndBindAttachmentsLocked(workspaceID string, session 
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err := bindAttachmentsTx(tx, workspaceID, session.ID, messageID, attachmentIDs); err != nil {
+	if err := bindAttachmentsTx(tx, session.ID, messageID, attachmentIDs); err != nil {
 		return err
 	}
-	if err := persistSessionTx(tx, workspaceID, session); err != nil {
+	if err := persistSessionTx(tx, session); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -82,14 +70,11 @@ func prepareSessionForPersistence(session *model.Session) error {
 	return nil
 }
 
-func persistSessionTx(tx *sql.Tx, workspaceID string, session *model.Session) error {
-	if err := upsertSessionTablesTx(tx, workspaceID, session); err != nil {
-		return err
-	}
-	return touchWorkspace(tx, workspaceID, time.Now())
+func persistSessionTx(tx *sql.Tx, session *model.Session) error {
+	return upsertSessionTablesTx(tx, session)
 }
 
-func bindAttachmentsTx(tx *sql.Tx, workspaceID string, sessionID string, messageID string, attachmentIDs []string) error {
+func bindAttachmentsTx(tx *sql.Tx, sessionID string, messageID string, attachmentIDs []string) error {
 	var err error
 	attachmentIDs, err = normalizeAttachmentIDs(attachmentIDs)
 	if err != nil {
@@ -99,11 +84,11 @@ func bindAttachmentsTx(tx *sql.Tx, workspaceID string, sessionID string, message
 		return nil
 	}
 	placeholders := strings.TrimRight(strings.Repeat("?,", len(attachmentIDs)), ",")
-	args := []any{strings.TrimSpace(sessionID), strings.TrimSpace(messageID), workspaceID}
+	args := []any{strings.TrimSpace(sessionID), strings.TrimSpace(messageID)}
 	for _, id := range attachmentIDs {
 		args = append(args, id)
 	}
-	result, err := tx.Exec(`UPDATE attachments SET session_id = ?, message_id = ? WHERE workspace_id = ? AND id IN (`+placeholders+`)`, args...)
+	result, err := tx.Exec(`UPDATE attachments SET session_id = ?, message_id = ? WHERE id IN (`+placeholders+`)`, args...)
 	if err != nil {
 		return err
 	}

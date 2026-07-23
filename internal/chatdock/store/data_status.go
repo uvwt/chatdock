@@ -12,19 +12,22 @@ func (s *Store) DataStatus() (DataStatus, error) {
 	s.mu.RLock()
 	dataDir := s.dataDir
 	dbPath := s.dbPath
-	workspaceSummaries, err := listWorkspaceSummariesWith(s.db, defaultWorkspaceID)
+	projectCount, err := projectCountWith(s.db)
+	if err != nil {
+		s.mu.RUnlock()
+		return DataStatus{}, err
+	}
+	var sessionCount int
+	err = s.db.QueryRow(`SELECT COUNT(*) FROM sessions`).Scan(&sessionCount)
 	s.mu.RUnlock()
 	if err != nil {
 		return DataStatus{}, err
 	}
 	status := DataStatus{
-		DataDir:         dataDir,
-		DatabasePath:    dbPath,
-		ActiveWorkspace: defaultWorkspaceID,
-		WorkspaceCount:  len(workspaceSummaries),
-	}
-	for _, workspace := range workspaceSummaries {
-		status.SessionCount += workspace.Count
+		DataDir:      dataDir,
+		DatabasePath: dbPath,
+		ProjectCount: projectCount,
+		SessionCount: sessionCount,
 	}
 	if err := s.populateDatabaseHealth(&status); err != nil {
 		return DataStatus{}, err

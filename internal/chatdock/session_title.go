@@ -16,8 +16,8 @@ const (
 	sessionTitleMaxAttempts = 2
 )
 
-func (a *App) maybeGenerateSessionTitle(ctx context.Context, workspaceID string, sessionID string, cfg model.ModelConfig) (*model.Session, error) {
-	session, ok, err := a.store.GetSession(workspaceID, sessionID)
+func (a *App) maybeGenerateSessionTitle(ctx context.Context, sessionID string, cfg model.ModelConfig) (*model.Session, error) {
+	session, ok, err := a.store.GetSession(sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func (a *App) maybeGenerateSessionTitle(ctx context.Context, workspaceID string,
 	if title == "" {
 		return session, fmt.Errorf("generate session title: %w", llm.ErrEmptyModelContent)
 	}
-	renamed, err := a.store.RenameSession(workspaceID, sessionID, title)
+	renamed, err := a.store.RenameSession(sessionID, title)
 	if err != nil {
 		return session, fmt.Errorf("rename session: %w", err)
 	}

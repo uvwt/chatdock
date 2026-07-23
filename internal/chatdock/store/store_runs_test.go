@@ -5,8 +5,6 @@ import (
 	"time"
 
 	"chatdock/internal/chatdock/llm"
-	"chatdock/internal/chatdock/mcp"
-	"chatdock/internal/chatdock/model"
 )
 
 func TestStoreMCPRunsAndAgentTasks(t *testing.T) {
@@ -14,7 +12,7 @@ func TestStoreMCPRunsAndAgentTasks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	run, err := store.StartMCPRun("default", "session-1", "test run")
+	run, err := store.StartMCPRun("session-1", "test run")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,21 +28,21 @@ func TestStoreMCPRunsAndAgentTasks(t *testing.T) {
 	if finished.Status != "success" || finished.EventCount != 1 {
 		t.Fatalf("unexpected finished run: %#v", finished)
 	}
-	runs, err := store.ListMCPRuns("default", "", 10)
+	runs, err := store.ListMCPRuns("", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(runs.Runs) != 1 || runs.Runs[0].ID != run.ID {
 		t.Fatalf("unexpected runs: %#v", runs.Runs)
 	}
-	detail, err := store.MCPRunDetail("default", run.ID)
+	detail, err := store.MCPRunDetail(run.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(detail.Events) != 1 || detail.Events[0].Tool != "task_manage" || detail.Events[0].Server != "DockMini" {
 		t.Fatalf("unexpected run detail: %#v", detail)
 	}
-	tasks, err := store.ListAgentTasks("default", 10)
+	tasks, err := store.ListAgentTasks(10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,57 +51,23 @@ func TestStoreMCPRunsAndAgentTasks(t *testing.T) {
 	}
 }
 
-func TestStoreEffectiveMCPConfigFallsBackToDefaultWorkspace(t *testing.T) {
-	store, err := NewStore(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defaultConfig := `{"servers":{"agentdock":{"url":"http://host.docker.internal:18766/mcp"}}}`
-	if _, err := store.SaveMCPConfig("default", defaultConfig); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.CreateWorkspace(model.CreateWorkspaceRequest{Name: "model", SystemPrompt: "model workspace"}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.SaveMCPConfig("model", `{"builtin_tools":{"tool_exposure":"on_demand","tool_overrides":{"chatdock_scheduled_task_create":"direct"}},"servers":{}}`); err != nil {
-		t.Fatal(err)
-	}
-	content, err := store.GetEffectiveMCPConfig("model")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg, err := mcp.ParseMCPConfig(content)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := cfg.Servers["agentdock"]; !ok {
-		t.Fatalf("expected default workspace MCP server fallback, got %s", content)
-	}
-	if got := cfg.BuiltinTools.ExposureForTool("scheduled_tasks_list", "chatdock_scheduled_tasks_list"); got != mcp.ToolExposureOnDemand {
-		t.Fatalf("expected workspace builtin default to survive server fallback, got %q", got)
-	}
-	if got := cfg.BuiltinTools.ExposureForTool("scheduled_task_create", "chatdock_scheduled_task_create"); got != mcp.ToolExposureDirect {
-		t.Fatalf("expected workspace builtin override to survive server fallback, got %q", got)
-	}
-}
-
 func TestStoreChatJobEventsPersistAndFinish(t *testing.T) {
 	store, err := NewStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := store.CreateSession("default")
+	session, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	job, err := createChatJobForTest(t, store, "default", session.ID, "req_test")
+	job, err := createChatJobForTest(t, store, session.ID, "req_test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.AddChatJobEvent(job.ID, "delta", llm.StreamDelta{Content: "hello"}); err != nil {
 		t.Fatal(err)
 	}
-	loaded, events, err := store.ChatJobEventsAfter("default", job.ID, 0)
+	loaded, events, err := store.ChatJobEventsAfter(job.ID, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +81,7 @@ func TestStoreChatJobEventsPersistAndFinish(t *testing.T) {
 	if finished.Status != "success" || finished.Answer != "answer" || finished.Reasoning != "reason" || finished.FinishedAt == nil {
 		t.Fatalf("unexpected finished job: %#v", finished)
 	}
-	_, events, err = store.ChatJobEventsAfter("default", job.ID, 0)
+	_, events, err = store.ChatJobEventsAfter(job.ID, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,11 +100,11 @@ func TestPruneChatJobStreamingEventsKeepsRecentAndNonStreamingEvents(t *testing.
 	}
 	defer store.Close()
 
-	oldSession, err := store.CreateSession("default")
+	oldSession, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	oldJob, err := createChatJobForTest(t, store, "default", oldSession.ID, "req_old")
+	oldJob, err := createChatJobForTest(t, store, oldSession.ID, "req_old")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,11 +121,11 @@ func TestPruneChatJobStreamingEventsKeepsRecentAndNonStreamingEvents(t *testing.
 		t.Fatal(err)
 	}
 
-	recentSession, err := store.CreateSession("default")
+	recentSession, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	recentJob, err := createChatJobForTest(t, store, "default", recentSession.ID, "req_recent")
+	recentJob, err := createChatJobForTest(t, store, recentSession.ID, "req_recent")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,14 +143,14 @@ func TestPruneChatJobStreamingEventsKeepsRecentAndNonStreamingEvents(t *testing.
 	if deleted != 1 {
 		t.Fatalf("expected one expired delta deleted, got %d", deleted)
 	}
-	_, oldEvents, err := store.ChatJobEventsAfter("default", oldJob.ID, 0)
+	_, oldEvents, err := store.ChatJobEventsAfter(oldJob.ID, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(oldEvents) != 1 || oldEvents[0].Event != "tool_setup_ready" {
 		t.Fatalf("non-streaming events must survive cleanup: %#v", oldEvents)
 	}
-	_, recentEvents, err := store.ChatJobEventsAfter("default", recentJob.ID, 0)
+	_, recentEvents, err := store.ChatJobEventsAfter(recentJob.ID, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,81 +165,27 @@ func TestInterruptChatJobPersistsCancellationEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
-	session, err := store.CreateSession("default")
+	session, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	job, err := createChatJobForTest(t, store, "default", session.ID, "req_cancel")
+	job, err := createChatJobForTest(t, store, session.ID, "req_cancel")
 	if err != nil {
 		t.Fatal(err)
 	}
-	cancelled, err := store.InterruptChatJob("default", job.ID, "stop now")
+	cancelled, err := store.InterruptChatJob(job.ID, "stop now")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if cancelled.Status != "interrupted" || cancelled.Error != "stop now" {
 		t.Fatalf("unexpected interrupted job: %#v", cancelled)
 	}
-	_, events, err := store.ChatJobEventsAfter("default", job.ID, 0)
+	_, events, err := store.ChatJobEventsAfter(job.ID, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(events) != 1 || events[0].Event != "job_cancelled" || events[0].Seq != 1 {
 		t.Fatalf("unexpected cancellation events: %#v", events)
-	}
-}
-
-func TestStoreChatJobWorkspaceBoundary(t *testing.T) {
-	store, err := NewStore(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	session, err := store.CreateSession("default")
-	if err != nil {
-		t.Fatal(err)
-	}
-	job, err := createChatJobForTest(t, store, "default", session.ID, "req_default")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.CreateWorkspace(model.CreateWorkspaceRequest{Name: "research", SystemPrompt: "研究"}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.GetChatJob("research", job.ID); err == nil {
-		t.Fatal("chat job from default workspace must not be visible in research workspace")
-	}
-	if _, _, err := store.ChatJobEventsAfter("research", job.ID, 0); err == nil {
-		t.Fatal("chat job events from default workspace must not be visible in research workspace")
-	}
-	if _, err := store.InterruptChatJob("research", job.ID, "stop"); err == nil {
-		t.Fatal("chat job cancel from wrong workspace must fail")
-	}
-	loaded, err := store.GetChatJob("default", job.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if loaded.ID != job.ID || loaded.Workspace != "default" {
-		t.Fatalf("unexpected default workspace job: %#v", loaded)
-	}
-}
-
-func TestStoreMCPRunDetailWorkspaceBoundary(t *testing.T) {
-	store, err := NewStore(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	run, err := store.StartMCPRun("default", "session-1", "default run")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.CreateWorkspace(model.CreateWorkspaceRequest{Name: "research", SystemPrompt: "研究"}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.MCPRunDetail("research", run.ID); err == nil {
-		t.Fatal("mcp run detail from default workspace must not be visible in research workspace")
-	}
-	if detail, err := store.MCPRunDetail("default", run.ID); err != nil || detail.Run.ID != run.ID {
-		t.Fatalf("default workspace should load mcp run detail, detail=%#v err=%v", detail, err)
 	}
 }
 
@@ -290,7 +200,7 @@ func TestAddMCPRunEventRollsBackWhenRunUpdateFails(t *testing.T) {
 		}
 	})
 
-	run, err := store.StartMCPRun(defaultWorkspaceID, "session-1", "rollback test")
+	run, err := store.StartMCPRun("session-1", "rollback test")
 	if err != nil {
 		t.Fatal(err)
 	}

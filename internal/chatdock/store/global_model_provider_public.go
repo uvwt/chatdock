@@ -46,22 +46,10 @@ func publicModelProvider(record modelProviderRecord) ModelProvider {
 	}
 }
 
-func providerIDFromWorkspace(workspace string) string {
-	id := normalizeProviderID(workspace)
-	if id == "" {
-		return defaultWorkspaceID
-	}
-	return id
-}
-
-func providerDisplayName(workspace string, cfg model.ModelConfig) string {
-	name := strings.TrimSpace(workspace)
+func providerDisplayName(cfg model.ModelConfig) string {
 	host := hostFromURL(cfg.BaseURL)
 	if host == "" {
 		host = "OpenAI Compatible"
 	}
-	if name == "" {
-		return host
-	}
-	return name + " · " + host
+	return host
 }

@@ -211,8 +211,8 @@ func (s *conversationToolSet) resourceErrorCount() int {
 	return count
 }
 
-func (a *App) loadConversationTools(ctx context.Context, workspaceID string, emit func(string, any) error) (*conversationToolSet, mcp.MCPConfig, error) {
-	mcpConfig, err := a.activeMCPConfig(workspaceID)
+func (a *App) loadConversationTools(ctx context.Context, emit func(string, any) error) (*conversationToolSet, mcp.MCPConfig, error) {
+	mcpConfig, err := a.activeMCPConfig()
 	if err != nil {
 		set := newConversationToolSet(builtinChatDockTools(), mcp.MCPConfig{})
 		if emit != nil {
@@ -250,14 +250,14 @@ func (a *App) loadConversationTools(ctx context.Context, workspaceID string, emi
 	return set, mcpConfig, nil
 }
 
-func (a *App) callConversationTool(ctx context.Context, workspaceID string, sessionID string, mcpConfig mcp.MCPConfig, name string, args map[string]any, emit func(string, any) error) (any, error) {
+func (a *App) callConversationTool(ctx context.Context, sessionID string, mcpConfig mcp.MCPConfig, name string, args map[string]any, emit func(string, any) error) (any, error) {
 	switch {
 	case isBuiltinScheduledTaskTool(name):
-		return a.callBuiltinScheduledTaskTool(ctx, workspaceID, name, args)
+		return a.callBuiltinScheduledTaskTool(ctx, name, args)
 	case isBuiltinImageTool(name):
 		return a.callBuiltinImageTool(ctx, name, args)
 	case isBuiltinModelProviderTool(name):
-		return a.callBuiltinModelProviderTool(ctx, workspaceID, name, args)
+		return a.callBuiltinModelProviderTool(ctx, name, args)
 	}
 	if a.mcpClient == nil {
 		return nil, fmt.Errorf("MCP tool client is unavailable: %s", name)
@@ -275,9 +275,9 @@ func (a *App) callConversationTool(ctx context.Context, workspaceID string, sess
 	return a.mcpClient.CallTool(ctx, mcpConfig, name, args)
 }
 
-func (a *App) callVisibleConversationTool(ctx context.Context, workspaceID string, toolSet *conversationToolSet, runRealTool func(string, map[string]any) (any, error), name string, args map[string]any) (any, error) {
+func (a *App) callVisibleConversationTool(ctx context.Context, toolSet *conversationToolSet, runRealTool func(string, map[string]any) (any, error), name string, args map[string]any) (any, error) {
 	if name == builtinToolSearchTools {
-		return a.discoverConversationTools(ctx, workspaceID, toolSet, args)
+		return a.discoverConversationTools(ctx, toolSet, args)
 	}
 	tool, ok := toolSet.visibleTool(name)
 	if !ok {
@@ -289,7 +289,7 @@ func (a *App) callVisibleConversationTool(ctx context.Context, workspaceID strin
 	return runRealTool(name, args)
 }
 
-func (a *App) discoverConversationTools(ctx context.Context, workspaceID string, toolSet *conversationToolSet, args map[string]any) (map[string]any, error) {
+func (a *App) discoverConversationTools(ctx context.Context, toolSet *conversationToolSet, args map[string]any) (map[string]any, error) {
 	query := strings.TrimSpace(stringArg(args, "query"))
 	if len([]rune(query)) > maxToolDiscoveryQueryRunes {
 		return nil, fmt.Errorf("query exceeds %d characters", maxToolDiscoveryQueryRunes)
@@ -368,7 +368,7 @@ func (a *App) discoverConversationTools(ctx context.Context, workspaceID string,
 	}
 
 	catalog := toolSet.catalogForResources(resourceIDs, resourcesProvided)
-	result, matches := searchToolCatalogWithMatches(ctx, a, workspaceID, catalog, map[string]any{"query": query, "limit": intArgWithDefault(args, "limit", 8, 1, 20)})
+	result, matches := searchToolCatalogWithMatches(ctx, a, catalog, map[string]any{"query": query, "limit": intArgWithDefault(args, "limit", 8, 1, 20)})
 	for key, value := range baseResult {
 		result[key] = value
 	}

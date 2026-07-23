@@ -14,7 +14,7 @@ func TestSearchToolCatalogReturnsOnlyMatchingTools(t *testing.T) {
 		{Server: "files", Name: "document_read", FullName: "files__document_read", Title: "读取文档", Description: "读取文本文件内容"},
 	})
 
-	result, matches := searchToolCatalogWithMatches(context.Background(), nil, "default", catalog, map[string]any{"query": "日历", "limit": 1})
+	result, matches := searchToolCatalogWithMatches(context.Background(), nil, catalog, map[string]any{"query": "日历", "limit": 1})
 	items, ok := result["tools"].([]map[string]any)
 	if !ok || len(items) != 1 {
 		t.Fatalf("expected one search result, got %#v", result["tools"])
@@ -33,7 +33,7 @@ func TestSearchToolCatalogDoesNotInjectUnmatchedTools(t *testing.T) {
 		{Server: "tasks", Name: "task_create", FullName: "tasks__task_create", Title: "创建任务"},
 	})
 
-	result, matches := searchToolCatalogWithMatches(context.Background(), nil, "default", catalog, map[string]any{"query": "天气", "limit": 8})
+	result, matches := searchToolCatalogWithMatches(context.Background(), nil, catalog, map[string]any{"query": "天气", "limit": 8})
 	items, ok := result["tools"].([]map[string]any)
 	if !ok {
 		t.Fatalf("unexpected tools payload: %#v", result["tools"])

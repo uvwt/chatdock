@@ -70,7 +70,7 @@ func TestModelProviderTestKeepsSavedAPIKeyWhenMasked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig("default", model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "saved-secret"}); err != nil {
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "saved-secret"}); err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
@@ -86,7 +86,7 @@ func TestModelProviderTestKeepsSavedAPIKeyWhenMasked(t *testing.T) {
 	}
 }
 
-func TestModelProviderRequestProviderIDDoesNotReuseCurrentWorkspaceKey(t *testing.T) {
+func TestModelProviderRequestProviderIDDoesNotReuseGlobalDefaultKey(t *testing.T) {
 	seenAuth := make(chan string, 1)
 	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
@@ -102,7 +102,7 @@ func TestModelProviderRequestProviderIDDoesNotReuseCurrentWorkspaceKey(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig("default", model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "current-workspace-secret"}); err != nil {
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "global-default-secret"}); err != nil {
 		t.Fatal(err)
 	}
 	enabled := true
@@ -119,7 +119,7 @@ func TestModelProviderRequestProviderIDDoesNotReuseCurrentWorkspaceKey(t *testin
 		t.Fatalf("provider_id should resolve provider base url, got %q want %q", cfg.BaseURL, modelServer.URL)
 	}
 	if cfg.APIKey != "" {
-		t.Fatalf("provider_id should not reuse unrelated workspace key, got %q", cfg.APIKey)
+		t.Fatalf("provider_id should not reuse unrelated global default key, got %q", cfg.APIKey)
 	}
 	routes := app.routes()
 	r := httptest.NewRequest(http.MethodPost, "/api/model-providers/models", bytes.NewReader([]byte(body)))
@@ -129,7 +129,7 @@ func TestModelProviderRequestProviderIDDoesNotReuseCurrentWorkspaceKey(t *testin
 		t.Fatalf("model provider models status %d: %s", w.Code, w.Body.String())
 	}
 	if got := <-seenAuth; got != "" {
-		t.Fatalf("provider_id request reused unrelated workspace key: %q", got)
+		t.Fatalf("provider_id request reused unrelated global default key: %q", got)
 	}
 }
 
@@ -271,7 +271,7 @@ func TestModelProviderModelsKeepsSavedAPIKeyWhenMasked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig("default", model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "saved-secret"}); err != nil {
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: "http://127.0.0.1:1/v1", Model: "saved", APIKey: "saved-secret"}); err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()

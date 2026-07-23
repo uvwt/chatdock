@@ -64,7 +64,7 @@ func newResourceTestApp(t *testing.T, cfg mcp.MCPConfig) *App {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveMCPConfig("default", string(raw)); err != nil {
+	if _, err := app.store.SaveMCPConfig(string(raw)); err != nil {
 		t.Fatal(err)
 	}
 	return app
@@ -88,7 +88,7 @@ func TestOnDemandResourceDefersToolsListUntilSelected(t *testing.T) {
 		"calendar": {URL: calendar.server.URL, Description: "查询和管理日历安排", ToolExposure: mcp.ToolExposureOnDemand},
 		"mail":     {URL: mail.server.URL, Description: "搜索和处理电子邮件", ToolExposure: mcp.ToolExposureOnDemand},
 	}})
-	toolSet, _, err := app.loadConversationTools(context.Background(), "default", nil)
+	toolSet, _, err := app.loadConversationTools(context.Background(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestOnDemandResourceDefersToolsListUntilSelected(t *testing.T) {
 		t.Fatalf("on-demand resources should remain unloaded: %#v", toolSet.resourceIndex())
 	}
 
-	result, err := app.discoverConversationTools(context.Background(), "default", toolSet, map[string]any{"resources": []string{"calendar"}})
+	result, err := app.discoverConversationTools(context.Background(), toolSet, map[string]any{"resources": []string{"calendar"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +120,7 @@ func TestOnDemandResourceDefersToolsListUntilSelected(t *testing.T) {
 		t.Fatal("loaded real tool should be directly callable in the next model request")
 	}
 
-	if _, err := app.discoverConversationTools(context.Background(), "default", toolSet, map[string]any{"resources": []string{"calendar"}}); err != nil {
+	if _, err := app.discoverConversationTools(context.Background(), toolSet, map[string]any{"resources": []string{"calendar"}}); err != nil {
 		t.Fatal(err)
 	}
 	if got := calendar.listCalls.Load(); got != 1 {
@@ -169,7 +169,7 @@ func TestDirectResourceFailureDoesNotDisableOtherResources(t *testing.T) {
 	}})
 
 	var setupErrors []map[string]any
-	toolSet, _, err := app.loadConversationTools(context.Background(), "default", func(event string, value any) error {
+	toolSet, _, err := app.loadConversationTools(context.Background(), func(event string, value any) error {
 		if event == "tool_setup_error" {
 			payload, _ := value.(map[string]any)
 			setupErrors = append(setupErrors, payload)
@@ -208,7 +208,7 @@ func TestMultiResourceBulkLoadHonorsSchemaBudget(t *testing.T) {
 		tools = append(tools, mcp.MCPTool{Server: server, Name: name, FullName: server + "__" + name, InputSchema: map[string]any{"type": "object"}})
 	}
 	set := newConversationToolSet(tools, cfg)
-	result, err := (&App{}).discoverConversationTools(context.Background(), "default", set, map[string]any{"resources": []string{"first", "second"}})
+	result, err := (&App{}).discoverConversationTools(context.Background(), set, map[string]any{"resources": []string{"first", "second"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,12 +238,12 @@ func TestGlobalSearchMatchesChineseResourceAndToolText(t *testing.T) {
 		"calendar": {URL: calendar.server.URL, Description: "查询和管理日历安排", ToolExposure: mcp.ToolExposureOnDemand},
 		"mail":     {URL: mail.server.URL, Description: "搜索和处理电子邮件", ToolExposure: mcp.ToolExposureOnDemand},
 	}})
-	toolSet, _, err := app.loadConversationTools(context.Background(), "default", nil)
+	toolSet, _, err := app.loadConversationTools(context.Background(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	result, err := app.discoverConversationTools(context.Background(), "default", toolSet, map[string]any{"query": "创建日历安排"})
+	result, err := app.discoverConversationTools(context.Background(), toolSet, map[string]any{"query": "创建日历安排"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +264,7 @@ func TestToolDiscoveryRejectsOversizedInput(t *testing.T) {
 	app := &App{}
 
 	tooLong := strings.Repeat("查", maxToolDiscoveryQueryRunes+1)
-	if _, err := app.discoverConversationTools(context.Background(), "default", set, map[string]any{"query": tooLong}); err == nil || !strings.Contains(err.Error(), "query exceeds") {
+	if _, err := app.discoverConversationTools(context.Background(), set, map[string]any{"query": tooLong}); err == nil || !strings.Contains(err.Error(), "query exceeds") {
 		t.Fatalf("oversized query should be rejected, got %v", err)
 	}
 
@@ -272,7 +272,7 @@ func TestToolDiscoveryRejectsOversizedInput(t *testing.T) {
 	for i := range resources {
 		resources[i] = fmt.Sprintf("resource-%d", i)
 	}
-	if _, err := app.discoverConversationTools(context.Background(), "default", set, map[string]any{"query": "test", "resources": resources}); err == nil || !strings.Contains(err.Error(), "resources exceeds") {
+	if _, err := app.discoverConversationTools(context.Background(), set, map[string]any{"query": "test", "resources": resources}); err == nil || !strings.Contains(err.Error(), "resources exceeds") {
 		t.Fatalf("too many resources should be rejected before lookup, got %v", err)
 	}
 }

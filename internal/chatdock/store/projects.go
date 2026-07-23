@@ -1,0 +1,186 @@
+package store
+
+import (
+	"database/sql"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	"chatdock/internal/chatdock/model"
+)
+
+func (s *Store) ListProjects() (model.ProjectListResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	projects, err := listProjectsWith(s.db)
+	if err != nil {
+		return model.ProjectListResponse{}, err
+	}
+	return model.ProjectListResponse{Projects: projects}, nil
+}
+
+func (s *Store) CreateProject(input model.CreateProjectRequest) (model.Project, error) {
+	name, err := normalizeProjectName(input.Name)
+	if err != nil {
+		return model.Project{}, err
+	}
+	now := time.Now()
+	project := model.Project{ID: model.NewID(), Name: name, Prompt: strings.TrimSpace(input.Prompt), CreatedAt: now, UpdatedAt: now}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, err := s.db.Exec(`INSERT INTO projects(id, name, prompt, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`, project.ID, project.Name, project.Prompt, formatDBTime(project.CreatedAt), formatDBTime(project.UpdatedAt)); err != nil {
+		return model.Project{}, err
+	}
+	return project, nil
+}
+
+func (s *Store) UpdateProject(id string, input model.UpdateProjectRequest) (model.Project, error) {
+	id, err := normalizeProjectID(id)
+	if err != nil {
+		return model.Project{}, err
+	}
+	name, err := normalizeProjectName(input.Name)
+	if err != nil {
+		return model.Project{}, err
+	}
+	now := time.Now()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	result, err := s.db.Exec(`UPDATE projects SET name = ?, prompt = ?, updated_at = ? WHERE id = ?`, name, strings.TrimSpace(input.Prompt), formatDBTime(now), id)
+	if err != nil {
+		return model.Project{}, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return model.Project{}, err
+	}
+	if affected == 0 {
+		return model.Project{}, fmt.Errorf("%w: %s", model.ErrProjectNotFound, id)
+	}
+	project, ok, err := projectByIDWith(s.db, id)
+	if err != nil {
+		return model.Project{}, err
+	}
+	if !ok {
+		return model.Project{}, fmt.Errorf("%w: %s", model.ErrProjectNotFound, id)
+	}
+	return project, nil
+}
+
+func (s *Store) DeleteProject(id string) (bool, error) {
+	id, err := normalizeProjectID(id)
+	if err != nil {
+		return false, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	result, err := s.db.Exec(`DELETE FROM projects WHERE id = ?`, id)
+	if err != nil {
+		return false, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return affected > 0, nil
+}
+
+func (s *Store) ProjectPrompt(id string) (string, bool, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return "", false, nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	project, ok, err := projectByIDWith(s.db, id)
+	if err != nil || !ok {
+		return "", ok, err
+	}
+	return project.Prompt, true, nil
+}
+
+func (s *Store) ProjectCount() (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return projectCountWith(s.db)
+}
+
+func projectCountWith(reader sqlQueryer) (int, error) {
+	var count int
+	err := reader.QueryRow(`SELECT COUNT(*) FROM projects`).Scan(&count)
+	return count, err
+}
+
+func listProjectsWith(reader sqlQueryer) ([]model.Project, error) {
+	rows, err := reader.Query(`SELECT id, name, prompt, created_at, updated_at FROM projects ORDER BY updated_at DESC, name ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	projects := []model.Project{}
+	for rows.Next() {
+		project, err := scanProject(rows)
+		if err != nil {
+			return nil, err
+		}
+		projects = append(projects, project)
+	}
+	return projects, rows.Err()
+}
+
+func projectByIDWith(reader sqlQueryer, id string) (model.Project, bool, error) {
+	var project model.Project
+	var createdAt, updatedAt string
+	err := reader.QueryRow(`SELECT id, name, prompt, created_at, updated_at FROM projects WHERE id = ?`, id).Scan(&project.ID, &project.Name, &project.Prompt, &createdAt, &updatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return model.Project{}, false, nil
+	}
+	if err != nil {
+		return model.Project{}, false, err
+	}
+	project.CreatedAt = parseDBTimeZero(createdAt)
+	project.UpdatedAt = parseDBTimeZero(updatedAt)
+	return project, true, nil
+}
+
+func projectExistsWith(reader sqlQueryer, id string) (bool, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return true, nil
+	}
+	var got string
+	err := reader.QueryRow(`SELECT id FROM projects WHERE id = ?`, id).Scan(&got)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+func scanProject(scanner interface{ Scan(...any) error }) (model.Project, error) {
+	var project model.Project
+	var createdAt, updatedAt string
+	if err := scanner.Scan(&project.ID, &project.Name, &project.Prompt, &createdAt, &updatedAt); err != nil {
+		return model.Project{}, err
+	}
+	project.CreatedAt = parseDBTimeZero(createdAt)
+	project.UpdatedAt = parseDBTimeZero(updatedAt)
+	return project, nil
+}
+
+func normalizeProjectName(name string) (string, error) {
+	name = strings.TrimSpace(strings.ReplaceAll(name, "\n", " "))
+	if name == "" {
+		return "", fmt.Errorf("project name is empty")
+	}
+	if !utf8.ValidString(name) {
+		return "", fmt.Errorf("project name is invalid")
+	}
+	for _, r := range name {
+		if r < 32 || r == 127 {
+			return "", fmt.Errorf("project name contains control characters")
+		}
+	}
+	return limitRunes(name, 80), nil
+}

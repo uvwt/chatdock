@@ -11,20 +11,7 @@ import (
 )
 
 func (s *Store) getMCPRunLocked(runID string) (MCPRun, error) {
-	row := s.db.QueryRow(`SELECT workspace_id, id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at FROM mcp_runs WHERE id = ?`, strings.TrimSpace(runID))
-	rows := &singleRow{scan: row.Scan}
-	runs, err := scanMCPRuns(rows)
-	if err != nil {
-		return MCPRun{}, err
-	}
-	if len(runs) == 0 {
-		return MCPRun{}, sql.ErrNoRows
-	}
-	return runs[0], nil
-}
-
-func (s *Store) getMCPRunForWorkspaceLocked(workspaceID string, runID string) (MCPRun, error) {
-	row := s.db.QueryRow(`SELECT workspace_id, id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at FROM mcp_runs WHERE workspace_id = ? AND id = ?`, strings.TrimSpace(workspaceID), strings.TrimSpace(runID))
+	row := s.db.QueryRow(`SELECT id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at FROM mcp_runs WHERE id = ?`, strings.TrimSpace(runID))
 	rows := &singleRow{scan: row.Scan}
 	runs, err := scanMCPRuns(rows)
 	if err != nil {
@@ -80,7 +67,7 @@ func scanMCPRuns(rows runRows) ([]MCPRun, error) {
 	for rows.Next() {
 		var run MCPRun
 		var startedRaw, finishedRaw, updatedRaw string
-		if err := rows.Scan(&run.Workspace, &run.ID, &run.SessionID, &run.Title, &run.Status, &run.Summary, &run.Error, &startedRaw, &finishedRaw, &run.DurationMS, &run.EventCount, &updatedRaw); err != nil {
+		if err := rows.Scan(&run.ID, &run.SessionID, &run.Title, &run.Status, &run.Summary, &run.Error, &startedRaw, &finishedRaw, &run.DurationMS, &run.EventCount, &updatedRaw); err != nil {
 			if err == sql.ErrNoRows {
 				return runs, nil
 			}

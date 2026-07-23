@@ -16,15 +16,15 @@ type activeToolRun struct {
 	StartedAt map[string]time.Time
 }
 
-func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string, jobID string, sessionID string, cfg model.ModelConfig, fallbackCfg *model.ModelConfig, history []model.Message, emit func(string, any) error) (string, model.ModelConfig, error) {
+func (a *App) completeWithRecordedTools(ctx context.Context, jobID string, sessionID string, cfg model.ModelConfig, fallbackCfg *model.ModelConfig, history []model.Message, emit func(string, any) error) (string, model.ModelConfig, error) {
 	toolMessageIndexes := llm.HistoricalToolMessageIndexes(history)
-	if err := a.store.HydrateMessageEventDetails(workspaceID, sessionID, history, toolMessageIndexes); err != nil {
+	if err := a.store.HydrateMessageEventDetails(sessionID, history, toolMessageIndexes); err != nil {
 		return "", cfg, err
 	}
 	history = a.prepareVisionAttachmentURLs(history)
 	history = a.appendAgentDockRuntimeContext(ctx, history)
 
-	toolSet, mcpConfig, err := a.loadConversationTools(ctx, workspaceID, emit)
+	toolSet, mcpConfig, err := a.loadConversationTools(ctx, emit)
 	if err != nil {
 		return "", cfg, err
 	}
@@ -54,9 +54,9 @@ func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string,
 		}
 	}
 	recorder := &activeToolRun{LastArgs: map[string]any{}, StartedAt: map[string]time.Time{}}
-	recordingEmit := a.toolRunEmitter(workspaceID, sessionID, recorder, emit)
+	recordingEmit := a.toolRunEmitter(sessionID, recorder, emit)
 	runRealTool := func(name string, args map[string]any) (any, error) {
-		return a.callConversationTool(ctx, workspaceID, sessionID, mcpConfig, name, args, recordingEmit)
+		return a.callConversationTool(ctx, sessionID, mcpConfig, name, args, recordingEmit)
 	}
 
 	toolEmit := recordingEmit
@@ -66,7 +66,7 @@ func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string,
 
 	answer, usedCfg, runErr := completeModelWithFallback(ctx, cfg, fallbackCfg, toolEmit, func(attemptCfg model.ModelConfig, attemptEmit func(string, any) error, markStarted func()) (string, error) {
 		return a.client.CompleteWithMCPToolsEvents(ctx, attemptCfg, history, visibleTools, func(name string, args map[string]any) (any, error) {
-			return a.callVisibleConversationTool(ctx, workspaceID, toolSet, runRealTool, name, args)
+			return a.callVisibleConversationTool(ctx, toolSet, runRealTool, name, args)
 		}, attemptEmit, llm.MCPToolLoopOptions{
 			RefreshTools: toolSet.tools,
 			OnToolCall:   markStarted,
@@ -81,10 +81,10 @@ func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string,
 	return answer, usedCfg, runErr
 }
 
-func (a *App) toolRunEmitter(workspaceID string, sessionID string, recorder *activeToolRun, emit func(string, any) error) func(string, any) error {
+func (a *App) toolRunEmitter(sessionID string, recorder *activeToolRun, emit func(string, any) error) func(string, any) error {
 	return func(event string, value any) error {
 		if event == "tool_call_start" || event == "tool_call_result" {
-			if err := a.recordToolRunEvent(workspaceID, sessionID, recorder, event, value, emit); err != nil {
+			if err := a.recordToolRunEvent(sessionID, recorder, event, value, emit); err != nil {
 				return err
 			}
 		}
@@ -113,11 +113,11 @@ func (a *App) finishRecordedToolRun(recorder *activeToolRun, runErr error, emit 
 	return nil
 }
 
-func (a *App) recordToolRunEvent(workspaceID string, sessionID string, recorder *activeToolRun, event string, value any, emit func(string, any) error) error {
+func (a *App) recordToolRunEvent(sessionID string, recorder *activeToolRun, event string, value any, emit func(string, any) error) error {
 	data, _ := value.(map[string]any)
 	toolName, _ := data["tool"].(string)
 	if !recorder.Created {
-		run, err := a.store.StartMCPRun(workspaceID, sessionID, "chat tool run")
+		run, err := a.store.StartMCPRun(sessionID, "chat tool run")
 		if err != nil {
 			return err
 		}

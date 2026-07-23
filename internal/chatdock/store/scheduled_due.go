@@ -10,25 +10,23 @@ import (
 )
 
 type DueScheduledTask struct {
-	WorkspaceID string
-	Task        model.ScheduledTask
+	Task model.ScheduledTask
 }
 
-func (s *Store) DueScheduledTasksAllWorkspaces(now time.Time) (items []DueScheduledTask, err error) {
+func (s *Store) DueScheduledTasks(now time.Time) (items []DueScheduledTask, err error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	rows, err := s.db.Query(`SELECT workspace_id, id, title, task_prompt, enabled, running, schedule_type, run_at, cron_expressions, timezone, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks WHERE enabled = 1 AND running = 0 AND next_run_at != '' AND next_run_at <= ? ORDER BY next_run_at ASC`, formatScheduleDBTime(now))
+	rows, err := s.db.Query(`SELECT id, title, task_prompt, enabled, running, schedule_type, run_at, cron_expressions, timezone, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks WHERE enabled = 1 AND running = 0 AND next_run_at != '' AND next_run_at <= ? ORDER BY next_run_at ASC`, formatScheduleDBTime(now))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	out := make([]DueScheduledTask, 0)
 	for rows.Next() {
-		var workspaceID string
 		var task model.ScheduledTask
 		var enabled, running int
 		var runAt, cronExpressions, nextRunAt, lastRunAt, createdAt, updatedAt string
-		if err := rows.Scan(&workspaceID, &task.ID, &task.Title, &task.Prompt, &enabled, &running, &task.ScheduleType, &runAt, &cronExpressions, &task.Timezone, &task.IntervalMinutes, &task.ContextMode, &nextRunAt, &lastRunAt, &task.LastStatus, &task.LastError, &task.SessionID, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&task.ID, &task.Title, &task.Prompt, &enabled, &running, &task.ScheduleType, &runAt, &cronExpressions, &task.Timezone, &task.IntervalMinutes, &task.ContextMode, &nextRunAt, &lastRunAt, &task.LastStatus, &task.LastError, &task.SessionID, &createdAt, &updatedAt); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal([]byte(cronExpressions), &task.CronExpressions); err != nil {
@@ -42,7 +40,7 @@ func (s *Store) DueScheduledTasksAllWorkspaces(now time.Time) (items []DueSchedu
 		task.CreatedAt = parseDBTimeZero(createdAt)
 		task.UpdatedAt = parseDBTimeZero(updatedAt)
 		task.ContextMode = normalizeScheduledTaskContextMode(task.ContextMode)
-		out = append(out, DueScheduledTask{WorkspaceID: workspaceID, Task: task})
+		out = append(out, DueScheduledTask{Task: task})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -50,18 +48,14 @@ func (s *Store) DueScheduledTasksAllWorkspaces(now time.Time) (items []DueSchedu
 	return out, nil
 }
 
-func (s *Store) PrepareScheduledTaskRunInWorkspace(workspaceID string, id string, manual bool, now time.Time) (model.ScheduledTaskRun, error) {
+func (s *Store) PrepareScheduledTaskRun(id string, manual bool, now time.Time) (model.ScheduledTaskRun, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return model.ScheduledTaskRun{}, err
-	}
-	return s.prepareScheduledTaskRunLocked(workspaceID, id, manual, now)
+	return s.prepareScheduledTaskRunLocked(id, manual, now)
 }
 
-func (s *Store) prepareScheduledTaskRunLocked(workspaceID string, id string, manual bool, now time.Time) (model.ScheduledTaskRun, error) {
-	tasks, err := s.loadScheduledTasksForWorkspaceLocked(workspaceID)
+func (s *Store) prepareScheduledTaskRunLocked(id string, manual bool, now time.Time) (model.ScheduledTaskRun, error) {
+	tasks, err := s.loadScheduledTasksLocked()
 	if err != nil {
 		return model.ScheduledTaskRun{}, err
 	}
@@ -69,12 +63,12 @@ func (s *Store) prepareScheduledTaskRunLocked(workspaceID string, id string, man
 	if err != nil {
 		return model.ScheduledTaskRun{}, err
 	}
-	cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
+	cfg, err := s.modelConfigLocked()
 	if err != nil {
 		return model.ScheduledTaskRun{}, err
 	}
 	userMessage := model.Message{ID: model.NewID(), Role: "user", Content: strings.TrimSpace(task.Prompt), CreatedAt: now}
-	task, session, history, err := s.prepareScheduledTaskContextLocked(workspaceID, cfg, task, userMessage, now)
+	task, session, history, err := s.prepareScheduledTaskContextLocked(cfg, task, userMessage, now)
 	if err != nil {
 		return model.ScheduledTaskRun{}, err
 	}
@@ -82,10 +76,10 @@ func (s *Store) prepareScheduledTaskRunLocked(workspaceID string, id string, man
 	task.SessionID = session.ID
 	task.Running = true
 	task.UpdatedAt = now
-	if err := s.saveScheduledTaskStartLocked(workspaceID, task, session); err != nil {
+	if err := s.saveScheduledTaskStartLocked(task, session); err != nil {
 		return model.ScheduledTaskRun{}, err
 	}
-	return model.ScheduledTaskRun{Task: task, WorkspaceID: workspaceID, SessionID: session.ID, RunID: model.NewID(), Config: cfg, History: history}, nil
+	return model.ScheduledTaskRun{Task: task, SessionID: session.ID, RunID: model.NewID(), Config: cfg, History: history}, nil
 }
 
 func scheduledTaskForRun(tasks []model.ScheduledTask, id string, manual bool, now time.Time) (int, model.ScheduledTask, error) {
@@ -112,18 +106,18 @@ func scheduledTaskForRun(tasks []model.ScheduledTask, id string, manual bool, no
 	return -1, model.ScheduledTask{}, fmt.Errorf("scheduled task not found: %s", id)
 }
 
-func (s *Store) prepareScheduledTaskContextLocked(workspaceID string, cfg model.ModelConfig, task model.ScheduledTask, userMessage model.Message, now time.Time) (model.ScheduledTask, *model.Session, []model.Message, error) {
+func (s *Store) prepareScheduledTaskContextLocked(cfg model.ModelConfig, task model.ScheduledTask, userMessage model.Message, now time.Time) (model.ScheduledTask, *model.Session, []model.Message, error) {
 	history := []model.Message{userMessage}
 	switch task.ContextMode {
 	case model.ScheduledTaskContextSession:
-		session, updatedTask, err := s.prepareScheduledTaskSessionLocked(workspaceID, task, userMessage, now)
+		session, updatedTask, err := s.prepareScheduledTaskSessionLocked(task, userMessage, now)
 		if err != nil {
 			return task, nil, nil, err
 		}
 		return updatedTask, session, cloneMessages(session.Messages), nil
 	case model.ScheduledTaskContextLastResult:
 		session := newScheduledTaskRunSession(cfg, userMessage, now)
-		previous, ok, err := s.latestSuccessfulScheduledTaskRunLocked(workspaceID, task.ID)
+		previous, ok, err := s.latestSuccessfulScheduledTaskRunLocked(task.ID)
 		if err != nil {
 			return task, nil, nil, err
 		}
@@ -136,7 +130,7 @@ func (s *Store) prepareScheduledTaskContextLocked(workspaceID string, cfg model.
 	}
 }
 
-func (s *Store) prepareScheduledTaskSessionLocked(workspaceID string, task model.ScheduledTask, userMessage model.Message, now time.Time) (*model.Session, model.ScheduledTask, error) {
+func (s *Store) prepareScheduledTaskSessionLocked(task model.ScheduledTask, userMessage model.Message, now time.Time) (*model.Session, model.ScheduledTask, error) {
 	var session *model.Session
 	if strings.TrimSpace(task.SessionID) == "" {
 		session = &model.Session{ID: model.NewID(), Title: makeTitle(userMessage.Content), CreatedAt: now, UpdatedAt: now, Messages: []model.Message{}}
@@ -144,7 +138,7 @@ func (s *Store) prepareScheduledTaskSessionLocked(workspaceID string, task model
 	} else {
 		var ok bool
 		var err error
-		session, ok, err = s.sessionForWorkspaceLocked(workspaceID, task.SessionID)
+		session, ok, err = s.sessionLocked(task.SessionID)
 		if err != nil {
 			return nil, task, err
 		}
@@ -161,19 +155,16 @@ func newScheduledTaskRunSession(cfg model.ModelConfig, userMessage model.Message
 	return &model.Session{ID: model.NewID(), Title: makeTitle(userMessage.Content), ProviderID: cfg.ProviderID, Model: cfg.Model, CreatedAt: now, UpdatedAt: now, Messages: []model.Message{userMessage}}
 }
 
-func (s *Store) saveScheduledTaskStartLocked(workspaceID string, task model.ScheduledTask, session *model.Session) error {
+func (s *Store) saveScheduledTaskStartLocked(task model.ScheduledTask, session *model.Session) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err := upsertSessionTablesTx(tx, workspaceID, session); err != nil {
+	if err := upsertSessionTablesTx(tx, session); err != nil {
 		return err
 	}
-	if err := upsertScheduledTaskTx(tx, workspaceID, normalizeScheduledTaskForDB(task)); err != nil {
-		return err
-	}
-	if err := touchWorkspace(tx, workspaceID, time.Now()); err != nil {
+	if err := upsertScheduledTaskTx(tx, normalizeScheduledTaskForDB(task)); err != nil {
 		return err
 	}
 	return tx.Commit()

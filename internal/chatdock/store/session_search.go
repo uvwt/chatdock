@@ -25,12 +25,12 @@ type SessionSearchResult struct {
 	Score        int       `json:"score"`
 }
 
-func (s *Store) SearchSessions(workspaceID string, query string, limit int) ([]SessionSearchResult, error) {
-	items, _, _, err := s.SearchSessionPage(workspaceID, query, "", limit)
+func (s *Store) SearchSessions(query string, limit int) ([]SessionSearchResult, error) {
+	items, _, _, err := s.SearchSessionPage(query, "", limit)
 	return items, err
 }
 
-func (s *Store) SearchSessionPage(workspaceID string, query string, cursor string, limit int) ([]SessionSearchResult, string, bool, error) {
+func (s *Store) SearchSessionPage(query string, cursor string, limit int) ([]SessionSearchResult, string, bool, error) {
 	limit = normalizeSessionPageLimit(limit)
 	offset := 0
 	if strings.TrimSpace(cursor) != "" {
@@ -40,7 +40,7 @@ func (s *Store) SearchSessionPage(workspaceID string, query string, cursor strin
 		}
 		offset = parsed
 	}
-	results, err := s.searchSessions(workspaceID, query)
+	results, err := s.searchSessions(query)
 	if err != nil {
 		return nil, "", false, err
 	}
@@ -59,7 +59,7 @@ func (s *Store) SearchSessionPage(workspaceID string, query string, cursor strin
 	return results[offset:end], nextCursor, hasMore, nil
 }
 
-func (s *Store) searchSessions(workspaceID string, query string) ([]SessionSearchResult, error) {
+func (s *Store) searchSessions(query string) ([]SessionSearchResult, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return []SessionSearchResult{}, nil
@@ -67,19 +67,15 @@ func (s *Store) searchSessions(workspaceID string, query string) ([]SessionSearc
 	needle := strings.ToLower(query)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
+	sessions, err := loadSessionsFromTablesLocked(s.db)
 	if err != nil {
 		return nil, err
 	}
-	sessions, err := loadSessionsFromTablesLocked(s.db, workspaceID)
+	scheduledSessionIDs, err := s.scheduledSessionIDsLocked()
 	if err != nil {
 		return nil, err
 	}
-	scheduledSessionIDs, err := s.scheduledSessionIDsLocked(workspaceID)
-	if err != nil {
-		return nil, err
-	}
-	attachmentTextBySession, err := s.attachmentSearchTextBySessionLocked(workspaceID)
+	attachmentTextBySession, err := s.attachmentSearchTextBySessionLocked()
 	if err != nil {
 		return nil, err
 	}
@@ -134,8 +130,8 @@ type attachmentSearchText struct {
 	textContent string
 }
 
-func (s *Store) attachmentSearchTextBySessionLocked(workspaceID string) (map[string][]attachmentSearchText, error) {
-	rows, err := s.db.Query(`SELECT session_id, filename, text_content FROM attachments WHERE workspace_id = ?`, workspaceID)
+func (s *Store) attachmentSearchTextBySessionLocked() (map[string][]attachmentSearchText, error) {
+	rows, err := s.db.Query(`SELECT session_id, filename, text_content FROM attachments`)
 	if err != nil {
 		return nil, err
 	}

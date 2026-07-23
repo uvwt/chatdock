@@ -25,7 +25,7 @@ func TestRequestMCPConfirmationCancelsWhenRequiredEventFails(t *testing.T) {
 	if !errors.Is(err, emitErr) {
 		t.Fatalf("expected emit error, got %v", err)
 	}
-	items, err := app.store.ListMCPConfirmations("default", true, 10)
+	items, err := app.store.ListMCPConfirmations(true, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,13 +86,13 @@ func TestRequestMCPConfirmationRejectsUnknownSession(t *testing.T) {
 
 	err = app.requestMCPConfirmation(context.Background(), "missing-session", "demo_tool", nil, nil)
 	if err == nil {
-		t.Fatal("unknown session must not fall back to default workspace")
+		t.Fatal("unknown session must not create a confirmation")
 	}
-	items, listErr := app.store.ListMCPConfirmations("default", true, 10)
+	items, listErr := app.store.ListMCPConfirmations(true, 10)
 	if listErr != nil {
 		t.Fatal(listErr)
 	}
 	if len(items) != 0 {
-		t.Fatalf("unknown session created default workspace confirmation: %#v", items)
+		t.Fatalf("unknown session created confirmation: %#v", items)
 	}
 }

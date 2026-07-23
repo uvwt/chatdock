@@ -45,11 +45,11 @@ func TestNewAppNormalizesDataDirBeforeCreatingStoreAndUploads(t *testing.T) {
 		t.Fatalf("store data dir = %q, app data dir = %q", status.DataDir, app.cfg.DataDir)
 	}
 
-	upload, err := app.persistUploadedFile("default", "normalized", "notes.txt", "text/plain", bytes.NewBufferString("content"))
+	upload, err := app.persistUploadedFile("normalized", "notes.txt", "text/plain", bytes.NewBufferString("content"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantPrefix := filepath.Join(app.cfg.DataDir, "uploads", "default") + string(filepath.Separator)
+	wantPrefix := filepath.Join(app.cfg.DataDir, "uploads") + string(filepath.Separator)
 	if !strings.HasPrefix(upload.StoragePath, wantPrefix) {
 		t.Fatalf("upload path = %q, want prefix %q", upload.StoragePath, wantPrefix)
 	}

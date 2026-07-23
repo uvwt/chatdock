@@ -138,11 +138,11 @@ func TestSessionAgentTaskReturnsLatestAssociatedTask(t *testing.T) {
 	defer upstream.Close()
 
 	app := newAgentTaskTestApp(t, model.ServerConfig{AgentDockContextURL: upstream.URL + "/context"})
-	session, err := app.store.CreateSession("default")
+	session, err := app.store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = app.store.AppendAssistantMessageWithParts("default", session.ID, "working", "", nil, []model.MessageEvent{
+	_, err = app.store.AppendAssistantMessageWithParts(session.ID, "working", "", nil, []model.MessageEvent{
 		taskManageProxyEvent("create", "tsk_old"),
 		taskManageProxyEvent("checkpoint", "tsk_current"),
 		taskManageProxyEvent("get", "tsk_read_only"),
@@ -179,11 +179,11 @@ func TestSessionAgentTaskReturnsNullWhenAssociatedTaskWasDeleted(t *testing.T) {
 	defer upstream.Close()
 
 	app := newAgentTaskTestApp(t, model.ServerConfig{AgentDockContextURL: upstream.URL + "/context"})
-	session, err := app.store.CreateSession("default")
+	session, err := app.store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = app.store.AppendAssistantMessageWithParts("default", session.ID, "working", "", nil, []model.MessageEvent{
+	_, err = app.store.AppendAssistantMessageWithParts(session.ID, "working", "", nil, []model.MessageEvent{
 		taskManageProxyEvent("create", "tsk_deleted"),
 	})
 	if err != nil {
@@ -199,7 +199,7 @@ func TestSessionAgentTaskReturnsNullWhenAssociatedTaskWasDeleted(t *testing.T) {
 
 func TestSessionAgentTaskReturnsNullWithoutAssociatedTask(t *testing.T) {
 	app := newAgentTaskTestApp(t, model.ServerConfig{})
-	session, err := app.store.CreateSession("default")
+	session, err := app.store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}

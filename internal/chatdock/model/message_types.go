@@ -60,7 +60,6 @@ type FileUploadResponse struct {
 // AttachmentRecord 是附件的持久化记录；公开响应只使用 Attachment。
 type AttachmentRecord struct {
 	Attachment
-	Prompt      string
 	SessionID   string
 	MessageID   string
 	StoragePath string
@@ -71,6 +70,7 @@ type AttachmentRecord struct {
 
 type Session struct {
 	ID         string    `json:"id"`
+	ProjectID  string    `json:"project_id,omitempty"`
 	Title      string    `json:"title"`
 	Pinned     bool      `json:"pinned"`
 	ProviderID string    `json:"provider_id,omitempty"`
@@ -82,6 +82,7 @@ type Session struct {
 
 type SessionSummary struct {
 	ID         string    `json:"id"`
+	ProjectID  string    `json:"project_id,omitempty"`
 	Title      string    `json:"title"`
 	Pinned     bool      `json:"pinned"`
 	ProviderID string    `json:"provider_id,omitempty"`

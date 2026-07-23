@@ -28,7 +28,7 @@ func (a *App) handleGuideChatJob(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	item, err := a.enqueueChatJobGuidance(a.workspaceIDFromRequest(r), r.PathValue("id"), input.Message)
+	item, err := a.enqueueChatJobGuidance(r.PathValue("id"), input.Message)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, sql.ErrNoRows) {
@@ -40,7 +40,7 @@ func (a *App) handleGuideChatJob(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, map[string]any{"guidance": item})
 }
 
-func (a *App) enqueueChatJobGuidance(workspaceID string, jobID string, message string) (chatJobGuidance, error) {
+func (a *App) enqueueChatJobGuidance(jobID string, message string) (chatJobGuidance, error) {
 	jobID = strings.TrimSpace(jobID)
 	message = strings.TrimSpace(message)
 	if jobID == "" {
@@ -53,7 +53,7 @@ func (a *App) enqueueChatJobGuidance(workspaceID string, jobID string, message s
 	if len(runes) > 4000 {
 		message = string(runes[:4000])
 	}
-	job, err := a.store.GetChatJob(workspaceID, jobID)
+	job, err := a.store.GetChatJob(jobID)
 	if err != nil {
 		return chatJobGuidance{}, err
 	}

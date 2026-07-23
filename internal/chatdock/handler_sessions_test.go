@@ -47,9 +47,9 @@ func TestSessionRenameAndExportAPI(t *testing.T) {
 	}
 }
 
-func appendUserMessageForAppTest(t *testing.T, app *App, workspaceID string, sessionID string, content string) {
+func appendUserMessageForAppTest(t *testing.T, app *App, sessionID string, content string) {
 	t.Helper()
-	if _, _, _, err := app.store.PrepareChat(workspaceID, model.ChatRequest{SessionID: sessionID, Message: content}); err != nil {
+	if _, _, _, err := app.store.PrepareChat(model.ChatRequest{SessionID: sessionID, Message: content}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -71,7 +71,7 @@ func TestSessionCloneAPI(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
 		t.Fatal(err)
 	}
-	appendUserMessageForAppTest(t, app, "default", session.ID, "需要复制的消息")
+	appendUserMessageForAppTest(t, app, session.ID, "需要复制的消息")
 
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodPost, "/api/sessions/"+session.ID+"/clone", bytes.NewReader([]byte(`{}`)))
@@ -119,8 +119,8 @@ func TestSessionBranchAPI(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
 		t.Fatal(err)
 	}
-	appendUserMessageForAppTest(t, app, "default", session.ID, "需要分支的用户消息")
-	if _, err := app.store.AppendAssistantMessage("default", session.ID, "需要分支的助手回复"); err != nil {
+	appendUserMessageForAppTest(t, app, session.ID, "需要分支的用户消息")
+	if _, err := app.store.AppendAssistantMessage(session.ID, "需要分支的助手回复"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -189,11 +189,11 @@ func TestSessionEditUserMessageTruncatesFollowingMessages(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
 		t.Fatal(err)
 	}
-	appendUserMessageForAppTest(t, app, "default", session.ID, "原始问题")
-	if _, err := app.store.AppendAssistantMessage("default", session.ID, "后续回答"); err != nil {
+	appendUserMessageForAppTest(t, app, session.ID, "原始问题")
+	if _, err := app.store.AppendAssistantMessage(session.ID, "后续回答"); err != nil {
 		t.Fatal(err)
 	}
-	appendUserMessageForAppTest(t, app, "default", session.ID, "后续追问")
+	appendUserMessageForAppTest(t, app, session.ID, "后续追问")
 
 	body := bytes.NewReader([]byte(`{"message_index":0,"content":"改后的问题"}`))
 	w = httptest.NewRecorder()
@@ -279,7 +279,7 @@ func TestSessionGetCompactsToolEventDetailsAndLazyLoadsFullEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 	huge := strings.Repeat("x", 20000)
-	_, err = app.store.AppendAssistantMessageWithParts("default", session.ID, "done", "", nil, []model.MessageEvent{{
+	_, err = app.store.AppendAssistantMessageWithParts(session.ID, "done", "", nil, []model.MessageEvent{{
 		Kind: "tool", Phase: "done", Text: "调用完成：chatdock_tool_execute", Details: map[string]any{
 			"event":     "tool_call_result",
 			"tool":      "chatdock_tool_execute",

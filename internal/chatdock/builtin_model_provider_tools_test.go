@@ -11,13 +11,13 @@ import (
 	"chatdock/internal/chatdock/store"
 )
 
-func TestBuiltinModelProviderToolCRUDAndWorkspaceDefault(t *testing.T) {
+func TestBuiltinModelProviderToolCRUDAndGlobalDefault(t *testing.T) {
 	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	createdRaw, err := app.callBuiltinModelProviderTool(context.Background(), "default", builtinToolSaveModelProvider, map[string]any{
+	createdRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolSaveModelProvider, map[string]any{
 		"name":          "Local Test",
 		"base_url":      "http://127.0.0.1:12345/v1",
 		"default_model": "demo-model",
@@ -38,7 +38,7 @@ func TestBuiltinModelProviderToolCRUDAndWorkspaceDefault(t *testing.T) {
 		t.Fatalf("tool result should not expose api_keys: %#v", created)
 	}
 
-	listedRaw, err := app.callBuiltinModelProviderTool(context.Background(), "default", builtinToolListModelProviders, map[string]any{"query": "local"})
+	listedRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolListModelProviders, map[string]any{"query": "local"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestBuiltinModelProviderToolCRUDAndWorkspaceDefault(t *testing.T) {
 		t.Fatalf("expected one provider in list: %#v", listed)
 	}
 
-	disabledRaw, err := app.callBuiltinModelProviderTool(context.Background(), "default", builtinToolSaveModelProvider, map[string]any{"id": provider.ID, "enabled": false})
+	disabledRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolSaveModelProvider, map[string]any{"id": provider.ID, "enabled": false})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,15 +56,15 @@ func TestBuiltinModelProviderToolCRUDAndWorkspaceDefault(t *testing.T) {
 		t.Fatalf("provider should be disabled: %#v", disabled)
 	}
 
-	if _, err := app.callBuiltinModelProviderTool(context.Background(), "default", builtinToolSaveModelProvider, map[string]any{"id": provider.ID, "set_as_workspace_default": true}); err == nil {
-		t.Fatal("disabled provider should not be selectable as workspace default")
+	if _, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolSaveModelProvider, map[string]any{"id": provider.ID, "set_as_global_default": true}); err == nil {
+		t.Fatal("disabled provider should not be selectable as global default")
 	}
 
-	enabledRaw, err := app.callBuiltinModelProviderTool(context.Background(), "default", builtinToolSaveModelProvider, map[string]any{
-		"id":                       provider.ID,
-		"enabled":                  true,
-		"set_as_workspace_default": true,
-		"workspace_model":          "other-model",
+	enabledRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolSaveModelProvider, map[string]any{
+		"id":                    provider.ID,
+		"enabled":               true,
+		"set_as_global_default": true,
+		"global_model":          "other-model",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -74,13 +74,13 @@ func TestBuiltinModelProviderToolCRUDAndWorkspaceDefault(t *testing.T) {
 	if !enabled.Enabled {
 		t.Fatalf("provider should be enabled: %#v", enabled)
 	}
-	workspace := enabledResult["workspace"].(map[string]any)
-	if workspace["provider_id"] != provider.ID || workspace["model"] != "other-model" {
-		t.Fatalf("unexpected workspace switch result: %#v", workspace)
+	global := enabledResult["global"].(map[string]any)
+	if global["provider_id"] != provider.ID || global["model"] != "other-model" {
+		t.Fatalf("unexpected global switch result: %#v", global)
 	}
 
-	if _, err := app.callBuiltinModelProviderTool(context.Background(), "default", builtinToolDeleteModelProvider, map[string]any{"id": provider.ID}); err == nil {
-		t.Fatal("provider used by current workspace should not be deleted")
+	if _, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolDeleteModelProvider, map[string]any{"id": provider.ID}); err == nil {
+		t.Fatal("provider used by global config should not be deleted")
 	}
 }
 
@@ -127,7 +127,7 @@ func TestBuiltinModelProviderTestReturnsCandidateCatalogWithoutSaving(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	createdRaw, err := app.callBuiltinModelProviderTool(context.Background(), "default", builtinToolSaveModelProvider, map[string]any{
+	createdRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolSaveModelProvider, map[string]any{
 		"name":          "Remote Test",
 		"base_url":      modelServer.URL + "/v1",
 		"default_model": "initial-model",
@@ -140,7 +140,7 @@ func TestBuiltinModelProviderTestReturnsCandidateCatalogWithoutSaving(t *testing
 	}
 	provider := createdRaw.(map[string]any)["provider"].(store.ModelProvider)
 
-	testRaw, err := app.callBuiltinModelProviderTool(context.Background(), "default", builtinToolTestModelProvider, map[string]any{"id": provider.ID, "fetch_models": true})
+	testRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolTestModelProvider, map[string]any{"id": provider.ID, "fetch_models": true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestBuiltinModelProviderTestDoesNotTreatModelListAsChatAvailability(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	createdRaw, err := app.callBuiltinModelProviderTool(context.Background(), "default", builtinToolSaveModelProvider, map[string]any{
+	createdRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolSaveModelProvider, map[string]any{
 		"name":          "False Positive Guard",
 		"base_url":      modelServer.URL + "/v1",
 		"default_model": "initial-model",
@@ -207,7 +207,7 @@ func TestBuiltinModelProviderTestDoesNotTreatModelListAsChatAvailability(t *test
 	}
 	provider := createdRaw.(map[string]any)["provider"].(store.ModelProvider)
 
-	testRaw, err := app.callBuiltinModelProviderTool(context.Background(), "default", builtinToolTestModelProvider, map[string]any{"id": provider.ID, "fetch_models": true})
+	testRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolTestModelProvider, map[string]any{"id": provider.ID, "fetch_models": true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +251,7 @@ func TestBuiltinModelProviderSaveSupportsMultipleKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	savedRaw, err := app.callBuiltinModelProviderTool(context.Background(), "default", builtinToolSaveModelProvider, map[string]any{
+	savedRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolSaveModelProvider, map[string]any{
 		"id":            "multi-key",
 		"name":          "Multi Key",
 		"base_url":      "http://127.0.0.1:12345/v1",
@@ -281,7 +281,7 @@ func TestBuiltinModelProviderSaveSupportsMultipleKeys(t *testing.T) {
 		t.Fatalf("auto strategy should choose lowest-priority enabled key, got %q", cfg.APIKey)
 	}
 
-	updatedRaw, err := app.callBuiltinModelProviderTool(context.Background(), "default", builtinToolSaveModelProvider, map[string]any{
+	updatedRaw, err := app.callBuiltinModelProviderTool(context.Background(), builtinToolSaveModelProvider, map[string]any{
 		"id":              provider.ID,
 		"selected_key_id": "main",
 		"key_strategy":    "manual",

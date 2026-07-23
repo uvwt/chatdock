@@ -47,12 +47,11 @@ type ScheduledTaskResponse struct {
 }
 
 type ScheduledTaskRun struct {
-	Task        ScheduledTask
-	WorkspaceID string
-	SessionID   string
-	RunID       string
-	Config      ModelConfig
-	History     []Message
+	Task      ScheduledTask
+	SessionID string
+	RunID     string
+	Config    ModelConfig
+	History   []Message
 }
 
 type ScheduledTaskRunResponse struct {

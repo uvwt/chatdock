@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"chatdock/internal/chatdock/model"
+	storepkg "chatdock/internal/chatdock/store"
 )
 
 func TestScheduledTasksAPI(t *testing.T) {
@@ -71,7 +72,7 @@ func TestScheduledTaskRescheduleSemantics(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	created, err := app.store.CreateScheduledTask("default", model.ScheduledTaskRequest{Title: "间隔任务", Prompt: "总结今天", Enabled: true, ScheduleType: "interval", IntervalMinutes: 60, ContextMode: model.ScheduledTaskContextStateless})
+	created, err := app.store.CreateScheduledTask(model.ScheduledTaskRequest{Title: "间隔任务", Prompt: "总结今天", Enabled: true, ScheduleType: "interval", IntervalMinutes: 60, ContextMode: model.ScheduledTaskContextStateless})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +85,7 @@ func TestScheduledTaskRescheduleSemantics(t *testing.T) {
 		t.Fatalf("created task should have next_run_at: %#v", task)
 	}
 
-	updated, err := app.store.UpdateScheduledTask("default", task.ID, model.ScheduledTaskRequest{Title: "间隔任务重命名", Prompt: "改一下内容", Enabled: true, ScheduleType: "interval", IntervalMinutes: 60, ContextMode: model.ScheduledTaskContextSession})
+	updated, err := app.store.UpdateScheduledTask(task.ID, model.ScheduledTaskRequest{Title: "间隔任务重命名", Prompt: "改一下内容", Enabled: true, ScheduleType: "interval", IntervalMinutes: 60, ContextMode: model.ScheduledTaskContextSession})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +93,7 @@ func TestScheduledTaskRescheduleSemantics(t *testing.T) {
 		t.Fatalf("content-only save should preserve next_run_at, got %s want %s", got, originalNextRun)
 	}
 
-	changedPlan, err := app.store.UpdateScheduledTask("default", task.ID, model.ScheduledTaskRequest{Title: "间隔任务重命名", Prompt: "改一下内容", Enabled: true, ScheduleType: "interval", IntervalMinutes: 90, ContextMode: model.ScheduledTaskContextSession})
+	changedPlan, err := app.store.UpdateScheduledTask(task.ID, model.ScheduledTaskRequest{Title: "间隔任务重命名", Prompt: "改一下内容", Enabled: true, ScheduleType: "interval", IntervalMinutes: 90, ContextMode: model.ScheduledTaskContextSession})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +102,7 @@ func TestScheduledTaskRescheduleSemantics(t *testing.T) {
 	}
 	planNextRun := changedPlan.Tasks[0].NextRunAt
 
-	rescheduled, err := app.store.UpdateScheduledTask("default", task.ID, model.ScheduledTaskRequest{Title: "间隔任务重命名", Prompt: "改一下内容", Enabled: true, ScheduleType: "interval", IntervalMinutes: 90, ContextMode: model.ScheduledTaskContextSession, Reschedule: true})
+	rescheduled, err := app.store.UpdateScheduledTask(task.ID, model.ScheduledTaskRequest{Title: "间隔任务重命名", Prompt: "改一下内容", Enabled: true, ScheduleType: "interval", IntervalMinutes: 90, ContextMode: model.ScheduledTaskContextSession, Reschedule: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,11 +116,11 @@ func TestOnceScheduledTaskRescheduleRequiresRunAt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	created, err := app.store.CreateScheduledTask("default", model.ScheduledTaskRequest{Title: "一次任务", Prompt: "执行一次", Enabled: true, ScheduleType: "once", RunAt: "2099-01-01T10:00"})
+	created, err := app.store.CreateScheduledTask(model.ScheduledTaskRequest{Title: "一次任务", Prompt: "执行一次", Enabled: true, ScheduleType: "once", RunAt: "2099-01-01T10:00"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = app.store.UpdateScheduledTask("default", created.Tasks[0].ID, model.ScheduledTaskRequest{Title: "一次任务", Prompt: "执行一次", Enabled: true, ScheduleType: "once", Reschedule: true})
+	_, err = app.store.UpdateScheduledTask(created.Tasks[0].ID, model.ScheduledTaskRequest{Title: "一次任务", Prompt: "执行一次", Enabled: true, ScheduleType: "once", Reschedule: true})
 	if err == nil {
 		t.Fatal("once reschedule without a legal run_at should fail")
 	}
@@ -166,10 +167,10 @@ func TestScheduledTaskRunWritesConversationDetails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig("default", model.ModelConfig{BaseURL: modelServer.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: modelServer.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
 		t.Fatal(err)
 	}
-	created, err := app.store.CreateScheduledTask("default", model.ScheduledTaskRequest{Title: "细节任务", Prompt: "请查工具再总结", Enabled: true, ScheduleType: "interval", IntervalMinutes: 15, ContextMode: model.ScheduledTaskContextStateless})
+	created, err := app.store.CreateScheduledTask(model.ScheduledTaskRequest{Title: "细节任务", Prompt: "请查工具再总结", Enabled: true, ScheduleType: "interval", IntervalMinutes: 15, ContextMode: model.ScheduledTaskContextStateless})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +178,7 @@ func TestScheduledTaskRunWritesConversationDetails(t *testing.T) {
 		t.Fatalf("unexpected created tasks: %#v", created.Tasks)
 	}
 
-	result, err := app.executeScheduledTask(context.Background(), "default", created.Tasks[0].ID, true)
+	result, err := app.executeScheduledTask(context.Background(), created.Tasks[0].ID, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,14 +204,14 @@ func TestScheduledTaskRunWritesConversationDetails(t *testing.T) {
 	if got := requestCount.Load(); got != 4 {
 		t.Fatalf("scheduled title should retry once after empty model content, requests=%d", got)
 	}
-	summaries, err := app.store.ListSessions("default")
+	summaries, err := app.store.ListSessions(storepkg.SessionProjectFilter{Mode: storepkg.SessionProjectFilterAll})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(summaries) != 0 {
 		t.Fatalf("scheduled session should not appear in normal session list: %#v", summaries)
 	}
-	searchResults, err := app.store.SearchSessions("default", "定时任务", 20)
+	searchResults, err := app.store.SearchSessions("定时任务", 20)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -30,7 +30,7 @@ func TestAttachmentRecordsRejectTooManyIDsBeforeSQL(t *testing.T) {
 		ids[i] = fmt.Sprintf("attachment-%d", i)
 	}
 	store.mu.Lock()
-	_, err = store.attachmentRecordsByIDsLocked(defaultWorkspaceID, ids)
+	_, err = store.attachmentRecordsByIDsLocked(ids)
 	store.mu.Unlock()
 	if err == nil || !strings.Contains(err.Error(), "attachment count exceeds 20") {
 		t.Fatalf("attachment limit error = %v", err)

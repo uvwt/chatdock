@@ -11,8 +11,7 @@ import (
 
 const scheduledTaskRunsKey = "scheduled_task_runs"
 
-func (s *Store) ListScheduledTaskRuns(workspaceID string, taskID string, limit int) (model.ScheduledTaskRunRecordResponse, error) {
-	workspaceID = strings.TrimSpace(workspaceID)
+func (s *Store) ListScheduledTaskRuns(taskID string, limit int) (model.ScheduledTaskRunRecordResponse, error) {
 	taskID = strings.TrimSpace(taskID)
 	if taskID == "" {
 		return model.ScheduledTaskRunRecordResponse{}, fmt.Errorf("scheduled task id is empty")
@@ -25,21 +24,16 @@ func (s *Store) ListScheduledTaskRuns(workspaceID string, taskID string, limit i
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return model.ScheduledTaskRunRecordResponse{}, err
-	}
 	query := `SELECT ` + scheduledTaskRunColumns() + `,
 		COALESCE((
 			SELECT title
 			FROM sessions
-			WHERE sessions.workspace_id = scheduled_task_runs.workspace_id
-			  AND sessions.id = scheduled_task_runs.session_id
+			WHERE sessions.id = scheduled_task_runs.session_id
 		), '')
 		FROM scheduled_task_runs
-		WHERE workspace_id = ? AND task_id = ?
+		WHERE task_id = ?
 		ORDER BY started_at DESC LIMIT ?`
-	rows, err := s.db.Query(query, workspaceID, taskID, limit)
+	rows, err := s.db.Query(query, taskID, limit)
 	if err != nil {
 		return model.ScheduledTaskRunRecordResponse{}, err
 	}
@@ -58,14 +52,10 @@ func (s *Store) ListScheduledTaskRuns(workspaceID string, taskID string, limit i
 	return model.ScheduledTaskRunRecordResponse{Runs: out}, nil
 }
 
-func (s *Store) latestSuccessfulScheduledTaskRunLocked(workspaceID string, taskID string) (model.ScheduledTaskRunRecord, bool, error) {
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return model.ScheduledTaskRunRecord{}, false, err
-	}
+func (s *Store) latestSuccessfulScheduledTaskRunLocked(taskID string) (model.ScheduledTaskRunRecord, bool, error) {
 	taskID = strings.TrimSpace(taskID)
-	query := `SELECT ` + scheduledTaskRunColumns() + ` FROM scheduled_task_runs WHERE workspace_id = ? AND task_id = ? AND status = 'success' AND output != '' ORDER BY started_at DESC LIMIT 1`
-	row := s.db.QueryRow(query, workspaceID, taskID)
+	query := `SELECT ` + scheduledTaskRunColumns() + ` FROM scheduled_task_runs WHERE task_id = ? AND status = 'success' AND output != '' ORDER BY started_at DESC LIMIT 1`
+	row := s.db.QueryRow(query, taskID)
 	record, err := scanScheduledTaskRun(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

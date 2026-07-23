@@ -109,23 +109,23 @@ func TestStartChatJobRejectsShutdownBeforePersistingMessage(t *testing.T) {
 			t.Errorf("close app: %v", err)
 		}
 	})
-	session, err := app.store.CreateSession("default")
+	session, err := app.store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
 	app.beginShutdown()
 
-	if _, _, err := app.startChatJob(context.Background(), "default", model.ChatRequest{SessionID: session.ID, Message: "不应写入"}); err == nil {
+	if _, _, err := app.startChatJob(context.Background(), model.ChatRequest{SessionID: session.ID, Message: "不应写入"}); err == nil {
 		t.Fatal("expected shutdown rejection")
 	}
-	loaded, ok, err := app.store.GetSession("default", session.ID)
+	loaded, ok, err := app.store.GetSession(session.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !ok || len(loaded.Messages) != 0 {
 		t.Fatalf("shutdown-rejected message persisted: %#v", loaded)
 	}
-	jobs, err := app.store.ListChatJobs("default", session.ID, false, 20)
+	jobs, err := app.store.ListChatJobs(session.ID, false, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,18 +150,18 @@ func TestAppCloseCancelsAndWaitsForSessionTitleGeneration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := app.store.CreateSession("default")
+	session, err := app.store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := app.store.PrepareChat("default", model.ChatRequest{SessionID: session.ID, Message: "需要标题的问题"}); err != nil {
+	if _, _, _, err := app.store.PrepareChat(model.ChatRequest{SessionID: session.ID, Message: "需要标题的问题"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.AppendAssistantMessage("default", session.ID, "这是回答"); err != nil {
+	if _, err := app.store.AppendAssistantMessage(session.ID, "这是回答"); err != nil {
 		t.Fatal(err)
 	}
 	cfg := model.ModelConfig{BaseURL: modelServer.URL + "/v1", Model: "title-model"}
-	app.startSessionTitleGeneration("req-title", "default", session.ID, cfg)
+	app.startSessionTitleGeneration("req-title", session.ID, cfg)
 
 	select {
 	case <-requestStarted:
@@ -316,7 +316,7 @@ func TestAppShutdownRespectsDeadlineForNonCooperativeWorker(t *testing.T) {
 	if elapsed := time.Since(startedAt); elapsed > 500*time.Millisecond {
 		t.Fatalf("Shutdown ignored its deadline: %s", elapsed)
 	}
-	if _, err := app.store.ListWorkspaceSummaries("default"); err != nil {
+	if _, err := app.store.ModelConfig(); err != nil {
 		t.Fatalf("Store was closed while worker was still running: %v", err)
 	}
 

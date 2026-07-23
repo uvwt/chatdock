@@ -10,7 +10,7 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func (s *Store) StartMCPRun(workspaceID string, sessionID string, title string) (MCPRun, error) {
+func (s *Store) StartMCPRun(sessionID string, title string) (MCPRun, error) {
 	now := time.Now()
 	title = strings.TrimSpace(title)
 	if title == "" {
@@ -18,12 +18,8 @@ func (s *Store) StartMCPRun(workspaceID string, sessionID string, title string) 
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return MCPRun{}, err
-	}
-	run := MCPRun{ID: model.NewID(), Workspace: workspaceID, SessionID: strings.TrimSpace(sessionID), Title: title, Status: "running", StartedAt: now, UpdatedAt: now}
-	_, err = s.db.Exec(`INSERT INTO mcp_runs(workspace_id, id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, run.Workspace, run.ID, run.SessionID, run.Title, run.Status, run.Summary, run.Error, formatDBTime(run.StartedAt), "", run.DurationMS, run.EventCount, formatDBTime(run.UpdatedAt))
+	run := MCPRun{ID: model.NewID(), SessionID: strings.TrimSpace(sessionID), Title: title, Status: "running", StartedAt: now, UpdatedAt: now}
+	_, err := s.db.Exec(`INSERT INTO mcp_runs(id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, run.ID, run.SessionID, run.Title, run.Status, run.Summary, run.Error, formatDBTime(run.StartedAt), "", run.DurationMS, run.EventCount, formatDBTime(run.UpdatedAt))
 	return run, err
 }
 
@@ -118,7 +114,7 @@ func (s *Store) FinishMCPRun(runID string, status string, summary string, runErr
 	return s.getMCPRunLocked(runID)
 }
 
-func (s *Store) ListMCPRuns(workspaceID string, sessionID string, limit int) (MCPRunResponse, error) {
+func (s *Store) ListMCPRuns(sessionID string, limit int) (MCPRunResponse, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -128,12 +124,8 @@ func (s *Store) ListMCPRuns(workspaceID string, sessionID string, limit int) (MC
 	sessionID = strings.TrimSpace(sessionID)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return MCPRunResponse{}, err
-	}
-	query := `SELECT workspace_id, id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at FROM mcp_runs WHERE workspace_id = ?`
-	args := []any{workspaceID}
+	query := `SELECT id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at FROM mcp_runs WHERE 1 = 1`
+	args := []any{}
 	if sessionID != "" {
 		query += ` AND session_id = ?`
 		args = append(args, sessionID)
@@ -152,14 +144,10 @@ func (s *Store) ListMCPRuns(workspaceID string, sessionID string, limit int) (MC
 	return MCPRunResponse{Runs: runs}, nil
 }
 
-func (s *Store) MCPRunDetail(workspaceID string, runID string) (MCPRunDetailResponse, error) {
-	workspaceID, err := normalizeWorkspaceID(workspaceID)
-	if err != nil {
-		return MCPRunDetailResponse{}, err
-	}
+func (s *Store) MCPRunDetail(runID string) (MCPRunDetailResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	run, err := s.getMCPRunForWorkspaceLocked(workspaceID, runID)
+	run, err := s.getMCPRunLocked(runID)
 	if err != nil {
 		return MCPRunDetailResponse{}, err
 	}

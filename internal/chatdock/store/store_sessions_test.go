@@ -14,14 +14,14 @@ func TestStoreSessionRenameAndExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := store.CreateSession("default")
+	s, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := store.PrepareChat("default", model.ChatRequest{SessionID: s.ID, Message: "hello world"}); err != nil {
+	if _, _, _, err := store.PrepareChat(model.ChatRequest{SessionID: s.ID, Message: "hello world"}); err != nil {
 		t.Fatal(err)
 	}
-	renamed, err := store.RenameSession("default", s.ID, "new title")
+	renamed, err := store.RenameSession(s.ID, "new title")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,16 +49,16 @@ func TestStoreSessionSummaryPreviewAndClone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := store.CreateSession("default")
+	session, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	appendUserMessageForTest(t, store, "default", session.ID, "这是一条可以被会话搜索命中的用户消息")
-	if _, err := store.AppendAssistantMessage("default", session.ID, strings.Repeat("助手总结 ", 30)); err != nil {
+	appendUserMessageForTest(t, store, session.ID, "这是一条可以被会话搜索命中的用户消息")
+	if _, err := store.AppendAssistantMessage(session.ID, strings.Repeat("助手总结 ", 30)); err != nil {
 		t.Fatal(err)
 	}
 
-	summaries, err := store.ListSessions("default")
+	summaries, err := store.ListSessions(SessionProjectFilter{Mode: SessionProjectFilterAll})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,14 +69,14 @@ func TestStoreSessionSummaryPreviewAndClone(t *testing.T) {
 		t.Fatalf("bad summary preview: %#v", summaries[0])
 	}
 
-	cloned, err := store.CloneSession("default", session.ID)
+	cloned, err := store.CloneSession(session.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if cloned.ID == session.ID || !strings.Contains(cloned.Title, "副本") || len(cloned.Messages) != 2 {
 		t.Fatalf("bad cloned session: %#v", cloned)
 	}
-	summaries, err = store.ListSessions("default")
+	summaries, err = store.ListSessions(SessionProjectFilter{Mode: SessionProjectFilterAll})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,17 +90,17 @@ func TestStoreBranchSessionCutsAtMessageIndex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := store.CreateSession("default")
+	session, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	appendUserMessageForTest(t, store, "default", session.ID, "第一条用户消息")
-	if _, err := store.AppendAssistantMessage("default", session.ID, "第一条助手回复"); err != nil {
+	appendUserMessageForTest(t, store, session.ID, "第一条用户消息")
+	if _, err := store.AppendAssistantMessage(session.ID, "第一条助手回复"); err != nil {
 		t.Fatal(err)
 	}
-	appendUserMessageForTest(t, store, "default", session.ID, "第二条用户消息")
+	appendUserMessageForTest(t, store, session.ID, "第二条用户消息")
 	idx := 1
-	branched, err := store.BranchSession("default", session.ID, &idx)
+	branched, err := store.BranchSession(session.ID, &idx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,18 +117,18 @@ func TestStoreUpdateSessionModelPersistsAndAppearsInSummary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := store.CreateSession("default")
+	session, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	updated, err := store.UpdateSessionModel("default", session.ID, " provider-a ", " model-x ")
+	updated, err := store.UpdateSessionModel(session.ID, " provider-a ", " model-x ")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if updated.ProviderID != "provider-a" || updated.Model != "model-x" {
 		t.Fatalf("unexpected model selection: %#v", updated)
 	}
-	loaded, ok, err := store.GetSession("default", session.ID)
+	loaded, ok, err := store.GetSession(session.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestStoreUpdateSessionModelPersistsAndAppearsInSummary(t *testing.T) {
 	if loaded.ProviderID != "provider-a" || loaded.Model != "model-x" {
 		t.Fatalf("model selection was not persisted in session: %#v", loaded)
 	}
-	summaries, err := store.ListSessions("default")
+	summaries, err := store.ListSessions(SessionProjectFilter{Mode: SessionProjectFilterAll})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,13 +152,13 @@ func TestStorePrepareSessionRegenerationUsesLastUserWithoutAppending(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := store.CreateSession("default")
+	session, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	appendUserMessageForTest(t, store, "default", session.ID, "编辑后的问题")
+	appendUserMessageForTest(t, store, session.ID, "编辑后的问题")
 
-	prepared, _, history, err := store.PrepareChat("default", model.ChatRequest{SessionID: session.ID, Regenerate: true})
+	prepared, _, history, err := store.PrepareChat(model.ChatRequest{SessionID: session.ID, Regenerate: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestStorePrepareSessionRegenerationUsesLastUserWithoutAppending(t *testing.
 	if history[0].Role != "user" || history[0].Content != "编辑后的问题" {
 		t.Fatalf("unexpected regeneration history: %#v", history)
 	}
-	loaded, ok, err := store.GetSession("default", session.ID)
+	loaded, ok, err := store.GetSession(session.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,10 +203,10 @@ func TestAppendUserMessageRollsBackAttachmentBindingWhenSessionSaveFails(t *test
 		StoragePath: "/tmp/rollback.txt",
 		SHA256:      "sha-rollback",
 	}
-	if _, err := store.SaveAttachment(defaultWorkspaceID, attachment); err != nil {
+	if _, err := store.SaveAttachment(attachment); err != nil {
 		t.Fatal(err)
 	}
-	session, err := store.CreateSession(defaultWorkspaceID)
+	session, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +218,7 @@ END`); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := appendUserMessageWithAttachmentsForTest(store, defaultWorkspaceID, session.ID, "带附件消息", []string{attachment.ID}); err == nil {
+	if _, err := appendUserMessageWithAttachmentsForTest(store, session.ID, "带附件消息", []string{attachment.ID}); err == nil {
 		t.Fatal("expected session persistence failure")
 	}
 	var boundSessionID, boundMessageID string
@@ -228,48 +228,12 @@ END`); err != nil {
 	if boundSessionID != "" || boundMessageID != "" {
 		t.Fatalf("attachment binding leaked after rollback: session=%q message=%q", boundSessionID, boundMessageID)
 	}
-	loaded, ok, err := store.GetSession(defaultWorkspaceID, session.ID)
+	loaded, ok, err := store.GetSession(session.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !ok || len(loaded.Messages) != 0 {
 		t.Fatalf("failed message persisted in session: %#v", loaded)
-	}
-}
-
-func TestSaveSessionRollsBackWhenWorkspaceTouchFails(t *testing.T) {
-	store, err := NewStore(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := store.Close(); err != nil {
-			t.Errorf("close store: %v", err)
-		}
-	})
-
-	session, err := store.CreateSession(defaultWorkspaceID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.db.Exec(`CREATE TRIGGER fail_workspace_touch
-BEFORE UPDATE OF updated_at ON workspaces
-WHEN OLD.name = 'default'
-BEGIN
-  SELECT RAISE(ABORT, 'forced workspace touch failure');
-END`); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := store.AppendAssistantMessage(defaultWorkspaceID, session.ID, "不应持久化"); err == nil {
-		t.Fatal("expected workspace touch failure")
-	}
-	loaded, ok, err := store.GetSession(defaultWorkspaceID, session.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ok || len(loaded.Messages) != 0 {
-		t.Fatalf("session update survived failed workspace touch: %#v", loaded)
 	}
 }
 
@@ -284,11 +248,11 @@ func TestPrepareChatJobRollsBackMessageAttachmentAndModelWhenJobInsertFails(t *t
 	cfg.APIKey = "test-secret"
 	cfg.Model = "test-model"
 	cfg.Models = []string{"test-model"}
-	cfg, err = store.SaveModelConfig(defaultWorkspaceID, cfg)
+	cfg, err = store.SaveModelConfig(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := store.CreateSession(defaultWorkspaceID)
+	session, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,7 +261,7 @@ func TestPrepareChatJobRollsBackMessageAttachmentAndModelWhenJobInsertFails(t *t
 		StoragePath: "/tmp/job.txt",
 		SHA256:      "prepare-job-sha",
 	}
-	if _, err := store.SaveAttachment(defaultWorkspaceID, attachment); err != nil {
+	if _, err := store.SaveAttachment(attachment); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.db.Exec(`CREATE TRIGGER fail_chat_job_insert
@@ -308,7 +272,7 @@ END`); err != nil {
 		t.Fatal(err)
 	}
 
-	_, _, _, _, err = store.PrepareChatJob(defaultWorkspaceID, model.ChatRequest{
+	_, _, _, _, err = store.PrepareChatJob(model.ChatRequest{
 		SessionID:     session.ID,
 		Message:       "不应部分保存",
 		ProviderID:    cfg.ProviderID,
@@ -318,7 +282,7 @@ END`); err != nil {
 	if err == nil {
 		t.Fatal("expected chat job insert failure")
 	}
-	loaded, ok, err := store.GetSession(defaultWorkspaceID, session.ID)
+	loaded, ok, err := store.GetSession(session.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -332,7 +296,7 @@ END`); err != nil {
 	if boundSessionID != "" || boundMessageID != "" {
 		t.Fatalf("attachment binding survived chat job rollback: session=%q message=%q", boundSessionID, boundMessageID)
 	}
-	jobs, err := store.ListChatJobs(defaultWorkspaceID, session.ID, false, 20)
+	jobs, err := store.ListChatJobs(session.ID, false, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,11 +316,11 @@ func TestPrepareChatJobCommitsMessageAttachmentModelAndJob(t *testing.T) {
 	cfg.APIKey = "chat-job-secret"
 	cfg.Model = "chat-job-model"
 	cfg.Models = []string{"chat-job-model"}
-	cfg, err = store.SaveModelConfig(defaultWorkspaceID, cfg)
+	cfg, err = store.SaveModelConfig(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := store.CreateSession(defaultWorkspaceID)
+	session, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,11 +330,11 @@ func TestPrepareChatJobCommitsMessageAttachmentModelAndJob(t *testing.T) {
 		SHA256:      "prepare-job-success-sha",
 		TextContent: "附件内容",
 	}
-	if _, err := store.SaveAttachment(defaultWorkspaceID, attachment); err != nil {
+	if _, err := store.SaveAttachment(attachment); err != nil {
 		t.Fatal(err)
 	}
 
-	job, savedSession, selected, history, err := store.PrepareChatJob(defaultWorkspaceID, model.ChatRequest{
+	job, savedSession, selected, history, err := store.PrepareChatJob(model.ChatRequest{
 		SessionID:     session.ID,
 		Message:       "请分析附件",
 		ProviderID:    cfg.ProviderID,
@@ -392,14 +356,14 @@ func TestPrepareChatJobCommitsMessageAttachmentModelAndJob(t *testing.T) {
 	if len(history) != 1 || len(history[0].ModelAttachments) != 1 || history[0].Attachments != nil {
 		t.Fatalf("unexpected model history: %#v", history)
 	}
-	bound, err := store.AttachmentRecordByID(defaultWorkspaceID, attachment.ID)
+	bound, err := store.AttachmentRecordByID(attachment.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if bound.SessionID != session.ID || bound.MessageID != savedSession.Messages[0].ID {
 		t.Fatalf("attachment was not bound atomically: %#v", bound)
 	}
-	storedJob, err := store.GetChatJob(defaultWorkspaceID, job.ID)
+	storedJob, err := store.GetChatJob(job.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -414,18 +378,18 @@ func TestPrepareChatClassifiesValidationAndPersistenceErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
-	session, err := store.CreateSession(defaultWorkspaceID)
+	session, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if _, _, _, err := store.PrepareChat(defaultWorkspaceID, model.ChatRequest{SessionID: session.ID}); !errors.Is(err, ErrInvalidChatRequest) {
+	if _, _, _, err := store.PrepareChat(model.ChatRequest{SessionID: session.ID}); !errors.Is(err, ErrInvalidChatRequest) {
 		t.Fatalf("empty message error = %v, want ErrInvalidChatRequest", err)
 	}
-	if _, _, _, err := store.PrepareChat(defaultWorkspaceID, model.ChatRequest{SessionID: session.ID, Message: "hello", ProviderID: "missing-provider"}); !errors.Is(err, ErrInvalidChatRequest) {
+	if _, _, _, err := store.PrepareChat(model.ChatRequest{SessionID: session.ID, Message: "hello", ProviderID: "missing-provider"}); !errors.Is(err, ErrInvalidChatRequest) {
 		t.Fatalf("missing provider error = %v, want ErrInvalidChatRequest", err)
 	}
-	loaded, ok, err := store.GetSession(defaultWorkspaceID, session.ID)
+	loaded, ok, err := store.GetSession(session.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -433,10 +397,10 @@ func TestPrepareChatClassifiesValidationAndPersistenceErrors(t *testing.T) {
 		t.Fatalf("validation failure persisted a message: %#v", loaded)
 	}
 
-	if _, err := store.db.Exec(`UPDATE workspace_kv SET value = '{' WHERE workspace_id = ? AND key = 'config'`, defaultWorkspaceID); err != nil {
+	if _, err := store.db.Exec(`UPDATE global_settings SET value = '{' WHERE key = 'config'`); err != nil {
 		t.Fatal(err)
 	}
-	_, _, _, err = store.PrepareChat(defaultWorkspaceID, model.ChatRequest{SessionID: session.ID, Message: "hello"})
+	_, _, _, err = store.PrepareChat(model.ChatRequest{SessionID: session.ID, Message: "hello"})
 	if err == nil {
 		t.Fatal("expected corrupt config error")
 	}
@@ -451,7 +415,7 @@ func TestStoreAssistantErrorPersistsAcrossReload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := store.CreateSession(defaultWorkspaceID)
+	session, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -463,7 +427,7 @@ func TestStoreAssistantErrorPersistsAcrossReload(t *testing.T) {
 		RequestID: "req_test_error",
 		Retryable: true,
 	}
-	saved, messageID, err := store.UpsertAssistantMessageCheckpoint(defaultWorkspaceID, session.ID, "", "", "", nil, nil, expected)
+	saved, messageID, err := store.UpsertAssistantMessageCheckpoint(session.ID, "", "", "", nil, nil, expected)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -476,14 +440,14 @@ func TestStoreAssistantErrorPersistsAcrossReload(t *testing.T) {
 
 	// 返回值必须是深拷贝，避免前端或调用方修改响应后污染内存中的会话。
 	saved.Messages[0].Error.Raw = "mutated"
-	loaded, ok, err := store.GetSession(defaultWorkspaceID, session.ID)
+	loaded, ok, err := store.GetSession(session.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !ok || loaded.Messages[0].Error == nil || loaded.Messages[0].Error.Raw != expected.Raw {
 		t.Fatalf("session error clone was mutated: %#v", loaded)
 	}
-	summaries, err := store.ListSessions(defaultWorkspaceID)
+	summaries, err := store.ListSessions(SessionProjectFilter{Mode: SessionProjectFilterAll})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -499,7 +463,7 @@ func TestStoreAssistantErrorPersistsAcrossReload(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reopened.Close()
-	persisted, ok, err := reopened.GetSession(defaultWorkspaceID, session.ID)
+	persisted, ok, err := reopened.GetSession(session.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

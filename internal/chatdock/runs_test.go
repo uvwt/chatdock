@@ -17,7 +17,7 @@ func TestToolRunEmitterReturnsRunEventErrors(t *testing.T) {
 
 	emitErr := errors.New("persist frontend run event")
 	recorder := &activeToolRun{LastArgs: map[string]any{}, StartedAt: map[string]time.Time{}}
-	emit := app.toolRunEmitter("default", "session-a", recorder, func(event string, value any) error {
+	emit := app.toolRunEmitter("session-a", recorder, func(event string, value any) error {
 		if event == "run_event" {
 			return emitErr
 		}
@@ -39,7 +39,7 @@ func TestFinishRecordedToolRunReturnsStoreAndEmitErrors(t *testing.T) {
 	}
 	defer app.Close()
 
-	run, err := app.store.StartMCPRun("default", "session-a", "test run")
+	run, err := app.store.StartMCPRun("session-a", "test run")
 	if err != nil {
 		t.Fatal(err)
 	}

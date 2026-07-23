@@ -14,7 +14,6 @@ import (
 
 type MCPConfirmation struct {
 	ID          string         `json:"id"`
-	Workspace   string         `json:"workspace"`
 	SessionID   string         `json:"session_id,omitempty"`
 	Tool        string         `json:"tool"`
 	Arguments   map[string]any `json:"arguments,omitempty"`
@@ -32,14 +31,19 @@ type MCPConfirmationResolveRequest struct {
 var errMCPConfirmationNotActive = errors.New("mcp confirmation is not active")
 
 func (a *App) requestMCPConfirmation(ctx context.Context, sessionID string, tool string, args map[string]any, emit func(string, any) error) error {
-	workspaceID, err := a.workspaceIDForSession(sessionID)
-	if err != nil {
-		return err
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID != "" {
+		_, ok, err := a.store.GetSession(sessionID)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return model.ErrSessionNotFound
+		}
 	}
 	confirmation := &MCPConfirmation{
 		ID:          model.NewID(),
-		Workspace:   workspaceID,
-		SessionID:   strings.TrimSpace(sessionID),
+		SessionID:   sessionID,
 		Tool:        strings.TrimSpace(tool),
 		Arguments:   args,
 		Status:      "pending",
@@ -47,7 +51,7 @@ func (a *App) requestMCPConfirmation(ctx context.Context, sessionID string, tool
 		Message:     "工具需要人工确认后才能继续执行。",
 		decision:    make(chan bool, 1),
 	}
-	if _, err := a.store.SaveMCPConfirmation(storepkg.MCPConfirmationRecord{ID: confirmation.ID, WorkspaceID: confirmation.Workspace, SessionID: confirmation.SessionID, Tool: confirmation.Tool, Arguments: confirmation.Arguments, Status: confirmation.Status, RequestedAt: confirmation.RequestedAt, Message: confirmation.Message}); err != nil {
+	if _, err := a.store.SaveMCPConfirmation(storepkg.MCPConfirmationRecord{ID: confirmation.ID, SessionID: confirmation.SessionID, Tool: confirmation.Tool, Arguments: confirmation.Arguments, Status: confirmation.Status, RequestedAt: confirmation.RequestedAt, Message: confirmation.Message}); err != nil {
 		return err
 	}
 	a.confirmMu.Lock()
@@ -112,12 +116,12 @@ func (a *App) finishMCPConfirmation(id string, status string, approved bool) (MC
 	return resolved, nil
 }
 
-func (a *App) listMCPConfirmations(workspaceID string) ([]storepkg.MCPConfirmationRecord, error) {
-	return a.store.ListMCPConfirmations(workspaceID, true, 100)
+func (a *App) listMCPConfirmations() ([]storepkg.MCPConfirmationRecord, error) {
+	return a.store.ListMCPConfirmations(true, 100)
 }
 
 func (a *App) handleListMCPConfirmations(w http.ResponseWriter, r *http.Request) {
-	items, err := a.listMCPConfirmations(a.workspaceIDFromRequest(r))
+	items, err := a.listMCPConfirmations()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return

@@ -1,8 +1,6 @@
 package store
 
 import (
-	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,13 +8,22 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-// 会话生命周期全部以显式 workspaceID 为边界；不要把会话放入 Store 全局缓存。
+type SessionProjectFilter struct {
+	Mode      string
+	ProjectID string
+}
 
-func (s *Store) ListSessions(workspaceID string) ([]model.SessionSummary, error) {
+const (
+	SessionProjectFilterAll       = "all"
+	SessionProjectFilterByProject = "by_project"
+	SessionProjectFilterNoProject = "no_project"
+)
+
+func (s *Store) ListSessions(filter SessionProjectFilter) ([]model.SessionSummary, error) {
 	items := make([]model.SessionSummary, 0)
 	cursor := ""
 	for {
-		page, nextCursor, hasMore, err := s.ListSessionPage(workspaceID, cursor, 100)
+		page, nextCursor, hasMore, err := s.ListSessionPage(filter, cursor, 100)
 		if err != nil {
 			return nil, err
 		}
@@ -28,33 +35,42 @@ func (s *Store) ListSessions(workspaceID string) ([]model.SessionSummary, error)
 	}
 }
 
-func (s *Store) CreateSession(workspaceID string) (*model.Session, error) {
+func (s *Store) CreateSession(projectID string) (*model.Session, error) {
 	now := time.Now()
-	session := &model.Session{ID: model.NewID(), Title: "新会话", CreatedAt: now, UpdatedAt: now, Messages: []model.Message{}}
+	session := &model.Session{ID: model.NewID(), ProjectID: strings.TrimSpace(projectID), Title: "新会话", CreatedAt: now, UpdatedAt: now, Messages: []model.Message{}}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
+	if session.ProjectID != "" {
+		exists, err := projectExistsWith(s.db, session.ProjectID)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			return nil, fmt.Errorf("%w: %s", model.ErrProjectNotFound, session.ProjectID)
+		}
+	}
+	if err := s.saveSessionLocked(session); err != nil {
 		return nil, err
 	}
 	return cloneSession(session), nil
 }
 
-func (s *Store) GetSession(workspaceID string, id string) (*model.Session, bool, error) {
+func (s *Store) GetSession(id string) (*model.Session, bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, id)
+	session, ok, err := s.sessionLocked(id)
 	if err != nil || !ok {
 		return nil, ok, err
 	}
 	return cloneSession(session), true, nil
 }
 
-func (s *Store) UpdateSessionModel(workspaceID string, id string, providerID string, modelName string) (*model.Session, error) {
+func (s *Store) UpdateSessionModel(id string, providerID string, modelName string) (*model.Session, error) {
 	providerID = strings.TrimSpace(providerID)
 	modelName = strings.TrimSpace(modelName)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, id)
+	session, ok, err := s.sessionLocked(id)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +82,7 @@ func (s *Store) UpdateSessionModel(workspaceID string, id string, providerID str
 	}
 	session.ProviderID = providerID
 	session.Model = modelName
-	if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
+	if err := s.saveSessionLocked(session); err != nil {
 		return nil, err
 	}
 	return cloneSession(session), nil
@@ -84,10 +100,10 @@ func branchTitle(title string) string {
 	return title
 }
 
-func (s *Store) CloneSession(workspaceID string, id string) (*model.Session, error) {
+func (s *Store) CloneSession(id string) (*model.Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	source, ok, err := s.sessionForWorkspaceLocked(workspaceID, id)
+	source, ok, err := s.sessionLocked(id)
 	if err != nil {
 		return nil, err
 	}
@@ -108,16 +124,16 @@ func (s *Store) CloneSession(workspaceID string, id string) (*model.Session, err
 	copySession.Pinned = false
 	copySession.CreatedAt = now
 	copySession.UpdatedAt = now
-	if err := s.saveSessionForWorkspaceLocked(workspaceID, copySession); err != nil {
+	if err := s.saveSessionLocked(copySession); err != nil {
 		return nil, err
 	}
 	return cloneSession(copySession), nil
 }
 
-func (s *Store) BranchSession(workspaceID string, id string, messageIndex *int) (*model.Session, error) {
+func (s *Store) BranchSession(id string, messageIndex *int) (*model.Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	source, ok, err := s.sessionForWorkspaceLocked(workspaceID, id)
+	source, ok, err := s.sessionLocked(id)
 	if err != nil {
 		return nil, err
 	}
@@ -139,20 +155,20 @@ func (s *Store) BranchSession(workspaceID string, id string, messageIndex *int) 
 	branch.CreatedAt = now
 	branch.UpdatedAt = now
 	branch.Messages = cloneMessages(source.Messages[:cut])
-	if err := s.saveSessionForWorkspaceLocked(workspaceID, branch); err != nil {
+	if err := s.saveSessionLocked(branch); err != nil {
 		return nil, err
 	}
 	return cloneSession(branch), nil
 }
 
-func (s *Store) EditUserMessageAndTruncate(workspaceID string, id string, messageID string, messageIndex *int, content string) (*model.Session, error) {
+func (s *Store) EditUserMessageAndTruncate(id string, messageID string, messageIndex *int, content string) (*model.Session, error) {
 	content = strings.TrimSpace(content)
 	if content == "" {
 		return nil, fmt.Errorf("message is empty")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, id)
+	session, ok, err := s.sessionLocked(id)
 	if err != nil {
 		return nil, err
 	}
@@ -184,20 +200,16 @@ func (s *Store) EditUserMessageAndTruncate(workspaceID string, id string, messag
 	if index == 0 {
 		session.Title = makeTitle(content)
 	}
-	if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
+	if err := s.saveSessionLocked(session); err != nil {
 		return nil, err
 	}
 	return cloneSession(session), nil
 }
 
-func (s *Store) DeleteSession(workspaceID string, id string) (bool, error) {
+func (s *Store) DeleteSession(id string) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return false, err
-	}
-	if _, ok, err := s.sessionForWorkspaceLocked(workspaceID, id); err != nil {
+	if _, ok, err := s.sessionLocked(id); err != nil {
 		return false, err
 	} else if !ok {
 		return false, nil
@@ -207,10 +219,7 @@ func (s *Store) DeleteSession(workspaceID string, id string) (bool, error) {
 		return false, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if _, err := tx.Exec(`DELETE FROM sessions WHERE workspace_id = ? AND id = ?`, workspaceID, strings.TrimSpace(id)); err != nil {
-		return false, err
-	}
-	if _, err := tx.Exec(`UPDATE workspaces SET updated_at = ? WHERE name = ?`, formatDBTime(time.Now()), workspaceID); err != nil {
+	if _, err := tx.Exec(`DELETE FROM sessions WHERE id = ?`, strings.TrimSpace(id)); err != nil {
 		return false, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -219,10 +228,10 @@ func (s *Store) DeleteSession(workspaceID string, id string) (bool, error) {
 	return true, nil
 }
 
-func (s *Store) PinSession(workspaceID string, id string, pinned bool) (*model.Session, error) {
+func (s *Store) PinSession(id string, pinned bool) (*model.Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, id)
+	session, ok, err := s.sessionLocked(id)
 	if err != nil {
 		return nil, err
 	}
@@ -233,13 +242,13 @@ func (s *Store) PinSession(workspaceID string, id string, pinned bool) (*model.S
 		return cloneSession(session), nil
 	}
 	session.Pinned = pinned
-	if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
+	if err := s.saveSessionLocked(session); err != nil {
 		return nil, err
 	}
 	return cloneSession(session), nil
 }
 
-func (s *Store) RenameSession(workspaceID string, id string, title string) (*model.Session, error) {
+func (s *Store) RenameSession(id string, title string) (*model.Session, error) {
 	title = strings.TrimSpace(strings.ReplaceAll(title, "\n", " "))
 	if title == "" {
 		return nil, fmt.Errorf("session title is empty")
@@ -250,7 +259,7 @@ func (s *Store) RenameSession(workspaceID string, id string, title string) (*mod
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, id)
+	session, ok, err := s.sessionLocked(id)
 	if err != nil {
 		return nil, err
 	}
@@ -259,26 +268,8 @@ func (s *Store) RenameSession(workspaceID string, id string, title string) (*mod
 	}
 	session.Title = title
 	session.UpdatedAt = time.Now()
-	if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
+	if err := s.saveSessionLocked(session); err != nil {
 		return nil, err
 	}
 	return cloneSession(session), nil
-}
-
-func (s *Store) SessionWorkspace(id string) (string, bool, error) {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return "", false, nil
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	var workspaceID string
-	err := s.db.QueryRow(`SELECT workspace_id FROM sessions WHERE id = ? ORDER BY updated_at DESC LIMIT 1`, id).Scan(&workspaceID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", false, nil
-		}
-		return "", false, err
-	}
-	return workspaceID, true, nil
 }

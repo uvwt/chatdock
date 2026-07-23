@@ -15,10 +15,6 @@ func (s *Store) SaveMCPConfirmation(record MCPConfirmationRecord) (MCPConfirmati
 	if record.ID == "" {
 		record.ID = model.NewID()
 	}
-	record.WorkspaceID = strings.TrimSpace(record.WorkspaceID)
-	if record.WorkspaceID == "" {
-		record.WorkspaceID = defaultWorkspaceID
-	}
 	record.SessionID = strings.TrimSpace(record.SessionID)
 	record.Tool = strings.TrimSpace(record.Tool)
 	record.Status = strings.TrimSpace(record.Status)
@@ -38,11 +34,8 @@ func (s *Store) SaveMCPConfirmation(record MCPConfirmationRecord) (MCPConfirmati
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := s.ensureWorkspaceLocked(record.WorkspaceID); err != nil {
-		return MCPConfirmationRecord{}, err
-	}
-	_, err = s.db.Exec(`INSERT INTO mcp_confirmations(workspace_id, id, session_id, tool, arguments_json, status, requested_at, resolved_at, message) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id) DO UPDATE SET workspace_id = excluded.workspace_id, session_id = excluded.session_id, tool = excluded.tool, arguments_json = excluded.arguments_json, status = excluded.status, requested_at = excluded.requested_at, resolved_at = excluded.resolved_at, message = excluded.message`, record.WorkspaceID, record.ID, record.SessionID, record.Tool, string(argsRaw), record.Status, formatDBTime(record.RequestedAt), resolvedRaw, record.Message)
+	_, err = s.db.Exec(`INSERT INTO mcp_confirmations(id, session_id, tool, arguments_json, status, requested_at, resolved_at, message) VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET session_id = excluded.session_id, tool = excluded.tool, arguments_json = excluded.arguments_json, status = excluded.status, requested_at = excluded.requested_at, resolved_at = excluded.resolved_at, message = excluded.message`, record.ID, record.SessionID, record.Tool, string(argsRaw), record.Status, formatDBTime(record.RequestedAt), resolvedRaw, record.Message)
 	if err != nil {
 		return MCPConfirmationRecord{}, err
 	}
@@ -76,21 +69,17 @@ func (s *Store) ResolveMCPConfirmation(id string, status string, approved bool, 
 			return MCPConfirmationRecord{}, err
 		}
 	}
-	return scanMCPConfirmationRow(s.db.QueryRow(`SELECT workspace_id, id, session_id, tool, arguments_json, status, requested_at, resolved_at, message FROM mcp_confirmations WHERE id = ?`, id))
+	return scanMCPConfirmationRow(s.db.QueryRow(`SELECT id, session_id, tool, arguments_json, status, requested_at, resolved_at, message FROM mcp_confirmations WHERE id = ?`, id))
 }
 
-func (s *Store) ListMCPConfirmations(workspaceID string, includeResolved bool, limit int) ([]MCPConfirmationRecord, error) {
-	workspaceID = strings.TrimSpace(workspaceID)
-	if workspaceID == "" {
-		workspaceID = defaultWorkspaceID
-	}
+func (s *Store) ListMCPConfirmations(includeResolved bool, limit int) ([]MCPConfirmationRecord, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 100
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	query := `SELECT workspace_id, id, session_id, tool, arguments_json, status, requested_at, resolved_at, message FROM mcp_confirmations WHERE workspace_id = ?`
-	args := []any{workspaceID}
+	query := `SELECT id, session_id, tool, arguments_json, status, requested_at, resolved_at, message FROM mcp_confirmations WHERE 1 = 1`
+	args := []any{}
 	if !includeResolved {
 		query += ` AND status = 'pending'`
 	}
@@ -115,7 +104,7 @@ func (s *Store) ListMCPConfirmations(workspaceID string, includeResolved bool, l
 func scanMCPConfirmationRow(row interface{ Scan(dest ...any) error }) (MCPConfirmationRecord, error) {
 	var item MCPConfirmationRecord
 	var argsRaw, requestedRaw, resolvedRaw string
-	if err := row.Scan(&item.WorkspaceID, &item.ID, &item.SessionID, &item.Tool, &argsRaw, &item.Status, &requestedRaw, &resolvedRaw, &item.Message); err != nil {
+	if err := row.Scan(&item.ID, &item.SessionID, &item.Tool, &argsRaw, &item.Status, &requestedRaw, &resolvedRaw, &item.Message); err != nil {
 		return MCPConfirmationRecord{}, err
 	}
 	if strings.TrimSpace(argsRaw) != "" {

@@ -32,7 +32,7 @@ func TestSPAFallbackAndBackendBoundary(t *testing.T) {
 	}
 	routes := app.routes()
 
-	r := httptest.NewRequest(http.MethodGet, "/workspace/demo", nil)
+	r := httptest.NewRequest(http.MethodGet, "/project/demo", nil)
 	w := httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "ChatDock") {
@@ -204,7 +204,7 @@ func TestAuthProtectsBackendButNotEmbeddedWeb(t *testing.T) {
 	}
 	routes := app.routes()
 
-	r := httptest.NewRequest(http.MethodGet, "/workspace/demo", nil)
+	r := httptest.NewRequest(http.MethodGet, "/project/demo", nil)
 	w := httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {

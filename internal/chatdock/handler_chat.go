@@ -23,8 +23,7 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	workspaceID := a.workspaceIDFromRequest(r)
-	_, cfg, history, err := a.store.PrepareChat(workspaceID, input)
+	_, cfg, history, err := a.store.PrepareChat(input)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -34,19 +33,19 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	answer, usedCfg, err := a.completeWithOptionalTools(r.Context(), workspaceID, input.SessionID, cfg, history)
+	answer, usedCfg, err := a.completeWithOptionalTools(r.Context(), input.SessionID, cfg, history)
 	if err != nil {
-		a.persistSessionChatError(workspaceID, input.SessionID, requestIDFromRequest(r), err)
+		a.persistSessionChatError("", input.SessionID, requestIDFromRequest(r), err)
 		writeError(w, http.StatusBadGateway, err)
 		return
 	}
 
-	session, err := a.store.AppendAssistantMessage(workspaceID, input.SessionID, answer)
+	session, err := a.store.AppendAssistantMessage(input.SessionID, answer)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	if renamed, titleErr := a.maybeGenerateSessionTitle(r.Context(), workspaceID, input.SessionID, usedCfg); titleErr != nil {
+	if renamed, titleErr := a.maybeGenerateSessionTitle(r.Context(), input.SessionID, usedCfg); titleErr != nil {
 		logError("session_title_generation_failed", titleErr, logFields{"request_id": requestIDFromRequest(r), "session_id": input.SessionID})
 	} else {
 		session = renamed
@@ -61,7 +60,7 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job, _, err := a.startChatJob(r.Context(), a.workspaceIDFromRequest(r), input)
+	job, _, err := a.startChatJob(r.Context(), input)
 	if err != nil {
 		status := http.StatusBadGateway
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -84,12 +83,12 @@ func (a *App) handleChatStream(w http.ResponseWriter, r *http.Request) {
 	if err := writeSSE(w, flusher, "job_started", job); err != nil {
 		return
 	}
-	streamChatJobEvents(r, w, flusher, a, a.workspaceIDFromRequest(r), job.ID, 0)
+	streamChatJobEvents(r, w, flusher, a, job.ID, 0)
 }
 
-func (a *App) completeWithOptionalTools(ctx context.Context, workspaceID string, sessionID string, cfg model.ModelConfig, history []model.Message) (string, model.ModelConfig, error) {
+func (a *App) completeWithOptionalTools(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message) (string, model.ModelConfig, error) {
 	fallbackCfg := a.resolveFallbackModelConfig(ctx, sessionID, cfg)
-	return a.completeWithRecordedTools(ctx, workspaceID, "", sessionID, cfg, fallbackCfg, history, nil)
+	return a.completeWithRecordedTools(ctx, "", sessionID, cfg, fallbackCfg, history, nil)
 }
 
 func isClientCanceled(ctx context.Context, err error) bool {

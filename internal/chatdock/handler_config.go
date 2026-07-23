@@ -7,7 +7,7 @@ import (
 )
 
 func (a *App) handleGetConfig(w http.ResponseWriter, r *http.Request) {
-	cfg, err := a.store.ModelConfig(a.workspaceIDFromRequest(r))
+	cfg, err := a.store.ModelConfig()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -22,7 +22,7 @@ func (a *App) handleSaveConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg, err := a.store.SaveModelConfig(a.workspaceIDFromRequest(r), input)
+	cfg, err := a.store.SaveModelConfig(input)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return

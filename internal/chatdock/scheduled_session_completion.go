@@ -12,10 +12,10 @@ type scheduledSessionCompletionResult struct {
 	AssistantSaved bool
 }
 
-func (a *App) completeScheduledSessionWithRecordedEvents(ctx context.Context, workspaceID string, sessionID string, cfg model.ModelConfig, history []model.Message) (scheduledSessionCompletionResult, error) {
-	recorder := newAssistantOutputRecorder(a, workspaceID, sessionID, "")
+func (a *App) completeScheduledSessionWithRecordedEvents(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message) (scheduledSessionCompletionResult, error) {
+	recorder := newAssistantOutputRecorder(a, sessionID, "")
 	fallbackCfg := a.resolveFallbackModelConfig(ctx, sessionID, cfg)
-	finalAnswer, _, runErr := a.completeWithRecordedTools(ctx, workspaceID, "", sessionID, cfg, fallbackCfg, history, recorder.emit)
+	finalAnswer, _, runErr := a.completeWithRecordedTools(ctx, "", sessionID, cfg, fallbackCfg, history, recorder.emit)
 	recorder.useFinalAnswer(finalAnswer)
 	recorder.ensureFailureAnswer(runErr)
 	if runErr != nil {

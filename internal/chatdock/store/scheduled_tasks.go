@@ -14,17 +14,17 @@ const (
 	scheduleTypeCron     = "cron"
 )
 
-func (s *Store) ListScheduledTasks(workspaceID string) (model.ScheduledTaskResponse, error) {
+func (s *Store) ListScheduledTasks() (model.ScheduledTaskResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	tasks, err := s.loadScheduledTasksForWorkspaceLocked(workspaceID)
+	tasks, err := s.loadScheduledTasksLocked()
 	if err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
 	return model.ScheduledTaskResponse{Tasks: cloneScheduledTasks(tasks)}, nil
 }
 
-func (s *Store) CreateScheduledTask(workspaceID string, input model.ScheduledTaskRequest) (model.ScheduledTaskResponse, error) {
+func (s *Store) CreateScheduledTask(input model.ScheduledTaskRequest) (model.ScheduledTaskResponse, error) {
 	now := time.Now()
 	next, err := normalizeScheduledTaskInput(input, nil, now)
 	if err != nil {
@@ -32,11 +32,7 @@ func (s *Store) CreateScheduledTask(workspaceID string, input model.ScheduledTas
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	workspaceID, err = s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return model.ScheduledTaskResponse{}, err
-	}
-	tasks, err := s.loadScheduledTasksForWorkspaceLocked(workspaceID)
+	tasks, err := s.loadScheduledTasksLocked()
 	if err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
@@ -49,13 +45,13 @@ func (s *Store) CreateScheduledTask(workspaceID string, input model.ScheduledTas
 	next.CreatedAt = now
 	next.UpdatedAt = now
 	tasks = append(tasks, next)
-	if err := s.saveScheduledTasksForWorkspaceLocked(workspaceID, tasks); err != nil {
+	if err := s.saveScheduledTasksLocked(tasks); err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
 	return model.ScheduledTaskResponse{Tasks: cloneScheduledTasks(tasks)}, nil
 }
 
-func (s *Store) UpdateScheduledTask(workspaceID string, id string, input model.ScheduledTaskRequest) (model.ScheduledTaskResponse, error) {
+func (s *Store) UpdateScheduledTask(id string, input model.ScheduledTaskRequest) (model.ScheduledTaskResponse, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return model.ScheduledTaskResponse{}, fmt.Errorf("scheduled task id is empty")
@@ -63,11 +59,7 @@ func (s *Store) UpdateScheduledTask(workspaceID string, id string, input model.S
 	now := time.Now()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return model.ScheduledTaskResponse{}, err
-	}
-	tasks, err := s.loadScheduledTasksForWorkspaceLocked(workspaceID)
+	tasks, err := s.loadScheduledTasksLocked()
 	if err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
@@ -102,24 +94,20 @@ func (s *Store) UpdateScheduledTask(workspaceID string, id string, input model.S
 	}
 	next.UpdatedAt = now
 	tasks[index] = next
-	if err := s.saveScheduledTasksForWorkspaceLocked(workspaceID, tasks); err != nil {
+	if err := s.saveScheduledTasksLocked(tasks); err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
 	return model.ScheduledTaskResponse{Tasks: cloneScheduledTasks(tasks)}, nil
 }
 
-func (s *Store) DeleteScheduledTask(workspaceID string, id string) (model.ScheduledTaskResponse, error) {
+func (s *Store) DeleteScheduledTask(id string) (model.ScheduledTaskResponse, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return model.ScheduledTaskResponse{}, fmt.Errorf("scheduled task id is empty")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return model.ScheduledTaskResponse{}, err
-	}
-	tasks, err := s.loadScheduledTasksForWorkspaceLocked(workspaceID)
+	tasks, err := s.loadScheduledTasksLocked()
 	if err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
@@ -134,7 +122,7 @@ func (s *Store) DeleteScheduledTask(workspaceID string, id string) (model.Schedu
 		return model.ScheduledTaskResponse{}, fmt.Errorf("scheduled task not found: %s", id)
 	}
 	tasks = append(tasks[:index], tasks[index+1:]...)
-	if err := s.saveScheduledTasksForWorkspaceLocked(workspaceID, tasks); err != nil {
+	if err := s.saveScheduledTasksLocked(tasks); err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
 	return model.ScheduledTaskResponse{Tasks: cloneScheduledTasks(tasks)}, nil

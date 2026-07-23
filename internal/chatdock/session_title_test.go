@@ -27,19 +27,19 @@ func TestSessionTitleGenerationReportsRepeatedEmptyContent(t *testing.T) {
 	}
 	defer func() { _ = app.Close() }()
 
-	session, err := app.store.CreateSession("default")
+	session, err := app.store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := app.store.PrepareChat("default", model.ChatRequest{SessionID: session.ID, Message: "需要生成标题的问题"}); err != nil {
+	if _, _, _, err := app.store.PrepareChat(model.ChatRequest{SessionID: session.ID, Message: "需要生成标题的问题"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.AppendAssistantMessage("default", session.ID, "这是回答"); err != nil {
+	if _, err := app.store.AppendAssistantMessage(session.ID, "这是回答"); err != nil {
 		t.Fatal(err)
 	}
 
 	cfg := model.ModelConfig{BaseURL: modelServer.URL, Model: "title-model"}
-	_, err = app.maybeGenerateSessionTitle(context.Background(), "default", session.ID, cfg)
+	_, err = app.maybeGenerateSessionTitle(context.Background(), session.ID, cfg)
 	if !errors.Is(err, llm.ErrEmptyModelContent) {
 		t.Fatalf("repeated empty title content should be reported, got %v", err)
 	}
@@ -47,7 +47,7 @@ func TestSessionTitleGenerationReportsRepeatedEmptyContent(t *testing.T) {
 		t.Fatalf("unexpected title generation attempts: got %d want %d", got, sessionTitleMaxAttempts)
 	}
 
-	stored, ok, err := app.store.GetSession("default", session.ID)
+	stored, ok, err := app.store.GetSession(session.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

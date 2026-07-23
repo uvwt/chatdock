@@ -9,10 +9,9 @@ import (
 )
 
 type assistantOutputRecorder struct {
-	app         *App
-	workspaceID string
-	sessionID   string
-	jobID       string
+	app       *App
+	sessionID string
+	jobID     string
 
 	answer    strings.Builder
 	reasoning strings.Builder
@@ -30,10 +29,9 @@ type assistantOutputRecorder struct {
 	flushedReasoning    bool
 }
 
-func newAssistantOutputRecorder(app *App, workspaceID string, sessionID string, jobID string) *assistantOutputRecorder {
+func newAssistantOutputRecorder(app *App, sessionID string, jobID string) *assistantOutputRecorder {
 	return &assistantOutputRecorder{
 		app:            app,
-		workspaceID:    workspaceID,
 		sessionID:      sessionID,
 		jobID:          jobID,
 		lastDeltaFlush: time.Now(),
@@ -115,7 +113,7 @@ func (r *assistantOutputRecorder) saveCheckpoint(force bool) error {
 	if strings.TrimSpace(currentAnswer) == "" && strings.TrimSpace(currentReasoning) == "" && len(r.parts.parts) == 0 && len(r.parts.events) == 0 && r.messageError == nil {
 		return nil
 	}
-	_, messageID, err := r.app.store.UpsertAssistantMessageCheckpoint(r.workspaceID, r.sessionID, r.checkpointMessageID, currentAnswer, currentReasoning, r.parts.parts, r.parts.events, r.messageError)
+	_, messageID, err := r.app.store.UpsertAssistantMessageCheckpoint(r.sessionID, r.checkpointMessageID, currentAnswer, currentReasoning, r.parts.parts, r.parts.events, r.messageError)
 	if err != nil {
 		return err
 	}

@@ -25,7 +25,7 @@ func TestPersistUploadedFileUsesPrivatePermissionsAndNeverOverwrites(t *testing.
 		}
 	})
 
-	upload, err := app.persistUploadedFile("default", "fixed-id", "notes.txt", "text/plain", bytes.NewBufferString("first"))
+	upload, err := app.persistUploadedFile("fixed-id", "notes.txt", "text/plain", bytes.NewBufferString("first"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestPersistUploadedFileUsesPrivatePermissionsAndNeverOverwrites(t *testing.
 	assertPathPermission(t, uploadDir, uploadDirMode)
 	assertPathPermission(t, upload.StoragePath, uploadFileMode)
 
-	if _, err := app.persistUploadedFile("default", "fixed-id", "notes.txt", "text/plain", bytes.NewBufferString("second")); err == nil {
+	if _, err := app.persistUploadedFile("fixed-id", "notes.txt", "text/plain", bytes.NewBufferString("second")); err == nil {
 		t.Fatal("duplicate upload path should not overwrite the existing file")
 	}
 	raw, err := os.ReadFile(upload.StoragePath)

@@ -26,7 +26,7 @@ func TestSaveAttachmentRollsBackBlobWhenAttachmentInsertFails(t *testing.T) {
 		StoragePath: "/tmp/first.txt",
 		SHA256:      "sha-first",
 	}
-	if _, err := store.SaveAttachment("default", first); err != nil {
+	if _, err := store.SaveAttachment(first); err != nil {
 		t.Fatal(err)
 	}
 
@@ -34,7 +34,7 @@ func TestSaveAttachmentRollsBackBlobWhenAttachmentInsertFails(t *testing.T) {
 	duplicateID.Name = "second.txt"
 	duplicateID.StoragePath = "/tmp/second.txt"
 	duplicateID.SHA256 = "sha-second"
-	if _, err := store.SaveAttachment("default", duplicateID); err == nil {
+	if _, err := store.SaveAttachment(duplicateID); err == nil {
 		t.Fatal("expected duplicate attachment id to fail")
 	}
 	if _, ok, err := store.AttachmentBlobBySHA256("sha-second"); err != nil {
@@ -51,50 +51,6 @@ func TestSaveAttachmentRollsBackBlobWhenAttachmentInsertFails(t *testing.T) {
 	}
 }
 
-func TestMigrateAttachmentBlobsRollsBackWhenMarkerWriteFails(t *testing.T) {
-	store, err := NewStore(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-	if _, err := store.db.Exec(`DELETE FROM meta WHERE key = 'attachment_blobs_migrated'`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.db.Exec(`DELETE FROM attachment_blobs`); err != nil {
-		t.Fatal(err)
-	}
-	now := formatDBTime(time.Now())
-	if _, err := store.db.Exec(`INSERT INTO attachments(workspace_id, id, session_id, message_id, filename, mime_type, size, storage_path, sha256, text_content, status, created_at) VALUES(?, ?, '', '', ?, ?, ?, ?, ?, '', 'stored', ?)`, defaultWorkspaceID, "legacy-attachment", "legacy.txt", "text/plain", 6, "/tmp/legacy.txt", "legacy-sha", now); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.db.Exec(`CREATE TRIGGER fail_attachment_blob_marker
-BEFORE INSERT ON meta
-WHEN NEW.key = 'attachment_blobs_migrated'
-BEGIN
-  SELECT RAISE(ABORT, 'forced attachment marker failure');
-END`); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := store.migrateAttachmentBlobs(); err == nil {
-		t.Fatal("expected attachment blob migration failure")
-	}
-	var blobCount int
-	if err := store.db.QueryRow(`SELECT COUNT(*) FROM attachment_blobs WHERE sha256 = 'legacy-sha'`).Scan(&blobCount); err != nil {
-		t.Fatal(err)
-	}
-	if blobCount != 0 {
-		t.Fatalf("attachment blob survived migration rollback: %d", blobCount)
-	}
-	marker, err := store.metaValue("attachment_blobs_migrated")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if marker != "" {
-		t.Fatalf("migration marker survived rollback: %q", marker)
-	}
-}
-
 func TestSaveAttachmentUsesCanonicalBlobPath(t *testing.T) {
 	store, err := NewStore(t.TempDir())
 	if err != nil {
@@ -107,7 +63,7 @@ func TestSaveAttachmentUsesCanonicalBlobPath(t *testing.T) {
 		StoragePath: "/tmp/canonical-a.txt",
 		SHA256:      "canonical-sha",
 	}
-	savedFirst, err := store.SaveAttachment(defaultWorkspaceID, first)
+	savedFirst, err := store.SaveAttachment(first)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,14 +71,14 @@ func TestSaveAttachmentUsesCanonicalBlobPath(t *testing.T) {
 	second.ID = "canonical-b"
 	second.Name = "b.txt"
 	second.StoragePath = "/tmp/canonical-b.txt"
-	savedSecond, err := store.SaveAttachment(defaultWorkspaceID, second)
+	savedSecond, err := store.SaveAttachment(second)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if savedSecond.StoragePath != savedFirst.StoragePath {
 		t.Fatalf("duplicate SHA path = %q, want canonical %q", savedSecond.StoragePath, savedFirst.StoragePath)
 	}
-	loaded, err := store.AttachmentRecordByID(defaultWorkspaceID, second.ID)
+	loaded, err := store.AttachmentRecordByID(second.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,44 +91,5 @@ func TestSaveAttachmentUsesCanonicalBlobPath(t *testing.T) {
 	}
 	if !ok || blob.RefCount != 2 {
 		t.Fatalf("unexpected canonical blob: %#v", blob)
-	}
-}
-
-func TestSaveAttachmentReplacesZeroReferenceBlobPath(t *testing.T) {
-	store, err := NewStore(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-	if _, err := store.CreateWorkspace(model.CreateWorkspaceRequest{Name: "cache-source"}); err != nil {
-		t.Fatal(err)
-	}
-	first := model.AttachmentRecord{
-		Attachment:  model.Attachment{ID: "zero-ref-a", Name: "a.txt", MIMEType: "text/plain", Size: 4, Status: "stored", CreatedAt: time.Now()},
-		StoragePath: "/tmp/zero-ref-old.txt",
-		SHA256:      "zero-ref-sha",
-	}
-	if _, err := store.SaveAttachment("cache-source", first); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.DeleteWorkspace(model.WorkspaceIDRequest{Name: "cache-source"}); err != nil {
-		t.Fatal(err)
-	}
-	second := first
-	second.ID = "zero-ref-b"
-	second.StoragePath = "/tmp/zero-ref-new.txt"
-	saved, err := store.SaveAttachment(defaultWorkspaceID, second)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if saved.StoragePath != second.StoragePath {
-		t.Fatalf("zero-ref blob path = %q, want replacement %q", saved.StoragePath, second.StoragePath)
-	}
-	blob, ok, err := store.AttachmentBlobBySHA256(second.SHA256)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ok || blob.RefCount != 1 || blob.StoragePath != second.StoragePath {
-		t.Fatalf("unexpected replaced blob: %#v", blob)
 	}
 }

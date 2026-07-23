@@ -12,7 +12,7 @@ func TestHydrateMessageEventDetailsReloadsLazyToolPayload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := store.CreateSession(defaultWorkspaceID)
+	session, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,6 @@ func TestHydrateMessageEventDetailsReloadsLazyToolPayload(t *testing.T) {
 		},
 	}
 	if _, err := store.AppendAssistantMessageWithParts(
-		defaultWorkspaceID,
 		session.ID,
 		"读取完成",
 		"内部推理",
@@ -52,7 +51,7 @@ func TestHydrateMessageEventDetailsReloadsLazyToolPayload(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reopened.Close()
-	loaded, ok, err := reopened.GetSession(defaultWorkspaceID, session.ID)
+	loaded, ok, err := reopened.GetSession(session.ID)
 	if err != nil || !ok {
 		t.Fatalf("load session: ok=%v err=%v", ok, err)
 	}
@@ -64,7 +63,7 @@ func TestHydrateMessageEventDetailsReloadsLazyToolPayload(t *testing.T) {
 	}
 
 	messages := cloneMessages(loaded.Messages)
-	if err := reopened.HydrateMessageEventDetails(defaultWorkspaceID, session.ID, messages, []int{0}); err != nil {
+	if err := reopened.HydrateMessageEventDetails(session.ID, messages, []int{0}); err != nil {
 		t.Fatal(err)
 	}
 	data, _ := messages[0].Events[0].Details["data"].(map[string]any)

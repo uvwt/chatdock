@@ -13,15 +13,15 @@ func TestNewStoreRecoversInterruptedWork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := store.CreateSession(defaultWorkspaceID)
+	session, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	job, err := createChatJobForTest(t, store, defaultWorkspaceID, session.ID, "req-restart")
+	job, err := createChatJobForTest(t, store, session.ID, "req-restart")
 	if err != nil {
 		t.Fatal(err)
 	}
-	created, err := store.CreateScheduledTask(defaultWorkspaceID, scheduledTaskRequestForTest("restart-task"))
+	created, err := store.CreateScheduledTask(scheduledTaskRequestForTest("restart-task"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,10 +30,10 @@ func TestNewStoreRecoversInterruptedWork(t *testing.T) {
 	}
 	taskID := created.Tasks[0].ID
 	now := formatDBTime(time.Now())
-	if _, err := store.db.Exec(`UPDATE scheduled_tasks SET running = 1, last_status = '', last_error = '' WHERE workspace_id = ? AND id = ?`, defaultWorkspaceID, taskID); err != nil {
+	if _, err := store.db.Exec(`UPDATE scheduled_tasks SET running = 1, last_status = '', last_error = '' WHERE id = ?`, taskID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.db.Exec(`INSERT INTO mcp_runs(workspace_id, id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at) VALUES(?, ?, ?, ?, 'running', '', '', ?, '', 0, 0, ?)`, defaultWorkspaceID, "run-restart", session.ID, "restart run", now, now); err != nil {
+	if _, err := store.db.Exec(`INSERT INTO mcp_runs(id, session_id, title, status, summary, error, started_at, finished_at, duration_ms, event_count, updated_at) VALUES(?, ?, ?, 'running', '', '', ?, '', 0, 0, ?)`, "run-restart", session.ID, "restart run", now, now); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.Close(); err != nil {
@@ -55,7 +55,7 @@ func TestNewStoreRecoversInterruptedWork(t *testing.T) {
 	}
 	var running int
 	var taskStatus, taskError string
-	if err := reopened.db.QueryRow(`SELECT running, last_status, last_error FROM scheduled_tasks WHERE workspace_id = ? AND id = ?`, defaultWorkspaceID, taskID).Scan(&running, &taskStatus, &taskError); err != nil {
+	if err := reopened.db.QueryRow(`SELECT running, last_status, last_error FROM scheduled_tasks WHERE id = ?`, taskID).Scan(&running, &taskStatus, &taskError); err != nil {
 		t.Fatal(err)
 	}
 	if running != 0 || taskStatus != "error" || taskError != interruptedByRestartMessage {
@@ -87,10 +87,10 @@ func TestRecoverInterruptedWorkIsIdempotentAndPreservesTerminalRows(t *testing.T
 	}
 	defer store.Close()
 	now := formatDBTime(time.Now())
-	if _, err := store.db.Exec(`INSERT INTO chat_jobs(workspace_id, id, session_id, request_id, status, answer, reasoning, error, started_at, finished_at, updated_at) VALUES(?, 'completed-job', '', '', 'completed', 'done', '', '', ?, ?, ?)`, defaultWorkspaceID, now, now, now); err != nil {
+	if _, err := store.db.Exec(`INSERT INTO chat_jobs(id, session_id, request_id, status, answer, reasoning, error, started_at, finished_at, updated_at) VALUES('completed-job', '', '', 'completed', 'done', '', '', ?, ?, ?)`, now, now, now); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.db.Exec(`INSERT INTO mcp_confirmations(workspace_id, id, session_id, tool, arguments_json, status, requested_at, resolved_at, message) VALUES(?, 'approved-confirmation', '', 'demo', '{}', 'approved', ?, ?, 'approved')`, defaultWorkspaceID, now, now); err != nil {
+	if _, err := store.db.Exec(`INSERT INTO mcp_confirmations(id, session_id, tool, arguments_json, status, requested_at, resolved_at, message) VALUES('approved-confirmation', '', 'demo', '{}', 'approved', ?, ?, 'approved')`, now, now); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.recoverInterruptedWork(); err != nil {

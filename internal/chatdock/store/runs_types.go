@@ -4,7 +4,6 @@ import "time"
 
 type MCPRun struct {
 	ID         string     `json:"id"`
-	Workspace  string     `json:"workspace"`
 	SessionID  string     `json:"session_id,omitempty"`
 	Title      string     `json:"title"`
 	Status     string     `json:"status"`
@@ -49,7 +48,6 @@ type AgentTask struct {
 	ID        string    `json:"id"`
 	Title     string    `json:"title"`
 	Status    string    `json:"status"`
-	Workspace string    `json:"workspace"`
 	SessionID string    `json:"session_id,omitempty"`
 	SourceRun string    `json:"source_run_id"`
 	Server    string    `json:"server,omitempty"`

@@ -6,7 +6,7 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func TestResolveFallbackModelConfigUsesProviderCredentialsAndKeepsWorkspacePolicy(t *testing.T) {
+func TestResolveFallbackModelConfigUsesProviderCredentialsAndKeepsGlobalPolicy(t *testing.T) {
 	store, err := NewStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +36,7 @@ func TestResolveFallbackModelConfigUsesProviderCredentialsAndKeepsWorkspacePolic
 		Model:              "primary-model",
 		FallbackProviderID: "backup",
 		FallbackModel:      "backup-fast",
-		SystemPrompt:       "保持工作空间提示词",
+		SystemPrompt:       "保持全局提示词",
 		ContextMode:        model.ContextModeExpanded,
 		MaxContextMessages: 48,
 		Temperature:        0.3,
@@ -53,7 +53,7 @@ func TestResolveFallbackModelConfigUsesProviderCredentialsAndKeepsWorkspacePolic
 		t.Fatalf("fallback connection was not resolved from provider: %#v", fallback)
 	}
 	if fallback.SystemPrompt != primary.SystemPrompt || fallback.ContextMode != primary.ContextMode || fallback.MaxContextMessages != primary.MaxContextMessages || fallback.Temperature != primary.Temperature || fallback.HideThinking != primary.HideThinking {
-		t.Fatalf("workspace policy changed while resolving fallback: %#v", fallback)
+		t.Fatalf("global policy changed while resolving fallback: %#v", fallback)
 	}
 	if fallback.FallbackProviderID != "" || fallback.FallbackModel != "" {
 		t.Fatalf("resolved fallback must not recursively contain fallback settings: %#v", fallback)
@@ -93,14 +93,14 @@ func TestResolveFallbackModelConfigUsesProviderDefaultAndSkipsPrimaryDuplicate(t
 	}
 }
 
-func TestSaveWorkspaceFallbackModelPersistsValidSelection(t *testing.T) {
+func TestSaveGlobalFallbackModelPersistsValidSelection(t *testing.T) {
 	store, err := NewStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer store.Close()
 
-	primary, err := store.SaveModelConfig(defaultWorkspaceID, model.ModelConfig{
+	primary, err := store.SaveModelConfig(model.ModelConfig{
 		BaseURL: "https://primary.example.test/v1",
 		APIKey:  "primary-secret",
 		Model:   "primary-model",
@@ -124,7 +124,7 @@ func TestSaveWorkspaceFallbackModelPersistsValidSelection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	public, err := store.SaveWorkspaceConfig(defaultWorkspaceID, model.ModelConfig{
+	saved, err := store.SaveModelConfig(model.ModelConfig{
 		ProviderID:         primary.ProviderID,
 		Model:              primary.Model,
 		FallbackProviderID: "backup",
@@ -132,11 +132,11 @@ func TestSaveWorkspaceFallbackModelPersistsValidSelection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if public.FallbackProviderID != "backup" || public.FallbackModel != "backup-default" {
-		t.Fatalf("fallback selection was not normalized and persisted: %#v", public)
+	if saved.FallbackProviderID != "backup" || saved.FallbackModel != "backup-default" {
+		t.Fatalf("fallback selection was not normalized and persisted: %#v", saved)
 	}
 
-	loaded, err := store.ModelConfig(defaultWorkspaceID)
+	loaded, err := store.ModelConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,18 +148,18 @@ func TestSaveWorkspaceFallbackModelPersistsValidSelection(t *testing.T) {
 		t.Fatalf("saved fallback selection did not resolve: %#v", fallback)
 	}
 	if err := store.DeleteModelProvider("backup"); err == nil {
-		t.Fatal("provider used as workspace fallback must not be deleted")
+		t.Fatal("provider used as global fallback must not be deleted")
 	}
 }
 
-func TestSaveWorkspaceFallbackModelRejectsInvalidSelection(t *testing.T) {
+func TestSaveGlobalFallbackModelRejectsInvalidSelection(t *testing.T) {
 	store, err := NewStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer store.Close()
 
-	primary, err := store.SaveModelConfig(defaultWorkspaceID, model.ModelConfig{
+	primary, err := store.SaveModelConfig(model.ModelConfig{
 		BaseURL: "https://primary.example.test/v1",
 		Model:   "primary-model",
 		Models:  []string{"primary-model"},
@@ -176,7 +176,7 @@ func TestSaveWorkspaceFallbackModelRejectsInvalidSelection(t *testing.T) {
 		{name: "same as primary", providerID: primary.ProviderID, modelName: primary.Model},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := store.SaveWorkspaceConfig(defaultWorkspaceID, model.ModelConfig{
+			_, err := store.SaveModelConfig(model.ModelConfig{
 				ProviderID:         primary.ProviderID,
 				Model:              primary.Model,
 				FallbackProviderID: tc.providerID,

@@ -8,50 +8,32 @@ import (
 	"chatdock/internal/chatdock/mcp"
 )
 
-func (s *Store) GetMCPConfig(workspaceID string) (string, error) {
+func (s *Store) GetMCPConfig() (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return "", err
-	}
-	content, ok, err := s.getWorkspaceRawLocked(workspaceID, "mcp")
+	content, ok, err := s.getGlobalRawLocked("mcp")
 	if err != nil {
 		return "", err
 	}
 	if !ok || strings.TrimSpace(content) == "" {
 		content = DefaultMCPConfig()
-		return content, s.setWorkspaceRawLocked(workspaceID, "mcp", content)
+		return content, s.setGlobalRawLocked("mcp", content)
 	}
 	return content, nil
 }
 
-func (s *Store) GetEffectiveMCPConfig(workspaceID string) (string, error) {
+func (s *Store) GetEffectiveMCPConfig() (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return "", err
-	}
-	content, ok, err := s.getWorkspaceRawLocked(workspaceID, "mcp")
+	content, ok, err := s.getGlobalRawLocked("mcp")
 	if err != nil {
 		return "", err
 	}
 	if !ok || strings.TrimSpace(content) == "" {
 		content = DefaultMCPConfig()
-		if err := s.setWorkspaceRawLocked(workspaceID, "mcp", content); err != nil {
+		if err := s.setGlobalRawLocked("mcp", content); err != nil {
 			return "", err
 		}
-	}
-	if mcpConfigHasServers(content) || workspaceID == defaultWorkspaceID {
-		return content, nil
-	}
-	fallback, ok, err := s.getWorkspaceRawLocked(defaultWorkspaceID, "mcp")
-	if err != nil {
-		return "", err
-	}
-	if ok && mcpConfigHasServers(fallback) {
-		return inheritMCPServersWithoutReplacingBuiltinTools(content, fallback)
 	}
 	return content, nil
 }
@@ -84,7 +66,7 @@ func mcpConfigHasServers(content string) bool {
 	return err == nil && len(cfg.Servers) > 0
 }
 
-func (s *Store) SaveMCPConfig(workspaceID string, content string) (string, error) {
+func (s *Store) SaveMCPConfig(content string) (string, error) {
 	content = strings.TrimSpace(content)
 	if content == "" {
 		content = DefaultMCPConfig()
@@ -98,11 +80,7 @@ func (s *Store) SaveMCPConfig(workspaceID string, content string) (string, error
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	workspaceID, err = s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return "", err
-	}
-	return pretty, s.setWorkspaceRawLocked(workspaceID, "mcp", pretty)
+	return pretty, s.setGlobalRawLocked("mcp", pretty)
 }
 
 func DefaultMCPConfig() string {

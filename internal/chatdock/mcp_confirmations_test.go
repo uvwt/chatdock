@@ -15,7 +15,6 @@ func TestMCPConfirmationPersistsAndResolvesAfterRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	created, err := app.store.SaveMCPConfirmation(storepkg.MCPConfirmationRecord{
-		WorkspaceID: "default",
 		SessionID:   "s1",
 		Tool:        "memory.write",
 		Arguments:   map[string]any{"path": "note.md"},
@@ -35,7 +34,7 @@ func TestMCPConfirmationPersistsAndResolvesAfterRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer restarted.Close()
-	items, err := restarted.store.ListMCPConfirmations("default", true, 20)
+	items, err := restarted.store.ListMCPConfirmations(true, 20)
 	if err != nil {
 		t.Fatal(err)
 	}

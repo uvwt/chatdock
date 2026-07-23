@@ -83,7 +83,7 @@ func TestSearchingOnDemandToolsExposesRealToolForDirectCall(t *testing.T) {
 		return args, nil
 	}
 
-	result, err := app.callVisibleConversationTool(context.Background(), "default", set, runRealTool, builtinToolSearchTools, map[string]any{"query": "创建日历"})
+	result, err := app.callVisibleConversationTool(context.Background(), set, runRealTool, builtinToolSearchTools, map[string]any{"query": "创建日历"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestSearchingOnDemandToolsExposesRealToolForDirectCall(t *testing.T) {
 		t.Fatalf("search should expose the matched real tool, got %#v", result)
 	}
 
-	if _, err := app.callVisibleConversationTool(context.Background(), "default", set, runRealTool, "calendar__events_create", map[string]any{"title": "周会"}); err != nil {
+	if _, err := app.callVisibleConversationTool(context.Background(), set, runRealTool, "calendar__events_create", map[string]any{"title": "周会"}); err != nil {
 		t.Fatal(err)
 	}
 	if called != "calendar__events_create" {
@@ -130,7 +130,7 @@ func TestSearchingOnDemandBuiltinToolExposesItForDirectCall(t *testing.T) {
 		return args, nil
 	}
 
-	result, err := app.callVisibleConversationTool(context.Background(), "default", set, runRealTool, builtinToolSearchTools, map[string]any{"query": "查询定时任务"})
+	result, err := app.callVisibleConversationTool(context.Background(), set, runRealTool, builtinToolSearchTools, map[string]any{"query": "查询定时任务"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestSearchingOnDemandBuiltinToolExposesItForDirectCall(t *testing.T) {
 		t.Fatalf("search should expose a matched builtin tool, got %#v", result)
 	}
 
-	if _, err := app.callVisibleConversationTool(context.Background(), "default", set, runRealTool, builtinToolListScheduledTasks, map[string]any{}); err != nil {
+	if _, err := app.callVisibleConversationTool(context.Background(), set, runRealTool, builtinToolListScheduledTasks, map[string]any{}); err != nil {
 		t.Fatal(err)
 	}
 	if called != builtinToolListScheduledTasks {

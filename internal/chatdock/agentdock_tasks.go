@@ -61,8 +61,7 @@ func (a *App) handleGetSessionAgentTask(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	workspaceID := a.workspaceIDFromRequest(r)
-	session, ok, err := a.store.GetSession(workspaceID, sessionID)
+	session, ok, err := a.store.GetSession(sessionID)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -72,7 +71,7 @@ func (a *App) handleGetSessionAgentTask(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	taskID, err := a.latestSessionAgentTaskID(workspaceID, session)
+	taskID, err := a.latestSessionAgentTaskID(session)
 	if err != nil {
 		writeJSONResponse(w, http.StatusInternalServerError, map[string]any{"code": "SESSION_TASK_LOOKUP_FAILED", "error": err.Error()})
 		return
@@ -84,7 +83,7 @@ func (a *App) handleGetSessionAgentTask(w http.ResponseWriter, r *http.Request) 
 	a.proxyAgentDockTaskRequest(w, r, http.MethodGet, "/internal/runtime/tasks/"+url.PathEscape(taskID), nil, true)
 }
 
-func (a *App) latestSessionAgentTaskID(workspaceID string, session *model.Session) (string, error) {
+func (a *App) latestSessionAgentTaskID(session *model.Session) (string, error) {
 	for messageIndex := len(session.Messages) - 1; messageIndex >= 0; messageIndex-- {
 		events := session.Messages[messageIndex].Events
 		for eventIndex := len(events) - 1; eventIndex >= 0; eventIndex-- {
@@ -92,7 +91,7 @@ func (a *App) latestSessionAgentTaskID(workspaceID string, session *model.Sessio
 			if event.Kind != "tool" || !looksLikeTaskManageEvent(event) {
 				continue
 			}
-			fullEvent, err := a.store.SessionMessageEventByID(workspaceID, session.ID, event.ID)
+			fullEvent, err := a.store.SessionMessageEventByID(session.ID, event.ID)
 			if err != nil {
 				return "", fmt.Errorf("读取会话任务事件失败: %w", err)
 			}

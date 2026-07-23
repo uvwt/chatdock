@@ -8,7 +8,7 @@ import (
 )
 
 func (a *App) handleContextPreview(w http.ResponseWriter, r *http.Request) {
-	preview, err := a.store.ContextPreview(a.workspaceIDFromRequest(r), r.PathValue("id"))
+	preview, err := a.store.ContextPreview(r.PathValue("id"))
 	if err != nil {
 		status := http.StatusInternalServerError
 		if err == model.ErrSessionNotFound {

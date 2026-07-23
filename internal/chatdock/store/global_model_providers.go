@@ -71,39 +71,32 @@ func (s *Store) ensureGlobalModelProvidersLocked() error {
 		return nil
 	}
 
-	names, err := listWorkspaceIDsWith(tx)
+	cfg, err := modelConfigWith(tx)
 	if err != nil {
 		return err
 	}
-	if len(names) == 0 {
-		names = []string{defaultWorkspaceID}
-	}
 	now := time.Now()
-	for _, workspaceID := range names {
-		cfg, err := modelConfigForWorkspaceWith(tx, workspaceID)
-		if err != nil {
-			return err
-		}
-		id := providerIDFromWorkspace(workspaceID)
-		record := modelProviderRecord{
-			ID:           id,
-			Name:         providerDisplayName(workspaceID, cfg),
-			Type:         "openai-compatible",
-			BaseURL:      strings.TrimSpace(cfg.BaseURL),
-			APIKeys:      upsertProviderAPIKey(nil, "", cfg.APIKey, now),
-			DefaultModel: strings.TrimSpace(cfg.Model),
-			Models:       normalizeProviderModelNames(cfg.Models, cfg.Model),
-			TimeoutMS:    120000,
-			Enabled:      strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != "",
-			CreatedAt:    now,
-			UpdatedAt:    now,
-		}
-		record = normalizeModelProviderRecord(record)
-		records = append(records, record)
-		cfg.ProviderID = id
-		if err := setWorkspaceJSONWith(tx, workspaceID, "config", cfg, now); err != nil {
-			return err
-		}
+	id := normalizeProviderID(cfg.ProviderID)
+	if id == "" {
+		id = "provider_default"
+	}
+	record := normalizeModelProviderRecord(modelProviderRecord{
+		ID:           id,
+		Name:         providerDisplayName(cfg),
+		Type:         "openai-compatible",
+		BaseURL:      strings.TrimSpace(cfg.BaseURL),
+		APIKeys:      upsertProviderAPIKey(nil, "", cfg.APIKey, now),
+		DefaultModel: strings.TrimSpace(cfg.Model),
+		Models:       normalizeProviderModelNames(cfg.Models, cfg.Model),
+		TimeoutMS:    120000,
+		Enabled:      strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != "",
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	})
+	records = append(records, record)
+	cfg.ProviderID = id
+	if err := setGlobalJSONWith(tx, "config", cfg, now); err != nil {
+		return err
 	}
 	if err := saveModelProviderRecordsWith(tx, records); err != nil {
 		return err
@@ -165,13 +158,9 @@ func (s *Store) UpdateModelProvider(id string, input ModelProviderInput) (ModelP
 	return publicModelProvider(record), nil
 }
 
-func (s *Store) UpsertModelProvider(workspaceID string, id string, input ModelProviderInput, setWorkspaceDefault bool, workspaceModel string) (ModelProvider, *model.ModelConfig, error) {
+func (s *Store) UpsertModelProvider(id string, input ModelProviderInput, setDefault bool, selectedModel string) (ModelProvider, *model.ModelConfig, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return ModelProvider{}, nil, err
-	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return ModelProvider{}, nil, err
@@ -200,16 +189,16 @@ func (s *Store) UpsertModelProvider(workspaceID string, id string, input ModelPr
 	}
 
 	var savedConfig *model.ModelConfig
-	if setWorkspaceDefault {
+	if setDefault {
 		if !record.Enabled {
 			return ModelProvider{}, nil, fmt.Errorf("model provider is disabled: %s", record.ID)
 		}
-		cfg, err := modelConfigForWorkspaceWith(tx, workspaceID)
+		cfg, err := modelConfigWith(tx)
 		if err != nil {
 			return ModelProvider{}, nil, err
 		}
 		cfg.ProviderID = record.ID
-		cfg.Model = strings.TrimSpace(workspaceModel)
+		cfg.Model = strings.TrimSpace(selectedModel)
 		if cfg.Model == "" {
 			cfg.Model = record.DefaultModel
 		}
@@ -218,7 +207,7 @@ func (s *Store) UpsertModelProvider(workspaceID string, id string, input ModelPr
 		if err != nil {
 			return ModelProvider{}, nil, err
 		}
-		if err := setWorkspaceJSONWith(tx, workspaceID, "config", cfg, time.Now()); err != nil {
+		if err := setGlobalJSONWith(tx, "config", cfg, time.Now()); err != nil {
 			return ModelProvider{}, nil, err
 		}
 		savedConfig = &cfg
@@ -361,21 +350,15 @@ func (s *Store) DeleteModelProvider(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	names, err := s.listWorkspaceIDsLocked()
+	cfg, err := s.modelConfigLocked()
 	if err != nil {
 		return err
 	}
-	for _, workspaceID := range names {
-		cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
-		if err != nil {
-			return err
-		}
-		if cfg.ProviderID == id {
-			return fmt.Errorf("model provider is used by workspace: %s", workspaceID)
-		}
-		if cfg.FallbackProviderID == id {
-			return fmt.Errorf("model provider is used as fallback by workspace: %s", workspaceID)
-		}
+	if cfg.ProviderID == id {
+		return fmt.Errorf("model provider is used by global config: %s", id)
+	}
+	if cfg.FallbackProviderID == id {
+		return fmt.Errorf("model provider is used as fallback by global config: %s", id)
 	}
 
 	records, err := s.loadModelProviderRecordsLocked()

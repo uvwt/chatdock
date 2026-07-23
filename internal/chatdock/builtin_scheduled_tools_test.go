@@ -17,7 +17,7 @@ func TestBuiltinScheduledTaskToolCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	created, err := app.callBuiltinScheduledTaskTool(context.Background(), "default", builtinToolCreateScheduledTask, map[string]any{
+	created, err := app.callBuiltinScheduledTaskTool(context.Background(), builtinToolCreateScheduledTask, map[string]any{
 		"title":            "日报",
 		"prompt":           "总结今天",
 		"schedule_type":    "interval",
@@ -32,7 +32,7 @@ func TestBuiltinScheduledTaskToolCRUD(t *testing.T) {
 	}
 	id := createdTasks[0].ID
 
-	listed, err := app.callBuiltinScheduledTaskTool(context.Background(), "default", builtinToolListScheduledTasks, map[string]any{"query": "日报"})
+	listed, err := app.callBuiltinScheduledTaskTool(context.Background(), builtinToolListScheduledTasks, map[string]any{"query": "日报"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func TestBuiltinScheduledTaskToolCRUD(t *testing.T) {
 		t.Fatalf("list should find created task: %#v", tasks)
 	}
 
-	updated, err := app.callBuiltinScheduledTaskTool(context.Background(), "default", builtinToolUpdateScheduledTask, map[string]any{"id": id, "enabled": false, "schedule_type": "cron", "cron_expressions": []any{"30 9 * * *", "0 18 * * *"}, "timezone": "Asia/Shanghai"})
+	updated, err := app.callBuiltinScheduledTaskTool(context.Background(), builtinToolUpdateScheduledTask, map[string]any{"id": id, "enabled": false, "schedule_type": "cron", "cron_expressions": []any{"30 9 * * *", "0 18 * * *"}, "timezone": "Asia/Shanghai"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestBuiltinScheduledTaskToolCRUD(t *testing.T) {
 		t.Fatalf("unexpected updated tasks: %#v", updatedTasks)
 	}
 
-	enabled, err := app.callBuiltinScheduledTaskTool(context.Background(), "default", builtinToolUpdateScheduledTask, map[string]any{"id": id, "enabled": true})
+	enabled, err := app.callBuiltinScheduledTaskTool(context.Background(), builtinToolUpdateScheduledTask, map[string]any{"id": id, "enabled": true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestBuiltinScheduledTaskToolCRUD(t *testing.T) {
 		t.Fatalf("update enabled should turn task on: %#v", tasks)
 	}
 
-	deleted, err := app.callBuiltinScheduledTaskTool(context.Background(), "default", builtinToolDeleteScheduledTask, map[string]any{"id": id})
+	deleted, err := app.callBuiltinScheduledTaskTool(context.Background(), builtinToolDeleteScheduledTask, map[string]any{"id": id})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +123,7 @@ func TestChatExposesBuiltinScheduledTaskDirectlyWithoutMCP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig("default", model.ModelConfig{BaseURL: modelServer.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: modelServer.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
@@ -145,7 +145,7 @@ func TestChatExposesBuiltinScheduledTaskDirectlyWithoutMCP(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("chat status %d: %s", w.Code, w.Body.String())
 	}
-	tasks, err := app.store.ListScheduledTasks("default")
+	tasks, err := app.store.ListScheduledTasks()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +204,7 @@ func TestDirectToolCallRejectsInvalidArgumentsBeforeRunningTool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig("default", model.ModelConfig{BaseURL: modelServer.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: modelServer.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
@@ -226,7 +226,7 @@ func TestDirectToolCallRejectsInvalidArgumentsBeforeRunningTool(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("chat status %d: %s", w.Code, w.Body.String())
 	}
-	tasks, err := app.store.ListScheduledTasks("default")
+	tasks, err := app.store.ListScheduledTasks()
 	if err != nil {
 		t.Fatal(err)
 	}

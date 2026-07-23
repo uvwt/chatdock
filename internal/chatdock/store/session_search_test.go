@@ -7,7 +7,7 @@ import (
 	"unicode/utf8"
 )
 
-func TestSearchSessionsFindsAttachmentTextLoadedInOneWorkspaceQuery(t *testing.T) {
+func TestSearchSessionsFindsAttachmentTextInOneQuery(t *testing.T) {
 	store, err := NewStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -18,11 +18,11 @@ func TestSearchSessionsFindsAttachmentTextLoadedInOneWorkspaceQuery(t *testing.T
 		}
 	})
 
-	first, err := store.CreateSession(defaultWorkspaceID)
+	first, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := store.CreateSession(defaultWorkspaceID)
+	second, err := store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,12 +35,12 @@ func TestSearchSessionsFindsAttachmentTextLoadedInOneWorkspaceQuery(t *testing.T
 		{id: "attachment-first", sessionID: first.ID, filename: "roadmap.txt", text: "青山计划第一阶段"},
 		{id: "attachment-second", sessionID: second.ID, filename: "notes.txt", text: "普通会议记录"},
 	} {
-		if _, err := store.db.Exec(`INSERT INTO attachments(workspace_id, id, session_id, message_id, filename, mime_type, size, storage_path, sha256, text_content, status, created_at) VALUES(?, ?, ?, '', ?, 'text/plain', 1, ?, ?, ?, 'stored', ?)`, defaultWorkspaceID, row.id, row.sessionID, row.filename, row.id+".txt", row.id+"-sha", row.text, time.Now().Format(time.RFC3339Nano)); err != nil {
+		if _, err := store.db.Exec(`INSERT INTO attachments(id, session_id, message_id, filename, mime_type, size, storage_path, sha256, text_content, status, created_at) VALUES(?, ?, '', ?, 'text/plain', 1, ?, ?, ?, 'stored', ?)`, row.id, row.sessionID, row.filename, row.id+".txt", row.id+"-sha", row.text, time.Now().Format(time.RFC3339Nano)); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	results, err := store.SearchSessions(defaultWorkspaceID, "青山计划", 20)
+	results, err := store.SearchSessions("青山计划", 20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,14 +58,14 @@ func TestSearchSessionsReturnsAttachmentQueryErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
-	if _, err := store.CreateSession(defaultWorkspaceID); err != nil {
+	if _, err := store.CreateSession(""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.db.Exec(`DROP TABLE attachments`); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := store.SearchSessions(defaultWorkspaceID, "anything", 20); err == nil {
+	if _, err := store.SearchSessions("anything", 20); err == nil {
 		t.Fatal("attachment query failure should not be treated as an empty search result")
 	}
 }

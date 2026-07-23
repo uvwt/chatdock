@@ -84,12 +84,12 @@ func TestSaveScheduledTasksRollsBackPartialBatch(t *testing.T) {
 	})
 
 	for _, title := range []string{"任务一", "任务二"} {
-		if _, err := store.CreateScheduledTask(defaultWorkspaceID, model.ScheduledTaskRequest{Title: title, Prompt: title, Enabled: true, ScheduleType: scheduleTypeInterval, IntervalMinutes: 30}); err != nil {
+		if _, err := store.CreateScheduledTask(model.ScheduledTaskRequest{Title: title, Prompt: title, Enabled: true, ScheduleType: scheduleTypeInterval, IntervalMinutes: 30}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	store.mu.Lock()
-	tasks, err := store.loadScheduledTasksForWorkspaceLocked(defaultWorkspaceID)
+	tasks, err := store.loadScheduledTasksLocked()
 	store.mu.Unlock()
 	if err != nil {
 		t.Fatal(err)
@@ -114,12 +114,12 @@ END`); err != nil {
 	}
 
 	store.mu.Lock()
-	err = store.saveScheduledTasksForWorkspaceLocked(defaultWorkspaceID, tasks)
+	err = store.saveScheduledTasksLocked(tasks)
 	store.mu.Unlock()
 	if err == nil {
 		t.Fatal("expected batch save failure")
 	}
-	rows, err := store.db.Query(`SELECT id, title FROM scheduled_tasks WHERE workspace_id = ?`, defaultWorkspaceID)
+	rows, err := store.db.Query(`SELECT id, title FROM scheduled_tasks`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func TestFinishScheduledTaskRunRollsBackSessionAndTaskTogether(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
-	created, err := store.CreateScheduledTask(defaultWorkspaceID, model.ScheduledTaskRequest{
+	created, err := store.CreateScheduledTask(model.ScheduledTaskRequest{
 		Title:           "原子完成任务",
 		Prompt:          "生成结果",
 		Enabled:         true,
@@ -159,7 +159,7 @@ func TestFinishScheduledTaskRunRollsBackSessionAndTaskTogether(t *testing.T) {
 		t.Fatalf("unexpected tasks: %#v", created.Tasks)
 	}
 	startedAt := time.Now()
-	run, err := store.PrepareScheduledTaskRunInWorkspace(defaultWorkspaceID, created.Tasks[0].ID, true, startedAt)
+	run, err := store.PrepareScheduledTaskRun(created.Tasks[0].ID, true, startedAt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,11 +175,11 @@ END`); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = store.FinishScheduledTaskRun(defaultWorkspaceID, run.Task.ID, run.RunID, run.SessionID, "不应部分保存", startedAt, true, nil, false)
+	_, err = store.FinishScheduledTaskRun(run.Task.ID, run.RunID, run.SessionID, "不应部分保存", startedAt, true, nil, false)
 	if err == nil {
 		t.Fatal("expected scheduled completion failure")
 	}
-	session, ok, err := store.GetSession(defaultWorkspaceID, run.SessionID)
+	session, ok, err := store.GetSession(run.SessionID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,14 +187,14 @@ END`); err != nil {
 		t.Fatalf("assistant message survived completion rollback: %#v", session)
 	}
 	var running int
-	if err := store.db.QueryRow(`SELECT running FROM scheduled_tasks WHERE workspace_id = ? AND id = ?`, defaultWorkspaceID, run.Task.ID).Scan(&running); err != nil {
+	if err := store.db.QueryRow(`SELECT running FROM scheduled_tasks WHERE id = ?`, run.Task.ID).Scan(&running); err != nil {
 		t.Fatal(err)
 	}
 	if running != 1 {
 		t.Fatalf("task running state changed despite rollback: %d", running)
 	}
 	var runCount int
-	if err := store.db.QueryRow(`SELECT COUNT(*) FROM scheduled_task_runs WHERE workspace_id = ? AND id = ?`, defaultWorkspaceID, run.RunID).Scan(&runCount); err != nil {
+	if err := store.db.QueryRow(`SELECT COUNT(*) FROM scheduled_task_runs WHERE id = ?`, run.RunID).Scan(&runCount); err != nil {
 		t.Fatal(err)
 	}
 	if runCount != 0 {
@@ -208,7 +208,7 @@ func TestPrepareScheduledTaskRunRollsBackSessionAndTaskTogether(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
-	created, err := store.CreateScheduledTask(defaultWorkspaceID, model.ScheduledTaskRequest{
+	created, err := store.CreateScheduledTask(model.ScheduledTaskRequest{
 		Title:           "原子启动任务",
 		Prompt:          "准备输入",
 		Enabled:         true,
@@ -221,7 +221,7 @@ func TestPrepareScheduledTaskRunRollsBackSessionAndTaskTogether(t *testing.T) {
 	}
 	task := created.Tasks[0]
 	var beforeSessions int
-	if err := store.db.QueryRow(`SELECT COUNT(*) FROM sessions WHERE workspace_id = ?`, defaultWorkspaceID).Scan(&beforeSessions); err != nil {
+	if err := store.db.QueryRow(`SELECT COUNT(*) FROM sessions`).Scan(&beforeSessions); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.db.Exec(`CREATE TRIGGER fail_scheduled_start_update
@@ -233,11 +233,11 @@ END`); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := store.PrepareScheduledTaskRunInWorkspace(defaultWorkspaceID, task.ID, true, time.Now()); err == nil {
+	if _, err := store.PrepareScheduledTaskRun(task.ID, true, time.Now()); err == nil {
 		t.Fatal("expected scheduled start failure")
 	}
 	var afterSessions int
-	if err := store.db.QueryRow(`SELECT COUNT(*) FROM sessions WHERE workspace_id = ?`, defaultWorkspaceID).Scan(&afterSessions); err != nil {
+	if err := store.db.QueryRow(`SELECT COUNT(*) FROM sessions`).Scan(&afterSessions); err != nil {
 		t.Fatal(err)
 	}
 	if afterSessions != beforeSessions {
@@ -245,7 +245,7 @@ END`); err != nil {
 	}
 	var running int
 	var sessionID string
-	if err := store.db.QueryRow(`SELECT running, session_id FROM scheduled_tasks WHERE workspace_id = ? AND id = ?`, defaultWorkspaceID, task.ID).Scan(&running, &sessionID); err != nil {
+	if err := store.db.QueryRow(`SELECT running, session_id FROM scheduled_tasks WHERE id = ?`, task.ID).Scan(&running, &sessionID); err != nil {
 		t.Fatal(err)
 	}
 	if running != 0 || sessionID != "" {

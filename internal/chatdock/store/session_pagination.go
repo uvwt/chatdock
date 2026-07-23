@@ -21,7 +21,7 @@ type sessionSummaryRow struct {
 	UpdatedAt string
 }
 
-func (s *Store) ListSessionPage(workspaceID string, cursor string, limit int) ([]model.SessionSummary, string, bool, error) {
+func (s *Store) ListSessionPage(filter SessionProjectFilter, cursor string, limit int) ([]model.SessionSummary, string, bool, error) {
 	limit = normalizeSessionPageLimit(limit)
 	decodedCursor, err := decodeSessionListCursor(cursor)
 	if err != nil {
@@ -30,35 +30,44 @@ func (s *Store) ListSessionPage(workspaceID string, cursor string, limit int) ([
 
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	workspaceID, err = s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return nil, "", false, err
-	}
 
 	query := `
 SELECT
 	s.id,
+	COALESCE(s.project_id, ''),
 	s.title,
 	s.pinned,
 	s.provider_id,
 	s.model,
 	s.created_at,
 	s.updated_at,
-	(SELECT COUNT(*) FROM session_messages m WHERE m.workspace_id = s.workspace_id AND m.session_id = s.id),
-	COALESCE((SELECT m.role FROM session_messages m WHERE m.workspace_id = s.workspace_id AND m.session_id = s.id ORDER BY m.message_index DESC LIMIT 1), ''),
-	COALESCE((SELECT m.content FROM session_messages m WHERE m.workspace_id = s.workspace_id AND m.session_id = s.id ORDER BY m.message_index DESC LIMIT 1), ''),
-	COALESCE((SELECT m.error_json FROM session_messages m WHERE m.workspace_id = s.workspace_id AND m.session_id = s.id ORDER BY m.message_index DESC LIMIT 1), '')
+	(SELECT COUNT(*) FROM session_messages m WHERE m.session_id = s.id),
+	COALESCE((SELECT m.role FROM session_messages m WHERE m.session_id = s.id ORDER BY m.message_index DESC LIMIT 1), ''),
+	COALESCE((SELECT m.content FROM session_messages m WHERE m.session_id = s.id ORDER BY m.message_index DESC LIMIT 1), ''),
+	COALESCE((SELECT m.error_json FROM session_messages m WHERE m.session_id = s.id ORDER BY m.message_index DESC LIMIT 1), '')
 FROM sessions s
-WHERE s.workspace_id = ?
+WHERE 1 = 1
   AND NOT EXISTS (
 	SELECT 1 FROM scheduled_tasks task
-	WHERE task.workspace_id = s.workspace_id AND task.session_id = s.id
+	WHERE task.session_id = s.id
   )
   AND NOT EXISTS (
 	SELECT 1 FROM scheduled_task_runs run
-	WHERE run.workspace_id = s.workspace_id AND run.session_id = s.id
+	WHERE run.session_id = s.id
   )`
-	args := []any{workspaceID}
+	args := []any{}
+	switch filter.Mode {
+	case SessionProjectFilterByProject:
+		projectID := strings.TrimSpace(filter.ProjectID)
+		if projectID == "" {
+			return nil, "", false, fmt.Errorf("project id is empty")
+		}
+		query += ` AND s.project_id = ?`
+		args = append(args, projectID)
+	case SessionProjectFilterNoProject:
+		query += ` AND s.project_id IS NULL`
+	default:
+	}
 	if decodedCursor != nil {
 		query += `
   AND (
@@ -87,6 +96,7 @@ WHERE s.workspace_id = ?
 		var createdAt, lastRole, lastContent, lastError string
 		if err := rows.Scan(
 			&row.Summary.ID,
+			&row.Summary.ProjectID,
 			&row.Summary.Title,
 			&row.Pinned,
 			&row.Summary.ProviderID,

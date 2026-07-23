@@ -18,27 +18,13 @@ func TestProductizedAPIs(t *testing.T) {
 	}
 	routes := app.routes()
 
-	for _, path := range []string{"/api/setup/status", "/api/workspaces", "/api/model-providers", "/api/data/status", "/api/system/status"} {
+	for _, path := range []string{"/api/setup/status", "/api/projects", "/api/model-providers", "/api/data/status", "/api/system/status"} {
 		r := httptest.NewRequest(http.MethodGet, path, nil)
 		w := httptest.NewRecorder()
 		routes.ServeHTTP(w, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("%s status %d: %s", path, w.Code, w.Body.String())
 		}
-	}
-
-	r := httptest.NewRequest(http.MethodGet, "/api/workspaces/default/prompt-preview", nil)
-	w := httptest.NewRecorder()
-	routes.ServeHTTP(w, r)
-	if w.Code != http.StatusOK {
-		t.Fatalf("prompt preview status %d: %s", w.Code, w.Body.String())
-	}
-	var preview storepkg.PromptPreviewResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &preview); err != nil {
-		t.Fatal(err)
-	}
-	if preview.Content == "" || preview.WorkspaceID != "default" {
-		t.Fatalf("unexpected preview: %#v", preview)
 	}
 }
 
@@ -80,47 +66,18 @@ func TestSystemStatusReportsAgentDockTaskCapability(t *testing.T) {
 	}
 }
 
-func TestWorkspaceResourceAPIs(t *testing.T) {
+func TestProjectResourceAPIs(t *testing.T) {
 	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
 
-	r := httptest.NewRequest(http.MethodGet, "/api/workspaces", nil)
-	r.Header.Set("X-Workspace-ID", "deleted-local-storage")
+	r := httptest.NewRequest(http.MethodPost, "/api/config", bytes.NewReader([]byte(`{"base_url":"https://example.test/v1","api_key":"secret-value","model":"demo-model","system_prompt":"全局助手","max_context_messages":8,"temperature":0.2,"hide_thinking":true}`)))
 	w := httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
-		t.Fatalf("list workspaces with stale active status %d: %s", w.Code, w.Body.String())
-	}
-	var staleSpaces storepkg.WorkspaceResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &staleSpaces); err != nil {
-		t.Fatal(err)
-	}
-	if staleSpaces.Active != "default" {
-		t.Fatalf("stale workspace recovery active = %q", staleSpaces.Active)
-	}
-
-	r = httptest.NewRequest(http.MethodPost, "/api/workspaces", bytes.NewReader([]byte(`{"name":"research","system_prompt":"只做研究总结"}`)))
-	w = httptest.NewRecorder()
-	routes.ServeHTTP(w, r)
-	if w.Code != http.StatusOK {
-		t.Fatalf("create workspace status %d: %s", w.Code, w.Body.String())
-	}
-	var spaces storepkg.WorkspaceResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &spaces); err != nil {
-		t.Fatal(err)
-	}
-	if spaces.Active != "research" || len(spaces.Workspaces) != 2 {
-		t.Fatalf("unexpected workspace response: %#v", spaces)
-	}
-
-	r = httptest.NewRequest(http.MethodPost, "/api/workspaces/research/config", bytes.NewReader([]byte(`{"base_url":"https://example.test/v1","api_key":"secret-value","model":"demo-model","system_prompt":"研究助手","max_context_messages":8,"temperature":0.2,"hide_thinking":true}`)))
-	w = httptest.NewRecorder()
-	routes.ServeHTTP(w, r)
-	if w.Code != http.StatusOK {
-		t.Fatalf("save workspace config status %d: %s", w.Code, w.Body.String())
+		t.Fatalf("save global config status %d: %s", w.Code, w.Body.String())
 	}
 	var cfg model.PublicModelConfig
 	if err := json.Unmarshal(w.Body.Bytes(), &cfg); err != nil {
@@ -130,92 +87,79 @@ func TestWorkspaceResourceAPIs(t *testing.T) {
 		t.Fatalf("unexpected public config: %#v", cfg)
 	}
 
-	r = httptest.NewRequest(http.MethodPost, "/api/workspaces/default/select", bytes.NewReader([]byte(`{}`)))
+	r = httptest.NewRequest(http.MethodPost, "/api/projects", bytes.NewReader([]byte(`{"name":"research","prompt":"只做研究总结"}`)))
 	w = httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
-		t.Fatalf("select workspace status %d: %s", w.Code, w.Body.String())
+		t.Fatalf("create project status %d: %s", w.Code, w.Body.String())
 	}
-
-	r = httptest.NewRequest(http.MethodGet, "/api/workspaces/research/config", nil)
-	w = httptest.NewRecorder()
-	routes.ServeHTTP(w, r)
-	if w.Code != http.StatusOK {
-		t.Fatalf("get workspace config status %d: %s", w.Code, w.Body.String())
-	}
-	if err := json.Unmarshal(w.Body.Bytes(), &cfg); err != nil {
+	var project model.Project
+	if err := json.Unmarshal(w.Body.Bytes(), &project); err != nil {
 		t.Fatal(err)
 	}
-	if cfg.BaseURL != "https://example.test/v1" || cfg.SystemPrompt != "研究助手" {
-		t.Fatalf("workspace config should be readable without switching: %#v", cfg)
+	if project.ID == "" || project.Name != "research" || project.Prompt != "只做研究总结" {
+		t.Fatalf("unexpected project: %#v", project)
 	}
 
-	r = httptest.NewRequest(http.MethodPost, "/api/workspaces/research/select", bytes.NewReader([]byte(`{}`)))
+	r = httptest.NewRequest(http.MethodGet, "/api/projects/"+project.ID+"/prompt-preview", nil)
 	w = httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
-		t.Fatalf("reselect workspace status %d: %s", w.Code, w.Body.String())
+		t.Fatalf("prompt preview status %d: %s", w.Code, w.Body.String())
 	}
-	r = httptest.NewRequest(http.MethodGet, "/api/config", nil)
-	r.Header.Set("X-Workspace-ID", "research")
-	w = httptest.NewRecorder()
-	routes.ServeHTTP(w, r)
-	if w.Code != http.StatusOK {
-		t.Fatalf("research scoped config status %d: %s", w.Code, w.Body.String())
-	}
-	if err := json.Unmarshal(w.Body.Bytes(), &cfg); err != nil {
+	var preview model.PromptPreviewResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &preview); err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Model != "demo-model" {
-		t.Fatalf("research scoped config did not follow workspace header: %#v", cfg)
+	if preview.ProjectID != project.ID || preview.Content != "全局助手\n\n只做研究总结" {
+		t.Fatalf("unexpected prompt preview: %#v", preview)
 	}
 
-	r = httptest.NewRequest(http.MethodPost, "/api/workspaces", bytes.NewReader([]byte(`{"name":"archive","system_prompt":"归档"}`)))
-	r.Header.Set("X-Workspace-ID", "research")
+	r = httptest.NewRequest(http.MethodPut, "/api/projects/"+project.ID, bytes.NewReader([]byte(`{"name":"research-updated","prompt":"更新后的项目提示词"}`)))
 	w = httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
-		t.Fatalf("create archive workspace status %d: %s", w.Code, w.Body.String())
+		t.Fatalf("update project status %d: %s", w.Code, w.Body.String())
 	}
-	r = httptest.NewRequest(http.MethodDelete, "/api/workspaces/archive", nil)
-	r.Header.Set("X-Workspace-ID", "research")
-	w = httptest.NewRecorder()
-	routes.ServeHTTP(w, r)
-	if w.Code != http.StatusOK {
-		t.Fatalf("delete inactive workspace status %d: %s", w.Code, w.Body.String())
-	}
-	if err := json.Unmarshal(w.Body.Bytes(), &spaces); err != nil {
+	if err := json.Unmarshal(w.Body.Bytes(), &project); err != nil {
 		t.Fatal(err)
 	}
-	if spaces.Active != "research" || len(spaces.Workspaces) != 2 {
-		t.Fatalf("deleting inactive workspace changed active workspace: %#v", spaces)
+	if project.Name != "research-updated" || project.Prompt != "更新后的项目提示词" {
+		t.Fatalf("unexpected updated project: %#v", project)
 	}
 
-	r = httptest.NewRequest(http.MethodDelete, "/api/workspaces/default", nil)
-	w = httptest.NewRecorder()
-	routes.ServeHTTP(w, r)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("delete default workspace should fail with 400, got %d", w.Code)
-	}
-
-	r = httptest.NewRequest(http.MethodDelete, "/api/workspaces/research", nil)
+	r = httptest.NewRequest(http.MethodPost, "/api/sessions", bytes.NewReader([]byte(`{"project_id":"`+project.ID+`"}`)))
 	w = httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
-		t.Fatalf("delete workspace status %d: %s", w.Code, w.Body.String())
+		t.Fatalf("create project session status %d: %s", w.Code, w.Body.String())
 	}
-	if err := json.Unmarshal(w.Body.Bytes(), &spaces); err != nil {
+	var session model.Session
+	if err := json.Unmarshal(w.Body.Bytes(), &session); err != nil {
 		t.Fatal(err)
 	}
-	if spaces.Active != "default" || len(spaces.Workspaces) != 1 || spaces.Workspaces[0].ID != "default" {
-		t.Fatalf("unexpected workspace response after delete: %#v", spaces)
+	if session.ProjectID != project.ID {
+		t.Fatalf("session project_id = %q, want %q", session.ProjectID, project.ID)
 	}
 
-	r = httptest.NewRequest(http.MethodGet, "/api/workspaces/research/config", nil)
+	r = httptest.NewRequest(http.MethodDelete, "/api/projects/"+project.ID, nil)
 	w = httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("deleted workspace config should fail with 400, got %d", w.Code)
+	if w.Code != http.StatusOK {
+		t.Fatalf("delete project status %d: %s", w.Code, w.Body.String())
+	}
+	r = httptest.NewRequest(http.MethodGet, "/api/sessions/"+session.ID, nil)
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("get session after project delete status %d: %s", w.Code, w.Body.String())
+	}
+	var detachedSession model.Session
+	if err := json.Unmarshal(w.Body.Bytes(), &detachedSession); err != nil {
+		t.Fatal(err)
+	}
+	if detachedSession.ProjectID != "" {
+		t.Fatalf("deleted project should clear session project_id: %#v", detachedSession)
 	}
 }
 
@@ -227,7 +171,7 @@ func TestSetupInitPersistsAcrossRestart(t *testing.T) {
 	}
 	routes := app.routes()
 
-	r := httptest.NewRequest(http.MethodPost, "/api/setup/init", bytes.NewReader([]byte(`{"workspace_name":"daily","base_url":"https://example.test/v1","api_key":"persisted-key","model":"daily-model","system_prompt":"每日助手"}`)))
+	r := httptest.NewRequest(http.MethodPost, "/api/setup/init", bytes.NewReader([]byte(`{"base_url":"https://example.test/v1","api_key":"persisted-key","model":"daily-model","system_prompt":"每日助手"}`)))
 	w := httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
@@ -242,14 +186,7 @@ func TestSetupInitPersistsAcrossRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	routes = restarted.routes()
-	r = httptest.NewRequest(http.MethodPost, "/api/workspaces/daily/select", bytes.NewReader([]byte(`{}`)))
-	w = httptest.NewRecorder()
-	routes.ServeHTTP(w, r)
-	if w.Code != http.StatusOK {
-		t.Fatalf("select after restart status %d: %s", w.Code, w.Body.String())
-	}
 	r = httptest.NewRequest(http.MethodGet, "/api/setup/status", nil)
-	r.Header.Set("X-Workspace-ID", "daily")
 	w = httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
@@ -259,52 +196,36 @@ func TestSetupInitPersistsAcrossRestart(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil {
 		t.Fatal(err)
 	}
-	if status.NeedsSetup || status.ActiveWorkspace != "default" || !status.HasAPIKey {
+	if status.NeedsSetup || status.ProjectCount != 0 || !status.HasAPIKey {
 		t.Fatalf("setup state did not persist: %#v", status)
 	}
 }
 
-func TestWorkspaceScopeMiddlewareLoadsDefaultAndRejectsInvalidWorkspace(t *testing.T) {
+func TestGlobalConfigIsRequestIndependent(t *testing.T) {
 	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
 
-	r := httptest.NewRequest(http.MethodPost, "/api/workspaces", bytes.NewReader([]byte(`{"name":"research","system_prompt":"研究"}`)))
+	r := httptest.NewRequest(http.MethodPost, "/api/config", bytes.NewReader([]byte(`{"base_url":"https://example.test/v1","api_key":"secret-value","model":"global-model","system_prompt":"全局助手"}`)))
 	w := httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
-		t.Fatalf("create workspace status %d: %s", w.Code, w.Body.String())
-	}
-	r = httptest.NewRequest(http.MethodPost, "/api/workspaces/research/config", bytes.NewReader([]byte(`{"base_url":"https://example.test/v1","api_key":"secret-value","model":"research-model","system_prompt":"研究助手"}`)))
-	w = httptest.NewRecorder()
-	routes.ServeHTTP(w, r)
-	if w.Code != http.StatusOK {
-		t.Fatalf("save research config status %d: %s", w.Code, w.Body.String())
+		t.Fatalf("save global config status %d: %s", w.Code, w.Body.String())
 	}
 
-	// 显式 default 请求必须只读取 default，不能受到上一条 research 配置写入影响。
 	r = httptest.NewRequest(http.MethodGet, "/api/config", nil)
-	r.Header.Set("X-Workspace-ID", "default")
 	w = httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
 	if w.Code != http.StatusOK {
-		t.Fatalf("default config status %d: %s", w.Code, w.Body.String())
+		t.Fatalf("global config status %d: %s", w.Code, w.Body.String())
 	}
 	var cfg model.PublicModelConfig
 	if err := json.Unmarshal(w.Body.Bytes(), &cfg); err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Model == "research-model" {
-		t.Fatalf("default scoped request used research workspace config: %#v", cfg)
-	}
-
-	r = httptest.NewRequest(http.MethodGet, "/api/config", nil)
-	r.Header.Set("X-Workspace-ID", "missing-workspace")
-	w = httptest.NewRecorder()
-	routes.ServeHTTP(w, r)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("invalid workspace should fail with 400, got %d: %s", w.Code, w.Body.String())
+	if cfg.Model != "global-model" {
+		t.Fatalf("global config changed between requests: %#v", cfg)
 	}
 }

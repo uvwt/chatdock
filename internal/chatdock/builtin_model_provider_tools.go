@@ -27,18 +27,18 @@ func builtinModelProviderTools() []mcp.MCPTool {
 		"priority": map[string]any{"type": "integer", "description": "auto 策略下优先级，数字越小越优先"},
 	}
 	providerProps := map[string]any{
-		"id":                       map[string]any{"type": "string", "description": "供应商 id；存在则编辑，不存在则创建；为空时创建并自动生成"},
-		"name":                     map[string]any{"type": "string", "description": "供应商显示名称，例如 OpenAI、Volc Ark、Ollama、LM Studio"},
-		"base_url":                 map[string]any{"type": "string", "description": "OpenAI 兼容 Base URL，例如 https://api.openai.com/v1 或 http://127.0.0.1:11434/v1"},
-		"default_model":            map[string]any{"type": "string", "description": "默认模型名称，例如 gpt-4o-mini、doubao-seed-1-6、qwen3-coder"},
-		"models":                   map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "可用模型列表，必须由用户手动添加或确认。"},
-		"timeout_ms":               map[string]any{"type": "integer", "description": "请求超时毫秒，默认 120000"},
-		"enabled":                  map[string]any{"type": "boolean", "description": "是否启用供应商，默认 true"},
-		"key_strategy":             map[string]any{"type": "string", "enum": []string{"auto", "manual"}, "description": "Key 选择策略。auto=优先 selected_key_id，失败/不可用时按 priority 选择其他启用 Key；manual=只使用 selected_key_id。默认 auto。"},
-		"selected_key_id":          map[string]any{"type": "string", "description": "当前选中的 Key id。manual 策略必须有效；auto 策略下会优先使用它。"},
-		"api_keys":                 map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": keyProps}, "description": "同一供应商的多个 Key。结果只返回 has_api_key/api_key_masked 和测试状态，不返回明文。"},
-		"set_as_workspace_default": map[string]any{"type": "boolean", "description": "保存后是否设为当前工作空间默认供应商"},
-		"workspace_model":          map[string]any{"type": "string", "description": "设为当前工作空间默认供应商时使用的模型；为空用 default_model"},
+		"id":                    map[string]any{"type": "string", "description": "供应商 id；存在则编辑，不存在则创建；为空时创建并自动生成"},
+		"name":                  map[string]any{"type": "string", "description": "供应商显示名称，例如 OpenAI、Volc Ark、Ollama、LM Studio"},
+		"base_url":              map[string]any{"type": "string", "description": "OpenAI 兼容 Base URL，例如 https://api.openai.com/v1 或 http://127.0.0.1:11434/v1"},
+		"default_model":         map[string]any{"type": "string", "description": "默认模型名称，例如 gpt-4o-mini、doubao-seed-1-6、qwen3-coder"},
+		"models":                map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "可用模型列表，必须由用户手动添加或确认。"},
+		"timeout_ms":            map[string]any{"type": "integer", "description": "请求超时毫秒，默认 120000"},
+		"enabled":               map[string]any{"type": "boolean", "description": "是否启用供应商，默认 true"},
+		"key_strategy":          map[string]any{"type": "string", "enum": []string{"auto", "manual"}, "description": "Key 选择策略。auto=优先 selected_key_id，失败/不可用时按 priority 选择其他启用 Key；manual=只使用 selected_key_id。默认 auto。"},
+		"selected_key_id":       map[string]any{"type": "string", "description": "当前选中的 Key id。manual 策略必须有效；auto 策略下会优先使用它。"},
+		"api_keys":              map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": keyProps}, "description": "同一供应商的多个 Key。结果只返回 has_api_key/api_key_masked 和测试状态，不返回明文。"},
+		"set_as_global_default": map[string]any{"type": "boolean", "description": "保存后是否设为全局默认供应商"},
+		"global_model":          map[string]any{"type": "string", "description": "设为全局默认供应商时使用的模型；为空用 default_model"},
 	}
 	return []mcp.MCPTool{
 		{
@@ -54,7 +54,7 @@ func builtinModelProviderTools() []mcp.MCPTool {
 			Name:        "model_provider_save",
 			FullName:    builtinToolSaveModelProvider,
 			Title:       "保存模型供应商",
-			Description: "新增或编辑 OpenAI 兼容模型供应商；也可启用/停用、设置当前工作空间默认供应商，并在 api_keys 中维护多个 Key。",
+			Description: "新增或编辑 OpenAI 兼容模型供应商；也可启用/停用、设置全局默认供应商，并在 api_keys 中维护多个 Key。",
 			InputSchema: map[string]any{"type": "object", "properties": providerProps},
 		},
 		{
@@ -70,7 +70,7 @@ func builtinModelProviderTools() []mcp.MCPTool {
 			Name:        "model_provider_delete",
 			FullName:    builtinToolDeleteModelProvider,
 			Title:       "删除模型供应商",
-			Description: "按 id 删除全局模型供应商。删除前必须确认用户明确要求删除；正在被工作空间使用或最后一个供应商不能删除。",
+			Description: "按 id 删除全局模型供应商。删除前必须确认用户明确要求删除；正在被全局配置使用或最后一个供应商不能删除。",
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "要删除的供应商 id"}}, "required": []string{"id"}},
 		},
 	}
@@ -85,12 +85,12 @@ func isBuiltinModelProviderTool(name string) bool {
 	}
 }
 
-func (a *App) callBuiltinModelProviderTool(ctx context.Context, workspaceID string, name string, args map[string]any) (any, error) {
+func (a *App) callBuiltinModelProviderTool(ctx context.Context, name string, args map[string]any) (any, error) {
 	switch name {
 	case builtinToolListModelProviders:
 		return a.builtinListModelProviders(args)
 	case builtinToolSaveModelProvider:
-		return a.builtinSaveModelProvider(workspaceID, args)
+		return a.builtinSaveModelProvider(args)
 	case builtinToolDeleteModelProvider:
 		id, err := requiredStringArg(args, "id")
 		if err != nil {
@@ -107,7 +107,7 @@ func (a *App) callBuiltinModelProviderTool(ctx context.Context, workspaceID stri
 	}
 }
 
-func (a *App) builtinSaveModelProvider(workspaceID string, args map[string]any) (map[string]any, error) {
+func (a *App) builtinSaveModelProvider(args map[string]any) (map[string]any, error) {
 	id := strings.TrimSpace(stringArg(args, "id"))
 	var previous *store.ModelProvider
 	if id != "" {
@@ -123,15 +123,15 @@ func (a *App) builtinSaveModelProvider(workspaceID string, args map[string]any) 
 	if err != nil {
 		return nil, err
 	}
-	setDefault, _ := optionalBoolArg(args, "set_as_workspace_default")
-	workspaceModel := strings.TrimSpace(stringArg(args, "workspace_model"))
-	provider, savedConfig, err := a.store.UpsertModelProvider(workspaceID, id, input, setDefault, workspaceModel)
+	setDefault, _ := optionalBoolArg(args, "set_as_global_default")
+	globalModel := strings.TrimSpace(stringArg(args, "global_model"))
+	provider, savedConfig, err := a.store.UpsertModelProvider(id, input, setDefault, globalModel)
 	if err != nil {
 		return nil, err
 	}
 	result := map[string]any{"ok": true, "provider": provider, "secret_handling": "api_keys 已保存但不会回显；结果只包含 has_api_key/api_key_masked。"}
 	if savedConfig != nil {
-		result["workspace"] = map[string]any{"ok": true, "workspace": workspaceID, "provider_id": savedConfig.ProviderID, "model": savedConfig.Model}
+		result["global"] = map[string]any{"ok": true, "provider_id": savedConfig.ProviderID, "model": savedConfig.Model}
 	}
 	return result, nil
 }

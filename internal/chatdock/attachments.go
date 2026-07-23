@@ -55,9 +55,8 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	workspaceID := a.workspaceIDFromRequest(r)
 	name := cleanUploadName(header.Filename)
-	upload, err := a.persistUploadedFile(workspaceID, model.NewID(), name, header.Header.Get("Content-Type"), file)
+	upload, err := a.persistUploadedFile(model.NewID(), name, header.Header.Get("Content-Type"), file)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if errors.Is(err, errEmptyUpload) {
@@ -81,13 +80,12 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 			TextBytes: len([]byte(text)),
 			CreatedAt: time.Now(),
 		},
-		Prompt:      workspaceID,
 		SessionID:   strings.TrimSpace(r.FormValue("session_id")),
 		StoragePath: upload.StoragePath,
 		SHA256:      upload.SHA256,
 		TextContent: text,
 	}
-	saved, err := a.store.SaveAttachment(workspaceID, record)
+	saved, err := a.store.SaveAttachment(record)
 	if err != nil {
 		if upload.OwnsStorage {
 			_ = os.Remove(upload.StoragePath)
@@ -166,8 +164,8 @@ func isSafeRelativePath(path string) bool {
 	return path != "" && path != "." && path != ".." && !filepath.IsAbs(path) && !strings.HasPrefix(path, ".."+string(filepath.Separator))
 }
 
-func (a *App) persistUploadedFile(workspaceID string, id string, name string, contentType string, source io.Reader) (persistedUpload, error) {
-	uploadDir := filepath.Join(a.cfg.DataDir, "uploads", safeFileComponent(workspaceID))
+func (a *App) persistUploadedFile(id string, name string, contentType string, source io.Reader) (persistedUpload, error) {
+	uploadDir := filepath.Join(a.cfg.DataDir, "uploads")
 	if err := os.MkdirAll(uploadDir, uploadDirMode); err != nil {
 		return persistedUpload{}, err
 	}
@@ -225,7 +223,7 @@ func (a *App) persistUploadedFile(workspaceID string, id string, name string, co
 
 func (a *App) handleDownloadFile(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(r.PathValue("id"))
-	record, err := a.store.AttachmentRecordByID(a.workspaceIDFromRequest(r), id)
+	record, err := a.store.AttachmentRecordByID(id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err)
 		return
@@ -246,7 +244,7 @@ func (a *App) handleDownloadFile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	// 只从当前工作空间的附件记录取真实路径；前端点击卡片时通过带鉴权的 fetch 请求此接口。
+	// 只从附件记录取真实路径；前端点击卡片时通过带鉴权的 fetch 请求此接口。
 	w.Header().Set("Content-Type", llm.FirstNonEmptyString(record.MIMEType, "application/octet-stream"))
 	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": record.Name}))
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -262,7 +260,7 @@ func (a *App) handleModelImageFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	record, err := a.store.AttachmentRecordByID(a.workspaceIDFromRequest(r), id)
+	record, err := a.store.AttachmentRecordByID(id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err)
 		return

@@ -14,23 +14,23 @@ func TestAssistantOutputRecorderFlushesFirstReasoningAndContentDeltasImmediately
 	}
 	defer app.Close()
 
-	if _, err := app.store.SaveModelConfig("default", model.ModelConfig{BaseURL: "http://127.0.0.1:1", Model: "demo"}); err != nil {
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: "http://127.0.0.1:1", Model: "demo"}); err != nil {
 		t.Fatal(err)
 	}
-	session, err := app.store.CreateSession("default")
+	session, err := app.store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	job, _, _, _, err := app.store.PrepareChatJob("default", model.ChatRequest{SessionID: session.ID, Message: "hello"}, "req_first_delta")
+	job, _, _, _, err := app.store.PrepareChatJob(model.ChatRequest{SessionID: session.ID, Message: "hello"}, "req_first_delta")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	recorder := newAssistantOutputRecorder(app, "default", session.ID, job.ID)
+	recorder := newAssistantOutputRecorder(app, session.ID, job.ID)
 	if err := recorder.emit("delta", llm.StreamDelta{ReasoningContent: "r"}); err != nil {
 		t.Fatal(err)
 	}
-	_, events, err := app.store.ChatJobEventsAfter("default", job.ID, 0)
+	_, events, err := app.store.ChatJobEventsAfter(job.ID, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestAssistantOutputRecorderFlushesFirstReasoningAndContentDeltasImmediately
 	if err := recorder.emit("delta", llm.StreamDelta{Content: "O"}); err != nil {
 		t.Fatal(err)
 	}
-	_, events, err = app.store.ChatJobEventsAfter("default", job.ID, 0)
+	_, events, err = app.store.ChatJobEventsAfter(job.ID, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

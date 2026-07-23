@@ -11,12 +11,8 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func (s *Store) loadScheduledTasksForWorkspaceLocked(workspaceID string) ([]model.ScheduledTask, error) {
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return nil, err
-	}
-	tasks, err := loadScheduledTasksForWorkspaceLocked(s.db, workspaceID)
+func (s *Store) loadScheduledTasksLocked() ([]model.ScheduledTask, error) {
+	tasks, err := loadScheduledTasksLocked(s.db)
 	if err != nil {
 		return nil, err
 	}
@@ -31,18 +27,14 @@ func (s *Store) loadScheduledTasksForWorkspaceLocked(workspaceID string) ([]mode
 	}
 	sortScheduledTasks(tasks)
 	if changed {
-		if err := s.saveScheduledTasksForWorkspaceLocked(workspaceID, tasks); err != nil {
+		if err := s.saveScheduledTasksLocked(tasks); err != nil {
 			return nil, err
 		}
 	}
 	return tasks, nil
 }
 
-func (s *Store) saveScheduledTasksForWorkspaceLocked(workspaceID string, tasks []model.ScheduledTask) error {
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return err
-	}
+func (s *Store) saveScheduledTasksLocked(tasks []model.ScheduledTask) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -54,14 +46,11 @@ func (s *Store) saveScheduledTasksForWorkspaceLocked(workspaceID string, tasks [
 	for _, task := range tasks {
 		task = normalizeScheduledTaskForDB(task)
 		keep[task.ID] = true
-		if err := upsertScheduledTaskTx(tx, workspaceID, task); err != nil {
+		if err := upsertScheduledTaskTx(tx, task); err != nil {
 			return err
 		}
 	}
-	if err := deleteScheduledTasksExceptWorkspaceLocked(tx, workspaceID, keep); err != nil {
-		return err
-	}
-	if err := touchWorkspace(tx, workspaceID, time.Now()); err != nil {
+	if err := deleteScheduledTasksExceptLocked(tx, keep); err != nil {
 		return err
 	}
 	return tx.Commit()

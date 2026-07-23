@@ -18,7 +18,7 @@ type ContextPreviewItem struct {
 
 type ContextPreviewResponse struct {
 	SessionID       string               `json:"session_id"`
-	Workspace       string               `json:"workspace"`
+	ProjectID       string               `json:"project_id,omitempty"`
 	ContextMode     string               `json:"context_mode"`
 	RecentMessages  int                  `json:"recent_messages"`
 	SummarizeOld    bool                 `json:"summarize_old"`
@@ -29,21 +29,17 @@ type ContextPreviewResponse struct {
 	Items           []ContextPreviewItem `json:"items"`
 }
 
-func (s *Store) ContextPreview(workspaceID string, sessionID string) (ContextPreviewResponse, error) {
+func (s *Store) ContextPreview(sessionID string) (ContextPreviewResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return ContextPreviewResponse{}, err
-	}
-	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, strings.TrimSpace(sessionID))
+	session, ok, err := s.sessionLocked(strings.TrimSpace(sessionID))
 	if err != nil {
 		return ContextPreviewResponse{}, err
 	}
 	if !ok {
 		return ContextPreviewResponse{}, model.ErrSessionNotFound
 	}
-	cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
+	cfg, err := s.modelConfigLocked()
 	if err != nil {
 		return ContextPreviewResponse{}, err
 	}
@@ -64,7 +60,7 @@ func (s *Store) ContextPreview(workspaceID string, sessionID string) (ContextPre
 		}
 		items = append(items, ContextPreviewItem{Role: msg.Role, Source: source, Chars: chars, EstimatedTokens: tokens, ContentPreview: llm.CompactContextText(msg.Content, 360)})
 	}
-	return ContextPreviewResponse{SessionID: session.ID, Workspace: workspaceID, ContextMode: cfg.ContextMode, RecentMessages: recent, SummarizeOld: summarize, MessageCount: len(session.Messages), ContextCount: len(items), TotalChars: totalChars, EstimatedTokens: totalTokens, Items: items}, nil
+	return ContextPreviewResponse{SessionID: session.ID, ProjectID: session.ProjectID, ContextMode: cfg.ContextMode, RecentMessages: recent, SummarizeOld: summarize, MessageCount: len(session.Messages), ContextCount: len(items), TotalChars: totalChars, EstimatedTokens: totalTokens, Items: items}, nil
 }
 
 func estimateTokens(content string) int {

@@ -20,7 +20,7 @@ func chatJobCompletionStatus(ctx context.Context, runErr error) (string, error) 
 	return "success", nil
 }
 
-func (a *App) finishChatJob(ctx context.Context, workspaceID string, sessionID string, jobID string, status string, cfg model.ModelConfig, recorder *assistantOutputRecorder, runErr error) {
+func (a *App) finishChatJob(ctx context.Context, sessionID string, jobID string, status string, cfg model.ModelConfig, recorder *assistantOutputRecorder, runErr error) {
 	finishedJob, finishErr := a.store.FinishChatJob(jobID, status, recorder.answerText(), recorder.reasoningText(), runErr)
 	fields := logFields{
 		"request_id":  requestIDFromContext(ctx),
@@ -40,10 +40,10 @@ func (a *App) finishChatJob(ctx context.Context, workspaceID string, sessionID s
 		return
 	}
 	logInfo("chat_job_finished", fields)
-	a.startSessionTitleGeneration(requestIDFromContext(ctx), workspaceID, sessionID, cfg)
+	a.startSessionTitleGeneration(requestIDFromContext(ctx), sessionID, cfg)
 }
 
-func (a *App) startSessionTitleGeneration(requestID string, workspaceID string, sessionID string, cfg model.ModelConfig) {
+func (a *App) startSessionTitleGeneration(requestID string, sessionID string, cfg model.ModelConfig) {
 	a.jobMu.Lock()
 	if a.closing {
 		a.jobMu.Unlock()
@@ -55,7 +55,7 @@ func (a *App) startSessionTitleGeneration(requestID string, workspaceID string, 
 	go func() {
 		defer a.backgroundWG.Done()
 		titleCtx := withRequestID(a.lifecycleCtx, requestID)
-		if _, err := a.maybeGenerateSessionTitle(titleCtx, workspaceID, sessionID, cfg); err != nil && !isClientCanceled(titleCtx, err) {
+		if _, err := a.maybeGenerateSessionTitle(titleCtx, sessionID, cfg); err != nil && !isClientCanceled(titleCtx, err) {
 			logError("session_title_generation_failed", err, logFields{"request_id": requestID, "session_id": sessionID})
 		}
 	}()

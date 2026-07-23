@@ -8,21 +8,17 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-func (s *Store) FinishScheduledTaskRun(workspaceID string, taskID string, runID string, sessionID string, answer string, startedAt time.Time, manual bool, runErr error, assistantAlreadySaved bool) (model.ScheduledTaskRunResponse, error) {
+func (s *Store) FinishScheduledTaskRun(taskID string, runID string, sessionID string, answer string, startedAt time.Time, manual bool, runErr error, assistantAlreadySaved bool) (model.ScheduledTaskRunResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return model.ScheduledTaskRunResponse{}, err
-	}
 	finishedAt := time.Now()
 	answer = strings.TrimSpace(answer)
 	sessionID = strings.TrimSpace(sessionID)
-	session, sessionChanged, err := s.prepareScheduledTaskSessionCompletionLocked(workspaceID, sessionID, answer, runErr, assistantAlreadySaved, finishedAt)
+	session, sessionChanged, err := s.prepareScheduledTaskSessionCompletionLocked(sessionID, answer, runErr, assistantAlreadySaved, finishedAt)
 	if err != nil {
 		return model.ScheduledTaskRunResponse{}, err
 	}
-	task, err := s.scheduledTaskByIDLocked(workspaceID, taskID)
+	task, err := s.scheduledTaskByIDLocked(taskID)
 	if err != nil {
 		return model.ScheduledTaskRunResponse{}, err
 	}
@@ -32,17 +28,17 @@ func (s *Store) FinishScheduledTaskRun(workspaceID string, taskID string, runID 
 		Status: status, Error: errorText, Manual: manual, SessionID: sessionID,
 		StartedAt: startedAt, FinishedAt: &finishedAt,
 	})
-	if err := s.saveScheduledTaskCompletionLocked(workspaceID, task, record, session, sessionChanged); err != nil {
+	if err := s.saveScheduledTaskCompletionLocked(task, record, session, sessionChanged); err != nil {
 		return model.ScheduledTaskRunResponse{}, err
 	}
 	return model.ScheduledTaskRunResponse{Task: task, Run: &record, Session: cloneSession(session)}, nil
 }
 
-func (s *Store) prepareScheduledTaskSessionCompletionLocked(workspaceID string, sessionID string, answer string, runErr error, assistantAlreadySaved bool, finishedAt time.Time) (*model.Session, bool, error) {
+func (s *Store) prepareScheduledTaskSessionCompletionLocked(sessionID string, answer string, runErr error, assistantAlreadySaved bool, finishedAt time.Time) (*model.Session, bool, error) {
 	if sessionID == "" {
 		return nil, false, nil
 	}
-	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, sessionID)
+	session, ok, err := s.sessionLocked(sessionID)
 	if err != nil {
 		return nil, false, err
 	}
@@ -63,8 +59,8 @@ func (s *Store) prepareScheduledTaskSessionCompletionLocked(workspaceID string, 
 	return session, true, nil
 }
 
-func (s *Store) scheduledTaskByIDLocked(workspaceID string, taskID string) (model.ScheduledTask, error) {
-	tasks, err := s.loadScheduledTasksForWorkspaceLocked(workspaceID)
+func (s *Store) scheduledTaskByIDLocked(taskID string) (model.ScheduledTask, error) {
+	tasks, err := s.loadScheduledTasksLocked()
 	if err != nil {
 		return model.ScheduledTask{}, err
 	}
@@ -108,24 +104,21 @@ func finishScheduledTaskState(task model.ScheduledTask, sessionID string, starte
 	return task, status, errorText
 }
 
-func (s *Store) saveScheduledTaskCompletionLocked(workspaceID string, task model.ScheduledTask, record model.ScheduledTaskRunRecord, session *model.Session, sessionChanged bool) error {
+func (s *Store) saveScheduledTaskCompletionLocked(task model.ScheduledTask, record model.ScheduledTaskRunRecord, session *model.Session, sessionChanged bool) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
 	if sessionChanged {
-		if err := upsertSessionTablesTx(tx, workspaceID, session); err != nil {
+		if err := upsertSessionTablesTx(tx, session); err != nil {
 			return err
 		}
 	}
-	if err := upsertScheduledTaskTx(tx, workspaceID, normalizeScheduledTaskForDB(task)); err != nil {
+	if err := upsertScheduledTaskTx(tx, normalizeScheduledTaskForDB(task)); err != nil {
 		return err
 	}
-	if err := upsertScheduledTaskRunTx(tx, workspaceID, record); err != nil {
-		return err
-	}
-	if err := touchWorkspace(tx, workspaceID, time.Now()); err != nil {
+	if err := upsertScheduledTaskRunTx(tx, record); err != nil {
 		return err
 	}
 	return tx.Commit()

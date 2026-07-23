@@ -16,14 +16,10 @@ type ToolEmbeddingRecord struct {
 	Embedding      []float64
 }
 
-func (s *Store) ToolEmbeddings(workspaceID string, model string) (map[string]ToolEmbeddingRecord, error) {
+func (s *Store) ToolEmbeddings(model string) (map[string]ToolEmbeddingRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := s.db.Query(`SELECT full_name, source_hash, embedding_model, embedding_json, embedding_blob FROM tool_embeddings WHERE workspace_id = ? AND embedding_model = ?`, workspaceID, model)
+	rows, err := s.db.Query(`SELECT full_name, source_hash, embedding_model, embedding_json, embedding_blob FROM tool_embeddings WHERE embedding_model = ?`, model)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +48,7 @@ func (s *Store) ToolEmbeddings(workspaceID string, model string) (map[string]Too
 	return out, rows.Err()
 }
 
-func (s *Store) SaveToolEmbedding(workspaceID string, item ToolEmbeddingRecord) error {
+func (s *Store) SaveToolEmbedding(item ToolEmbeddingRecord) error {
 	raw, err := json.Marshal(item.Embedding)
 	if err != nil {
 		return err
@@ -60,68 +56,13 @@ func (s *Store) SaveToolEmbedding(workspaceID string, item ToolEmbeddingRecord) 
 	blob := encodeEmbeddingBlob(item.Embedding)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	workspaceID, err = s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return err
-	}
-	_, err = s.db.Exec(`INSERT INTO tool_embeddings(workspace_id, full_name, source_hash, embedding_model, embedding_json, embedding_blob, indexed_at) VALUES(?, ?, ?, ?, ?, ?, ?) ON CONFLICT(workspace_id, full_name, embedding_model) DO UPDATE SET source_hash = excluded.source_hash, embedding_json = excluded.embedding_json, embedding_blob = excluded.embedding_blob, indexed_at = excluded.indexed_at`, workspaceID, item.FullName, item.SourceHash, item.EmbeddingModel, string(raw), blob, formatDBTime(time.Now()))
+	_, err = s.db.Exec(`INSERT INTO tool_embeddings(full_name, source_hash, embedding_model, embedding_json, embedding_blob, indexed_at) VALUES(?, ?, ?, ?, ?, ?) ON CONFLICT(full_name, embedding_model) DO UPDATE SET source_hash = excluded.source_hash, embedding_json = excluded.embedding_json, embedding_blob = excluded.embedding_blob, indexed_at = excluded.indexed_at`, item.FullName, item.SourceHash, item.EmbeddingModel, string(raw), blob, formatDBTime(time.Now()))
 	return err
 }
 
-func deleteToolEmbeddingsWith(writer sqlWriter, workspaceID string) error {
-	_, err := writer.Exec(`DELETE FROM tool_embeddings WHERE workspace_id = ?`, workspaceID)
+func deleteToolEmbeddingsWith(writer sqlWriter) error {
+	_, err := writer.Exec(`DELETE FROM tool_embeddings`)
 	return err
-}
-
-func (s *Store) migrateToolEmbeddingBlobs() error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-	migrated, err := metaValueWith(tx, "tool_embedding_blobs_migrated")
-	if err != nil {
-		return err
-	}
-	if migrated == "1" {
-		return nil
-	}
-	rows, err := tx.Query(`SELECT workspace_id, full_name, embedding_model, embedding_json FROM tool_embeddings WHERE length(embedding_blob) = 0`)
-	if err != nil {
-		return err
-	}
-	type item struct{ workspaceID, fullName, model, raw string }
-	items := []item{}
-	for rows.Next() {
-		var it item
-		if err := rows.Scan(&it.workspaceID, &it.fullName, &it.model, &it.raw); err != nil {
-			_ = rows.Close()
-			return err
-		}
-		items = append(items, it)
-	}
-	if err := rows.Close(); err != nil {
-		return err
-	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	for _, it := range items {
-		var vector []float64
-		if err := json.Unmarshal([]byte(it.raw), &vector); err != nil {
-			return fmt.Errorf("decode legacy tool embedding %s: %w", it.fullName, err)
-		}
-		if len(vector) == 0 {
-			return fmt.Errorf("legacy tool embedding %s is empty", it.fullName)
-		}
-		if _, err := tx.Exec(`UPDATE tool_embeddings SET embedding_blob = ? WHERE workspace_id = ? AND full_name = ? AND embedding_model = ?`, encodeEmbeddingBlob(vector), it.workspaceID, it.fullName, it.model); err != nil {
-			return err
-		}
-	}
-	if err := setMetaValueWith(tx, "tool_embedding_blobs_migrated", "1"); err != nil {
-		return err
-	}
-	return tx.Commit()
 }
 
 func encodeEmbeddingBlob(values []float64) []byte {

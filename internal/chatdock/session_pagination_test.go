@@ -22,11 +22,11 @@ func TestSessionListAPIUsesCursorPaginationWhenRequested(t *testing.T) {
 		t.Fatal(err)
 	}
 	for index := 0; index < 3; index++ {
-		session, err := app.store.CreateSession("default")
+		session, err := app.store.CreateSession("")
 		if err != nil {
 			t.Fatal(err)
 		}
-		appendUserMessageForAppTest(t, app, "default", session.ID, "分页会话")
+		appendUserMessageForAppTest(t, app, session.ID, "分页会话")
 	}
 
 	routes := app.routes()

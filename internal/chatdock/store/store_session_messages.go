@@ -15,15 +15,15 @@ type preparedChatSession struct {
 	changed       bool
 }
 
-func (s *Store) prepareUserMessageLocked(workspaceID string, sessionID string, content string, attachmentIDs []string) (preparedChatSession, error) {
-	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, sessionID)
+func (s *Store) prepareUserMessageLocked(sessionID string, content string, attachmentIDs []string) (preparedChatSession, error) {
+	session, ok, err := s.sessionLocked(sessionID)
 	if err != nil {
 		return preparedChatSession{}, err
 	}
 	if !ok {
 		return preparedChatSession{}, model.ErrSessionNotFound
 	}
-	attachments, err := s.attachmentRecordsByIDsLocked(workspaceID, attachmentIDs)
+	attachments, err := s.attachmentRecordsByIDsLocked(attachmentIDs)
 	if err != nil {
 		return preparedChatSession{}, err
 	}
@@ -49,8 +49,8 @@ func (s *Store) prepareUserMessageLocked(workspaceID string, sessionID string, c
 	return preparedChatSession{session: session, attachmentIDs: attachmentIDs, messageID: messageID, history: history, changed: true}, nil
 }
 
-func (s *Store) prepareSessionRegenerationLocked(workspaceID string, sessionID string) (preparedChatSession, error) {
-	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, sessionID)
+func (s *Store) prepareSessionRegenerationLocked(sessionID string) (preparedChatSession, error) {
+	session, ok, err := s.sessionLocked(sessionID)
 	if err != nil {
 		return preparedChatSession{}, err
 	}
@@ -72,7 +72,7 @@ func (s *Store) prepareSessionRegenerationLocked(workspaceID string, sessionID s
 	for _, item := range last.Attachments {
 		attachmentIDs = append(attachmentIDs, item.ID)
 	}
-	attachments, err := s.attachmentRecordsByIDsLocked(workspaceID, attachmentIDs)
+	attachments, err := s.attachmentRecordsByIDsLocked(attachmentIDs)
 	if err != nil {
 		return preparedChatSession{}, err
 	}
@@ -83,23 +83,19 @@ func (s *Store) prepareSessionRegenerationLocked(workspaceID string, sessionID s
 	return preparedChatSession{session: session, attachmentIDs: attachmentIDs, history: history}, nil
 }
 
-func (s *Store) PrepareChat(workspaceID string, input model.ChatRequest) (*model.Session, model.ModelConfig, []model.Message, error) {
-	_, session, cfg, history, err := s.prepareChatRequest(workspaceID, input, "", false)
+func (s *Store) PrepareChat(input model.ChatRequest) (*model.Session, model.ModelConfig, []model.Message, error) {
+	_, session, cfg, history, err := s.prepareChatRequest(input, "", false)
 	return session, cfg, history, err
 }
 
-func (s *Store) PrepareChatJob(workspaceID string, input model.ChatRequest, requestID string) (ChatJob, *model.Session, model.ModelConfig, []model.Message, error) {
-	return s.prepareChatRequest(workspaceID, input, requestID, true)
+func (s *Store) PrepareChatJob(input model.ChatRequest, requestID string) (ChatJob, *model.Session, model.ModelConfig, []model.Message, error) {
+	return s.prepareChatRequest(input, requestID, true)
 }
 
-func (s *Store) prepareChatRequest(workspaceID string, input model.ChatRequest, requestID string, createJob bool) (ChatJob, *model.Session, model.ModelConfig, []model.Message, error) {
+func (s *Store) prepareChatRequest(input model.ChatRequest, requestID string, createJob bool) (ChatJob, *model.Session, model.ModelConfig, []model.Message, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return ChatJob{}, nil, model.ModelConfig{}, nil, err
-	}
-	cfg, err := s.modelConfigForWorkspaceLocked(workspaceID)
+	cfg, err := s.modelConfigLocked()
 	if err != nil {
 		return ChatJob{}, nil, model.ModelConfig{}, nil, err
 	}
@@ -109,12 +105,17 @@ func (s *Store) prepareChatRequest(workspaceID string, input model.ChatRequest, 
 	}
 	var prepared preparedChatSession
 	if input.Regenerate {
-		prepared, err = s.prepareSessionRegenerationLocked(workspaceID, input.SessionID)
+		prepared, err = s.prepareSessionRegenerationLocked(input.SessionID)
 	} else {
-		prepared, err = s.prepareUserMessageLocked(workspaceID, input.SessionID, input.Message, input.AttachmentIDs)
+		prepared, err = s.prepareUserMessageLocked(input.SessionID, input.Message, input.AttachmentIDs)
 	}
 	if err != nil {
 		return ChatJob{}, nil, model.ModelConfig{}, nil, err
+	}
+	if prompt, ok, err := s.projectPromptForSessionLocked(prepared.session.ProjectID); err != nil {
+		return ChatJob{}, nil, model.ModelConfig{}, nil, err
+	} else if ok {
+		cfg.SystemPrompt = BuildFinalSystemPrompt(cfg.SystemPrompt, prompt)
 	}
 	modelChanged := prepared.session.ProviderID != cfg.ProviderID || prepared.session.Model != cfg.Model
 	prepared.session.ProviderID = cfg.ProviderID
@@ -126,16 +127,16 @@ func (s *Store) prepareChatRequest(workspaceID string, input model.ChatRequest, 
 	}
 	defer func() { _ = tx.Rollback() }()
 	if prepared.changed || modelChanged {
-		if err := bindAttachmentsTx(tx, workspaceID, prepared.session.ID, prepared.messageID, prepared.attachmentIDs); err != nil {
+		if err := bindAttachmentsTx(tx, prepared.session.ID, prepared.messageID, prepared.attachmentIDs); err != nil {
 			return ChatJob{}, nil, model.ModelConfig{}, nil, err
 		}
-		if err := persistSessionTx(tx, workspaceID, prepared.session); err != nil {
+		if err := persistSessionTx(tx, prepared.session); err != nil {
 			return ChatJob{}, nil, model.ModelConfig{}, nil, err
 		}
 	}
 	var job ChatJob
 	if createJob {
-		job = newChatJob(workspaceID, prepared.session.ID, requestID, time.Now())
+		job = newChatJob(prepared.session.ID, requestID, time.Now())
 		if err := insertChatJobWith(tx, job); err != nil {
 			return ChatJob{}, nil, model.ModelConfig{}, nil, err
 		}
@@ -146,18 +147,18 @@ func (s *Store) prepareChatRequest(workspaceID string, input model.ChatRequest, 
 	return job, cloneSession(prepared.session), cfg, prepared.history, nil
 }
 
-func (s *Store) AppendAssistantMessage(workspaceID string, sessionID string, content string) (*model.Session, error) {
-	return s.AppendAssistantMessageWithReasoning(workspaceID, sessionID, content, "")
+func (s *Store) AppendAssistantMessage(sessionID string, content string) (*model.Session, error) {
+	return s.AppendAssistantMessageWithReasoning(sessionID, content, "")
 }
 
-func (s *Store) AppendAssistantMessageWithReasoning(workspaceID string, sessionID string, content string, reasoning string) (*model.Session, error) {
-	return s.AppendAssistantMessageWithParts(workspaceID, sessionID, content, reasoning, nil, nil)
+func (s *Store) AppendAssistantMessageWithReasoning(sessionID string, content string, reasoning string) (*model.Session, error) {
+	return s.AppendAssistantMessageWithParts(sessionID, content, reasoning, nil, nil)
 }
 
-func (s *Store) AppendAssistantMessageWithParts(workspaceID string, sessionID string, content string, reasoning string, parts []model.MessagePart, events []model.MessageEvent) (*model.Session, error) {
+func (s *Store) AppendAssistantMessageWithParts(sessionID string, content string, reasoning string, parts []model.MessagePart, events []model.MessageEvent) (*model.Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, sessionID)
+	session, ok, err := s.sessionLocked(sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -167,16 +168,16 @@ func (s *Store) AppendAssistantMessageWithParts(workspaceID string, sessionID st
 	now := time.Now()
 	session.Messages = append(session.Messages, model.Message{ID: model.NewID(), Role: "assistant", Content: content, Reasoning: strings.TrimSpace(reasoning), Parts: cloneMessageParts(parts), Events: cloneMessageEvents(events), CreatedAt: now})
 	session.UpdatedAt = now
-	if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
+	if err := s.saveSessionLocked(session); err != nil {
 		return nil, err
 	}
 	return cloneSession(session), nil
 }
 
-func (s *Store) UpsertAssistantMessageCheckpoint(workspaceID string, sessionID string, messageID string, content string, reasoning string, parts []model.MessagePart, events []model.MessageEvent, messageError *model.MessageError) (*model.Session, string, error) {
+func (s *Store) UpsertAssistantMessageCheckpoint(sessionID string, messageID string, content string, reasoning string, parts []model.MessagePart, events []model.MessageEvent, messageError *model.MessageError) (*model.Session, string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	session, ok, err := s.sessionForWorkspaceLocked(workspaceID, sessionID)
+	session, ok, err := s.sessionLocked(sessionID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -216,7 +217,7 @@ func (s *Store) UpsertAssistantMessageCheckpoint(workspaceID string, sessionID s
 	}
 	session.Messages[index] = message
 	session.UpdatedAt = now
-	if err := s.saveSessionForWorkspaceLocked(workspaceID, session); err != nil {
+	if err := s.saveSessionLocked(session); err != nil {
 		return nil, "", err
 	}
 	return cloneSession(session), messageID, nil

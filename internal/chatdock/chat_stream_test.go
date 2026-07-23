@@ -46,14 +46,14 @@ func TestChatStreamPublishesFirstDeltaBeforeModelCompletes(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer app.Close()
-	if _, err := app.store.SaveModelConfig("default", model.ModelConfig{BaseURL: modelServer.URL, Model: "demo"}); err != nil {
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: modelServer.URL, Model: "demo"}); err != nil {
 		t.Fatal(err)
 	}
-	session, err := app.store.CreateSession("default")
+	session, err := app.store.CreateSession("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.RenameSession("default", session.ID, "固定标题"); err != nil {
+	if _, err := app.store.RenameSession(session.ID, "固定标题"); err != nil {
 		t.Fatal(err)
 	}
 

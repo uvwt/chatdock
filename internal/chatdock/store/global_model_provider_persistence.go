@@ -45,31 +45,3 @@ func saveModelProviderRecordsWith(writer sqlWriter, records []modelProviderRecor
 	}
 	return setMetaValueWith(writer, modelProvidersMetaKey, string(raw))
 }
-
-func (s *Store) migrateModelProviderAPIKeys() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	raw, err := s.metaValue(modelProvidersMetaKey)
-	if err != nil {
-		return err
-	}
-	if strings.TrimSpace(raw) == "" {
-		return nil
-	}
-	var records []modelProviderRecord
-	if err := json.Unmarshal([]byte(raw), &records); err != nil {
-		return err
-	}
-	migrated := false
-	for index := range records {
-		if strings.TrimSpace(records[index].LegacyAPIKey) != "" {
-			migrated = true
-		}
-		records[index] = normalizeModelProviderRecord(records[index])
-	}
-	if !migrated {
-		return nil
-	}
-	return s.saveModelProviderRecordsLocked(records)
-}

@@ -10,7 +10,7 @@ import (
 
 // HydrateMessageEventDetails 只为即将进入模型上下文的消息补载完整事件详情。
 // 会话列表和普通历史读取仍保持轻量，避免重新把所有大型工具结果常驻内存。
-func (s *Store) HydrateMessageEventDetails(workspaceID string, sessionID string, messages []model.Message, messageIndexes []int) error {
+func (s *Store) HydrateMessageEventDetails(sessionID string, messages []model.Message, messageIndexes []int) error {
 	if len(messages) == 0 || len(messageIndexes) == 0 {
 		return nil
 	}
@@ -18,10 +18,6 @@ func (s *Store) HydrateMessageEventDetails(workspaceID string, sessionID string,
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	workspaceID, err := s.requireWorkspaceLocked(workspaceID)
-	if err != nil {
-		return err
-	}
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" {
 		return fmt.Errorf("session id is empty")
@@ -41,8 +37,8 @@ func (s *Store) HydrateMessageEventDetails(workspaceID string, sessionID string,
 	}
 
 	placeholders := make([]string, len(indexes))
-	args := make([]any, 0, len(indexes)+2)
-	args = append(args, workspaceID, sessionID)
+	args := make([]any, 0, len(indexes)+1)
+	args = append(args, sessionID)
 	for index, messageIndex := range indexes {
 		placeholders[index] = "?"
 		args = append(args, messageIndex)
@@ -50,8 +46,8 @@ func (s *Store) HydrateMessageEventDetails(workspaceID string, sessionID string,
 	query := `SELECT e.id, d.details_json
 FROM session_message_events e
 JOIN session_message_event_details d
-  ON d.workspace_id = e.workspace_id AND d.session_id = e.session_id AND d.event_id = e.id
-WHERE e.workspace_id = ? AND e.session_id = ? AND e.message_index IN (` + strings.Join(placeholders, ",") + `)`
+  ON d.session_id = e.session_id AND d.event_id = e.id
+WHERE e.session_id = ? AND e.message_index IN (` + strings.Join(placeholders, ",") + `)`
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return err

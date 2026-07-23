@@ -26,12 +26,12 @@ func TestListSessionPageKeepsStableOrderAcrossPages(t *testing.T) {
 		{title: "普通居中", updatedAt: "2026-07-21T09:00:00.000000000Z"},
 	}
 	for _, item := range fixtures {
-		session, err := store.CreateSession(defaultWorkspaceID)
+		session, err := store.CreateSession("")
 		if err != nil {
 			t.Fatal(err)
 		}
-		appendUserMessageForTest(t, store, defaultWorkspaceID, session.ID, "摘要 "+item.title)
-		if _, err := store.db.Exec(`UPDATE sessions SET title = ?, pinned = ?, updated_at = ? WHERE workspace_id = ? AND id = ?`, item.title, boolInt(item.pinned), item.updatedAt, defaultWorkspaceID, session.ID); err != nil {
+		appendUserMessageForTest(t, store, session.ID, "摘要 "+item.title)
+		if _, err := store.db.Exec(`UPDATE sessions SET title = ?, pinned = ?, updated_at = ? WHERE id = ?`, item.title, boolInt(item.pinned), item.updatedAt, session.ID); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -39,7 +39,7 @@ func TestListSessionPageKeepsStableOrderAcrossPages(t *testing.T) {
 	var titles []string
 	cursor := ""
 	for pageNumber := 0; ; pageNumber++ {
-		items, nextCursor, hasMore, err := store.ListSessionPage(defaultWorkspaceID, cursor, 2)
+		items, nextCursor, hasMore, err := store.ListSessionPage(SessionProjectFilter{Mode: SessionProjectFilterAll}, cursor, 2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -65,7 +65,7 @@ func TestListSessionPageKeepsStableOrderAcrossPages(t *testing.T) {
 	if !reflect.DeepEqual(titles, want) {
 		t.Fatalf("page order = %#v, want %#v", titles, want)
 	}
-	if _, _, _, err := store.ListSessionPage(defaultWorkspaceID, "invalid", 2); err == nil {
+	if _, _, _, err := store.ListSessionPage(SessionProjectFilter{Mode: SessionProjectFilterAll}, "invalid", 2); err == nil {
 		t.Fatal("invalid cursor should fail")
 	}
 }
@@ -78,25 +78,25 @@ func TestSearchSessionPageDoesNotRepeatResults(t *testing.T) {
 	t.Cleanup(func() { _ = store.Close() })
 
 	for index, title := range []string{"搜索最新", "搜索居中", "搜索最旧"} {
-		session, err := store.CreateSession(defaultWorkspaceID)
+		session, err := store.CreateSession("")
 		if err != nil {
 			t.Fatal(err)
 		}
-		appendUserMessageForTest(t, store, defaultWorkspaceID, session.ID, "共同分页关键词 "+title)
+		appendUserMessageForTest(t, store, session.ID, "共同分页关键词 "+title)
 		updatedAt := time.Date(2026, 7, 21, 10-index, 0, 0, index+1, time.UTC).Format(time.RFC3339Nano)
-		if _, err := store.db.Exec(`UPDATE sessions SET title = ?, updated_at = ? WHERE workspace_id = ? AND id = ?`, title, updatedAt, defaultWorkspaceID, session.ID); err != nil {
+		if _, err := store.db.Exec(`UPDATE sessions SET title = ?, updated_at = ? WHERE id = ?`, title, updatedAt, session.ID); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	first, cursor, hasMore, err := store.SearchSessionPage(defaultWorkspaceID, "共同分页关键词", "", 2)
+	first, cursor, hasMore, err := store.SearchSessionPage("共同分页关键词", "", 2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(first) != 2 || !hasMore || cursor == "" {
 		t.Fatalf("unexpected first page: items=%#v cursor=%q hasMore=%v", first, cursor, hasMore)
 	}
-	second, nextCursor, hasMore, err := store.SearchSessionPage(defaultWorkspaceID, "共同分页关键词", cursor, 2)
+	second, nextCursor, hasMore, err := store.SearchSessionPage("共同分页关键词", cursor, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestSearchSessionPageDoesNotRepeatResults(t *testing.T) {
 	if len(seen) != 3 {
 		t.Fatalf("search returned %d unique results", len(seen))
 	}
-	if _, _, _, err := store.SearchSessionPage(defaultWorkspaceID, "共同分页关键词", "bad", 2); err == nil {
+	if _, _, _, err := store.SearchSessionPage("共同分页关键词", "bad", 2); err == nil {
 		t.Fatal("invalid search cursor should fail")
 	}
 }
@@ -133,7 +133,7 @@ func TestSessionPaginationIndexExists(t *testing.T) {
 	t.Cleanup(func() { _ = store.Close() })
 
 	var count int
-	if err := store.db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'idx_sessions_workspace_pinned_updated'`).Scan(&count); err != nil {
+	if err := store.db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'idx_sessions_project_updated'`).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 1 {

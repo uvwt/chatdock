@@ -10,12 +10,18 @@ import (
 	"time"
 
 	"chatdock/internal/chatdock/model"
+	storepkg "chatdock/internal/chatdock/store"
 )
+
+type createSessionRequest struct {
+	ProjectID string `json:"project_id,omitempty"`
+}
 
 func (a *App) handleListSessions(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
+	filter := sessionProjectFilterFromRequest(r)
 	if strings.TrimSpace(query.Get("limit")) == "" && strings.TrimSpace(query.Get("cursor")) == "" {
-		items, err := a.store.ListSessions(a.workspaceIDFromRequest(r))
+		items, err := a.store.ListSessions(filter)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err)
 			return
@@ -28,7 +34,7 @@ func (a *App) handleListSessions(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	items, nextCursor, hasMore, err := a.store.ListSessionPage(a.workspaceIDFromRequest(r), query.Get("cursor"), limit)
+	items, nextCursor, hasMore, err := a.store.ListSessionPage(filter, query.Get("cursor"), limit)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -37,16 +43,27 @@ func (a *App) handleListSessions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleCreateSession(w http.ResponseWriter, r *http.Request) {
-	session, err := a.store.CreateSession(a.workspaceIDFromRequest(r))
+	var input createSessionRequest
+	if r.Body != nil && r.ContentLength != 0 {
+		if err := readJSON(r, &input); err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+	}
+	session, err := a.store.CreateSession(input.ProjectID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
+		status := http.StatusInternalServerError
+		if errors.Is(err, model.ErrProjectNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err)
 		return
 	}
 	writeJSONResponse(w, http.StatusOK, session)
 }
 
 func (a *App) handleGetSession(w http.ResponseWriter, r *http.Request) {
-	session, ok, err := a.store.GetSession(a.workspaceIDFromRequest(r), r.PathValue("id"))
+	session, ok, err := a.store.GetSession(r.PathValue("id"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -68,7 +85,7 @@ func (a *App) handlePinSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	session, err := a.store.PinSession(a.workspaceIDFromRequest(r), r.PathValue("id"), input.Pinned)
+	session, err := a.store.PinSession(r.PathValue("id"), input.Pinned)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -86,7 +103,7 @@ func (a *App) handleUpdateSessionModel(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	session, err := a.store.UpdateSessionModel(a.workspaceIDFromRequest(r), r.PathValue("id"), input.ProviderID, input.Model)
+	session, err := a.store.UpdateSessionModel(r.PathValue("id"), input.ProviderID, input.Model)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -104,7 +121,7 @@ func (a *App) handleRenameSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	session, err := a.store.RenameSession(a.workspaceIDFromRequest(r), r.PathValue("id"), input.Title)
+	session, err := a.store.RenameSession(r.PathValue("id"), input.Title)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -117,7 +134,7 @@ func (a *App) handleRenameSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleCloneSession(w http.ResponseWriter, r *http.Request) {
-	session, err := a.store.CloneSession(a.workspaceIDFromRequest(r), r.PathValue("id"))
+	session, err := a.store.CloneSession(r.PathValue("id"))
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -135,7 +152,7 @@ func (a *App) handleBranchSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	session, err := a.store.BranchSession(a.workspaceIDFromRequest(r), r.PathValue("id"), input.MessageIndex)
+	session, err := a.store.BranchSession(r.PathValue("id"), input.MessageIndex)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -153,7 +170,7 @@ func (a *App) handleEditMessage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	session, err := a.store.EditUserMessageAndTruncate(a.workspaceIDFromRequest(r), r.PathValue("id"), input.MessageID, input.MessageIndex, input.Content)
+	session, err := a.store.EditUserMessageAndTruncate(r.PathValue("id"), input.MessageID, input.MessageIndex, input.Content)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, model.ErrSessionNotFound) {
@@ -166,7 +183,7 @@ func (a *App) handleEditMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleExportSession(w http.ResponseWriter, r *http.Request) {
-	session, ok, err := a.store.GetSession(a.workspaceIDFromRequest(r), r.PathValue("id"))
+	session, ok, err := a.store.GetSession(r.PathValue("id"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -195,7 +212,7 @@ func (a *App) handleExportSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
-	ok, err := a.store.DeleteSession(a.workspaceIDFromRequest(r), r.PathValue("id"))
+	ok, err := a.store.DeleteSession(r.PathValue("id"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -205,6 +222,19 @@ func (a *App) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func sessionProjectFilterFromRequest(r *http.Request) storepkg.SessionProjectFilter {
+	value := strings.TrimSpace(r.URL.Query().Get("project_id"))
+	if value == "" {
+		return storepkg.SessionProjectFilter{Mode: storepkg.SessionProjectFilterAll}
+	}
+	switch strings.ToLower(value) {
+	case "null", "none", "empty":
+		return storepkg.SessionProjectFilter{Mode: storepkg.SessionProjectFilterNoProject}
+	default:
+		return storepkg.SessionProjectFilter{Mode: storepkg.SessionProjectFilterByProject, ProjectID: value}
+	}
 }
 
 func sessionToMarkdown(session *model.Session) string {

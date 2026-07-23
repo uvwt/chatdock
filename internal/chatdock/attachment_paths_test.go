@@ -83,10 +83,10 @@ func TestDownloadResolvesRelocatedHistoricalAttachmentPath(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = app.Close() })
 	record := model.AttachmentRecord{
-		Attachment: model.Attachment{ID: "historical", Name: "historical.txt", MIMEType: "text/plain", Size: int64(len(content)), Status: "stored", CreatedAt: time.Now()},
-		Prompt:     "default", StoragePath: "/Volumes/OLD/Docker/chatdock/data/uploads/default/historical.txt",
+		Attachment:  model.Attachment{ID: "historical", Name: "historical.txt", MIMEType: "text/plain", Size: int64(len(content)), Status: "stored", CreatedAt: time.Now()},
+		StoragePath: "/Volumes/OLD/Docker/chatdock/data/uploads/default/historical.txt",
 	}
-	if _, err := app.store.SaveAttachment("default", record); err != nil {
+	if _, err := app.store.SaveAttachment(record); err != nil {
 		t.Fatal(err)
 	}
 
@@ -119,14 +119,14 @@ func TestPersistUploadedFileReusesBlobBehindRelocatedPath(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = app.Close() })
 	record := model.AttachmentRecord{
-		Attachment: model.Attachment{ID: "existing", Name: "existing.txt", MIMEType: "text/plain", Size: int64(len(content)), Status: "stored", CreatedAt: time.Now()},
-		Prompt:     "default", StoragePath: "/Volumes/OLD/Docker/chatdock/data/uploads/default/existing.txt", SHA256: sha,
+		Attachment:  model.Attachment{ID: "existing", Name: "existing.txt", MIMEType: "text/plain", Size: int64(len(content)), Status: "stored", CreatedAt: time.Now()},
+		StoragePath: "/Volumes/OLD/Docker/chatdock/data/uploads/default/existing.txt", SHA256: sha,
 	}
-	if _, err := app.store.SaveAttachment("default", record); err != nil {
+	if _, err := app.store.SaveAttachment(record); err != nil {
 		t.Fatal(err)
 	}
 
-	upload, err := app.persistUploadedFile("default", "duplicate", "duplicate.txt", "text/plain", bytes.NewReader(content))
+	upload, err := app.persistUploadedFile("duplicate", "duplicate.txt", "text/plain", bytes.NewReader(content))
 	if err != nil {
 		t.Fatal(err)
 	}

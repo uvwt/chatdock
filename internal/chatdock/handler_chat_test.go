@@ -28,7 +28,7 @@ func TestChatAPIWritesSingleJSONResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveModelConfig("default", model.ModelConfig{BaseURL: modelServer.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{BaseURL: modelServer.URL, Model: "demo", SystemPrompt: "测试助手"}); err != nil {
 		t.Fatal(err)
 	}
 	routes := app.routes()
@@ -99,7 +99,7 @@ func TestChatAPIFallsBackBeforeAnyPrimaryOutput(t *testing.T) {
 	}
 	defer app.Close()
 
-	primaryCfg, err := app.store.SaveModelConfig("default", model.ModelConfig{
+	primaryCfg, err := app.store.SaveModelConfig(model.ModelConfig{
 		BaseURL:      primaryServer.URL,
 		Model:        "primary-model",
 		Models:       []string{"primary-model"},
@@ -119,7 +119,7 @@ func TestChatAPIFallsBackBeforeAnyPrimaryOutput(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.SaveWorkspaceConfig("default", model.ModelConfig{
+	if _, err := app.store.SaveModelConfig(model.ModelConfig{
 		ProviderID:         primaryCfg.ProviderID,
 		Model:              primaryCfg.Model,
 		FallbackProviderID: "backup",
