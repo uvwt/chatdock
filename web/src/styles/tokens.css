@@ -1,54 +1,53 @@
-/* ChatDock frontend tokens：集中定义主题变量，后续组件样式优先复用这些语义变量。 */
+/* ChatDock frontend tokens：集中定义主题变量，组件样式只引用语义颜色。 */
 :root {
   color-scheme: dark;
-  --bg: #0b1020;
-  --panel: #0f172a;
-  --panel-soft: #111827;
-  --panel-deep: #020617;
-  --text: #e5e7eb;
-  --text-strong: #f8fafc;
-  --muted: #94a3b8;
-  --muted-weak: #64748b;
-  --border: #1f2937;
-  --border-strong: #334155;
-  --primary: #2563eb;
-  --primary-strong: #1d4ed8;
-  --danger: #991b1b;
+  --bg: #151816;
+  --panel: #111412;
+  --panel-soft: #1d211e;
+  --panel-deep: #171a18;
+  --text: #e9eeea;
+  --text-strong: #f7faf7;
+  --muted: #a0aaa3;
+  --muted-weak: #768078;
+  --border: rgba(224, 232, 226, .10);
+  --border-strong: rgba(224, 232, 226, .17);
+  --primary: #56a98a;
+  --primary-strong: #438f74;
+  --danger: #b74b4b;
 }
 
 body.theme-light {
   color-scheme: light;
-  --bg: #f6f8fb;
-  --panel: #ffffff;
-  --panel-soft: #f8fafc;
-  --panel-deep: #ffffff;
-  --text: #0f172a;
-  --text-strong: #0f172a;
-  --muted: #64748b;
-  --muted-weak: #64748b;
-  --border: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --primary: #2563eb;
-  --primary-strong: #1d4ed8;
-  --danger: #991b1b;
+  --bg: #f6f7f4;
+  --panel: #eff2ee;
+  --panel-soft: #f4f6f3;
+  --panel-deep: #fafbf9;
+  --text: #202622;
+  --text-strong: #131815;
+  --muted: #657068;
+  --muted-weak: #89928b;
+  --border: rgba(38, 49, 42, .10);
+  --border-strong: rgba(38, 49, 42, .17);
+  --primary: #3f8d70;
+  --primary-strong: #32745c;
+  --danger: #a84343;
 }
 
-/* ChatGPT-like shell override: 2026-07-01
-   目标：左侧会话栏 + 中央对话流 + 浮动输入框 + 配置抽屉，保留原功能入口。 */
+/* 主工作台色板：暖中性底色搭配低饱和青绿，避免灰黑、蓝紫和亮绿互相抢色。 */
 :root {
-  --gpt-bg: #212121;
-  --gpt-main: #212121;
-  --gpt-sidebar: #171717;
-  --gpt-sidebar-hover: #2f2f2f;
-  --gpt-surface: #303030;
-  --gpt-surface-2: #2a2a2a;
-  --gpt-border: rgba(255,255,255,.10);
-  --gpt-border-strong: rgba(255,255,255,.16);
-  --gpt-text: #f4f4f4;
-  --gpt-muted: #b4b4b4;
-  --gpt-muted-2: #8e8e8e;
-  --gpt-accent: #10a37f;
-  --gpt-danger: #ef4444;
+  --gpt-bg: #151816;
+  --gpt-main: #181b19;
+  --gpt-sidebar: #111412;
+  --gpt-sidebar-hover: #202521;
+  --gpt-surface: #272c28;
+  --gpt-surface-2: #1d211e;
+  --gpt-border: rgba(224, 232, 226, .10);
+  --gpt-border-strong: rgba(224, 232, 226, .17);
+  --gpt-text: #e9eeea;
+  --gpt-muted: #a0aaa3;
+  --gpt-muted-2: #768078;
+  --gpt-accent: #56a98a;
+  --gpt-danger: #d86767;
   --gpt-chat-width: 960px;
   --gpt-msg-width: 960px;
   --gpt-sidebar-width: 260px;
@@ -59,44 +58,44 @@ body:not(.theme-light) {
   --bg: var(--gpt-bg);
   --panel: var(--gpt-sidebar);
   --panel-soft: var(--gpt-surface-2);
-  --panel-deep: #212121;
+  --panel-deep: var(--gpt-main);
   --text: var(--gpt-text);
-  --text-strong: #ffffff;
+  --text-strong: #f7faf7;
   --muted: var(--gpt-muted);
   --muted-weak: var(--gpt-muted-2);
   --border: var(--gpt-border);
   --border-strong: var(--gpt-border-strong);
   --primary: var(--gpt-accent);
-  --primary-strong: #0d8f6f;
+  --primary-strong: #438f74;
   --danger: var(--gpt-danger);
 }
 
 body.theme-light {
-  --gpt-bg: #ffffff;
-  --gpt-main: #ffffff;
-  --gpt-sidebar: #f7f7f8;
-  --gpt-sidebar-hover: #ececf1;
-  --gpt-surface: #f4f4f4;
-  --gpt-surface-2: #ffffff;
-  --gpt-border: rgba(0,0,0,.10);
-  --gpt-border-strong: rgba(0,0,0,.16);
-  --gpt-text: #0d0d0d;
-  --gpt-muted: #6b7280;
-  --gpt-muted-2: #8a8f98;
-  --gpt-accent: #10a37f;
-  --gpt-danger: #dc2626;
+  --gpt-bg: #f6f7f4;
+  --gpt-main: #fafbf9;
+  --gpt-sidebar: #eff2ee;
+  --gpt-sidebar-hover: #e5e9e5;
+  --gpt-surface: #e9ede9;
+  --gpt-surface-2: #f7f8f6;
+  --gpt-border: rgba(38, 49, 42, .10);
+  --gpt-border-strong: rgba(38, 49, 42, .17);
+  --gpt-text: #202622;
+  --gpt-muted: #657068;
+  --gpt-muted-2: #89928b;
+  --gpt-accent: #3f8d70;
+  --gpt-danger: #b34c4c;
   background: var(--gpt-bg);
 }
 
-/* Product polish: richer ChatDock workspace shell */
+/* 空状态和卡片只保留很轻的同色系光晕。 */
 :root {
-  --dock-hero-glow: rgba(16, 163, 127, .22);
-  --dock-blue-glow: rgba(103, 126, 234, .16);
-  --dock-card-shadow: 0 24px 70px rgba(0,0,0,.28);
+  --dock-hero-glow: rgba(86, 169, 138, .16);
+  --dock-blue-glow: rgba(136, 153, 143, .09);
+  --dock-card-shadow: 0 22px 64px rgba(0, 0, 0, .24);
 }
 
 body.theme-light {
-  --dock-hero-glow: rgba(16, 163, 127, .14);
-  --dock-blue-glow: rgba(79, 70, 229, .10);
-  --dock-card-shadow: 0 24px 70px rgba(15,23,42,.12);
+  --dock-hero-glow: rgba(63, 141, 112, .09);
+  --dock-blue-glow: rgba(106, 123, 113, .07);
+  --dock-card-shadow: 0 20px 58px rgba(38, 49, 42, .09);
 }

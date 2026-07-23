@@ -278,7 +278,7 @@ aside {
 
 .session-search:focus {
   border-color: var(--gpt-border-strong);
-  box-shadow: 0 0 0 3px rgba(16,163,127,.16);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gpt-accent) 16%, transparent);
 }
 
 .new {
@@ -356,8 +356,8 @@ aside {
   margin-right: 6px;
   padding: 0;
   border-radius: 7px;
-  background: rgba(16,163,127,.18);
-  color: #6ee7b7;
+  background: color-mix(in srgb, var(--gpt-accent) 18%, transparent);
+  color: color-mix(in srgb, var(--gpt-accent) 78%, var(--gpt-text));
   vertical-align: -3px;
 }
 
@@ -462,7 +462,7 @@ main {
   background:
     radial-gradient(circle at 38% 18%, var(--dock-hero-glow), transparent 34%),
     radial-gradient(circle at 78% 10%, var(--dock-blue-glow), transparent 34%),
-    linear-gradient(180deg, rgba(255,255,255,.035), transparent 220px),
+    linear-gradient(180deg, rgba(255,255,255,.022), transparent 220px),
     var(--gpt-bg);
 }
 
@@ -472,16 +472,16 @@ main {
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px);
+    linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
   background-size: 44px 44px;
   mask-image: linear-gradient(to bottom, rgba(0,0,0,.34), transparent 52%);
 }
 
 body.theme-light #app.app main::before {
   background-image:
-    linear-gradient(rgba(15,23,42,.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15,23,42,.028) 1px, transparent 1px);
+    linear-gradient(rgba(38,49,42,.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(38,49,42,.022) 1px, transparent 1px);
 }
 
 #app.app aside {
@@ -501,8 +501,8 @@ body.theme-light #app.app main::before {
   vertical-align: middle;
   background:
     radial-gradient(circle at 32% 28%, rgba(255,255,255,.85), transparent 18%),
-    linear-gradient(135deg, #10a37f, #3b82f6 55%, #8b5cf6);
-  box-shadow: 0 12px 32px rgba(16,163,127,.24);
+    linear-gradient(135deg, color-mix(in srgb, var(--gpt-accent) 88%, white), var(--gpt-accent) 58%, color-mix(in srgb, var(--gpt-accent) 72%, #38453d));
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--gpt-accent) 22%, transparent);
 }
 
 .brand {
@@ -524,7 +524,7 @@ body.theme-light #app.app main::before {
 
 .prompt-box {
   padding: 12px;
-  background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gpt-surface-2) 84%, transparent), color-mix(in srgb, var(--gpt-sidebar) 92%, transparent));
   border: 1px solid var(--gpt-border);
 }
 
@@ -537,8 +537,8 @@ body.theme-light #app.app main::before {
   height: 44px;
   justify-content: center;
   font-weight: 650;
-  border: 1px solid rgba(16,163,127,.36) !important;
-  background: linear-gradient(180deg, rgba(16,163,127,.16), rgba(16,163,127,.06)) !important;
+  border: 1px solid color-mix(in srgb, var(--gpt-accent) 34%, var(--gpt-border)) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gpt-accent) 15%, transparent), color-mix(in srgb, var(--gpt-accent) 6%, transparent)) !important;
 }
 
 #sessions {
@@ -570,13 +570,13 @@ body.theme-light #app.app main::before {
   position: relative;
   z-index: 2;
   backdrop-filter: blur(18px) saturate(140%);
-  background: linear-gradient(180deg, rgba(32,33,35,.78), rgba(32,33,35,.44)) !important;
-  border-bottom: 1px solid rgba(255,255,255,.06) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gpt-main) 90%, transparent), color-mix(in srgb, var(--gpt-main) 68%, transparent)) !important;
+  border-bottom: 1px solid var(--gpt-border) !important;
 }
 
 body.theme-light .topbar {
-  background: linear-gradient(180deg, rgba(255,255,255,.82), rgba(255,255,255,.58)) !important;
-  border-bottom-color: rgba(15,23,42,.08) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gpt-main) 92%, transparent), color-mix(in srgb, var(--gpt-main) 70%, transparent)) !important;
+  border-bottom-color: var(--gpt-border) !important;
 }
 
 .top-left b#title {

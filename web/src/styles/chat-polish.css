@@ -32,8 +32,8 @@
 /* 2026-07-04 浅色主题会话气泡：用户消息不再使用高饱和蓝色。 */
 body.theme-light #app.app .msg.user {
   border-color: transparent !important;
-  background: #f4f4f4 !important;
-  color: #111827 !important;
+  background: var(--gpt-surface) !important;
+  color: var(--gpt-text) !important;
   box-shadow: none !important;
 }
 
@@ -90,20 +90,20 @@ body.theme-light #app.app #sessions .session {
 }
 
 body.theme-light #app.app #sessions .session:hover {
-  background: #eef8f3 !important;
-  border-color: #dcefe6 !important;
+  background: color-mix(in srgb, var(--gpt-accent) 8%, var(--gpt-sidebar)) !important;
+  border-color: color-mix(in srgb, var(--gpt-accent) 18%, var(--gpt-border)) !important;
 }
 
 body.theme-light #app.app #sessions .session.active {
-  background: #e8f6ef !important;
-  border-color: #cce9da !important;
-  color: #273344 !important;
+  background: color-mix(in srgb, var(--gpt-accent) 12%, var(--gpt-sidebar)) !important;
+  border-color: color-mix(in srgb, var(--gpt-accent) 24%, var(--gpt-border)) !important;
+  color: var(--gpt-text) !important;
   box-shadow: none !important;
 }
 
 body.theme-light #app.app #sessions .session.active::before,
 body.theme-light #app.app #sessions .session.active::after {
-  border-color: #1fb98b !important;
+  border-color: var(--gpt-accent) !important;
 }
 
 /* 2026-07-04 用户消息悬浮操作：按钮独立成气泡下方一行，避免和气泡内容重叠。 */
@@ -225,8 +225,8 @@ body.theme-light #app.app #sessions .session.active::after {
   margin-right: 6px !important;
   padding: 0 !important;
   border-radius: 7px !important;
-  background: #dff7ed !important;
-  color: #0f766e !important;
+  background: color-mix(in srgb, var(--gpt-accent) 16%, transparent) !important;
+  color: color-mix(in srgb, var(--gpt-accent) 82%, var(--gpt-text)) !important;
   vertical-align: -3px !important;
   font-size: 0 !important;
   line-height: 1 !important;

@@ -13,6 +13,16 @@
     color: var(--gpt-text) !important;
   }
 
+  #app.app aside .session-title,
+  #app.app aside .sidebar-task-list.session-list-like .sidebar-task-name.session-title {
+    font-weight: 450 !important;
+  }
+
+  #app.app aside .sidebar-section-title,
+  #app.app aside .sidebar-section-head {
+    font-weight: 600 !important;
+  }
+
   #app.app aside :is(.sub, .session-preview, .session-meta, .sidebar-task-meta, .sidebar-section-count),
   #app.app aside .session-search::placeholder {
     color: var(--gpt-muted) !important;
@@ -49,7 +59,7 @@
 
   #app.app aside .session.active {
     border-color: color-mix(in srgb, var(--gpt-accent) 36%, var(--gpt-border)) !important;
-    background: color-mix(in srgb, var(--gpt-accent) 13%, var(--gpt-sidebar)) !important;
+    background: color-mix(in srgb, var(--gpt-accent) 11%, var(--gpt-sidebar)) !important;
     color: var(--gpt-text) !important;
   }
 
