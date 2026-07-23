@@ -226,32 +226,39 @@ export const MemoizedMessageView = React.memo(MessageView);
 
 export function EmptyState({ createSession, openSettings, openWorkspacePicker, busy, hasWorkspaces, setInput, modelReady }) {
   const starters = [
-    { number: '01', title: '梳理一个需求', text: '把模糊想法拆成清晰步骤和风险。', prompt: '帮我把这个需求拆成可执行步骤，并指出主要风险：' },
-    { number: '02', title: '检查当前项目', text: '快速找出最值得优先处理的问题。', prompt: '检查当前项目状态，找出最需要优先处理的问题。' },
-    { number: '03', title: '设计自动化', text: '规划触发条件、执行步骤和失败处理。', prompt: '帮我设计一个自动化任务，包括触发方式、执行步骤和失败处理。' },
+    { number: '01', tag: 'PLAN', title: '把需求拆清楚', text: '整理目标、步骤与关键风险。', prompt: '帮我把这个需求拆成可执行步骤，并指出主要风险：' },
+    { number: '02', tag: 'REVIEW', title: '检查项目状态', text: '找出最值得优先处理的问题。', prompt: '检查当前项目状态，找出最需要优先处理的问题。' },
+    { number: '03', tag: 'FLOW', title: '设计自动化流程', text: '规划触发、执行与失败处理。', prompt: '帮我设计一个自动化任务，包括触发方式、执行步骤和失败处理。' },
   ];
   return <div className="empty-state product-empty-state">
     <section className="product-hero">
+      <div className="hero-ambient" aria-hidden="true">
+        <span className="hero-orbit hero-orbit-a" />
+        <span className="hero-orbit hero-orbit-b" />
+        <span className="hero-core"><i /></span>
+      </div>
       <div className="hero-copy">
-        <div className="empty-state-kicker"><span className="kicker-dot" /> ChatDock</div>
-        <h1>今天想完成什么？</h1>
-        <p>从聊天开始，模型、工具和任务会自然汇入同一条工作流。</p>
+        <div className="empty-state-kicker"><span className="kicker-dot" /> ChatDock · AI Workspace</div>
+        <h1>把想法，<span>推进到完成。</span></h1>
+        <p>在一个会话里串起模型、工具与任务。过程清晰，结果可追踪。</p>
         <div className="empty-state-actions hero-actions">
-          <button disabled={busy || !modelReady} onClick={createSession}>{modelReady ? '新建会话' : '先配置模型'}</button>
-          <button className="secondary" onClick={() => openSettings('model')}>{modelReady ? '模型配置' : '配置模型'}</button>
-          <button className="secondary" disabled={!hasWorkspaces || busy} onClick={openWorkspacePicker}>切换工作区</button>
+          <button disabled={busy || !modelReady} onClick={createSession}>{modelReady ? '开始对话' : '先配置模型'}</button>
+          <button className="secondary" onClick={() => openSettings('model')}>{modelReady ? '配置模型' : '打开配置'}</button>
+          <button className="secondary" disabled={!hasWorkspaces || busy} onClick={openWorkspacePicker}>切换空间</button>
+        </div>
+        <div className="hero-trust-row" aria-label="工作台特性">
+          <span>Local first</span><span>Multi-model</span><span>Traceable tools</span>
         </div>
       </div>
-      <div className="starter-grid" aria-label="常用起始任务">
-        {starters.map(item => <button key={item.title} type="button" className="starter-card" onClick={() => setInput(item.prompt)}>
-          <span className="starter-icon">{item.number}</span>
-          <b>{item.title}</b>
-          <span>{item.text}</span>
-          <span className="starter-card-arrow" aria-hidden="true">↗</span>
-        </button>)}
-      </div>
-      <div className="hero-trust-row" aria-label="工作台特性">
-        <span>本地数据优先</span><span>工作空间隔离</span><span>快捷指令 ⌘K</span>
+      <div className="starter-panel" aria-label="常用起始任务">
+        <div className="starter-panel-head"><div><small>START HERE</small><b>选择一个起点</b></div><span>03 paths</span></div>
+        <div className="starter-grid">
+          {starters.map(item => <button key={item.title} type="button" className="starter-card" onClick={() => setInput(item.prompt)}>
+            <span className="starter-icon">{item.number}</span>
+            <span className="starter-card-copy"><small>{item.tag}</small><b>{item.title}</b><span>{item.text}</span></span>
+            <span className="starter-card-arrow" aria-hidden="true">↗</span>
+          </button>)}
+        </div>
       </div>
     </section>
   </div>;

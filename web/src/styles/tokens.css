@@ -1,23 +1,28 @@
-/* ChatDock 灰阶视觉变量：深浅模式共享结构，只改变明度关系。 */
+/* ChatDock 品牌变量：结构保持一致，深浅主题只改变材质与对比关系。 */
 :root {
   color-scheme: dark;
-  --gpt-bg: #212121;
-  --gpt-main: #212121;
-  --gpt-sidebar: #171717;
-  --gpt-sidebar-hover: #2a2a2a;
-  --gpt-surface: #303030;
-  --gpt-surface-2: #292929;
-  --gpt-border: rgba(255, 255, 255, .10);
+  --gpt-bg: #15151a;
+  --gpt-main: #17171d;
+  --gpt-sidebar: #101014;
+  --gpt-sidebar-hover: #23232c;
+  --gpt-surface: #272731;
+  --gpt-surface-2: #1e1e26;
+  --gpt-border: rgba(255, 255, 255, .09);
   --gpt-border-strong: rgba(255, 255, 255, .16);
-  --gpt-text: #ececec;
-  --gpt-muted: #b4b4b4;
-  --gpt-muted-2: #858585;
-  --gpt-accent: #f4f4f4;
-  --gpt-accent-contrast: #171717;
-  --gpt-danger: #d96b6b;
+  --gpt-text: #f2f0f7;
+  --gpt-muted: #b9b5c6;
+  --gpt-muted-2: #777383;
+  --gpt-accent: #806cff;
+  --gpt-accent-strong: #6c56f5;
+  --gpt-accent-2: #42d5c3;
+  --gpt-accent-soft: rgba(128, 108, 255, .16);
+  --gpt-accent-contrast: #ffffff;
+  --gpt-danger: #e36c78;
   --gpt-chat-width: 920px;
   --gpt-msg-width: 920px;
-  --gpt-sidebar-width: 260px;
+  --gpt-sidebar-width: 264px;
+  --dock-gradient: linear-gradient(135deg, #8b75ff 0%, #6c56f5 48%, #36bdb4 118%);
+  --dock-card-shadow: 0 20px 60px rgba(0, 0, 0, .24);
   --bg: var(--gpt-bg);
   --panel: var(--gpt-sidebar);
   --panel-soft: var(--gpt-surface-2);
@@ -29,30 +34,32 @@
   --border: var(--gpt-border);
   --border-strong: var(--gpt-border-strong);
   --primary: var(--gpt-accent);
-  --primary-strong: #d8d8d8;
+  --primary-strong: var(--gpt-accent-strong);
   --accent: var(--gpt-accent);
   --danger: var(--gpt-danger);
-  --dock-card-shadow: 0 1px 2px rgba(0, 0, 0, .22);
 }
 
 body.theme-light {
   color-scheme: light;
-  --gpt-bg: #ffffff;
-  --gpt-main: #ffffff;
-  --gpt-sidebar: #f7f7f8;
-  --gpt-sidebar-hover: #ececee;
-  --gpt-surface: #eeeeef;
-  --gpt-surface-2: #fafafa;
-  --gpt-border: rgba(0, 0, 0, .09);
-  --gpt-border-strong: rgba(0, 0, 0, .15);
-  --gpt-text: #202123;
-  --gpt-muted: #676767;
-  --gpt-muted-2: #929292;
-  --gpt-accent: #202123;
+  --gpt-bg: #f4f2ee;
+  --gpt-main: #f8f7f4;
+  --gpt-sidebar: #ece9e4;
+  --gpt-sidebar-hover: #e2ded8;
+  --gpt-surface: #fffefd;
+  --gpt-surface-2: #efede8;
+  --gpt-border: rgba(41, 36, 56, .10);
+  --gpt-border-strong: rgba(41, 36, 56, .17);
+  --gpt-text: #211f29;
+  --gpt-muted: #6e6978;
+  --gpt-muted-2: #918b99;
+  --gpt-accent: #6f5ce8;
+  --gpt-accent-strong: #5e49df;
+  --gpt-accent-2: #169e96;
+  --gpt-accent-soft: rgba(111, 92, 232, .12);
   --gpt-accent-contrast: #ffffff;
-  --gpt-danger: #b54b4b;
-  --text-strong: #111111;
-  --primary-strong: #000000;
-  --dock-card-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+  --gpt-danger: #c4515f;
+  --dock-gradient: linear-gradient(135deg, #806cff 0%, #6752ea 52%, #29aea5 118%);
+  --dock-card-shadow: 0 24px 70px rgba(50, 42, 78, .13);
+  --text-strong: #17151d;
   background: var(--gpt-bg);
 }

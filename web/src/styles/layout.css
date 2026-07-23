@@ -183,33 +183,6 @@ aside {
   padding: 4px 2px 10px 6px;
 }
 
-.brand {
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -.02em;
-}
-
-.brand-text::before {
-  content: "✦";
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  margin-right: 8px;
-  border: 1px solid var(--gpt-border-strong);
-  border-radius: 9px;
-  background: var(--gpt-surface);
-  color: var(--gpt-text);
-  font-size: 14px;
-  vertical-align: middle;
-}
-
-.sub {
-  margin-left: 37px;
-  color: var(--gpt-muted-2);
-}
-
 .sidebar-toggle {
   flex: 0 0 34px;
   width: 34px;
@@ -238,24 +211,6 @@ aside {
 
 .workspace-picker-trigger {
   min-height: 44px;
-  border-color: var(--gpt-border);
-  border-radius: 13px;
-  background: transparent;
-}
-
-.workspace-picker-trigger:hover:not(:disabled) {
-  background: var(--gpt-sidebar-hover);
-}
-
-.workspace-picker-name,
-.workspace-picker-meta,
-.workspace-picker-arrow {
-  color: var(--gpt-text);
-}
-
-.workspace-picker-meta,
-.workspace-picker-arrow {
-  color: var(--gpt-muted-2);
 }
 
 .prompt-add {
@@ -264,36 +219,6 @@ aside {
   height: 42px;
   border-radius: 13px;
   font-size: 18px;
-}
-
-.session-search {
-  margin: 4px 4px 8px;
-  width: calc(100% - 8px);
-  min-height: 42px;
-  border-color: transparent;
-  border-radius: 13px;
-  background: var(--gpt-surface-2);
-  color: var(--gpt-text);
-}
-
-.session-search:focus {
-  border-color: var(--gpt-border-strong);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gpt-accent) 16%, transparent);
-}
-
-.new {
-  margin: 0 4px 10px;
-  width: calc(100% - 8px);
-  min-height: 44px;
-  border: 1px solid var(--gpt-border);
-  border-radius: 13px;
-  background: transparent;
-  color: var(--gpt-text);
-  text-align: left;
-}
-
-.new:hover:not(:disabled) {
-  background: var(--gpt-sidebar-hover);
 }
 
 #sessions {
@@ -311,40 +236,18 @@ aside {
   padding: 6px 10px 4px;
 }
 
-.sidebar-section-title {
-  color: var(--gpt-muted);
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.25;
-}
-
 .session {
   margin: 0 0 2px;
-  padding: 10px 10px;
-  border: 0;
-  border-radius: 12px;
-  color: var(--gpt-text);
-}
-
-.session:hover,
-.session.active {
-  background: var(--gpt-sidebar-hover);
-  color: var(--gpt-text);
+  padding: 10px;
 }
 
 .session-title {
   font-size: 14px;
-  font-weight: 650;
   line-height: 1.28;
 }
 
 .session-preview {
-  color: var(--gpt-muted-2);
   -webkit-line-clamp: 1;
-}
-
-.session-meta {
-  color: var(--gpt-muted-2);
 }
 
 .pin-mark {
@@ -376,20 +279,11 @@ main {
 }
 
 .topbar {
-  height: 58px;
   padding: 10px 18px;
-  border-bottom: 0;
-  background: var(--gpt-main);
 }
 
 .top-left {
   max-width: min(56vw, 680px);
-}
-
-#title {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -.01em;
 }
 
 .status-pill {
@@ -455,146 +349,6 @@ main {
   padding: 28px 18px 150px;
   background: var(--gpt-main);
   scrollbar-width: thin;
-}
-
-#app.app main {
-  position: relative;
-  background:
-    radial-gradient(circle at 38% 18%, var(--dock-hero-glow), transparent 34%),
-    radial-gradient(circle at 78% 10%, var(--dock-blue-glow), transparent 34%),
-    linear-gradient(180deg, rgba(255,255,255,.022), transparent 220px),
-    var(--gpt-bg);
-}
-
-#app.app main::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: linear-gradient(to bottom, rgba(0,0,0,.34), transparent 52%);
-}
-
-body.theme-light #app.app main::before {
-  background-image:
-    linear-gradient(rgba(38,49,42,.028) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(38,49,42,.022) 1px, transparent 1px);
-}
-
-#app.app aside {
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.05), transparent 18%),
-    var(--gpt-sidebar);
-  box-shadow: inset -1px 0 0 var(--gpt-border), 10px 0 40px rgba(0,0,0,.16);
-}
-
-.brand::before {
-  content: '';
-  width: 32px;
-  height: 32px;
-  border-radius: 12px;
-  display: inline-block;
-  margin-right: 10px;
-  vertical-align: middle;
-  background:
-    radial-gradient(circle at 32% 28%, rgba(255,255,255,.85), transparent 18%),
-    linear-gradient(135deg, color-mix(in srgb, var(--gpt-accent) 88%, white), var(--gpt-accent) 58%, color-mix(in srgb, var(--gpt-accent) 72%, #38453d));
-  box-shadow: 0 12px 30px color-mix(in srgb, var(--gpt-accent) 22%, transparent);
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 0;
-}
-
-.brand-text { letter-spacing: -.02em; }
-.brand .sub { margin-left: -1px; opacity: .72; }
-
-.prompt-box,
-.session-search,
-.new,
-.session,
-.empty.compact {
-  border-radius: 16px !important;
-}
-
-.prompt-box {
-  padding: 12px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--gpt-surface-2) 84%, transparent), color-mix(in srgb, var(--gpt-sidebar) 92%, transparent));
-  border: 1px solid var(--gpt-border);
-}
-
-.session-search {
-  height: 42px;
-  padding-left: 14px !important;
-}
-
-.new {
-  height: 44px;
-  justify-content: center;
-  font-weight: 650;
-  border: 1px solid color-mix(in srgb, var(--gpt-accent) 34%, var(--gpt-border)) !important;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--gpt-accent) 15%, transparent), color-mix(in srgb, var(--gpt-accent) 6%, transparent)) !important;
-}
-
-#sessions {
-  padding-top: 8px;
-}
-
-.session {
-  position: relative;
-  padding: 12px 12px 12px 14px !important;
-  transition: transform .16s ease, background .16s ease, border-color .16s ease;
-}
-
-.session:hover {
-  transform: translateX(2px);
-}
-
-.session.active::before {
-  content: '';
-  position: absolute;
-  left: 5px;
-  top: 12px;
-  bottom: 12px;
-  width: 3px;
-  border-radius: 99px;
-  background: var(--gpt-accent);
-}
-
-.topbar {
-  position: relative;
-  z-index: 2;
-  backdrop-filter: blur(18px) saturate(140%);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--gpt-main) 90%, transparent), color-mix(in srgb, var(--gpt-main) 68%, transparent)) !important;
-  border-bottom: 1px solid var(--gpt-border) !important;
-}
-
-body.theme-light .topbar {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--gpt-main) 92%, transparent), color-mix(in srgb, var(--gpt-main) 70%, transparent)) !important;
-  border-bottom-color: var(--gpt-border) !important;
-}
-
-.top-left b#title {
-  font-size: 15px;
-  letter-spacing: -.01em;
-}
-
-.status-pill {
-  border-radius: 999px;
-  padding: 4px 9px !important;
-  font-weight: 650;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
-}
-
-.top-actions .secondary,
-.top-actions .theme-toggle,
-.top-actions .danger {
-  border-radius: 999px !important;
 }
 
 /* 会话列表删除入口：点卡片打开，点右侧删除按钮才删除，避免误触。 */

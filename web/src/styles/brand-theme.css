@@ -1,0 +1,373 @@
+/* ChatDock 最终品牌层：统一工作台、会话、输入框与浮层的色彩和材质。 */
+#app.app,
+#app.app main,
+#app.app .messages {
+  background: var(--gpt-main) !important;
+  color: var(--gpt-text) !important;
+}
+
+#app.app main {
+  background:
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--gpt-accent) 10%, transparent), transparent 34%),
+    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--gpt-accent-2) 7%, transparent), transparent 30%),
+    var(--gpt-main) !important;
+}
+
+#app.app main::before {
+  opacity: .55;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--gpt-text) 2.8%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--gpt-text) 2.4%, transparent) 1px, transparent 1px) !important;
+  background-size: 48px 48px !important;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,.34), transparent 48%) !important;
+}
+
+#app.app aside {
+  border-right: 1px solid color-mix(in srgb, var(--gpt-accent) 12%, var(--gpt-border)) !important;
+  background:
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--gpt-accent) 14%, transparent), transparent 28%),
+    linear-gradient(180deg, color-mix(in srgb, var(--gpt-sidebar) 96%, var(--gpt-accent)), var(--gpt-sidebar)) !important;
+  color: var(--gpt-text) !important;
+  box-shadow: 12px 0 42px rgba(16, 12, 30, .12) !important;
+}
+
+#app.app .brand::before,
+#app.app .brand-text::before {
+  display: none !important;
+}
+
+#app.app .brand {
+  gap: 11px !important;
+  min-width: 0;
+}
+
+#app.app .brand-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.20);
+  border-radius: 13px 17px 13px 17px;
+  background: var(--dock-gradient);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--gpt-accent) 28%, transparent);
+}
+
+#app.app .brand-mark::before,
+#app.app .brand-mark::after,
+#app.app .brand-mark span {
+  content: '';
+  position: absolute;
+  border: 1px solid rgba(255,255,255,.62);
+}
+
+#app.app .brand-mark::before {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px 10px 6px 10px;
+  transform: rotate(45deg);
+}
+
+#app.app .brand-mark::after {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.94);
+  box-shadow: 0 0 14px rgba(255,255,255,.72);
+}
+
+#app.app .brand-mark span {
+  inset: 4px;
+  border-color: rgba(255,255,255,.18);
+  border-radius: 10px 14px 10px 14px;
+}
+
+#app.app .brand-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+#app.app .brand-text {
+  color: var(--gpt-text) !important;
+  font-size: 18px;
+  font-weight: 760;
+  letter-spacing: -.035em !important;
+}
+
+#app.app .brand .sub {
+  margin: 0 !important;
+  color: var(--gpt-muted-2) !important;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+#app.app aside :is(.workspace-picker-name, .session-title, .sidebar-task-name) {
+  color: var(--gpt-text) !important;
+}
+
+#app.app aside :is(.session-preview, .session-meta, .sidebar-task-meta, .session-search::placeholder) {
+  color: var(--gpt-muted-2) !important;
+}
+
+#app.app aside :is(.workspace-picker-trigger, .session-search-box) {
+  border: 1px solid color-mix(in srgb, var(--gpt-accent) 12%, var(--gpt-border)) !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--gpt-surface-2) 72%, transparent) !important;
+  color: var(--gpt-text) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 5%, transparent) !important;
+}
+
+#app.app aside .workspace-picker-trigger:hover:not(:disabled),
+#app.app aside .session-search-box:focus-within {
+  border-color: color-mix(in srgb, var(--gpt-accent) 42%, var(--gpt-border)) !important;
+  background: color-mix(in srgb, var(--gpt-accent) 8%, var(--gpt-surface-2)) !important;
+  box-shadow: 0 0 0 3px var(--gpt-accent-soft) !important;
+}
+
+#app.app aside .workspace-picker-meta,
+#app.app aside .sidebar-section-count {
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: var(--gpt-accent-soft) !important;
+  color: color-mix(in srgb, var(--gpt-accent) 76%, var(--gpt-text)) !important;
+  box-shadow: none !important;
+}
+
+#app.app aside .new {
+  border: 0 !important;
+  border-radius: 12px !important;
+  background: var(--dock-gradient) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--gpt-accent) 24%, transparent) !important;
+}
+
+#app.app aside .new-icon { color: #fff !important; }
+
+#app.app aside .sidebar-section-head,
+#app.app aside .sidebar-section-title {
+  color: var(--gpt-muted-2) !important;
+  font-size: 11px !important;
+  font-weight: 720 !important;
+  letter-spacing: .08em !important;
+  text-transform: uppercase;
+}
+
+#app.app aside :is(#sessions .session, .sidebar-task-item) {
+  border: 1px solid transparent !important;
+  border-radius: 11px !important;
+  background: transparent !important;
+  color: var(--gpt-text) !important;
+  box-shadow: none !important;
+}
+
+#app.app aside :is(#sessions .session, .sidebar-task-item):hover {
+  border-color: color-mix(in srgb, var(--gpt-accent) 10%, var(--gpt-border)) !important;
+  background: color-mix(in srgb, var(--gpt-accent) 6%, var(--gpt-sidebar-hover)) !important;
+}
+
+#app.app aside :is(#sessions .session, .sidebar-task-item).active {
+  border-color: color-mix(in srgb, var(--gpt-accent) 24%, var(--gpt-border)) !important;
+  background: color-mix(in srgb, var(--gpt-accent) 12%, var(--gpt-sidebar-hover)) !important;
+}
+
+#app.app aside .session.active::before {
+  background: var(--dock-gradient) !important;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--gpt-accent) 34%, transparent);
+}
+
+#app.app aside .session-title,
+#app.app aside .sidebar-task-name,
+#app.app aside .sidebar-task-list.session-list-like .sidebar-task-name.session-title {
+  color: var(--gpt-text) !important;
+  font-weight: 560 !important;
+}
+
+#app.app .topbar {
+  height: 60px !important;
+  min-height: 60px !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--gpt-accent) 10%, var(--gpt-border)) !important;
+  background: color-mix(in srgb, var(--gpt-main) 82%, transparent) !important;
+  backdrop-filter: blur(22px) saturate(145%) !important;
+  box-shadow: 0 8px 30px rgba(17, 13, 31, .06) !important;
+}
+
+#app.app .top-left b#title {
+  color: var(--gpt-text);
+  font-size: 15px !important;
+  font-weight: 650 !important;
+  letter-spacing: -.015em !important;
+}
+
+#app.app .top-actions > button,
+#app.app .top-actions > .task-panel-toggle {
+  min-height: 36px !important;
+  padding: 7px 10px !important;
+  border: 1px solid transparent !important;
+  border-radius: 11px !important;
+  background: transparent !important;
+  color: var(--gpt-muted) !important;
+  box-shadow: none !important;
+}
+
+#app.app .top-actions > button:hover:not(:disabled),
+#app.app .top-actions > .task-panel-toggle:hover:not(:disabled),
+#app.app .top-actions > .task-panel-toggle.active {
+  border-color: color-mix(in srgb, var(--gpt-accent) 20%, var(--gpt-border)) !important;
+  background: var(--gpt-accent-soft) !important;
+  color: color-mix(in srgb, var(--gpt-accent) 72%, var(--gpt-text)) !important;
+}
+
+#app.app .task-panel-toggle-count {
+  border: 0 !important;
+  background: var(--dock-gradient) !important;
+  color: #fff !important;
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--gpt-accent) 24%, transparent) !important;
+}
+
+#app.app .msg.assistant::before,
+#app.app .msg.assistant.markdown::before {
+  border: 0 !important;
+  border-radius: 10px 14px 10px 14px !important;
+  background: var(--dock-gradient) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--gpt-accent) 20%, transparent) !important;
+}
+
+#app.app .msg.user,
+#app.app .msg.system {
+  border: 1px solid color-mix(in srgb, var(--gpt-accent) 18%, var(--gpt-border)) !important;
+  border-radius: 18px 18px 6px 18px !important;
+  background: color-mix(in srgb, var(--gpt-accent) 9%, var(--gpt-surface)) !important;
+  color: var(--gpt-text) !important;
+  box-shadow: 0 8px 28px rgba(18, 14, 34, .08) !important;
+}
+
+#app.app .markdown a { color: var(--gpt-accent) !important; }
+#app.app .markdown blockquote { border-left-color: var(--gpt-accent) !important; }
+body.theme-light #app.app .markdown th {
+  border-color: var(--gpt-border) !important;
+  background: color-mix(in srgb, var(--gpt-accent) 7%, var(--gpt-surface-2)) !important;
+  color: var(--gpt-text) !important;
+}
+
+#app.app .execution-summary-icon,
+#app.app .execution-summary.kind-reasoning .execution-summary-icon,
+#app.app .execution-summary.tone-running .execution-summary-icon,
+#app.app .tool-step-icon,
+#app.app .tool-step-row.phase-running .tool-step-icon {
+  background: var(--gpt-accent-soft) !important;
+  color: color-mix(in srgb, var(--gpt-accent) 72%, var(--gpt-text)) !important;
+  box-shadow: 0 0 0 3px var(--gpt-main) !important;
+}
+
+#app.app .execution-summary.tone-error .execution-summary-icon,
+#app.app .tool-step-row.phase-error .tool-step-icon {
+  background: rgba(227, 108, 120, .14) !important;
+  color: #ef7d89 !important;
+}
+
+#app.app .execution-summary-trigger:hover:not(:disabled),
+#app.app .execution-inline-tools .tool-step-row:not(:disabled):hover {
+  background: var(--gpt-accent-soft) !important;
+}
+
+#app.app .execution-inline-reasoning {
+  border: 1px solid color-mix(in srgb, var(--gpt-accent) 14%, var(--gpt-border)) !important;
+  background: color-mix(in srgb, var(--gpt-accent) 5%, var(--gpt-surface-2)) !important;
+}
+
+#app.app .composer-shell {
+  padding-bottom: 17px !important;
+  background: linear-gradient(180deg, transparent, var(--gpt-main) 36%) !important;
+}
+
+#app.app .composer {
+  width: min(880px, 100%) !important;
+  max-width: 880px !important;
+  height: 62px !important;
+  min-height: 62px !important;
+  padding: 8px !important;
+  gap: 7px !important;
+  border: 1px solid color-mix(in srgb, var(--gpt-accent) 18%, var(--gpt-border-strong)) !important;
+  border-radius: 19px !important;
+  background: color-mix(in srgb, var(--gpt-surface) 88%, transparent) !important;
+  box-shadow: 0 18px 52px rgba(20, 15, 40, .16), inset 0 1px 0 color-mix(in srgb, white 8%, transparent) !important;
+  backdrop-filter: blur(22px) saturate(145%);
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+
+#app.app .composer:focus-within {
+  border-color: color-mix(in srgb, var(--gpt-accent) 62%, var(--gpt-border)) !important;
+  box-shadow: 0 20px 58px rgba(20, 15, 40, .18), 0 0 0 4px var(--gpt-accent-soft) !important;
+}
+
+#app.app .composer textarea {
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 11px 7px !important;
+  color: var(--gpt-text) !important;
+}
+
+#app.app .attach-control,
+#app.app .model-picker-trigger,
+#app.app .stream-control {
+  border: 0 !important;
+  border-radius: 11px !important;
+  background: transparent !important;
+  color: var(--gpt-muted) !important;
+  box-shadow: none !important;
+}
+
+#app.app .attach-control:hover:not(:disabled),
+#app.app .model-picker-trigger:hover:not(:disabled),
+#app.app .stream-control:hover:not(:disabled) {
+  background: var(--gpt-accent-soft) !important;
+  color: var(--gpt-accent) !important;
+}
+
+#app.app .model-picker-trigger b {
+  color: var(--gpt-text) !important;
+  font-weight: 650 !important;
+}
+
+#app.app .model-picker-trigger span { color: var(--gpt-muted-2) !important; }
+
+#app.app #send {
+  border: 0 !important;
+  background: var(--dock-gradient) !important;
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--gpt-accent) 28%, transparent) !important;
+}
+
+#app.app #send::before,
+#app.app #send:disabled::before { color: #fff !important; }
+#app.app #send:disabled { opacity: .42 !important; }
+
+@media (max-width: 720px) {
+  #app.app .topbar {
+    height: 56px !important;
+    min-height: 56px !important;
+  }
+
+  #app.app .composer {
+    width: 100% !important;
+    max-width: none !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    border-radius: 17px !important;
+  }
+
+  #app.app aside {
+    box-shadow: 22px 0 60px rgba(10, 8, 18, .34) !important;
+  }
+
+  #app.app .brand-mark {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+  }
+}

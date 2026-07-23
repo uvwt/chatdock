@@ -1,0 +1,168 @@
+/* 配置中心沿用 ChatDock 的暖灰底色、紫蓝强调和轻量浮层材质。 */
+.settings-page {
+  --v4-green: var(--mobile-accent-solid);
+  --set-accent: var(--mobile-accent-solid);
+  --settings-v5-accent: var(--mobile-accent-solid);
+  --settings-info-bg: var(--mobile-panel-soft);
+  --settings-info-line: color-mix(in srgb, var(--mobile-accent-solid) 16%, var(--mobile-border));
+  --settings-info-text: var(--mobile-text);
+  --settings-success-bg: var(--mobile-accent-soft);
+  --settings-success-line: color-mix(in srgb, var(--mobile-accent-solid) 26%, var(--mobile-border));
+  --settings-success-text: var(--mobile-accent-text);
+  background: var(--mobile-bg) !important;
+}
+
+@media (min-width: 901px) {
+  .settings-page { padding: 14px !important; }
+
+  .settings-page .settings {
+    width: calc(100vw - 28px) !important;
+    height: calc(100dvh - 28px) !important;
+    grid-template-columns: 196px minmax(0, 1fr) !important;
+    grid-template-rows: 76px minmax(0, 1fr) !important;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--mobile-accent-solid) 16%, var(--mobile-border)) !important;
+    border-radius: 22px !important;
+    background: var(--mobile-panel) !important;
+    box-shadow: 0 28px 80px rgba(22, 16, 43, .16) !important;
+  }
+
+  .settings-page .settings-header {
+    min-height: 76px !important;
+    padding: 0 22px !important;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--mobile-accent-solid) 10%, var(--mobile-panel)), var(--mobile-panel) 42%) !important;
+  }
+
+  .settings-page .settings-sidebar {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--mobile-accent-solid) 5%, var(--mobile-panel)), var(--mobile-panel)) !important;
+  }
+
+  .settings-page .module-tabs { padding: 16px 12px !important; }
+  .settings-page .settings-content { padding: 30px 30px 44px !important; }
+}
+
+.settings-page .settings-back-button,
+.settings-page .settings-header-actions .settings-refresh-button {
+  border-color: color-mix(in srgb, var(--mobile-accent-solid) 14%, var(--mobile-border)) !important;
+  border-radius: 11px !important;
+  background: var(--mobile-panel-soft) !important;
+  color: var(--mobile-text) !important;
+}
+
+.settings-page .module-tab {
+  min-height: 40px !important;
+  padding-left: 14px !important;
+  border-radius: 10px !important;
+  color: var(--mobile-muted) !important;
+}
+
+.settings-page .module-tab:hover {
+  background: var(--mobile-hover) !important;
+  color: var(--mobile-text) !important;
+}
+
+.settings-page .module-tab.active,
+.settings-page .module-tabs button.module-tab.active {
+  border-color: color-mix(in srgb, var(--mobile-accent-solid) 18%, var(--mobile-border)) !important;
+  background: var(--mobile-accent-soft) !important;
+  color: var(--mobile-accent-text) !important;
+  box-shadow: inset 3px 0 0 var(--mobile-accent-solid) !important;
+}
+
+.settings-page .module-tab.active::before {
+  background: var(--mobile-accent-solid) !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--mobile-accent-solid) 12%, transparent) !important;
+}
+
+.settings-page .module-view-title span {
+  color: var(--mobile-text-strong) !important;
+  font-size: 28px !important;
+  font-weight: 720 !important;
+  letter-spacing: -.04em !important;
+}
+
+.settings-page .settings-section,
+.settings-page .model-quick-panel,
+.settings-page .model-inline-card,
+.settings-page .mcp-form-card,
+.settings-page .product-card,
+.settings-page .automation-task-card,
+.settings-page .task-card,
+.settings-page .stat-card,
+.settings-page .workspace-summary-card,
+.settings-page .model-summary-card,
+.settings-page .backup-item,
+.settings-page .backup-health,
+.settings-page .empty.compact {
+  border-color: color-mix(in srgb, var(--mobile-accent-solid) 10%, var(--mobile-border)) !important;
+  border-radius: 15px !important;
+  background: color-mix(in srgb, var(--mobile-panel-raised) 88%, transparent) !important;
+  box-shadow: 0 10px 32px rgba(22, 16, 43, .06) !important;
+}
+
+body .settings-page [data-module-view="workspace"] #workspaceCards .product-card.active,
+body .settings-page [data-module-view="providers"] .product-card.active,
+.settings-page #workspaceCards .product-card.active,
+.settings-page .provider-grid .product-card.active {
+  border-color: color-mix(in srgb, var(--mobile-accent-solid) 38%, var(--mobile-border)) !important;
+  background: color-mix(in srgb, var(--mobile-accent-solid) 8%, var(--mobile-panel-raised)) !important;
+  box-shadow: inset 3px 0 0 var(--mobile-accent-solid) !important;
+}
+
+.settings-page .model-option.active,
+.settings-page .provider-chip.active,
+.settings-page .badge.ok,
+.settings-page .product-card.active .badge,
+.settings-page .settings-save-state.saved,
+.settings-page .setup-banner.ok,
+.settings-page .mcp-inline-warning.ok,
+.settings-page .backup-health.ok {
+  border-color: color-mix(in srgb, var(--mobile-accent-solid) 24%, var(--mobile-border)) !important;
+  background: var(--mobile-accent-soft) !important;
+  color: var(--mobile-accent-text) !important;
+  box-shadow: none !important;
+}
+
+.settings-page button:not(.secondary):not(.danger):not(.module-tab):not(.model-option),
+.settings-page .settings-actions button:not(.secondary):not(.danger),
+.settings-page .mcp-primary-actions button:first-child {
+  border-color: transparent !important;
+  border-radius: 10px !important;
+  background: var(--dock-gradient) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--mobile-accent-solid) 22%, transparent) !important;
+}
+
+.settings-page button.secondary,
+.settings-page input,
+.settings-page textarea,
+.settings-page select,
+.settings-page .code-preview {
+  border-color: color-mix(in srgb, var(--mobile-accent-solid) 10%, var(--mobile-border)) !important;
+  border-radius: 10px !important;
+  background: var(--mobile-panel-soft) !important;
+  color: var(--mobile-text) !important;
+  box-shadow: none !important;
+}
+
+.settings-page input:focus,
+.settings-page textarea:focus,
+.settings-page select:focus {
+  border-color: color-mix(in srgb, var(--mobile-accent-solid) 56%, var(--mobile-border)) !important;
+  box-shadow: 0 0 0 4px var(--mobile-accent-soft) !important;
+}
+
+@media (max-width: 900px) {
+  .settings-page .settings-header,
+  .settings-page .settings-content,
+  .settings-page .module-tabs { background: var(--mobile-bg) !important; }
+
+  .settings-page .module-tabs {
+    border-bottom: 1px solid color-mix(in srgb, var(--mobile-accent-solid) 12%, var(--mobile-border)) !important;
+  }
+
+  .settings-page .module-tab.active,
+  .settings-page .module-tabs button.module-tab.active {
+    box-shadow: inset 0 -2px 0 var(--mobile-accent-solid) !important;
+  }
+}

@@ -1,66 +1,65 @@
-/* 手机端沿用同一灰阶层级，避免抽屉、配置页和聊天页各有一套颜色。 */
+/* 手机端与桌面端共享品牌色和材质，只收紧触控尺寸与抽屉层级。 */
 body.theme-night,
 body:not(.theme-light) {
-  --mobile-bg: #212121;
-  --mobile-panel: #171717;
-  --mobile-panel-translucent: rgba(23, 23, 23, .96);
-  --mobile-panel-soft: #292929;
-  --mobile-panel-raised: #303030;
-  --mobile-hover: #2a2a2a;
-  --mobile-text: #ececec;
+  --mobile-bg: #17171d;
+  --mobile-panel: #101014;
+  --mobile-panel-translucent: rgba(16, 16, 20, .96);
+  --mobile-panel-soft: #1e1e26;
+  --mobile-panel-raised: #272731;
+  --mobile-hover: #23232c;
+  --mobile-text: #f2f0f7;
   --mobile-text-strong: #ffffff;
-  --mobile-muted: #b4b4b4;
-  --mobile-muted-weak: #858585;
-  --mobile-border: rgba(255, 255, 255, .10);
+  --mobile-muted: #b9b5c6;
+  --mobile-muted-weak: #777383;
+  --mobile-border: rgba(255, 255, 255, .09);
   --mobile-border-strong: rgba(255, 255, 255, .16);
-  --mobile-shadow-soft: 0 1px 2px rgba(0, 0, 0, .20);
-  --mobile-shadow-raised: 0 18px 48px rgba(0, 0, 0, .34);
-  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(33, 33, 33, .94) 30%, #212121);
-  --mobile-accent-panel: #303030;
-  --mobile-accent-soft: rgba(255, 255, 255, .10);
-  --mobile-accent-text: #f4f4f4;
-  --mobile-accent-solid: #f4f4f4;
-  --mobile-accent-contrast: #171717;
-  --mobile-accent-shadow: none;
-  --mobile-overlay: rgba(0, 0, 0, .58);
-  --mobile-danger-soft: rgba(239, 68, 68, .14);
-  --mobile-danger-border: rgba(239, 68, 68, .30);
-  --mobile-danger-text: #fca5a5;
-  --mobile-action-bg: #f4f4f4;
-  --mobile-action-text: #171717;
-}
-
-body.theme-light {
-  --mobile-bg: #ffffff;
-  --mobile-panel: #f7f7f8;
-  --mobile-panel-translucent: rgba(247, 247, 248, .96);
-  --mobile-panel-soft: #fafafa;
-  --mobile-panel-raised: #eeeeef;
-  --mobile-hover: #ececee;
-  --mobile-text: #202123;
-  --mobile-text-strong: #111111;
-  --mobile-muted: #676767;
-  --mobile-muted-weak: #929292;
-  --mobile-border: rgba(0, 0, 0, .09);
-  --mobile-border-strong: rgba(0, 0, 0, .15);
-  --mobile-shadow-soft: 0 1px 2px rgba(0, 0, 0, .05);
-  --mobile-shadow-raised: 0 18px 48px rgba(0, 0, 0, .14);
-  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(255, 255, 255, .94) 30%, #ffffff);
-  --mobile-accent-panel: #eeeeef;
-  --mobile-accent-soft: #e7e7e8;
-  --mobile-accent-text: #202123;
-  --mobile-accent-solid: #202123;
+  --mobile-shadow-soft: 0 8px 24px rgba(0, 0, 0, .20);
+  --mobile-shadow-raised: 0 22px 60px rgba(0, 0, 0, .38);
+  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(23, 23, 29, .95) 34%, #17171d);
+  --mobile-accent-panel: rgba(128, 108, 255, .15);
+  --mobile-accent-soft: rgba(128, 108, 255, .16);
+  --mobile-accent-text: #d9d2ff;
+  --mobile-accent-solid: #806cff;
   --mobile-accent-contrast: #ffffff;
-  --mobile-accent-shadow: none;
-  --mobile-overlay: rgba(0, 0, 0, .38);
-  --mobile-danger-soft: #fee2e2;
-  --mobile-danger-border: #fecaca;
-  --mobile-danger-text: #b91c1c;
-  --mobile-action-bg: #202123;
+  --mobile-accent-shadow: 0 12px 28px rgba(108, 86, 245, .26);
+  --mobile-overlay: rgba(10, 9, 15, .66);
+  --mobile-danger-soft: rgba(227, 108, 120, .14);
+  --mobile-danger-border: rgba(227, 108, 120, .30);
+  --mobile-danger-text: #ffb1b9;
+  --mobile-action-bg: #806cff;
   --mobile-action-text: #ffffff;
 }
 
-/* 最终主题层只负责颜色，不改组件几何。 */
+body.theme-light {
+  --mobile-bg: #f8f7f4;
+  --mobile-panel: #ece9e4;
+  --mobile-panel-translucent: rgba(248, 247, 244, .96);
+  --mobile-panel-soft: #f1efeb;
+  --mobile-panel-raised: #fffefd;
+  --mobile-hover: #e2ded8;
+  --mobile-text: #211f29;
+  --mobile-text-strong: #17151d;
+  --mobile-muted: #6e6978;
+  --mobile-muted-weak: #918b99;
+  --mobile-border: rgba(41, 36, 56, .10);
+  --mobile-border-strong: rgba(41, 36, 56, .17);
+  --mobile-shadow-soft: 0 8px 24px rgba(50, 42, 78, .08);
+  --mobile-shadow-raised: 0 22px 60px rgba(50, 42, 78, .18);
+  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(248, 247, 244, .95) 34%, #f8f7f4);
+  --mobile-accent-panel: rgba(111, 92, 232, .12);
+  --mobile-accent-soft: rgba(111, 92, 232, .12);
+  --mobile-accent-text: #5845c8;
+  --mobile-accent-solid: #6f5ce8;
+  --mobile-accent-contrast: #ffffff;
+  --mobile-accent-shadow: 0 12px 28px rgba(95, 75, 218, .20);
+  --mobile-overlay: rgba(31, 27, 43, .42);
+  --mobile-danger-soft: #fde7e9;
+  --mobile-danger-border: #f5c4ca;
+  --mobile-danger-text: #a83e4a;
+  --mobile-action-bg: #6f5ce8;
+  --mobile-action-text: #ffffff;
+}
+
 @media (max-width: 720px) {
   #app.app aside {
     border-right-color: var(--mobile-border) !important;
@@ -71,19 +70,9 @@ body.theme-light {
 
   #app.app .sidebar-mask.show { background: var(--mobile-overlay) !important; }
 
-  #app.app aside :is(.brand-text, .workspace-picker-name, .session-title, .sidebar-section-head, .sidebar-task-item),
+  #app.app aside :is(.brand-text, .workspace-picker-name, .session-title, .sidebar-task-name),
   #app.app aside .sidebar-task-list.session-list-like .sidebar-task-name.session-title {
     color: var(--mobile-text-strong) !important;
-    font-weight: 450 !important;
-  }
-
-  #app.app aside .session-title {
-    font-weight: 450 !important;
-  }
-
-  #app.app aside .sidebar-section-head,
-  #app.app aside .sidebar-section-title {
-    font-weight: 600 !important;
   }
 
   #app.app aside :is(.sub, .session-preview, .session-meta, .workspace-picker-arrow, .sidebar-section-count) {
@@ -103,14 +92,14 @@ body.theme-light {
 
   #app.app aside .session:hover { background: var(--mobile-hover) !important; }
   #app.app aside .session.active {
-    border-color: var(--mobile-border-strong) !important;
+    border-color: color-mix(in srgb, var(--mobile-accent-solid) 34%, var(--mobile-border)) !important;
     background: var(--mobile-accent-panel) !important;
     box-shadow: inset 3px 0 0 var(--mobile-accent-solid) !important;
   }
 
   #app.app aside .new {
     border-color: transparent !important;
-    background: var(--mobile-accent-solid) !important;
+    background: var(--dock-gradient) !important;
     color: var(--mobile-accent-contrast) !important;
     box-shadow: var(--mobile-accent-shadow) !important;
   }

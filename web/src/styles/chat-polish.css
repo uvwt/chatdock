@@ -19,13 +19,14 @@
 
 @media (max-width: 720px) {
   #app.app .messages:has(.product-empty-state) {
+    align-items: stretch !important;
+    justify-content: flex-start !important;
     padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   #app.app .product-empty-state {
     width: 100% !important;
-    padding-left: 10px !important;
-    padding-right: 10px !important;
+    padding: 62px 10px 0 !important;
   }
 }
 

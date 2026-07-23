@@ -98,16 +98,6 @@
     scroll-padding-top: 72px;
   }
 
-  .product-empty-state {
-    min-height: auto !important;
-    padding-top: 14px !important;
-    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-
-  .empty-capability-strip div {
-    padding-left: 52px !important;
-  }
-
   .starter-card-arrow {
     opacity: 1 !important;
     transform: none !important;
@@ -115,59 +105,52 @@
 }
 
 
-/* 手机空状态保持轻量：标题优先，建议项紧凑但仍可点击。 */
+/* 手机首页保留品牌画布，但优先保证首屏信息密度和输入框空间。 */
 @media (max-width: 720px) {
-  .product-empty-state {
-    padding: 24px 12px 112px !important;
-  }
-
   .product-hero {
-    gap: 20px !important;
+    gap: 24px !important;
+    padding: 28px 20px 20px !important;
+    border-radius: 24px !important;
   }
 
   .hero-copy {
     min-height: 0 !important;
     padding: 0 !important;
-    border-radius: 0 !important;
   }
 
   .hero-copy h1 {
-    margin: 10px 0 8px !important;
-    font-size: 32px !important;
-    line-height: 1.06 !important;
+    margin: 16px 0 12px !important;
+    font-size: 42px !important;
+    line-height: 1 !important;
   }
 
   .hero-copy p {
-    margin-bottom: 18px !important;
+    margin-bottom: 22px !important;
     font-size: 14px !important;
-    line-height: 1.55 !important;
+    line-height: 1.58 !important;
   }
 
   .hero-actions {
-    gap: 7px !important;
-  }
-
-  .hero-actions button {
-    height: 38px !important;
-    min-height: 38px !important;
-    padding: 0 12px !important;
-    font-size: 12px !important;
-  }
-
-  .starter-grid {
     gap: 8px !important;
   }
 
-  .starter-card {
-    min-height: 88px !important;
-    padding: 13px 14px !important;
-    border-radius: 12px !important;
-    gap: 5px !important;
+  .hero-actions button {
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 13px !important;
+    font-size: 12px !important;
   }
 
-  .hero-trust-row {
-    display: none !important;
+  .starter-grid { gap: 6px !important; }
+
+  .starter-card {
+    min-height: 76px !important;
+    padding: 10px !important;
+    border-radius: 14px !important;
+    gap: 12px !important;
   }
+
+  .hero-trust-row { display: none !important; }
 }
 
 /* Final composer alignment guard: keep all controls on the same vertical center line. */
