@@ -88,8 +88,16 @@
   width: 6px !important;
 }
 
+#app.app #sessions::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
 #app.app #sessions::-webkit-scrollbar-thumb {
   border-radius: 999px !important;
-  background: rgba(148, 163, 184, .38) !important;
+  background: rgba(148, 163, 184, .16) !important;
+}
+
+#app.app #sessions::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, .34) !important;
 }
 
