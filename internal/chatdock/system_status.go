@@ -52,6 +52,8 @@ func (a *App) handleMCPStatus(w http.ResponseWriter, r *http.Request) {
 		status := storepkg.MCPServerStatus{
 			Name:         name,
 			URL:          server.URL,
+			Description:  server.Description,
+			ToolExposure: string(mcpServerDefaultExposure(server)),
 			Disabled:     server.Disabled,
 			AuthType:     server.Auth.Type,
 			HasToken:     server.BearerToken() != "",

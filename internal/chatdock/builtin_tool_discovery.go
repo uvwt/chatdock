@@ -12,17 +12,37 @@ const (
 	builtinToolServerDiscovery = "chatdock"
 )
 
-func builtinToolSearchTool() mcp.MCPTool {
+func builtinToolSearchTool(resources []toolResource) mcp.MCPTool {
+	resourceIDs := make([]string, 0, len(resources))
+	for _, resource := range resources {
+		if resource.Status == "disabled" {
+			continue
+		}
+		resourceIDs = append(resourceIDs, resource.ID)
+	}
+	description := "按用户目标查找并加载 ChatDock 内置工具或 MCP 工具。可以用 query 搜索；任务明确集中在一个资源时，可只传 resources 且不传 query，一次加载该资源全部真实工具。命中的真实工具会在下一次模型请求中直接出现，不通过代理工具执行。"
+	if index := resourceIndexText(resources); index != "" {
+		description += "\n\n当前资源索引：\n" + index
+	}
+	resourceItems := map[string]any{"type": "string", "description": "资源 ID"}
+	if len(resourceIDs) > 0 {
+		resourceItems["enum"] = resourceIDs
+	}
 	return mcp.MCPTool{
 		Server:      builtinToolServerDiscovery,
 		Name:        "tools_search",
 		FullName:    builtinToolSearchTools,
-		Title:       "查找按需工具",
-		Description: "按用户目标或关键词查找当前按需加载的 ChatDock 内置工具和 MCP 工具。命中的真实工具会在下一轮直接加入工具列表，无需查看详情或通过代理工具执行。",
-		InputSchema: map[string]any{"type": "object", "properties": map[string]any{
-			"query": map[string]any{"type": "string", "description": "用户目标、关键词或能力名称"},
-			"limit": map[string]any{"type": "integer", "description": "最多加载多少个候选工具，默认 8，最大 20"},
-		}, "required": []string{"query"}},
+		Title:       "查找或加载工具",
+		Description: description,
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"query":     map[string]any{"type": "string", "maxLength": maxToolDiscoveryQueryRunes, "description": "用户目标、关键词或能力名称；单资源全量加载时可省略"},
+				"resources": map[string]any{"type": "array", "items": resourceItems, "maxItems": maxToolDiscoveryResourceCount, "uniqueItems": true, "description": "限定搜索或加载的资源；只传一个资源且省略 query 时加载该资源全部工具"},
+				"limit":     map[string]any{"type": "integer", "description": "搜索时最多加载多少个候选工具，默认 8，最大 20"},
+			},
+			"additionalProperties": false,
+		},
 	}
 }
 

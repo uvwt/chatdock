@@ -177,6 +177,8 @@ type SystemStatusResponse struct {
 type MCPServerStatus struct {
 	Name         string `json:"name"`
 	URL          string `json:"url"`
+	Description  string `json:"description,omitempty"`
+	ToolExposure string `json:"tool_exposure"`
 	Disabled     bool   `json:"disabled"`
 	AuthType     string `json:"auth_type,omitempty"`
 	HasToken     bool   `json:"has_token"`

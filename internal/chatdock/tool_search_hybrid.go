@@ -90,10 +90,7 @@ func keywordToolScores(catalog toolCatalog, query string) map[string]int {
 		}
 		return scores
 	}
-	terms := strings.Fields(query)
-	if len(terms) == 0 {
-		terms = []string{query}
-	}
+	terms := toolDiscoveryTerms(query)
 	for _, tool := range catalog.tools {
 		text := strings.ToLower(toolSearchText(tool))
 		score := 0

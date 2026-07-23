@@ -296,6 +296,7 @@ function mcpServerToDraft(server = {}) {
   return {
     type: server.type || 'streamable-http',
     url: server.url || '',
+    description: server.description || '',
     path: server.path || '',
     disabled: !!server.disabled,
     auth_type: auth.type || (auth.token || auth.token_env ? 'bearer' : 'none'),
@@ -315,12 +316,14 @@ function cleanMCPServerDraft(draft) {
   const next = {};
   const type = String(draft.type || '').trim();
   const url = normalizeMCPURLDraft(draft.url);
+  const description = String(draft.description || '').trim();
   const path = String(draft.path || '').trim();
   const authType = String(draft.auth_type || '').trim();
   const token = normalizeBearerTokenDraft(draft.token);
   const tokenEnv = String(draft.token_env || '').trim();
   if (type && type !== 'streamable-http') next.type = type;
   if (url) next.url = url;
+  if (description) next.description = description;
   if (path) next.path = path;
   if (draft.disabled) next.disabled = true;
   if (authType && authType !== 'none') {
@@ -345,7 +348,7 @@ function cleanMCPServerDraft(draft) {
 }
 
 function defaultMCPServerDraft() {
-  return {name: '', type: 'streamable-http', url: '', path: '', disabled: false, auth_type: 'none', token: '', token_env: '', allow_tools: '', deny_tools: '', confirm_tools: '', tool_exposure: 'on_demand', tool_overrides: {}, timeout_ms: '30000', cache_ttl_ms: ''};
+  return {name: '', type: 'streamable-http', url: '', description: '', path: '', disabled: false, auth_type: 'none', token: '', token_env: '', allow_tools: '', deny_tools: '', confirm_tools: '', tool_exposure: 'on_demand', tool_overrides: {}, timeout_ms: '30000', cache_ttl_ms: ''};
 }
 
 function builtinToolsToDraft(config = {}) {
@@ -509,6 +512,7 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
   function renameServer(oldName) {
     const nextName = cleanMCPServerName(renameDrafts[oldName] ?? oldName);
     if (!nextName) { setFormError('Server 名称不能为空。'); return; }
+    if (nextName.toLowerCase() === 'chatdock') { setFormError('ChatDock 是内置资源名，请换一个 Server 名称。'); return; }
     if (nextName === oldName) { setRenameDrafts(drafts => { const next = {...drafts}; delete next[oldName]; return next; }); setFormError(''); return; }
     if ((parsed.config.servers || {})[nextName]) { setFormError('Server 名称已存在，请换一个名称。'); return; }
     replaceConfig(next => {
@@ -525,6 +529,7 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
   function addServer() {
     const name = cleanMCPServerName(newServer.name);
     if (!name) { setFormError('请先填写 Server 名称。'); return; }
+    if (name.toLowerCase() === 'chatdock') { setFormError('ChatDock 是内置资源名，请换一个 Server 名称。'); return; }
     if ((parsed.config.servers || {})[name]) { setFormError('Server 名称已存在，请换一个名称。'); return; }
     if (!String(newServer.url || '').trim() && !String(newServer.path || '').trim()) { setFormError('请填写 MCP HTTP 地址；Docker 部署访问本机服务通常用 http://host.docker.internal:18766/mcp。'); return; }
     replaceConfig(next => { next.servers[name] = cleanMCPServerDraft(newServer); });
@@ -554,6 +559,8 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
         {!isNew ? <div className="mcp-form-head-actions"><button className="secondary small" onClick={() => patchServer(name, {disabled: !draft.disabled})}>{draft.disabled ? '启用' : '禁用'}</button><button className="danger small" onClick={() => removeServer(name)}>删除</button></div> : null}
       </div>
       {isNew ? <label>Server 名称<input value={draft.name} onChange={e => setNewServer(s => ({...s, name: e.target.value}))} placeholder="例如 agentdock" /></label> : <label>Server 名称<div className="mcp-rename-row"><input value={serverNameDraft} onChange={e => setRenameDrafts(drafts => ({...drafts, [name]: e.target.value}))} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); renameServer(name); } }} placeholder="例如 agentdock" /><button type="button" className="secondary small" onClick={() => renameServer(name)} disabled={cleanMCPServerName(serverNameDraft) === name}>改名</button></div></label>}
+      <label>资源说明<input maxLength="240" value={draft.description} onChange={e => update({description: e.target.value})} placeholder="例如 Mac mini 本机开发、文件、命令和 Git 能力" /></label>
+      <div className="hint">这段说明会进入模型看到的轻量资源索引；按需资源尚未加载工具时，模型会据此选择目标资源。</div>
       <div className="mcp-form-grid">
         <label>连接类型<select value={draft.type} onChange={e => update({type: e.target.value})}><option value="streamable-http">HTTP / Streamable HTTP</option></select></label>
         <label>状态<select value={draft.disabled ? 'disabled' : 'enabled'} onChange={e => update({disabled: e.target.value === 'disabled'})}><option value="enabled">启用</option><option value="disabled">禁用</option></select></label>

@@ -321,7 +321,7 @@ func appendMCPToolUseHint(messages []map[string]any, tools []mcp.MCPTool) []map[
 	if len(tools) == 0 {
 		return messages
 	}
-	hint := map[string]any{"role": "system", "content": "ChatDock MCP 工具已接入。是否调用工具由你根据用户请求自主判断；直接工具可以立即调用。若存在 chatdock_tools_search，说明还有按需工具：先按目标搜索，命中的真实工具会在下一轮直接出现，再按其 schema 直接调用。不要猜测尚未暴露的参数，也不要声称没有工具权限。"}
+	hint := map[string]any{"role": "system", "content": "ChatDock 工具资源已接入。直接工具可以立即调用。若存在 chatdock_tools_search，说明还有按需资源或工具：可按目标搜索；任务明确集中在一个资源时，可只指定该资源并省略 query，一次加载该资源全部工具。加载后的真实工具会在下一次模型请求中直接出现，请按其 schema 直接调用，不要猜测尚未暴露的参数，也不要声称没有工具权限。"}
 	out := make([]map[string]any, 0, len(messages)+1)
 	inserted := false
 	for _, msg := range messages {

@@ -104,3 +104,24 @@ func TestToolCacheRemovesExpiredEntry(t *testing.T) {
 		t.Fatal("expired entry should be removed")
 	}
 }
+
+func TestCachedServerToolsUsesConfiguredResourceAndReturnsClone(t *testing.T) {
+	client := NewMCPClient()
+	server := MCPServerConfig{URL: "http://example.test/mcp", CacheTTLMS: 60_000}
+	cfg := MCPConfig{Servers: map[string]MCPServerConfig{"demo": server}}
+	key := serverCacheKey("demo", server)
+	client.storeCachedTools(key, []MCPTool{{FullName: "demo__read", InputSchema: map[string]any{"type": "object"}}})
+
+	tools, ok := client.CachedServerTools(cfg, "demo")
+	if !ok || len(tools) != 1 {
+		t.Fatalf("expected cached resource tools, got ok=%v tools=%#v", ok, tools)
+	}
+	tools[0].InputSchema["type"] = "mutated"
+	second, ok := client.CachedServerTools(cfg, "demo")
+	if !ok || second[0].InputSchema["type"] != "object" {
+		t.Fatalf("cached resource lookup must return a deep clone, got %#v", second)
+	}
+	if _, ok := client.CachedServerTools(cfg, "missing"); ok {
+		t.Fatal("missing resource must not return cached tools")
+	}
+}

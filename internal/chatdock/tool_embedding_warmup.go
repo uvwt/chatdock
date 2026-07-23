@@ -3,6 +3,7 @@ package chatdock
 import (
 	"context"
 	"log"
+	"sort"
 	"strings"
 	"time"
 )
@@ -24,10 +25,19 @@ func (a *App) warmToolEmbeddingIndex(parent context.Context) {
 	if err != nil {
 		log.Printf("tool embedding warmup using builtin tools only: MCP config unavailable: %v", err)
 	} else if len(mcpCfg.Servers) > 0 {
-		mcpTools, err := a.mcpClient.ListTools(ctx, mcpCfg)
-		if err != nil {
-			log.Printf("tool embedding warmup using builtin tools only: list MCP tools failed: %v", err)
-		} else {
+		serverNames := make([]string, 0, len(mcpCfg.Servers))
+		for serverName, server := range mcpCfg.Servers {
+			if mcpServerNeedsInitialLoad(server) {
+				serverNames = append(serverNames, serverName)
+			}
+		}
+		sort.Strings(serverNames)
+		for _, serverName := range serverNames {
+			mcpTools, listErr := a.mcpClient.ListServerTools(ctx, mcpCfg, serverName)
+			if listErr != nil {
+				log.Printf("tool embedding warmup skipped MCP resource %s: %v", serverName, listErr)
+				continue
+			}
 			tools = append(tools, mcpTools...)
 		}
 	}

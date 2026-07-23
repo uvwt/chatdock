@@ -24,6 +24,7 @@ const (
 type MCPServerConfig struct {
 	Type          string                  `json:"type"`
 	URL           string                  `json:"url"`
+	Description   string                  `json:"description"`
 	Auth          MCPAuthConfig           `json:"auth"`
 	Disabled      bool                    `json:"disabled"`
 	AllowTools    []string                `json:"allow_tools"`
@@ -94,6 +95,9 @@ func ParseMCPConfig(content string) (MCPConfig, error) {
 	for serverName, server := range cfg.Servers {
 		if strings.TrimSpace(serverName) == "" {
 			return MCPConfig{}, fmt.Errorf("mcp server name cannot be empty")
+		}
+		if strings.EqualFold(strings.TrimSpace(serverName), "ChatDock") {
+			return MCPConfig{}, fmt.Errorf("mcp server name %q is reserved for the built-in ChatDock resource", serverName)
 		}
 		alias := safeToolName(serverName)
 		if previous, exists := serverAliases[alias]; exists {

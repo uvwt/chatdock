@@ -24,11 +24,12 @@ func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string,
 	history = a.prepareVisionAttachmentURLs(history)
 	history = a.appendAgentDockRuntimeContext(ctx, history)
 
-	allTools, mcpConfig, mcpReady, err := a.loadConversationTools(ctx, workspaceID, emit)
+	toolSet, mcpConfig, err := a.loadConversationTools(ctx, workspaceID, emit)
 	if err != nil {
 		return "", cfg, err
 	}
-	if len(allTools) == 0 {
+	visibleTools := toolSet.tools()
+	if len(visibleTools) == 0 {
 		return completeModelWithFallback(ctx, cfg, fallbackCfg, emit, func(attemptCfg model.ModelConfig, attemptEmit func(string, any) error, _ func()) (string, error) {
 			if attemptEmit != nil {
 				return a.client.Stream(ctx, attemptCfg, history, func(delta llm.StreamDelta) error { return attemptEmit("delta", delta) })
@@ -37,17 +38,25 @@ func (a *App) completeWithRecordedTools(ctx context.Context, workspaceID string,
 		})
 	}
 
-	toolSet := newConversationToolSet(allTools, mcpConfig)
-	visibleTools := toolSet.tools()
 	if emit != nil {
-		if err := emit("tool_setup_ready", map[string]any{"mode": "dynamic", "tool_count": len(allTools), "exposed_tool_count": len(visibleTools), "builtin_tool_count": len(builtinChatDockTools()), "on_demand_tool_count": len(toolSet.onDemand.tools)}); err != nil {
+		if err := emit("tool_setup_ready", map[string]any{
+			"mode":                     "resource_dynamic",
+			"tool_count":               len(toolSet.allByName),
+			"exposed_tool_count":       len(visibleTools),
+			"builtin_tool_count":       len(builtinChatDockTools()),
+			"on_demand_tool_count":     len(toolSet.onDemand.tools),
+			"resource_count":           len(toolSet.resources),
+			"loaded_resource_count":    toolSet.loadedResourceCount(),
+			"on_demand_resource_count": toolSet.onDemandResourceCount(),
+			"resource_error_count":     toolSet.resourceErrorCount(),
+		}); err != nil {
 			return "", cfg, err
 		}
 	}
 	recorder := &activeToolRun{LastArgs: map[string]any{}, StartedAt: map[string]time.Time{}}
 	recordingEmit := a.toolRunEmitter(workspaceID, sessionID, recorder, emit)
 	runRealTool := func(name string, args map[string]any) (any, error) {
-		return a.callConversationTool(ctx, workspaceID, sessionID, mcpConfig, mcpReady, name, args, recordingEmit)
+		return a.callConversationTool(ctx, workspaceID, sessionID, mcpConfig, name, args, recordingEmit)
 	}
 
 	toolEmit := recordingEmit

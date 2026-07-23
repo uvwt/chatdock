@@ -4,10 +4,20 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"strings"
 	"time"
 )
 
 const maxMCPToolCacheEntries = 128
+
+// CachedServerTools 返回资源近期缓存的完整工具定义，调用方可以安全修改返回值。
+func (c *MCPClient) CachedServerTools(cfg MCPConfig, serverName string) ([]MCPTool, bool) {
+	server, ok := cfg.Servers[serverName]
+	if !ok || server.Disabled || strings.TrimSpace(server.URL) == "" {
+		return nil, false
+	}
+	return c.cachedTools(serverCacheKey(serverName, server), server)
+}
 
 func (c *MCPClient) cachedTools(key string, server MCPServerConfig) ([]MCPTool, bool) {
 	ttl := server.cacheTTL()

@@ -499,11 +499,11 @@ func TestAppendMCPToolUseHint(t *testing.T) {
 	messages := []map[string]any{{"role": "system", "content": "base"}, {"role": "user", "content": "hi"}}
 	out := appendMCPToolUseHint(messages, []mcp.MCPTool{{Name: "read", FullName: "agentdock__read"}})
 	content, _ := out[0]["content"].(string)
-	if len(out) != 2 || out[0]["role"] != "system" || !strings.Contains(content, "MCP") || !strings.Contains(content, "base") {
+	if len(out) != 2 || out[0]["role"] != "system" || !strings.Contains(content, "工具资源") || !strings.Contains(content, "base") {
 		t.Fatalf("expected MCP system hint merged with existing system prompt, got %#v", out)
 	}
-	if !strings.Contains(content, "自主判断") {
-		t.Fatalf("expected tool hint to preserve model autonomy, got %q", content)
+	if !strings.Contains(content, "一个资源") {
+		t.Fatalf("expected tool hint to explain single-resource loading, got %q", content)
 	}
 }
 

@@ -1,6 +1,10 @@
 package mcp
 
-import "testing"
+import (
+	"fmt"
+	"strings"
+	"testing"
+)
 
 func TestParseMCPConfigAndToolFilters(t *testing.T) {
 	content := `{
@@ -104,6 +108,15 @@ func TestParseMCPConfigRejectsInvalidToolExposure(t *testing.T) {
 	for _, content := range tests {
 		if _, err := ParseMCPConfig(content); err == nil {
 			t.Fatalf("expected invalid exposure to fail: %s", content)
+		}
+	}
+}
+
+func TestParseMCPConfigRejectsBuiltInResourceName(t *testing.T) {
+	for _, name := range []string{"ChatDock", "chatdock", " CHATDOCK "} {
+		content := fmt.Sprintf(`{"servers":{%q:{"url":"http://example.test/mcp"}}}`, name)
+		if _, err := ParseMCPConfig(content); err == nil || !strings.Contains(err.Error(), "reserved") {
+			t.Fatalf("reserved resource name %q should be rejected, got %v", name, err)
 		}
 	}
 }
