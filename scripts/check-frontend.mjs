@@ -43,8 +43,13 @@ if (!read('web/src/components/modelPicker.jsx').includes('export function Compos
 if (!read('web/src/lib/chatPresentation.js').includes('export function readableChatError')) failures.push('chat presentation helpers missing');
 if (!read('web/src/lib/toolEventDetails.js').includes('export function buildToolEventDetail')) failures.push('tool event detail helpers missing');
 
+const settingsActions = read('web/src/hooks/useSettingsActions.js');
+if (!settingsActions.includes('export function useSettingsActions')) failures.push('settings mutations belong in web/src/hooks/useSettingsActions.js');
+for (const name of ['editProject', 'editModelProvider', 'editScheduledTask']) {
+  if (app.includes('const ' + name + ' = useCallback')) failures.push(`settings action should stay outside App.jsx: ${name}`);
+}
 const appLineCount = app.split(/\n/).length;
-if (appLineCount > 1610) failures.push(`App.jsx line count ${appLineCount} exceeds 1610; keep shell JSX in appChrome.jsx and protocol logic in lib/`);
+if (appLineCount > 1300) failures.push(`App.jsx line count ${appLineCount} exceeds 1300; keep settings mutations in useSettingsActions.js and shell JSX in appChrome.jsx`);
 const appChrome = read('web/src/components/appChrome.jsx');
 for (const name of ['Sidebar', 'Topbar', 'ComposerBar']) {
   if (!appChrome.includes('export function ' + name)) failures.push(`app chrome component missing: ${name}`);
