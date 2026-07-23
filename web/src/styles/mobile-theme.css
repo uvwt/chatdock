@@ -1,62 +1,62 @@
-/* 手机端共享主题变量：布局样式只引用语义颜色，避免白天/夜间维护两套结构。 */
+/* 手机端沿用同一灰阶层级，避免抽屉、配置页和聊天页各有一套颜色。 */
 body.theme-night,
 body:not(.theme-light) {
-  --mobile-bg: #0f0f10;
-  --mobile-panel: #0a0a0b;
-  --mobile-panel-translucent: rgba(10, 10, 11, .94);
-  --mobile-panel-soft: #181819;
-  --mobile-panel-raised: #242426;
-  --mobile-hover: #1e1e20;
-  --mobile-text: #ededed;
+  --mobile-bg: #212121;
+  --mobile-panel: #171717;
+  --mobile-panel-translucent: rgba(23, 23, 23, .96);
+  --mobile-panel-soft: #292929;
+  --mobile-panel-raised: #303030;
+  --mobile-hover: #2a2a2a;
+  --mobile-text: #ececec;
   --mobile-text-strong: #ffffff;
-  --mobile-muted: #a1a1a1;
-  --mobile-muted-weak: #737373;
+  --mobile-muted: #b4b4b4;
+  --mobile-muted-weak: #858585;
   --mobile-border: rgba(255, 255, 255, .10);
-  --mobile-border-strong: rgba(255, 255, 255, .18);
-  --mobile-shadow-soft: 0 8px 24px rgba(0, 0, 0, .26);
-  --mobile-shadow-raised: 0 18px 52px rgba(0, 0, 0, .38);
-  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(15, 15, 16, .92) 26%, #0f0f10);
-  --mobile-accent-panel: #202022;
-  --mobile-accent-soft: rgba(255, 255, 255, .12);
-  --mobile-accent-text: #f1f1f1;
-  --mobile-accent-solid: #f1f1f1;
-  --mobile-accent-contrast: #101010;
-  --mobile-accent-shadow: 0 10px 24px rgba(0, 0, 0, .30);
-  --mobile-overlay: rgba(0, 0, 0, .62);
+  --mobile-border-strong: rgba(255, 255, 255, .16);
+  --mobile-shadow-soft: 0 1px 2px rgba(0, 0, 0, .20);
+  --mobile-shadow-raised: 0 18px 48px rgba(0, 0, 0, .34);
+  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(33, 33, 33, .94) 30%, #212121);
+  --mobile-accent-panel: #303030;
+  --mobile-accent-soft: rgba(255, 255, 255, .10);
+  --mobile-accent-text: #f4f4f4;
+  --mobile-accent-solid: #f4f4f4;
+  --mobile-accent-contrast: #171717;
+  --mobile-accent-shadow: none;
+  --mobile-overlay: rgba(0, 0, 0, .58);
   --mobile-danger-soft: rgba(239, 68, 68, .14);
   --mobile-danger-border: rgba(239, 68, 68, .30);
   --mobile-danger-text: #fca5a5;
-  --mobile-action-bg: #f4f4f5;
-  --mobile-action-text: #111111;
+  --mobile-action-bg: #f4f4f4;
+  --mobile-action-text: #171717;
 }
 
 body.theme-light {
   --mobile-bg: #ffffff;
-  --mobile-panel: #f3f3f3;
-  --mobile-panel-translucent: rgba(255, 255, 255, .94);
-  --mobile-panel-soft: #f7f7f7;
-  --mobile-panel-raised: #ececec;
-  --mobile-hover: #e8e8e8;
-  --mobile-text: #171717;
-  --mobile-text-strong: #000000;
-  --mobile-muted: #666666;
-  --mobile-muted-weak: #8a8a8a;
-  --mobile-border: rgba(0, 0, 0, .10);
-  --mobile-border-strong: rgba(0, 0, 0, .18);
-  --mobile-shadow-soft: 0 8px 24px rgba(0, 0, 0, .05);
-  --mobile-shadow-raised: 0 18px 52px rgba(0, 0, 0, .11);
-  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(255, 255, 255, .92) 26%, #ffffff);
-  --mobile-accent-panel: #e8e8e8;
-  --mobile-accent-soft: #dedede;
-  --mobile-accent-text: #171717;
-  --mobile-accent-solid: #171717;
+  --mobile-panel: #f7f7f8;
+  --mobile-panel-translucent: rgba(247, 247, 248, .96);
+  --mobile-panel-soft: #fafafa;
+  --mobile-panel-raised: #eeeeef;
+  --mobile-hover: #ececee;
+  --mobile-text: #202123;
+  --mobile-text-strong: #111111;
+  --mobile-muted: #676767;
+  --mobile-muted-weak: #929292;
+  --mobile-border: rgba(0, 0, 0, .09);
+  --mobile-border-strong: rgba(0, 0, 0, .15);
+  --mobile-shadow-soft: 0 1px 2px rgba(0, 0, 0, .05);
+  --mobile-shadow-raised: 0 18px 48px rgba(0, 0, 0, .14);
+  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(255, 255, 255, .94) 30%, #ffffff);
+  --mobile-accent-panel: #eeeeef;
+  --mobile-accent-soft: #e7e7e8;
+  --mobile-accent-text: #202123;
+  --mobile-accent-solid: #202123;
   --mobile-accent-contrast: #ffffff;
-  --mobile-accent-shadow: 0 10px 24px rgba(0, 0, 0, .14);
-  --mobile-overlay: rgba(15, 23, 42, .42);
+  --mobile-accent-shadow: none;
+  --mobile-overlay: rgba(0, 0, 0, .38);
   --mobile-danger-soft: #fee2e2;
   --mobile-danger-border: #fecaca;
   --mobile-danger-text: #b91c1c;
-  --mobile-action-bg: #172033;
+  --mobile-action-bg: #202123;
   --mobile-action-text: #ffffff;
 }
 

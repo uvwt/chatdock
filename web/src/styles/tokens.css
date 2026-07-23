@@ -1,62 +1,23 @@
-/* ChatDock frontend tokens：黑白主题只通过语义变量表达，组件不直接绑定品牌色。 */
+/* ChatDock 灰阶视觉变量：深浅模式共享结构，只改变明度关系。 */
 :root {
   color-scheme: dark;
-  --bg: #0f0f10;
-  --panel: #0a0a0b;
-  --panel-soft: #181819;
-  --panel-deep: #121213;
-  --text: #ededed;
-  --text-strong: #ffffff;
-  --muted: #a1a1a1;
-  --muted-weak: #737373;
-  --border: rgba(255, 255, 255, .10);
-  --border-strong: rgba(255, 255, 255, .18);
-  --primary: #f1f1f1;
-  --primary-strong: #d4d4d4;
-  --danger: #b74b4b;
-}
-
-body.theme-light {
-  color-scheme: light;
-  --bg: #ffffff;
-  --panel: #f3f3f3;
-  --panel-soft: #f7f7f7;
-  --panel-deep: #ffffff;
-  --text: #171717;
-  --text-strong: #000000;
-  --muted: #666666;
-  --muted-weak: #8a8a8a;
-  --border: rgba(0, 0, 0, .10);
-  --border-strong: rgba(0, 0, 0, .18);
-  --primary: #171717;
-  --primary-strong: #000000;
-  --danger: #a84343;
-}
-
-/* 主工作台采用纯黑、白、灰层级；强调操作通过黑白反转表达。 */
-:root {
-  --gpt-bg: #0f0f10;
-  --gpt-main: #121213;
-  --gpt-sidebar: #0a0a0b;
-  --gpt-sidebar-hover: #1e1e20;
-  --gpt-surface: #242426;
-  --gpt-surface-2: #181819;
+  --gpt-bg: #212121;
+  --gpt-main: #212121;
+  --gpt-sidebar: #171717;
+  --gpt-sidebar-hover: #2a2a2a;
+  --gpt-surface: #303030;
+  --gpt-surface-2: #292929;
   --gpt-border: rgba(255, 255, 255, .10);
-  --gpt-border-strong: rgba(255, 255, 255, .18);
-  --gpt-text: #ededed;
-  --gpt-muted: #a1a1a1;
-  --gpt-muted-2: #737373;
-  --gpt-accent: #f1f1f1;
-  --gpt-accent-contrast: #101010;
-  --accent: var(--gpt-accent);
-  --gpt-danger: #d86767;
-  --gpt-chat-width: 960px;
-  --gpt-msg-width: 960px;
+  --gpt-border-strong: rgba(255, 255, 255, .16);
+  --gpt-text: #ececec;
+  --gpt-muted: #b4b4b4;
+  --gpt-muted-2: #858585;
+  --gpt-accent: #f4f4f4;
+  --gpt-accent-contrast: #171717;
+  --gpt-danger: #d96b6b;
+  --gpt-chat-width: 920px;
+  --gpt-msg-width: 920px;
   --gpt-sidebar-width: 260px;
-}
-
-body.theme-night,
-body:not(.theme-light) {
   --bg: var(--gpt-bg);
   --panel: var(--gpt-sidebar);
   --panel-soft: var(--gpt-surface-2);
@@ -68,37 +29,30 @@ body:not(.theme-light) {
   --border: var(--gpt-border);
   --border-strong: var(--gpt-border-strong);
   --primary: var(--gpt-accent);
-  --primary-strong: #d4d4d4;
+  --primary-strong: #d8d8d8;
+  --accent: var(--gpt-accent);
   --danger: var(--gpt-danger);
+  --dock-card-shadow: 0 1px 2px rgba(0, 0, 0, .22);
 }
 
 body.theme-light {
+  color-scheme: light;
   --gpt-bg: #ffffff;
   --gpt-main: #ffffff;
-  --gpt-sidebar: #f3f3f3;
-  --gpt-sidebar-hover: #e8e8e8;
-  --gpt-surface: #ececec;
-  --gpt-surface-2: #f7f7f7;
-  --gpt-border: rgba(0, 0, 0, .10);
-  --gpt-border-strong: rgba(0, 0, 0, .18);
-  --gpt-text: #171717;
-  --gpt-muted: #666666;
-  --gpt-muted-2: #8a8a8a;
-  --gpt-accent: #171717;
+  --gpt-sidebar: #f7f7f8;
+  --gpt-sidebar-hover: #ececee;
+  --gpt-surface: #eeeeef;
+  --gpt-surface-2: #fafafa;
+  --gpt-border: rgba(0, 0, 0, .09);
+  --gpt-border-strong: rgba(0, 0, 0, .15);
+  --gpt-text: #202123;
+  --gpt-muted: #676767;
+  --gpt-muted-2: #929292;
+  --gpt-accent: #202123;
   --gpt-accent-contrast: #ffffff;
-  --gpt-danger: #b34c4c;
+  --gpt-danger: #b54b4b;
+  --text-strong: #111111;
+  --primary-strong: #000000;
+  --dock-card-shadow: 0 1px 2px rgba(0, 0, 0, .05);
   background: var(--gpt-bg);
-}
-
-/* 空状态只保留低对比度黑白光影，不再出现彩色光晕。 */
-:root {
-  --dock-hero-glow: rgba(255, 255, 255, .07);
-  --dock-blue-glow: rgba(255, 255, 255, .035);
-  --dock-card-shadow: 0 22px 64px rgba(0, 0, 0, .28);
-}
-
-body.theme-light {
-  --dock-hero-glow: rgba(0, 0, 0, .035);
-  --dock-blue-glow: rgba(0, 0, 0, .018);
-  --dock-card-shadow: 0 20px 58px rgba(0, 0, 0, .08);
 }

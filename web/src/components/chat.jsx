@@ -225,31 +225,33 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEd
 export const MemoizedMessageView = React.memo(MessageView);
 
 export function EmptyState({ createSession, openSettings, openWorkspacePicker, busy, hasWorkspaces, setInput, modelReady }) {
-  const flowSteps = [
-    {title:'开始', text:'先开一个干净会话，保留后续上下文。', key:'↵'},
-    {title:'调用', text:'模型、MCP 工具和附件统一进同一入口。', key:'⌘K'},
-    {title:'追踪', text:'任务、工具事件和运行记录都能复查。', key:'✓'},
+  const starters = [
+    { number: '01', title: '梳理一个需求', text: '把模糊想法拆成清晰步骤和风险。', prompt: '帮我把这个需求拆成可执行步骤，并指出主要风险：' },
+    { number: '02', title: '检查当前项目', text: '快速找出最值得优先处理的问题。', prompt: '检查当前项目状态，找出最需要优先处理的问题。' },
+    { number: '03', title: '设计自动化', text: '规划触发条件、执行步骤和失败处理。', prompt: '帮我设计一个自动化任务，包括触发方式、执行步骤和失败处理。' },
   ];
   return <div className="empty-state product-empty-state">
     <section className="product-hero">
       <div className="hero-copy">
-        <div className="empty-state-kicker"><span className="kicker-dot" /> ChatDock 工作台</div>
+        <div className="empty-state-kicker"><span className="kicker-dot" /> ChatDock</div>
         <h1>今天想完成什么？</h1>
-        <p>从一个会话开始，把模型配置、工具调用、任务记录和数据状态收在同一个工作流里。</p>
+        <p>从聊天开始，模型、工具和任务会自然汇入同一条工作流。</p>
         <div className="empty-state-actions hero-actions">
-          <button disabled={busy || !modelReady} onClick={createSession}>{modelReady ? '开始新会话' : '先配置模型'}</button>
-          <button className="secondary" onClick={() => openSettings('model')}>{modelReady ? '检查模型' : '配置模型'}</button>
-          <button className="secondary" disabled={!hasWorkspaces || busy} onClick={openWorkspacePicker}>切换工作空间</button>
-        </div>
-        <div className="hero-trust-row">
-          <span>本地数据优先</span><span>工作空间隔离</span><span>快捷指令 ⌘K</span>
+          <button disabled={busy || !modelReady} onClick={createSession}>{modelReady ? '新建会话' : '先配置模型'}</button>
+          <button className="secondary" onClick={() => openSettings('model')}>{modelReady ? '模型配置' : '配置模型'}</button>
+          <button className="secondary" disabled={!hasWorkspaces || busy} onClick={openWorkspacePicker}>切换工作区</button>
         </div>
       </div>
-      <div className="hero-panel" aria-label="ChatDock 工作台能力概览">
-        <div className="hero-panel-top"><span>当前流程</span><b>Ready</b></div>
-        {flowSteps.map((step, index) => <div key={step.title} className="hero-metric-row">
-          <div><small>{String(index + 1).padStart(2, '0')}</small><b>{step.title}</b><span>{step.text}</span></div><strong>{step.key}</strong>
-        </div>)}
+      <div className="starter-grid" aria-label="常用起始任务">
+        {starters.map(item => <button key={item.title} type="button" className="starter-card" onClick={() => setInput(item.prompt)}>
+          <span className="starter-icon">{item.number}</span>
+          <b>{item.title}</b>
+          <span>{item.text}</span>
+          <span className="starter-card-arrow" aria-hidden="true">↗</span>
+        </button>)}
+      </div>
+      <div className="hero-trust-row" aria-label="工作台特性">
+        <span>本地数据优先</span><span>工作空间隔离</span><span>快捷指令 ⌘K</span>
       </div>
     </section>
   </div>;
