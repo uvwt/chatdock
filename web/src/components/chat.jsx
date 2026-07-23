@@ -1,15 +1,25 @@
 // Chat workbench, message rendering, empty state, and attachment chips.
 import React, { useEffect, useRef, useState } from 'react';
+import {
+  Check,
+  ArrowUp,
+  Copy,
+  MoreHorizontal,
+  Orbit,
+  Paperclip,
+  Pencil,
+  X,
+} from './icons.js';
 import { fmtBytes } from '../lib/appUtils.js';
 import { assistantMessageBlocks, executionBlockSummary, toolEventDisplayName, toolEventMetaText } from '../lib/messageExecution.js';
 import { Markdown } from './base.jsx';
 
 function MessageActions({ text, onCopy, onBranch, onEdit, user = false }) {
   return <div className={'msg-actions ' + (user ? 'user-message-actions' : '')}>
-    <button type="button" className="secondary small msg-action-copy" onClick={() => onCopy(text)} aria-label={user ? '复制当前消息' : '复制当前回复'} title={user ? '复制当前消息' : '复制当前回复'}><svg className="msg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></svg></button>
-    {onEdit ? <button type="button" className="secondary small msg-action-edit" onClick={onEdit} aria-label="编辑当前消息" title="编辑当前消息"><svg className="msg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></button> : null}
-    {onBranch ? <button type="button" className="secondary small msg-action-branch" onClick={onBranch} aria-label="在新聊天中创建分支对话" title="在新聊天中创建分支对话"><svg className="msg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v8a4 4 0 0 0 4 4h9" /><path d="m16 13 3 3-3 3" /></svg></button> : null}
-    {!user ? <button type="button" className="secondary small msg-action-more" aria-label="更多操作" title="更多操作"><svg className="msg-action-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="19" cy="12" r="1.4" /></svg></button> : null}
+    <button type="button" className="secondary small msg-action-copy" onClick={() => onCopy(text)} aria-label={user ? '复制当前消息' : '复制当前回复'} title={user ? '复制当前消息' : '复制当前回复'}><Copy className="msg-action-icon" size={16} aria-hidden="true" /></button>
+    {onEdit ? <button type="button" className="secondary small msg-action-edit" onClick={onEdit} aria-label="编辑当前消息" title="编辑当前消息"><Pencil className="msg-action-icon" size={16} aria-hidden="true" /></button> : null}
+    {onBranch ? <button type="button" className="secondary small msg-action-branch" onClick={onBranch} aria-label="在新聊天中创建分支对话" title="在新聊天中创建分支对话"><ArrowUp className="msg-action-icon icon-right" size={16} aria-hidden="true" /></button> : null}
+    {!user ? <button type="button" className="secondary small msg-action-more" aria-label="更多操作" title="更多操作"><MoreHorizontal className="msg-action-icon" size={16} aria-hidden="true" /></button> : null}
   </div>;
 }
 
@@ -29,26 +39,27 @@ export function AttachmentList({ attachments, removable = false, onRemove, onDow
       const canDownload = !!onDownload && item.id && !item.uploading && !item.error && !String(item.id).startsWith('local_');
       const download = () => canDownload ? onDownload(item) : null;
       return <div key={item.id || item.name} className={'attachment-chip ' + (item.error ? 'error ' : '') + (canDownload ? 'downloadable' : '')} onClick={download} role={canDownload ? 'button' : undefined} tabIndex={canDownload ? 0 : undefined} onKeyDown={e => { if (canDownload && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); download(); } }} title={canDownload ? '点击下载附件' : undefined}>
-        <span className="attachment-icon">📎</span>
+        <span className="attachment-icon"><Paperclip size={16} aria-hidden="true" /></span>
         <span className="attachment-main"><b>{item.name || '附件'}</b><span>{fmtBytes(item.size)} · {attachmentStatusLabel(item)}</span></span>
-        {removable ? <button className="attachment-remove" type="button" onClick={e => { e.stopPropagation(); onRemove?.(item.id); }} title="移除附件">×</button> : null}
+        {removable ? <button className="attachment-remove icon-button" type="button" onClick={e => { e.stopPropagation(); onRemove?.(item.id); }} title="移除附件" aria-label="移除附件"><X size={14} aria-hidden="true" /></button> : null}
       </div>;
     })}
   </div>;
 }
 
 function toolEventStatus(event) {
-  if (event.phase === 'running') return {icon: '○', text: '运行中'};
-  if (event.phase === 'error') return {icon: '×', text: '失败'};
-  return {icon: '✓', text: '完成'};
+  if (event.phase === 'running') return { icon: Orbit, text: '运行中' };
+  if (event.phase === 'error') return { icon: X, text: '失败' };
+  return { icon: Check, text: '完成' };
 }
 
 function ToolEventRow({ event, onInspectToolEvent }) {
   const status = toolEventStatus(event);
+  const StatusIcon = status.icon;
   const name = toolEventDisplayName(event);
   const meta = toolEventMetaText(event);
   return <button type="button" className={'tool-step-row ' + (event.phase ? 'phase-' + event.phase : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} disabled={!event.details}>
-    <span className="tool-step-icon">{status.icon}</span>
+    <span className="tool-step-icon"><StatusIcon size={14} aria-hidden="true" /></span>
     <span className="tool-step-body">
       <span className="tool-step-name">{name}</span>
       {meta ? <span className="tool-step-meta">{meta}</span> : null}
@@ -82,9 +93,9 @@ function ExecutionBlock({ block, streaming = false, onInspectToolEvent }) {
     if (!streaming) setManuallyOpen(false);
   }, [streaming]);
 
-  const icon = block.kind === 'reasoning'
-    ? '✦'
-    : (summary.tone === 'running' ? '○' : (summary.tone === 'error' ? '!' : '✓'));
+  const SummaryIcon = block.kind === 'reasoning'
+    ? Orbit
+    : (summary.tone === 'running' ? Orbit : (summary.tone === 'error' ? X : Check));
   const summaryLabel = [summary.label, summary.meta].filter(Boolean).join('，');
   return <section className={`execution-summary kind-${block.kind} tone-${summary.tone}${open ? ' is-open' : ''}`}>
     <button
@@ -94,12 +105,12 @@ function ExecutionBlock({ block, streaming = false, onInspectToolEvent }) {
       aria-expanded={open}
       aria-label={streaming ? `${summaryLabel}，流式详情已展开` : `${summaryLabel}，点击${open ? '收起' : '展开'}详情`}
     >
-      <span className="execution-summary-icon" aria-hidden="true">{icon}</span>
+      <span className="execution-summary-icon" aria-hidden="true"><SummaryIcon size={14} /></span>
       <span className="execution-summary-copy">
         <b>{summary.label}</b>
         {summary.meta ? <small>{summary.meta}</small> : null}
       </span>
-      <span className="execution-summary-chevron" aria-hidden="true">›</span>
+      <span className="execution-summary-chevron" aria-hidden="true"><ArrowUp className="icon-right" size={15} /></span>
     </button>
     {open ? <div className="execution-inline-detail">
       {events.length ? <div className="execution-inline-tools">{events.map((event, index) => <ToolEventRow key={event.callKey || event.id || index} event={event} onInspectToolEvent={onInspectToolEvent} />)}</div> : null}
@@ -238,7 +249,7 @@ export function EmptyState({ createSession, openSettings, openProjects, busy, ha
         <span className="hero-core"><i /></span>
       </div>
       <div className="hero-copy">
-        <div className="empty-state-kicker"><span className="kicker-dot" /> ChatDock · AI Workspace</div>
+        <div className="empty-state-kicker"><Orbit size={14} aria-hidden="true" /> ChatDock · AI Workspace</div>
         <h1>把想法，<span>推进到完成。</span></h1>
         <p>在一个会话里串起模型、工具与任务。过程清晰，结果可追踪。</p>
         <div className="empty-state-actions hero-actions">
@@ -246,17 +257,14 @@ export function EmptyState({ createSession, openSettings, openProjects, busy, ha
           <button className="secondary" onClick={() => openSettings('model')}>{modelReady ? '配置模型' : '打开配置'}</button>
           <button className="secondary" disabled={!hasProjects || busy} onClick={openProjects}>项目</button>
         </div>
-        <div className="hero-trust-row" aria-label="工作台特性">
-          <span>Local first</span><span>Projects</span><span>Traceable tools</span>
-        </div>
       </div>
       <div className="starter-panel" aria-label="常用起始任务">
-        <div className="starter-panel-head"><div><small>START HERE</small><b>选择一个起点</b></div><span>03 paths</span></div>
+        <div className="starter-panel-head"><div><small>START HERE</small><b>选择一个起点</b></div></div>
         <div className="starter-grid">
           {starters.map(item => <button key={item.title} type="button" className="starter-card" onClick={() => setInput(item.prompt)}>
             <span className="starter-icon">{item.number}</span>
             <span className="starter-card-copy"><small>{item.tag}</small><b>{item.title}</b><span>{item.text}</span></span>
-            <span className="starter-card-arrow" aria-hidden="true">↗</span>
+            <span className="starter-card-arrow" aria-hidden="true"><ArrowUp className="icon-right" size={17} /></span>
           </button>)}
         </div>
       </div>

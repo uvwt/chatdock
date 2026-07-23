@@ -1,0 +1,14 @@
+/* Lucide 折叠箭头方向状态。 */
+.current-session-task-chevron svg {
+  transform: rotate(180deg);
+  transition: transform .2s ease;
+}
+
+.current-session-task-chevron svg.is-open,
+.agent-task-progress-toggle svg.is-open {
+  transform: rotate(0);
+}
+
+.agent-task-progress-toggle svg {
+  transform: rotate(180deg);
+}

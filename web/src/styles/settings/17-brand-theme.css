@@ -1,84 +1,249 @@
-/* 配置中心沿用 ChatDock 的暖灰底色、紫蓝强调和轻量浮层材质。 */
+/* 配置中心与主工作台共享同一套编辑式视觉语言。 */
 .settings-page {
-  --v4-green: var(--mobile-accent-solid);
-  --set-accent: var(--mobile-accent-solid);
-  --settings-v5-accent: var(--mobile-accent-solid);
-  --settings-info-bg: var(--mobile-panel-soft);
-  --settings-info-line: color-mix(in srgb, var(--mobile-accent-solid) 16%, var(--mobile-border));
-  --settings-info-text: var(--mobile-text);
-  --settings-success-bg: var(--mobile-accent-soft);
-  --settings-success-line: color-mix(in srgb, var(--mobile-accent-solid) 26%, var(--mobile-border));
-  --settings-success-text: var(--mobile-accent-text);
-  background: var(--mobile-bg) !important;
+  --mobile-bg: var(--gpt-bg);
+  --mobile-panel: var(--gpt-main);
+  --mobile-panel-soft: var(--gpt-surface-2);
+  --mobile-panel-raised: var(--gpt-surface);
+  --mobile-text: var(--gpt-text);
+  --mobile-text-strong: var(--text-strong);
+  --mobile-muted: var(--gpt-muted);
+  --mobile-muted-2: var(--gpt-muted-2);
+  --mobile-border: var(--gpt-border);
+  --mobile-hover: var(--gpt-sidebar-hover);
+  --mobile-accent-solid: var(--gpt-accent);
+  --mobile-accent-soft: var(--gpt-accent-soft);
+  --mobile-accent-text: color-mix(in srgb, var(--gpt-accent) 72%, var(--gpt-text));
+  --v4-green: var(--gpt-accent);
+  --set-accent: var(--gpt-accent);
+  --settings-v5-accent: var(--gpt-accent);
+  --settings-info-bg: var(--gpt-surface-2);
+  --settings-info-line: var(--gpt-border);
+  --settings-info-text: var(--gpt-text);
+  --settings-success-bg: var(--gpt-accent-soft);
+  --settings-success-line: color-mix(in srgb, var(--gpt-accent) 28%, var(--gpt-border));
+  --settings-success-text: var(--gpt-accent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--gpt-text) 2.4%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--gpt-text) 2.4%, transparent) 1px, transparent 1px),
+    var(--gpt-bg) !important;
+  background-size: 64px 64px !important;
+}
+
+.settings-page::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: .03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
 }
 
 @media (min-width: 901px) {
-  .settings-page { padding: 14px !important; }
+  .settings-page {
+    padding: 16px !important;
+  }
 
   .settings-page .settings {
-    width: calc(100vw - 28px) !important;
-    height: calc(100dvh - 28px) !important;
-    grid-template-columns: 196px minmax(0, 1fr) !important;
-    grid-template-rows: 76px minmax(0, 1fr) !important;
+    position: relative;
+    width: calc(100vw - 32px) !important;
+    height: calc(100dvh - 32px) !important;
+    grid-template-columns: 218px minmax(0, 1fr) !important;
+    grid-template-rows: 80px minmax(0, 1fr) !important;
     overflow: hidden;
-    border: 1px solid color-mix(in srgb, var(--mobile-accent-solid) 16%, var(--mobile-border)) !important;
-    border-radius: 22px !important;
-    background: var(--mobile-panel) !important;
-    box-shadow: 0 28px 80px rgba(22, 16, 43, .16) !important;
+    border: 1px solid var(--gpt-border-strong) !important;
+    border-radius: 0 30px 0 30px !important;
+    background: var(--gpt-main) !important;
+    box-shadow: 0 36px 110px rgba(0, 0, 0, .30) !important;
+    animation: settingsEnter .7s var(--dock-ease) both;
   }
 
   .settings-page .settings-header {
-    min-height: 76px !important;
-    padding: 0 22px !important;
-    background: linear-gradient(90deg, color-mix(in srgb, var(--mobile-accent-solid) 10%, var(--mobile-panel)), var(--mobile-panel) 42%) !important;
+    min-height: 80px !important;
+    padding: 0 24px !important;
+    border-bottom: 1px solid var(--gpt-border) !important;
+    background: color-mix(in srgb, var(--gpt-main) 88%, transparent) !important;
+    backdrop-filter: blur(20px);
   }
 
   .settings-page .settings-sidebar {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--mobile-accent-solid) 5%, var(--mobile-panel)), var(--mobile-panel)) !important;
+    border-right: 1px solid var(--gpt-border) !important;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--gpt-text) 2%, transparent), transparent 26%),
+      var(--gpt-sidebar) !important;
   }
 
-  .settings-page .module-tabs { padding: 16px 12px !important; }
-  .settings-page .settings-content { padding: 30px 30px 44px !important; }
+  .settings-page .module-tabs {
+    padding: 18px 13px !important;
+  }
+
+  .settings-page .settings-content {
+    position: relative;
+    padding: 38px clamp(30px, 4vw, 66px) 58px !important;
+    background:
+      radial-gradient(circle at 88% 2%, color-mix(in srgb, var(--gpt-accent) 7%, transparent), transparent 28%),
+      transparent !important;
+  }
+}
+
+.settings-page .settings-header-main {
+  gap: 14px !important;
 }
 
 .settings-page .settings-back-button,
 .settings-page .settings-header-actions .settings-refresh-button {
-  border-color: color-mix(in srgb, var(--mobile-accent-solid) 14%, var(--mobile-border)) !important;
-  border-radius: 11px !important;
-  background: var(--mobile-panel-soft) !important;
-  color: var(--mobile-text) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  min-height: 36px !important;
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 10px !important;
+  background: var(--gpt-surface-2) !important;
+  color: var(--gpt-muted) !important;
+  box-shadow: none !important;
+}
+
+.settings-page .settings-back-button:hover,
+.settings-page .settings-header-actions .settings-refresh-button:hover {
+  border-color: var(--gpt-border-strong) !important;
+  color: var(--gpt-text) !important;
+}
+
+.settings-page .settings-title-row h2 {
+  color: var(--gpt-text) !important;
+  font-size: 19px !important;
+  font-weight: 700 !important;
+  letter-spacing: -.035em !important;
+}
+
+.settings-page .settings-header-main p {
+  color: var(--gpt-muted-2) !important;
+  font-size: 10px !important;
+  letter-spacing: .04em;
+}
+
+.settings-page .settings-global-save-state {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
 }
 
 .settings-page .module-tab {
-  min-height: 40px !important;
-  padding-left: 14px !important;
+  display: grid !important;
+  grid-template-columns: 18px minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 9px !important;
+  width: 100% !important;
+  min-height: 42px !important;
+  padding: 8px 11px !important;
+  border: 1px solid transparent !important;
   border-radius: 10px !important;
-  color: var(--mobile-muted) !important;
+  background: transparent !important;
+  color: var(--gpt-muted) !important;
+  box-shadow: none !important;
+  text-align: left !important;
+}
+
+.settings-page .module-tab::before,
+.settings-page .module-tab.active::before {
+  content: none !important;
+}
+
+.settings-page .module-tab svg {
+  color: var(--gpt-muted-2);
+  transition: color .2s ease, transform .2s var(--dock-ease);
 }
 
 .settings-page .module-tab:hover {
-  background: var(--mobile-hover) !important;
-  color: var(--mobile-text) !important;
+  border-color: var(--gpt-border) !important;
+  background: var(--gpt-sidebar-hover) !important;
+  color: var(--gpt-text) !important;
+}
+
+.settings-page .module-tab:hover svg {
+  transform: rotate(-5deg);
+  color: var(--gpt-text);
 }
 
 .settings-page .module-tab.active,
 .settings-page .module-tabs button.module-tab.active {
-  border-color: color-mix(in srgb, var(--mobile-accent-solid) 18%, var(--mobile-border)) !important;
-  background: var(--mobile-accent-soft) !important;
-  color: var(--mobile-accent-text) !important;
-  box-shadow: inset 3px 0 0 var(--mobile-accent-solid) !important;
+  border-color: color-mix(in srgb, var(--gpt-accent) 28%, var(--gpt-border)) !important;
+  background: var(--gpt-accent-soft) !important;
+  color: var(--gpt-accent) !important;
+  box-shadow: inset 2px 0 0 var(--gpt-accent) !important;
 }
 
-.settings-page .module-tab.active::before {
-  background: var(--mobile-accent-solid) !important;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--mobile-accent-solid) 12%, transparent) !important;
+.settings-page .module-tab.active svg {
+  color: var(--gpt-accent);
 }
 
-.settings-page .module-view-title span {
-  color: var(--mobile-text-strong) !important;
-  font-size: 28px !important;
-  font-weight: 720 !important;
-  letter-spacing: -.04em !important;
+.settings-page .module-tab-label {
+  min-width: 0;
+  font-size: 12px !important;
+  font-weight: 620 !important;
+}
+
+.settings-page .module-tab-dirty {
+  border: 1px solid color-mix(in srgb, var(--gpt-accent) 26%, var(--gpt-border)) !important;
+  background: transparent !important;
+  color: var(--gpt-accent) !important;
+  font-size: 8px !important;
+}
+
+.settings-page .settings-sidebar-footer {
+  border-top: 1px solid var(--gpt-border) !important;
+  color: var(--gpt-muted-2) !important;
+}
+
+.settings-page .module-view-title {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 14px !important;
+  margin-bottom: 26px !important;
+}
+
+.settings-page .module-view-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  border: 1px solid color-mix(in srgb, var(--gpt-accent) 32%, var(--gpt-border));
+  border-radius: 50%;
+  background: var(--gpt-accent-soft);
+  color: var(--gpt-accent);
+}
+
+.settings-page .module-view-title > div > span {
+  color: var(--gpt-text) !important;
+  font-family: Georgia, "Times New Roman", "Songti SC", serif;
+  font-size: clamp(30px, 3.4vw, 48px) !important;
+  font-weight: 500 !important;
+  line-height: .96 !important;
+  letter-spacing: -.055em !important;
+}
+
+.settings-page .module-view-title p {
+  max-width: 620px;
+  margin-top: 8px !important;
+  color: var(--gpt-muted) !important;
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+}
+
+.settings-page .settings-block-head,
+.settings-page .settings-section-title {
+  color: var(--gpt-muted) !important;
+}
+
+.settings-page .settings-block-head > label,
+.settings-page .settings-section-title > b,
+.settings-page .settings-section h3 {
+  color: var(--gpt-text) !important;
+  font-size: 12px !important;
+  font-weight: 680 !important;
+  letter-spacing: .02em !important;
 }
 
 .settings-page .settings-section,
@@ -94,19 +259,29 @@
 .settings-page .backup-item,
 .settings-page .backup-health,
 .settings-page .empty.compact {
-  border-color: color-mix(in srgb, var(--mobile-accent-solid) 10%, var(--mobile-border)) !important;
-  border-radius: 15px !important;
-  background: color-mix(in srgb, var(--mobile-panel-raised) 88%, transparent) !important;
-  box-shadow: 0 10px 32px rgba(22, 16, 43, .06) !important;
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 0 18px 0 18px !important;
+  background: color-mix(in srgb, var(--gpt-surface) 82%, transparent) !important;
+  color: var(--gpt-text) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .09) !important;
+  transition: border-color .24s ease, transform .24s var(--dock-ease), box-shadow .24s ease !important;
+}
+
+.settings-page .product-card:hover,
+.settings-page .automation-task-card:hover,
+.settings-page .task-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--gpt-border-strong) !important;
+  box-shadow: 0 22px 62px rgba(0, 0, 0, .14) !important;
 }
 
 body .settings-page [data-module-view="projects"] #projectCards .product-card.active,
 body .settings-page [data-module-view="providers"] .product-card.active,
 .settings-page #projectCards .product-card.active,
 .settings-page .provider-grid .product-card.active {
-  border-color: color-mix(in srgb, var(--mobile-accent-solid) 38%, var(--mobile-border)) !important;
-  background: color-mix(in srgb, var(--mobile-accent-solid) 8%, var(--mobile-panel-raised)) !important;
-  box-shadow: inset 3px 0 0 var(--mobile-accent-solid) !important;
+  border-color: color-mix(in srgb, var(--gpt-accent) 44%, var(--gpt-border)) !important;
+  background: color-mix(in srgb, var(--gpt-accent) 7%, var(--gpt-surface)) !important;
+  box-shadow: inset 3px 0 0 var(--gpt-accent), 0 18px 50px rgba(0, 0, 0, .10) !important;
 }
 
 .settings-page .model-option.active,
@@ -117,20 +292,35 @@ body .settings-page [data-module-view="providers"] .product-card.active,
 .settings-page .setup-banner.ok,
 .settings-page .mcp-inline-warning.ok,
 .settings-page .backup-health.ok {
-  border-color: color-mix(in srgb, var(--mobile-accent-solid) 24%, var(--mobile-border)) !important;
-  background: var(--mobile-accent-soft) !important;
-  color: var(--mobile-accent-text) !important;
+  border-color: color-mix(in srgb, var(--gpt-accent) 30%, var(--gpt-border)) !important;
+  background: var(--gpt-accent-soft) !important;
+  color: var(--gpt-accent) !important;
   box-shadow: none !important;
+}
+
+.settings-page .settings-save-state {
+  border-radius: 0 14px 0 14px !important;
+}
+
+.settings-page .settings-save-state-icon {
+  display: inline-grid !important;
+  place-items: center !important;
 }
 
 .settings-page button:not(.secondary):not(.danger):not(.module-tab):not(.model-option),
 .settings-page .settings-actions button:not(.secondary):not(.danger),
 .settings-page .mcp-primary-actions button:first-child {
-  border-color: transparent !important;
+  border: 1px solid var(--gpt-accent) !important;
   border-radius: 10px !important;
-  background: var(--dock-gradient) !important;
-  color: #fff !important;
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--mobile-accent-solid) 22%, transparent) !important;
+  background: var(--gpt-accent) !important;
+  color: var(--gpt-accent-contrast) !important;
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--gpt-accent) 15%, transparent) !important;
+}
+
+.settings-page button:not(.secondary):not(.danger):not(.module-tab):not(.model-option):hover:not(:disabled),
+.settings-page .settings-actions button:not(.secondary):not(.danger):hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: var(--gpt-accent-strong) !important;
 }
 
 .settings-page button.secondary,
@@ -138,31 +328,107 @@ body .settings-page [data-module-view="providers"] .product-card.active,
 .settings-page textarea,
 .settings-page select,
 .settings-page .code-preview {
-  border-color: color-mix(in srgb, var(--mobile-accent-solid) 10%, var(--mobile-border)) !important;
+  border: 1px solid var(--gpt-border) !important;
   border-radius: 10px !important;
-  background: var(--mobile-panel-soft) !important;
-  color: var(--mobile-text) !important;
+  background: var(--gpt-surface-2) !important;
+  color: var(--gpt-text) !important;
   box-shadow: none !important;
+}
+
+.settings-page button.secondary:hover:not(:disabled) {
+  border-color: var(--gpt-border-strong) !important;
+  background: var(--gpt-sidebar-hover) !important;
 }
 
 .settings-page input:focus,
 .settings-page textarea:focus,
 .settings-page select:focus {
-  border-color: color-mix(in srgb, var(--mobile-accent-solid) 56%, var(--mobile-border)) !important;
-  box-shadow: 0 0 0 4px var(--mobile-accent-soft) !important;
+  border-color: color-mix(in srgb, var(--gpt-accent) 58%, var(--gpt-border)) !important;
+  box-shadow: 0 0 0 4px var(--gpt-accent-soft) !important;
+}
+
+.settings-page input::placeholder,
+.settings-page textarea::placeholder {
+  color: var(--gpt-muted-2) !important;
+}
+
+.settings-page .automation-task-more summary {
+  display: inline-grid !important;
+  place-items: center !important;
+  color: var(--gpt-muted) !important;
+}
+
+.settings-page .automation-task-more summary::marker,
+.settings-page .automation-task-more summary::-webkit-details-marker {
+  display: none;
+  content: "";
+}
+
+.settings-page .setup-banner::before,
+.settings-page .product-card::before,
+.settings-page .mcp-tool-policy-actions button.active::before {
+  content: none !important;
+}
+
+@keyframes settingsEnter {
+  from { opacity: 0; transform: translateY(18px) scale(.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @media (max-width: 900px) {
+  .settings-page {
+    background: var(--gpt-bg) !important;
+  }
+
   .settings-page .settings-header,
   .settings-page .settings-content,
-  .settings-page .module-tabs { background: var(--mobile-bg) !important; }
+  .settings-page .module-tabs {
+    background: var(--gpt-main) !important;
+  }
+
+  .settings-page .settings-header {
+    border-bottom: 1px solid var(--gpt-border) !important;
+  }
 
   .settings-page .module-tabs {
-    border-bottom: 1px solid color-mix(in srgb, var(--mobile-accent-solid) 12%, var(--mobile-border)) !important;
+    gap: 4px !important;
+    border-bottom: 1px solid var(--gpt-border) !important;
+  }
+
+  .settings-page .module-tab {
+    display: inline-flex !important;
+    width: auto !important;
+    min-height: 38px !important;
   }
 
   .settings-page .module-tab.active,
   .settings-page .module-tabs button.module-tab.active {
-    box-shadow: inset 0 -2px 0 var(--mobile-accent-solid) !important;
+    box-shadow: inset 0 -2px 0 var(--gpt-accent) !important;
   }
+
+  .settings-page .settings-content {
+    padding: 24px 15px 46px !important;
+  }
+
+  .settings-page .module-view-title {
+    margin-bottom: 20px !important;
+  }
+
+  .settings-page .module-view-title > div > span {
+    font-size: 34px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-page *,
+  .settings-page *::before,
+  .settings-page *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+.settings-page .settings-back-icon {
+  transform: rotate(-90deg);
 }

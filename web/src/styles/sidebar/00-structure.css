@@ -1,0 +1,147 @@
+/* 侧栏只保留布局与交互规则；视觉统一由 art-direction 层负责。 */
+#app.app aside {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#app.app .sidebar-head,
+#app.app .session-search-row,
+#app.app .project-nav,
+#app.app .sidebar-tasks,
+#app.app aside > .sidebar-section-head {
+  flex: 0 0 auto;
+}
+
+#app.app .project-nav-list,
+#app.app .sidebar-task-list {
+  min-width: 0;
+}
+
+#app.app .project-nav-item,
+#app.app .sidebar-task-item,
+#app.app #sessions .session {
+  min-width: 0;
+}
+
+#app.app #sessions {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+#app.app #sessions .session {
+  position: relative;
+}
+
+#app.app .session-menu-trigger {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+#app.app #sessions .session:hover .session-menu-trigger,
+#app.app #sessions .session:focus-within .session-menu-trigger,
+#app.app #sessions .session.menu-open .session-menu-trigger {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#app.app .sidebar-tasks {
+  display: grid;
+  gap: 5px;
+  max-height: min(29dvh, 190px);
+  overflow: hidden;
+}
+
+#app.app .sidebar-task-list {
+  max-height: 150px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+#app.app .sidebar-task-more,
+#app.app .sidebar-clear-task {
+  width: auto;
+}
+
+.sidebar-mask {
+  display: none;
+}
+
+@media (min-width: 721px) {
+  #app.app .mobile-menu {
+    display: none !important;
+  }
+
+  #app.app.sidebar-collapsed aside {
+    padding-inline: 10px;
+  }
+
+  #app.app.sidebar-collapsed .sidebar-head {
+    justify-content: center;
+  }
+
+  #app.app.sidebar-collapsed .brand,
+  #app.app.sidebar-collapsed .session-search-box,
+  #app.app.sidebar-collapsed .project-nav,
+  #app.app.sidebar-collapsed .sidebar-tasks,
+  #app.app.sidebar-collapsed aside > .sidebar-section-head,
+  #app.app.sidebar-collapsed .session-search-meta,
+  #app.app.sidebar-collapsed #sessions {
+    display: none;
+  }
+
+  #app.app.sidebar-collapsed .session-search-row {
+    display: flex;
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  #app.app.sidebar-collapsed .new {
+    flex: 0 0 40px;
+  }
+}
+
+@media (max-width: 720px) {
+  #app.app aside {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    width: min(86vw, 340px);
+    max-width: calc(100vw - 52px);
+    transform: translateX(-105%);
+    transition: transform .34s var(--dock-ease);
+  }
+
+  #app.app:not(.sidebar-collapsed) aside {
+    transform: translateX(0);
+  }
+
+  #app.app.sidebar-collapsed aside {
+    transform: translateX(-105%);
+  }
+
+  #app.app .session-menu-trigger {
+    opacity: .72;
+    pointer-events: auto;
+  }
+
+  .sidebar-mask.show {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: block;
+    background: rgba(0, 0, 0, .56);
+    backdrop-filter: blur(3px);
+  }
+}

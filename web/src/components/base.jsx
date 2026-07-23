@@ -1,5 +1,12 @@
 // Reusable shell components: product cards, modal, auth, and palette.
 import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import {
+  ArrowUp,
+  Orbit,
+  Search,
+  Settings2,
+  X,
+} from './icons.js';
 import { ScheduleBuilder } from './scheduleBuilder.jsx';
 
 const MarkdownRenderer = lazy(() => import('./markdown.jsx'));
@@ -39,11 +46,11 @@ export function QuickPalette({ open, actions, onClose }) {
   return <div className="quick-palette-backdrop show" onClick={onClose}>
     <div className="quick-palette" role="dialog" aria-modal="true" aria-label="快捷指令" onClick={e => e.stopPropagation()}>
       <div className="quick-palette-head">
-        <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => {
+        <Search className="quick-palette-search-icon" size={17} aria-hidden="true" /><input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => {
           if (e.key === 'Escape') onClose();
           if (e.key === 'Enter') runAction(filtered.find(a => !a.disabled));
         }} placeholder="搜索快捷指令，例如：模型、导出、项目" />
-        <button className="secondary small quick-palette-close" onClick={onClose} aria-label="关闭快捷指令">×</button>
+        <button className="secondary small quick-palette-close icon-button" onClick={onClose} aria-label="关闭快捷指令"><X size={16} aria-hidden="true" /></button>
       </div>
       <div className="quick-palette-list">
         {filtered.length ? filtered.map(action => <button key={action.id} type="button" className="quick-palette-item" disabled={!!action.disabled} onClick={() => runAction(action)}>
@@ -73,35 +80,34 @@ export function LoginPage({ api, error, refreshAfterLogin, setAuthPage }) {
     } catch (e) { setLoginError('登录失败：' + e.message); }
   }
   return <div id="authPage" className="auth-page">
-    <div className="auth-ambient auth-ambient-one" aria-hidden="true" />
-    <div className="auth-ambient auth-ambient-two" aria-hidden="true" />
+    <div className="auth-grid" aria-hidden="true" />
     <div className="auth-shell">
       <section className="auth-intro" aria-label="ChatDock 简介">
-        <div className="auth-logo">✦</div>
-        <div className="auth-eyebrow">Local-first AI console</div>
-        <h1>ChatDock</h1>
-        <p>把会话、模型供应商、工具和定时任务收进一个轻量工作台。</p>
+        <div className="auth-brand-lockup"><span className="auth-logo"><Orbit size={22} /></span><span>CHATDOCK / PRIVATE</span></div>
+        <div className="auth-eyebrow">Local-first AI workspace</div>
+        <h1>工作流，<br /><span>不止对话。</span></h1>
+        <p>把模型、工具、项目与自动化放进同一条可追踪的执行链。</p>
         <div className="auth-feature-grid">
-          <span>项目筛选</span>
-          <span>模型路由</span>
-          <span>MCP 工具</span>
-          <span>定时任务</span>
+          <span><Settings2 size={16} />项目上下文</span>
+          <span><Orbit size={16} />模型路由</span>
+          <span><Settings2 size={16} />工具执行</span>
+          <span><Orbit size={16} />任务自动化</span>
         </div>
       </section>
       <form className="login-card" onSubmit={submit}>
         <div className="login-card-head">
           <div>
-            <div className="login-brand">ChatDock</div>
-            <b>欢迎回来</b>
+            <div className="login-brand"><Orbit size={15} />Private access</div>
+            <b>继续到你的工作台</b>
           </div>
-          <span>私有访问</span>
+          <span>Secure</span>
         </div>
         <div className="hint">{message}</div>
-        <label>账号</label><input autoComplete="username" placeholder="输入账号" value={username} onChange={e => setUsername(e.target.value)} autoFocus />
-        <label>密码</label><input type="password" autoComplete="current-password" placeholder="输入密码" value={credential} onChange={e => setCredential(e.target.value)} />
+        <label><span>账号</span><div className="login-input-wrap"><Orbit size={16} aria-hidden="true" /><input autoComplete="username" placeholder="输入账号" value={username} onChange={e => setUsername(e.target.value)} autoFocus /></div></label>
+        <label><span>密码</span><div className="login-input-wrap"><Orbit size={16} aria-hidden="true" /><input type="password" autoComplete="current-password" placeholder="输入密码" value={credential} onChange={e => setCredential(e.target.value)} /></div></label>
         <div className="task-error" role="alert">{loginError}</div>
-        <button type="submit" className="login-submit" disabled={!canSubmit}>登录并进入</button>
-        <div className="login-footnote">访问凭证只保存在当前浏览器本地。</div>
+        <button type="submit" className="login-submit" disabled={!canSubmit}><span>登录并进入</span><ArrowUp className="login-submit-arrow" size={17} aria-hidden="true" /></button>
+        <div className="login-footnote">凭证只保存在当前浏览器本地。</div>
       </form>
     </div>
   </div>;

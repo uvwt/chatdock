@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowUp } from './components/icons.js';
 import { EmptyState, MemoizedMessageView } from './components/chat.jsx';
 import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
 import { CurrentSessionTask, TaskPanel } from './components/taskPanel.jsx';
@@ -755,7 +756,7 @@ export default function App() {
         pendingReasoningRef.current = '';
         abortRef.current = abort;
         setStreamStats({ state: 'streaming', started_at: Date.now(), chars: 0, events: 0, tools: 0, error: '' });
-        setMessages(prev => prev.some(m => m.role === 'assistant-stream') ? prev : [...prev, { role: 'assistant-stream', answer: '', reasoning: '', events: [{ kind: 'tool', text: '↩️ 已恢复后台生成', details: { event: 'resume_running_job', job } }] }]);
+        setMessages(prev => prev.some(m => m.role === 'assistant-stream') ? prev : [...prev, { role: 'assistant-stream', answer: '', reasoning: '', events: [{ kind: 'tool', text: '已恢复后台生成', details: { event: 'resume_running_job', job } }] }]);
         let finalSession = null;
         await streamChatJobEvents({ jobID: job.id, authHeaders, signal: abort.signal, onEvent: (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; }) });
         if (finalSession && !stopped) {
@@ -1021,7 +1022,7 @@ export default function App() {
   const resolveToolConfirmation = useCallback(async (id, approve) => {
     try {
       await resolveMCPConfirmation(api, id, approve);
-      appendToActiveAssistant(m => ({ ...m, events: (m.events || []).map(item => item.confirmation?.id === id ? { ...item, status: 'resolved', text: (approve ? '✅ 已允许工具：' : '⛔ 已拒绝工具：') + (item.confirmation?.tool || 'MCP 工具') } : item) }));
+      appendToActiveAssistant(m => ({ ...m, events: (m.events || []).map(item => item.confirmation?.id === id ? { ...item, status: 'resolved', text: (approve ? '已允许工具：' : '已拒绝工具：') + (item.confirmation?.tool || 'MCP 工具') } : item) }));
       showToast(approve ? '已允许工具执行' : '已拒绝工具执行', approve ? 'success' : 'info');
     } catch (e) {
       showToast('确认工具失败：' + e.message, 'error');
@@ -1209,7 +1210,7 @@ export default function App() {
           taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
         />
         <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openProjects={() => openSettings('projects')} busy={busy} hasProjects={!!projects.length} setInput={setInput} modelReady={modelReady} />}</div>
-        {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息">↓</button> : null}
+        {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息"><ArrowUp className="jump-latest-icon" size={17} aria-hidden="true" /></button> : null}
         <CurrentSessionTask
           error={currentSessionTask.error} loading={currentSessionTask.loading} onRefresh={currentSessionTask.refresh}
           task={currentSessionTask.task} taskID={currentSessionTask.taskID}

@@ -59,7 +59,7 @@ export function projectsChatStreamAssistant(event, data = {}) {
 export function chatStreamAssistantAfterEvent(message, event, data = {}) {
   switch (event) {
     case 'tool_setup_error':
-      return appendEvent(message, { kind: 'tool', text: `⚠️ MCP 未接入：${data.message || '工具初始化失败'}`, details: { event, data } });
+      return appendEvent(message, { kind: 'tool', text: `MCP 未接入：${data.message || '工具初始化失败'}`, details: { event, data } });
     case 'tool_call_start':
       return appendToolStartEvent(message, event, data);
     case 'tool_call_result':
@@ -85,27 +85,27 @@ export function chatStreamAssistantAfterEvent(message, event, data = {}) {
       return {
         ...message,
         events: (message.events || []).map(item => item.confirmation?.id === data.id
-          ? { ...item, status: 'resolved', text: `${data.approved ? '✅ 已允许工具：' : '⛔ 已拒绝工具：'}${data.tool || item.confirmation?.tool || 'MCP 工具'}` }
+          ? { ...item, status: 'resolved', text: `${data.approved ? '已允许工具：' : '已拒绝工具：'}${data.tool || item.confirmation?.tool || 'MCP 工具'}` }
           : item),
       };
     case 'job_cancelled':
-      return appendEvent(message, { kind: 'tool', text: '⏹️ 已请求停止生成', details: { event, data } });
+      return appendEvent(message, { kind: 'tool', text: '已请求停止生成', details: { event, data } });
     case 'guidance_queued':
-      return appendEvent(message, { kind: 'guide', phase: 'running', text: '🧭 已收到引导，等待下一轮模型调用', meta: data.message || '', details: { event, data } });
+      return appendEvent(message, { kind: 'guide', phase: 'running', text: '已收到引导，等待下一轮模型调用', meta: data.message || '', details: { event, data } });
     case 'guidance_injected':
-      return appendEvent(message, { kind: 'guide', phase: 'done', text: '🧭 已将引导加入下一轮模型上下文', meta: data.message || '', details: { event, data } });
+      return appendEvent(message, { kind: 'guide', phase: 'done', text: '已将引导加入下一轮模型上下文', meta: data.message || '', details: { event, data } });
     case 'run_event': {
       const meta = [runStatusLabel(data.status || ''), data.server, data.action, fmtDuration(data.duration_ms)].filter(Boolean).join(' · ');
       return appendEvent(message, {
         kind: 'run',
-        text: `🧭 ${data.summary || data.tool || 'MCP 工具事件'}`,
+        text: `${data.summary || data.tool || 'MCP 工具事件'}`,
         meta,
         details: { event, tool: data.tool || '', arguments: data.arguments, result: data.result, error: data.error || '', duration_ms: data.duration_ms, data },
       });
     }
     case 'error': {
       const error = streamErrorMessage(data);
-      return appendEvent({ ...message, error: data, answer: message.answer || '' }, { kind: 'error', phase: 'error', text: `⚠️ ${error}`, details: { event, error, data } });
+      return appendEvent({ ...message, error: data, answer: message.answer || '' }, { kind: 'error', phase: 'error', text: error, details: { event, error, data } });
     }
     default:
       return message;

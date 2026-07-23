@@ -7,11 +7,11 @@
 @import './styles/layout-guards.css';
 @import './styles/message-actions.css';
 @import './styles/sidebar.css';
-@import './styles/sidebar-task-overrides.css';
 @import './styles/chat-polish.css';
 @import './styles/session-menu.css';
 @import './styles/scheduled-tasks.css';
 @import './styles/task-panel.css';
+@import './styles/task-panel-motion.css';
 @import './styles/current-task.css';
 @import './styles/mobile/07-keyboard-viewport.css';
 @import './styles/desktop-typography.css';

@@ -297,18 +297,12 @@ textarea::placeholder {
   padding: 0;
   border-radius: 50%;
   overflow: hidden;
-  color: transparent;
-}
-
-#send::before {
-  content: "↑";
   color: #fff;
-  font-size: 20px;
-  line-height: 1;
 }
 
+#send::before,
 #send:disabled::before {
-  color: rgba(255,255,255,.72);
+  content: none;
 }
 
 .composer-meta {

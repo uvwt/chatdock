@@ -1,0 +1,67 @@
+/* 最终移动端壳层：消除历史层叠对定位、抽屉和主画布的干扰。 */
+@media (max-width: 720px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #app.app,
+  #app.app.sidebar-collapsed,
+  #app.app.settings-open,
+  #app.app.sidebar-collapsed.settings-open {
+    position: relative !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  #app.app main {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 1 !important;
+    display: flex !important;
+    width: 100% !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  #app.app aside {
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    z-index: 40 !important;
+    display: flex !important;
+    width: min(86vw, 340px) !important;
+    max-width: calc(100vw - 52px) !important;
+    height: 100dvh !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: translateX(-105%) !important;
+    transition: transform .34s var(--dock-ease) !important;
+  }
+
+  #app.app:not(.sidebar-collapsed) aside {
+    transform: translateX(0) !important;
+  }
+
+  #app.app.sidebar-collapsed aside {
+    transform: translateX(-105%) !important;
+  }
+
+  #app.app .sidebar-mask.show {
+    z-index: 30 !important;
+  }
+
+  #app.app .product-hero {
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}

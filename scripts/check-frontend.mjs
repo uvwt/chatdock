@@ -100,6 +100,25 @@ if (rows[0]?.api_key !== '********' || !rows[0]?.saved) failures.push('providerK
 const inputs = providerForm.providerKeyInputsFromRows([{ id: 'main', name: '主 key', api_key: '********', saved: true }]);
 if (inputs?.[0]?.api_key !== '********') failures.push('providerKeyInputsFromRows should preserve masked saved keys');
 
+
+const packageJSON = JSON.parse(read('web/package.json'));
+if (!packageJSON.dependencies?.['lucide-react']) failures.push('lucide-react must remain the single UI icon library');
+
+const walkFiles = (directory, suffixes) => fs.readdirSync(path.join(root, directory), { withFileTypes: true }).flatMap(entry => {
+  const relative = path.join(directory, entry.name);
+  if (entry.isDirectory()) return walkFiles(relative, suffixes);
+  return suffixes.some(suffix => entry.name.endsWith(suffix)) ? [relative] : [];
+});
+const iconComponentFiles = ['web/src/App.jsx', ...walkFiles('web/src/components', ['.jsx'])];
+for (const file of iconComponentFiles) {
+  if (read(file).includes('<svg')) failures.push(`${file} contains an inline SVG; use a Lucide component instead`);
+}
+const visibleUISourceFiles = [...iconComponentFiles, ...walkFiles('web/src/styles', ['.css'])];
+const emojiPattern = /[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/u;
+for (const file of visibleUISourceFiles) {
+  if (emojiPattern.test(read(file))) failures.push(`${file} contains an emoji or symbol glyph; use a Lucide icon or CSS geometry instead`);
+}
+
 if (failures.length) {
   console.error(failures.map(item => `frontend lint: ${item}`).join('\n'));
   process.exit(1);

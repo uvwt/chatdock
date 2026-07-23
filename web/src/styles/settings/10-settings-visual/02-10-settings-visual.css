@@ -359,10 +359,7 @@
 }
 
 .settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.active::before {
-  content: "✓" !important;
-  font-size: 12px !important;
-  font-weight: 900 !important;
-  line-height: 1 !important;
+  content: none !important;
 }
 
 .settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.active.default,

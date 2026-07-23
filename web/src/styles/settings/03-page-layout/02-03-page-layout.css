@@ -91,24 +91,8 @@
   }
 
   .settings-page .module-tab::before {
-    content: "□";
-    width: 22px;
-    display: inline-flex;
-    justify-content: center;
-    color: #0f172a;
-    font-size: 18px;
-    opacity: .86;
+    content: none;
   }
-
-  .settings-page .module-tab:nth-child(1)::before { content: "▱"; }
-  .settings-page .module-tab:nth-child(2)::before { content: "◇"; }
-  .settings-page .module-tab:nth-child(3)::before { content: "✣"; }
-  .settings-page .module-tab:nth-child(4)::before { content: "⌘"; }
-  .settings-page .module-tab:nth-child(5)::before { content: "▧"; }
-  .settings-page .module-tab:nth-child(6)::before { content: "◎"; }
-  .settings-page .module-tab:nth-child(7)::before { content: "⏱"; }
-  .settings-page .module-tab:nth-child(8)::before { content: "◉"; }
-  .settings-page .module-tab:nth-child(9)::before { content: "♢"; }
 
   .settings-page .module-tab.active {
     background: linear-gradient(135deg, #0f766e, #115e59);
@@ -147,18 +131,7 @@
   }
 
   .settings-page .setup-banner::before {
-    content: "✓";
-    width: 24px;
-    height: 24px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 14px;
-    border-radius: 999px;
-    background: #22c55e;
-    color: #ffffff;
-    font-size: 15px;
-    font-weight: 900;
+    content: none;
   }
 
   .settings-page .settings-block-head {
@@ -231,9 +204,7 @@
 
   .settings-page #projectCards .product-card:nth-child(2)::before,
   .settings-page .provider-grid .product-card:nth-child(2)::before {
-    content: "✣";
-    background: #faf5ff;
-    color: #7c3aed;
+    content: none;
   }
 
   .settings-page #projectCards .product-card:nth-child(3)::before,
