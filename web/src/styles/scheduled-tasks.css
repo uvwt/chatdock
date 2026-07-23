@@ -232,7 +232,8 @@
   text-align: left !important;
   color: inherit !important;
 }
-#app.app .sidebar-task-list.session-list-like .sidebar-task-item.session::before {
+#app.app .sidebar-task-list.session-list-like .sidebar-task-item.session::before,
+#app.app .sidebar-task-list.session-list-like .sidebar-task-item.session::after {
   content: none !important;
   display: none !important;
 }

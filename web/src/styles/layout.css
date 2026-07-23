@@ -115,7 +115,7 @@ button {
   min-height: 38px;
   border-radius: 12px;
   background: var(--gpt-accent);
-  color: #fff;
+  color: var(--gpt-accent-contrast);
   font-weight: 600;
   transition: background .15s ease, border-color .15s ease, transform .12s ease, opacity .15s ease;
 }

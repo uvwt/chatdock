@@ -1,0 +1,71 @@
+/* 配置中心黑白主题最终层：状态仍有层级，但不再使用绿色品牌色。 */
+.settings-page {
+  --v4-green: var(--mobile-accent-solid);
+  --set-accent: var(--mobile-accent-solid);
+  --settings-v5-accent: var(--mobile-accent-solid);
+  --settings-info-bg: var(--mobile-panel-raised);
+  --settings-info-line: var(--mobile-border-strong);
+  --settings-info-text: var(--mobile-text);
+  --settings-success-bg: var(--mobile-accent-soft);
+  --settings-success-line: var(--mobile-border-strong);
+  --settings-success-text: var(--mobile-accent-text);
+}
+
+.settings-page .module-tabs .module-tab.active,
+.settings-page .module-tabs button.module-tab.active,
+.settings-page .model-option.active,
+.settings-page .provider-chip.active {
+  border-color: var(--mobile-border-strong) !important;
+  background: var(--mobile-accent-panel) !important;
+  color: var(--mobile-accent-text) !important;
+  box-shadow: inset 3px 0 0 var(--mobile-accent-solid) !important;
+}
+
+.settings-page .module-tab.active::before,
+.settings-page .module-tab.active::after {
+  background: var(--mobile-accent-solid) !important;
+}
+
+.settings-page button:not(.secondary):not(.danger):not(.module-tab):not(.model-option),
+.settings-page .settings-actions button:not(.secondary):not(.danger),
+.settings-page .mcp-primary-actions button:first-child {
+  border-color: var(--mobile-accent-solid) !important;
+  background: var(--mobile-accent-solid) !important;
+  color: var(--mobile-accent-contrast) !important;
+  box-shadow: none !important;
+}
+
+.settings-page #workspaceCards .product-card.active,
+.settings-page .provider-grid .product-card.active {
+  border-color: var(--mobile-border-strong) !important;
+  background: var(--mobile-accent-panel) !important;
+  color: var(--mobile-text) !important;
+  box-shadow: inset 3px 0 0 var(--mobile-accent-solid), var(--mobile-shadow-soft) !important;
+}
+
+.settings-page .badge.ok,
+.settings-page .product-card.active .badge,
+.settings-page .settings-save-state.saved,
+.settings-page .setup-banner.ok,
+.settings-page .mcp-inline-warning.ok,
+.settings-page .backup-health.ok {
+  border-color: var(--mobile-border-strong) !important;
+  background: var(--mobile-accent-soft) !important;
+  color: var(--mobile-accent-text) !important;
+}
+
+.settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.active.default,
+.settings-page .mcp-tool-picker .mcp-tool-policy-list .mcp-tool-policy-row .mcp-tool-policy-actions button.active.allow {
+  border-color: var(--mobile-accent-solid) !important;
+  background: var(--mobile-accent-solid) !important;
+  color: var(--mobile-accent-contrast) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mobile-accent-solid) 12%, transparent) !important;
+}
+
+.settings-page input:focus,
+.settings-page textarea:focus,
+.settings-page select:focus,
+.settings-page .session-search:focus {
+  border-color: var(--mobile-border-strong) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mobile-accent-solid) 10%, transparent) !important;
+}

@@ -1,0 +1,167 @@
+/*
+ * 黑白主题最终层：收口旧组件中遗留的品牌色，只保留错误与警告的语义颜色。
+ * 几何、间距和交互状态仍由各组件原样负责。
+ */
+#app.app .brand-logo {
+  background: linear-gradient(145deg, var(--gpt-accent), color-mix(in srgb, var(--gpt-accent) 58%, var(--gpt-muted))) !important;
+  color: var(--gpt-accent-contrast) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .18) !important;
+}
+
+#app.app aside .sidebar-section-title,
+#app.app aside .sidebar-section-head {
+  color: var(--gpt-muted) !important;
+}
+
+#app.app aside :is(.new-icon, .workspace-picker-icon, .workspace-picker-name, .workspace-picker-meta, .workspace-picker-arrow) {
+  color: var(--gpt-text) !important;
+}
+
+@media (max-width: 720px) {
+  #app.app aside .new-icon {
+    color: var(--mobile-accent-contrast) !important;
+  }
+}
+
+#app.app aside :is(.workspace-picker-icon, .session-search-icon)::before {
+  border-color: var(--gpt-muted) !important;
+}
+
+#app.app aside :is(.workspace-picker-icon, .session-search-icon)::after {
+  background: var(--gpt-muted) !important;
+}
+
+#app.app aside .sidebar-task-item {
+  border-color: transparent !important;
+  background: transparent !important;
+  color: var(--gpt-text) !important;
+}
+
+#app.app aside .sidebar-task-item:hover,
+#app.app aside .sidebar-task-item.active {
+  border-color: var(--gpt-border) !important;
+  background: var(--gpt-sidebar-hover) !important;
+}
+
+#app.app aside .sidebar-task-item.running {
+  border-color: var(--gpt-border-strong) !important;
+}
+
+.pin-mark,
+.hero-panel-top b,
+.empty-capability-strip i {
+  border-color: var(--gpt-border) !important;
+  background: var(--gpt-surface) !important;
+  color: var(--gpt-text) !important;
+}
+
+.starter-card:hover:not(:disabled) {
+  border-color: var(--gpt-border-strong) !important;
+  background: var(--gpt-surface-2) !important;
+}
+
+.starter-icon {
+  background: var(--gpt-accent) !important;
+  color: var(--gpt-accent-contrast) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .16) !important;
+}
+
+#app.app .task-panel-toggle.active {
+  border-color: var(--gpt-border-strong) !important;
+  background: var(--gpt-surface) !important;
+  color: var(--gpt-text) !important;
+}
+
+.task-panel-toggle-count,
+.agent-task-live > span,
+.agent-task-status > span,
+.agent-task-progress > span,
+.agent-task-steps li.completed .agent-task-step-symbol,
+.current-session-task-status > span,
+.current-session-task-progress > span {
+  border-color: var(--gpt-accent) !important;
+  background: var(--gpt-accent) !important;
+  color: var(--gpt-accent-contrast) !important;
+  box-shadow: none !important;
+}
+
+.agent-task-card.expanded,
+.current-session-task {
+  border-color: var(--gpt-border-strong) !important;
+  background: color-mix(in srgb, var(--gpt-accent) 6%, var(--gpt-main)) !important;
+}
+
+.agent-task-status,
+.agent-task-current span,
+.current-session-task-status {
+  color: var(--gpt-text) !important;
+}
+
+.agent-task-progress > span {
+  background: var(--gpt-accent) !important;
+}
+
+.agent-task-steps li.active .agent-task-step-symbol {
+  border-color: var(--gpt-accent) !important;
+  color: var(--gpt-accent) !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--gpt-accent) 10%, transparent) !important;
+}
+
+.agent-task-empty-icon {
+  border-color: var(--gpt-border-strong) !important;
+  color: var(--gpt-text) !important;
+}
+
+.current-session-task-summary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--gpt-accent) 5%, transparent) !important;
+}
+
+body.theme-light .current-session-task.active,
+body.theme-light .agent-task-card.expanded {
+  background: color-mix(in srgb, var(--gpt-accent) 5%, var(--gpt-main)) !important;
+}
+
+.auth-page,
+.theme-light .auth-page {
+  background:
+    radial-gradient(circle at 18% 16%, rgba(255, 255, 255, .10), transparent 30%),
+    radial-gradient(circle at 84% 6%, rgba(255, 255, 255, .05), transparent 34%),
+    linear-gradient(135deg, #050505 0%, #111111 52%, #1b1b1b 100%) !important;
+}
+
+.auth-ambient-one,
+.auth-ambient-two {
+  background: #bdbdbd !important;
+}
+
+.auth-intro {
+  background: linear-gradient(160deg, rgba(255, 255, 255, .12), rgba(255, 255, 255, .025)) !important;
+}
+
+.auth-logo {
+  background: linear-gradient(145deg, #ffffff, #8b8b8b) !important;
+  color: #111111 !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .30) !important;
+}
+
+.auth-eyebrow,
+.auth-page .login-brand {
+  color: #d4d4d4 !important;
+}
+
+.login-card-head > span {
+  border-color: rgba(255, 255, 255, .18) !important;
+  background: rgba(255, 255, 255, .08) !important;
+  color: #ededed !important;
+}
+
+.auth-page .login-card input:focus {
+  border-color: rgba(255, 255, 255, .56) !important;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, .10) !important;
+}
+
+.auth-page .login-submit {
+  background: #f1f1f1 !important;
+  color: #101010 !important;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, .30) !important;
+}
