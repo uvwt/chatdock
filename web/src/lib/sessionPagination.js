@@ -1,13 +1,13 @@
 export const SESSION_PAGE_SIZE = 30;
 
 export function normalizeSessionPage(data) {
-  if (Array.isArray(data)) {
-    return { sessions: data, nextCursor: '', hasMore: false };
+  if (!data || Array.isArray(data) || !Array.isArray(data.sessions)) {
+    throw new TypeError('invalid session page response');
   }
   return {
-    sessions: Array.isArray(data?.sessions) ? data.sessions : [],
-    nextCursor: String(data?.next_cursor || ''),
-    hasMore: !!data?.has_more,
+    sessions: data.sessions,
+    nextCursor: String(data.next_cursor || ''),
+    hasMore: !!data.has_more,
   };
 }
 
@@ -31,6 +31,7 @@ export function sessionSummaryFromSession(session) {
     pinned: !!session.pinned,
     provider_id: session.provider_id || '',
     model: session.model || '',
+    project_id: session.project_id || '',
     preview,
     last_role: last.role || '',
     created_at: session.created_at,

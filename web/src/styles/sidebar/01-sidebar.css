@@ -177,66 +177,6 @@
   background: transparent !important;
 }
 
-#app.app .workspace-picker-trigger {
-  width: 100% !important;
-  min-height: 64px !important;
-  padding: 0 16px !important;
-  border: 1px solid #dce8e6 !important;
-  border-radius: 20px !important;
-  background: #f1fbf9 !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.7) !important;
-  color: #0f172a !important;
-  display: grid !important;
-  grid-template-columns: 28px minmax(0, 1fr) auto auto !important;
-  grid-template-areas: "icon name meta arrow" !important;
-  align-items: center !important;
-  gap: 10px !important;
-}
-
-#app.app .workspace-picker-icon {
-  grid-area: icon !important;
-  width: 28px !important;
-  height: 28px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  border-radius: 9px !important;
-  background: transparent !important;
-  color: #14a085 !important;
-  font-size: 18px !important;
-}
-
-#app.app .workspace-picker-name {
-  grid-area: name !important;
-  min-width: 0 !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-  color: #0f172a !important;
-  font-size: 16px !important;
-  font-weight: 850 !important;
-}
-
-#app.app .workspace-picker-meta {
-  grid-area: meta !important;
-  color: #0f172a !important;
-  font-size: 16px !important;
-  font-weight: 850 !important;
-}
-
-#app.app .workspace-picker-meta::before {
-  content: "·";
-  margin-right: 9px;
-  color: #64748b;
-}
-
-#app.app .workspace-picker-arrow {
-  grid-area: arrow !important;
-  color: #0f172a !important;
-  font-size: 20px !important;
-  font-weight: 850 !important;
-}
-
 #app.app .session-search-row {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) 56px !important;
@@ -464,10 +404,6 @@
 
   #app.app .sub {
     font-size: 15px !important;
-  }
-
-  #app.app .workspace-picker-trigger {
-    min-height: 64px !important;
   }
 
   #app.app .session-search-row {

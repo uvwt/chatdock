@@ -83,3 +83,51 @@ func TestSessionListAPIRejectsInvalidPagination(t *testing.T) {
 		}
 	}
 }
+
+func TestSessionSearchAPIUsesProjectFilter(t *testing.T) {
+	app, err := NewApp(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	project, err := app.store.CreateProject(model.CreateProjectRequest{Name: "Alpha", Prompt: "项目提示词"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	projectSession, err := app.store.CreateSession(project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	appendUserMessageForAppTest(t, app, projectSession.ID, "筛选关键词")
+	plainSession, err := app.store.CreateSession("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	appendUserMessageForAppTest(t, app, plainSession.ID, "筛选关键词")
+
+	routes := app.routes()
+	projectRecorder := httptest.NewRecorder()
+	routes.ServeHTTP(projectRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions/search?q="+url.QueryEscape("筛选关键词")+"&project_id="+url.QueryEscape(project.ID), nil))
+	if projectRecorder.Code != http.StatusOK {
+		t.Fatalf("project search status %d: %s", projectRecorder.Code, projectRecorder.Body.String())
+	}
+	var projectPage sessionPageResponse
+	if err := json.Unmarshal(projectRecorder.Body.Bytes(), &projectPage); err != nil {
+		t.Fatal(err)
+	}
+	if len(projectPage.Sessions) != 1 || projectPage.Sessions[0].ID != projectSession.ID {
+		t.Fatalf("project search page = %#v, want only %s", projectPage, projectSession.ID)
+	}
+
+	plainRecorder := httptest.NewRecorder()
+	routes.ServeHTTP(plainRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions/search?q="+url.QueryEscape("筛选关键词")+"&project_id=", nil))
+	if plainRecorder.Code != http.StatusOK {
+		t.Fatalf("plain search status %d: %s", plainRecorder.Code, plainRecorder.Body.String())
+	}
+	var plainPage sessionPageResponse
+	if err := json.Unmarshal(plainRecorder.Body.Bytes(), &plainPage); err != nil {
+		t.Fatal(err)
+	}
+	if len(plainPage.Sessions) != 1 || plainPage.Sessions[0].ID != plainSession.ID {
+		t.Fatalf("plain search page = %#v, want only %s", plainPage, plainSession.ID)
+	}
+}

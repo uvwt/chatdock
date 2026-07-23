@@ -2,12 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mergeSessionPages, normalizeSessionPage, sessionSummaryFromSession, upsertSessionSummary } from './sessionPagination.js';
 
-test('normalizes paginated and legacy session responses', () => {
-  assert.deepEqual(normalizeSessionPage([{ id: 'legacy' }]), {
-    sessions: [{ id: 'legacy' }],
-    nextCursor: '',
-    hasMore: false,
-  });
+test('normalizes the current paginated session response', () => {
+  assert.throws(() => normalizeSessionPage([{ id: 'legacy' }]), /invalid session page response/);
   assert.deepEqual(normalizeSessionPage({ sessions: [{ id: 'page' }], next_cursor: 'next', has_more: true }), {
     sessions: [{ id: 'page' }],
     nextCursor: 'next',
@@ -39,6 +35,7 @@ test('projects a full session into a compact list summary', () => {
     pinned: true,
     provider_id: '',
     model: '',
+    project_id: '',
     preview: '最新 回复',
     last_role: 'assistant',
     created_at: undefined,

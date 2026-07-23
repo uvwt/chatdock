@@ -86,7 +86,7 @@ body:not(.theme-light) .settings-page {
 .settings-page .automation-task-title-wrap .task-name,
 .settings-page .mcp-tool-picker-head b,
 .settings-page .stat-value,
-.settings-page .workspace-summary-card b,
+.settings-page .project-summary-card b,
 .settings-page .model-summary-card b {
   color: var(--settings-text) !important;
   font-size: var(--settings-type-section-title) !important;

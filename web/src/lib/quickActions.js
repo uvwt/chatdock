@@ -1,11 +1,13 @@
 export function buildQuickActions(opts) {
-  const { branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, inputRef, messagesLength, openSettings, pinCurrent, productDiagnostics, workspaceSummaryCount, renameCurrent, sendMsg, setThemeState, setWorkspacePickerOpen, showContextPreview, theme } = opts;
+  const { branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, inputRef, messagesLength, openSettings, pinCurrent, productDiagnostics, projectCount, renameCurrent, sendMsg, setProjectFilter, setThemeState, showContextPreview, theme } = opts;
   return [
     { id: 'focus-input', title: '聚焦输入框', hint: '按 / 也可以快速输入', run: () => inputRef.current?.focus() },
-    { id: 'new-session', title: '新建会话', hint: '在当前工作空间开始新对话', run: createSession },
+    { id: 'new-session', title: '新建会话', hint: '按当前会话筛选创建新对话', run: createSession },
     { id: 'continue', title: '发送“继续”', hint: '让当前会话继续上一轮内容', disabled: busy, run: () => sendMsg('继续') },
-    { id: 'workspace-picker', title: '切换工作空间', hint: '加载不同模型和会话', disabled: busy || !workspaceSummaryCount, run: () => setWorkspacePickerOpen(true) },
-    { id: 'settings', title: '打开配置中心', hint: '工作空间、模型、工具和数据统一管理', run: () => openSettings() },
+    { id: 'all-sessions', title: '全部会话', hint: '显示所有普通会话和项目会话', run: () => setProjectFilter?.('all') },
+    { id: 'plain-sessions', title: '普通会话', hint: '只显示未归属项目的会话', run: () => setProjectFilter?.('plain') },
+    { id: 'settings-projects', title: '项目管理', hint: '管理项目名称和项目提示词', disabled: busy || !projectCount, run: () => openSettings('projects') },
+    { id: 'settings', title: '打开配置中心', hint: '项目、模型、工具和数据统一管理', run: () => openSettings() },
     { id: 'settings-model', title: '模型设置', hint: 'Base URL、API Key、模型和最终 Prompt', run: () => openSettings('model') },
     { id: 'settings-tools', title: '工具中心', hint: 'MCP 配置、状态检测和连接测试', run: () => openSettings('tools') },
     { id: 'settings-automation', title: '自动化任务', hint: '创建、运行和暂停定时任务', run: () => openSettings('automation') },

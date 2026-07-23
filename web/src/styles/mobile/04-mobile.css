@@ -82,46 +82,6 @@
     margin-bottom: 12px !important;
   }
 
-  aside .workspace-picker-trigger {
-    min-height: 54px !important;
-    padding: 0 14px !important;
-    border: 1px solid var(--mobile-border) !important;
-    border-radius: 18px !important;
-    background: var(--mobile-panel-soft) !important;
-    box-shadow: none !important;
-  }
-
-  aside .workspace-picker-icon {
-    width: 28px;
-    height: 28px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    background: var(--mobile-accent-soft);
-    color: var(--mobile-accent-text) !important;
-    font-size: 16px !important;
-  }
-
-  aside .workspace-picker-name {
-    font-size: 15px !important;
-    font-weight: 800 !important;
-  }
-
-  aside .workspace-picker-meta {
-    padding: 3px 8px;
-    border-radius: 999px;
-    background: var(--mobile-panel);
-    color: var(--mobile-muted) !important;
-    font-size: 12px !important;
-    font-weight: 800 !important;
-  }
-
-  aside .workspace-picker-arrow {
-    color: var(--mobile-muted) !important;
-    font-size: 18px !important;
-  }
-
   aside .session-search-row {
     grid-template-columns: minmax(0, 1fr) 52px !important;
     gap: 8px !important;

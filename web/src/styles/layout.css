@@ -19,10 +19,6 @@
     .prompt-box { margin: 0 12px 12px; padding: 10px; border: 1px solid #1f2937; border-radius: 14px; background: #111827; }
     .prompt-box label { margin: 0 0 6px; font-size: 12px; color: #94a3b8; }
     .prompt-row { display: flex; gap: 8px; align-items: center; }
-    .workspace-picker-trigger { flex: 1 1 auto; min-width: 0; min-height: 42px; display: grid; grid-template-columns: 1fr auto; grid-template-areas: "name arrow" "meta arrow"; align-items: center; gap: 1px 8px; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--panel-deep); color: var(--text); text-align: left; }
-    .workspace-picker-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; line-height: 1.2; }
-    .workspace-picker-meta { grid-area: meta; color: var(--muted); font-size: 12px; line-height: 1.2; }
-    .workspace-picker-arrow { grid-area: arrow; color: var(--muted); font-size: 16px; }
     .prompt-add { flex: 0 0 38px; width: 38px; height: 38px; padding: 0; border-radius: 10px; background: #1f2937; }
     select { width: 100%; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--panel-deep); color: var(--text); padding: 9px; outline: none; font: inherit; font-size: 16px; line-height: 1.35; }
     .session { padding: 12px 14px; border-top: 1px solid #1f2937; cursor: pointer; color: #cbd5e1; }
@@ -64,7 +60,6 @@
     body.theme-light .prompt-add,
     body.theme-light button.secondary { background: #e2e8f0; color: #0f172a; }
     body.theme-light .prompt-box { background: #f8fafc; border-color: #e2e8f0; }
-    body.theme-light .workspace-picker-trigger { background: #ffffff; color: #0f172a; border-color: #cbd5e1; }
     body.theme-light .task-card { background: #f8fafc; border-color: #e2e8f0; }
     body.theme-light .task-name,
     body.theme-light .task-name { color: #0f172a; }
@@ -207,10 +202,6 @@ aside {
 
 .prompt-row {
   gap: 8px;
-}
-
-.workspace-picker-trigger {
-  min-height: 44px;
 }
 
 .prompt-add {

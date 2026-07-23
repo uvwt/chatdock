@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"chatdock/internal/chatdock/model"
 )
 
 func TestListSessionPageKeepsStableOrderAcrossPages(t *testing.T) {
@@ -89,14 +91,14 @@ func TestSearchSessionPageDoesNotRepeatResults(t *testing.T) {
 		}
 	}
 
-	first, cursor, hasMore, err := store.SearchSessionPage("共同分页关键词", "", 2)
+	first, cursor, hasMore, err := store.SearchSessionPage("共同分页关键词", SessionProjectFilter{Mode: SessionProjectFilterAll}, "", 2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(first) != 2 || !hasMore || cursor == "" {
 		t.Fatalf("unexpected first page: items=%#v cursor=%q hasMore=%v", first, cursor, hasMore)
 	}
-	second, nextCursor, hasMore, err := store.SearchSessionPage("共同分页关键词", cursor, 2)
+	second, nextCursor, hasMore, err := store.SearchSessionPage("共同分页关键词", SessionProjectFilter{Mode: SessionProjectFilterAll}, cursor, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,8 +115,46 @@ func TestSearchSessionPageDoesNotRepeatResults(t *testing.T) {
 	if len(seen) != 3 {
 		t.Fatalf("search returned %d unique results", len(seen))
 	}
-	if _, _, _, err := store.SearchSessionPage("共同分页关键词", "bad", 2); err == nil {
+	if _, _, _, err := store.SearchSessionPage("共同分页关键词", SessionProjectFilter{Mode: SessionProjectFilterAll}, "bad", 2); err == nil {
 		t.Fatal("invalid search cursor should fail")
+	}
+}
+
+func TestSearchSessionPageFiltersByProject(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	project, err := store.CreateProject(model.CreateProjectRequest{Name: "项目", Prompt: "项目提示词"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	projectSession, err := store.CreateSession(project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	appendUserMessageForTest(t, store, projectSession.ID, "过滤关键词")
+	plainSession, err := store.CreateSession("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	appendUserMessageForTest(t, store, plainSession.ID, "过滤关键词")
+
+	projectOnly, _, _, err := store.SearchSessionPage("过滤关键词", SessionProjectFilter{Mode: SessionProjectFilterByProject, ProjectID: project.ID}, "", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(projectOnly) != 1 || projectOnly[0].ID != projectSession.ID {
+		t.Fatalf("project search results = %#v, want only %s", projectOnly, projectSession.ID)
+	}
+	plainOnly, _, _, err := store.SearchSessionPage("过滤关键词", SessionProjectFilter{Mode: SessionProjectFilterNoProject}, "", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plainOnly) != 1 || plainOnly[0].ID != plainSession.ID {
+		t.Fatalf("plain search results = %#v, want only %s", plainOnly, plainSession.ID)
 	}
 }
 

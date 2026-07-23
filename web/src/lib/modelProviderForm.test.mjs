@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compactModelName, providerKeyInputsFromRows, providerKeyRows, providerPayloadForModelAppend, providerPayloadFromFormValues, uniqueModelNames, workspaceDefaultModelChoice } from './modelProviderForm.js';
+import { compactModelName, providerKeyInputsFromRows, providerKeyRows, providerPayloadForModelAppend, providerPayloadFromFormValues, uniqueModelNames, globalDefaultModelChoice } from './modelProviderForm.js';
 
 test('uniqueModelNames trims separators and deduplicates', () => {
   assert.deepEqual(uniqueModelNames('a\na，b,b'), ['a', 'b']);
@@ -59,23 +59,23 @@ test('compactModelName shortens long names', () => {
 });
 
 
-test('workspaceDefaultModelChoice prefers the workspace model for its configured provider', () => {
-  const choice = workspaceDefaultModelChoice(
+test('globalDefaultModelChoice prefers the global model for its configured provider', () => {
+  const choice = globalDefaultModelChoice(
     {provider_id: 'cpa', model: 'grok-4.5'},
     {id: 'cpa', default_model: 'claude-opus', models: ['claude-opus', 'grok-4.5']},
   );
   assert.deepEqual(choice, {provider_id: 'cpa', model: 'grok-4.5'});
 });
 
-test('workspaceDefaultModelChoice uses provider default outside the workspace provider', () => {
-  const choice = workspaceDefaultModelChoice(
+test('globalDefaultModelChoice uses provider default outside the global provider', () => {
+  const choice = globalDefaultModelChoice(
     {provider_id: 'cpa', model: 'grok-4.5'},
     {id: 'other', default_model: 'gemini-flash', models: ['gemini-flash']},
   );
   assert.deepEqual(choice, {provider_id: 'other', model: 'gemini-flash'});
 });
 
-test('workspaceDefaultModelChoice keeps the workspace model while providers are still loading', () => {
-  const choice = workspaceDefaultModelChoice({provider_id: 'cpa', model: 'grok-4.5'}, null);
+test('globalDefaultModelChoice keeps the global model while providers are still loading', () => {
+  const choice = globalDefaultModelChoice({provider_id: 'cpa', model: 'grok-4.5'}, null);
   assert.deepEqual(choice, {provider_id: '', model: 'grok-4.5'});
 });

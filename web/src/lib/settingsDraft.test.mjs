@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mcpConfigDraftChanged, workspaceConfigDraftChanged } from './settingsDraft.js';
+import { mcpConfigDraftChanged, globalConfigDraftChanged } from './settingsDraft.js';
 
-const savedWorkspaceConfig = {
+const savedGlobalConfig = {
   provider_id: 'provider-a',
   model: 'model-a',
   fallback_provider_id: '',
@@ -17,27 +17,27 @@ const savedWorkspaceConfig = {
   embedding_model: 'BAAI/bge-m3',
 };
 
-test('workspace config draft ignores derived display fields and numeric input types', () => {
+test('global config draft ignores derived display fields and numeric input types', () => {
   const current = {
-    ...savedWorkspaceConfig,
+    ...savedGlobalConfig,
     max_context_messages: '12',
     temperature: '0.7',
     base_url: 'derived-provider-url',
     models: ['model-a', 'model-b'],
     has_api_key: true,
   };
-  assert.equal(workspaceConfigDraftChanged(current, savedWorkspaceConfig), false);
+  assert.equal(globalConfigDraftChanged(current, savedGlobalConfig), false);
 });
 
-test('workspace config draft detects submitted field changes', () => {
-  assert.equal(workspaceConfigDraftChanged({...savedWorkspaceConfig, model: 'model-b'}, savedWorkspaceConfig), true);
-  assert.equal(workspaceConfigDraftChanged({...savedWorkspaceConfig, fallback_provider_id: 'provider-b', fallback_model: 'model-c'}, savedWorkspaceConfig), true);
-  assert.equal(workspaceConfigDraftChanged({...savedWorkspaceConfig, hide_thinking: true}, savedWorkspaceConfig), true);
-  assert.equal(workspaceConfigDraftChanged({...savedWorkspaceConfig, embedding_api_key: 'new-key'}, savedWorkspaceConfig), true);
+test('global config draft detects submitted field changes', () => {
+  assert.equal(globalConfigDraftChanged({...savedGlobalConfig, model: 'model-b'}, savedGlobalConfig), true);
+  assert.equal(globalConfigDraftChanged({...savedGlobalConfig, fallback_provider_id: 'provider-b', fallback_model: 'model-c'}, savedGlobalConfig), true);
+  assert.equal(globalConfigDraftChanged({...savedGlobalConfig, hide_thinking: true}, savedGlobalConfig), true);
+  assert.equal(globalConfigDraftChanged({...savedGlobalConfig, embedding_api_key: 'new-key'}, savedGlobalConfig), true);
 });
 
 test('drafts are clean until a server baseline has loaded', () => {
-  assert.equal(workspaceConfigDraftChanged(savedWorkspaceConfig, null), false);
+  assert.equal(globalConfigDraftChanged(savedGlobalConfig, null), false);
   assert.equal(mcpConfigDraftChanged('{"servers":{}}', null), false);
 });
 

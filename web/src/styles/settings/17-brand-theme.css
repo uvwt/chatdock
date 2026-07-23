@@ -89,7 +89,7 @@
 .settings-page .automation-task-card,
 .settings-page .task-card,
 .settings-page .stat-card,
-.settings-page .workspace-summary-card,
+.settings-page .project-summary-card,
 .settings-page .model-summary-card,
 .settings-page .backup-item,
 .settings-page .backup-health,
@@ -100,9 +100,9 @@
   box-shadow: 0 10px 32px rgba(22, 16, 43, .06) !important;
 }
 
-body .settings-page [data-module-view="workspace"] #workspaceCards .product-card.active,
+body .settings-page [data-module-view="projects"] #projectCards .product-card.active,
 body .settings-page [data-module-view="providers"] .product-card.active,
-.settings-page #workspaceCards .product-card.active,
+.settings-page #projectCards .product-card.active,
 .settings-page .provider-grid .product-card.active {
   border-color: color-mix(in srgb, var(--mobile-accent-solid) 38%, var(--mobile-border)) !important;
   background: color-mix(in srgb, var(--mobile-accent-solid) 8%, var(--mobile-panel-raised)) !important;

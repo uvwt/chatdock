@@ -224,7 +224,7 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEd
 
 export const MemoizedMessageView = React.memo(MessageView);
 
-export function EmptyState({ createSession, openSettings, openWorkspacePicker, busy, hasWorkspaces, setInput, modelReady }) {
+export function EmptyState({ createSession, openSettings, openProjects, busy, hasProjects, setInput, modelReady }) {
   const starters = [
     { number: '01', tag: 'PLAN', title: '把需求拆清楚', text: '整理目标、步骤与关键风险。', prompt: '帮我把这个需求拆成可执行步骤，并指出主要风险：' },
     { number: '02', tag: 'REVIEW', title: '检查项目状态', text: '找出最值得优先处理的问题。', prompt: '检查当前项目状态，找出最需要优先处理的问题。' },
@@ -244,10 +244,10 @@ export function EmptyState({ createSession, openSettings, openWorkspacePicker, b
         <div className="empty-state-actions hero-actions">
           <button disabled={busy || !modelReady} onClick={createSession}>{modelReady ? '开始对话' : '先配置模型'}</button>
           <button className="secondary" onClick={() => openSettings('model')}>{modelReady ? '配置模型' : '打开配置'}</button>
-          <button className="secondary" disabled={!hasWorkspaces || busy} onClick={openWorkspacePicker}>切换空间</button>
+          <button className="secondary" disabled={!hasProjects || busy} onClick={openProjects}>项目</button>
         </div>
         <div className="hero-trust-row" aria-label="工作台特性">
-          <span>Local first</span><span>Multi-model</span><span>Traceable tools</span>
+          <span>Local first</span><span>Projects</span><span>Traceable tools</span>
         </div>
       </div>
       <div className="starter-panel" aria-label="常用起始任务">

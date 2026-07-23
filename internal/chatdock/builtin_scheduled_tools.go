@@ -36,7 +36,7 @@ func builtinScheduledTaskTools() []mcp.MCPTool {
 			Name:        "scheduled_tasks_list",
 			FullName:    builtinToolListScheduledTasks,
 			Title:       "查询定时任务",
-			Description: "查询当前工作空间的定时任务。可传 id 精确查询，或传 query 按标题/提示词模糊过滤。",
+			Description: "查询全局定时任务。可传 id 精确查询，或传 query 按标题/提示词模糊过滤。",
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string"}, "query": map[string]any{"type": "string"}}},
 		},
 		{
@@ -44,7 +44,7 @@ func builtinScheduledTaskTools() []mcp.MCPTool {
 			Name:        "scheduled_task_create",
 			FullName:    builtinToolCreateScheduledTask,
 			Title:       "创建定时任务",
-			Description: "在当前工作空间创建定时任务。创建前应确认标题、任务提示词和触发规则。",
+			Description: "创建全局定时任务。创建前应确认标题、任务提示词和触发规则。",
 			InputSchema: map[string]any{"type": "object", "properties": requestProps, "required": []string{"title", "prompt", "schedule_type"}},
 		},
 		{
@@ -52,7 +52,7 @@ func builtinScheduledTaskTools() []mcp.MCPTool {
 			Name:        "scheduled_task_update",
 			FullName:    builtinToolUpdateScheduledTask,
 			Title:       "修改定时任务",
-			Description: "按 id 修改当前工作空间的定时任务，enabled 字段用于启用或停用；未传字段会保留原值。",
+			Description: "按 id 修改全局定时任务，enabled 字段用于启用或停用；未传字段会保留原值。",
 			InputSchema: map[string]any{"type": "object", "properties": mergeSchemaProps(map[string]any{"id": map[string]any{"type": "string", "description": "要修改的任务 id"}}, requestProps), "required": []string{"id"}},
 		},
 		{
@@ -60,7 +60,7 @@ func builtinScheduledTaskTools() []mcp.MCPTool {
 			Name:        "scheduled_task_delete",
 			FullName:    builtinToolDeleteScheduledTask,
 			Title:       "删除定时任务",
-			Description: "按 id 删除当前工作空间的定时任务。删除前应确保用户明确要求删除。",
+			Description: "按 id 删除全局定时任务。删除前应确保用户明确要求删除。",
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "要删除的任务 id"}}, "required": []string{"id"}},
 		},
 	}

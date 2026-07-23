@@ -83,7 +83,6 @@
   }
 }
 
-#app.app .workspace-picker-icon,
 #app.app .session-search-icon {
   position: relative !important;
   width: 28px !important;
@@ -93,7 +92,6 @@
   color: transparent !important;
 }
 
-#app.app .workspace-picker-icon::before,
 #app.app .session-search-icon::before {
   content: "" !important;
   position: absolute !important;
@@ -106,7 +104,6 @@
   box-sizing: border-box !important;
 }
 
-#app.app .workspace-picker-icon::after,
 #app.app .session-search-icon::after {
   content: "" !important;
   position: absolute !important;
@@ -195,20 +192,6 @@
 
   #app.app .prompt-box {
     margin-bottom: 22px !important;
-  }
-
-  #app.app .workspace-picker-trigger {
-    min-height: 62px !important;
-    border-radius: 21px !important;
-    padding: 0 18px !important;
-  }
-
-  #app.app .workspace-picker-name {
-    font-size: 17px !important;
-  }
-
-  #app.app .workspace-picker-meta {
-    font-size: 16px !important;
   }
 
   #app.app .session-search-row {
@@ -310,22 +293,12 @@
     margin-bottom: 16px !important;
   }
 
-  #app.app .workspace-picker-trigger {
-    min-height: 52px !important;
-    border-radius: 17px !important;
-    padding: 0 14px !important;
-    grid-template-columns: 24px minmax(0, 1fr) auto auto !important;
-    gap: 9px !important;
-  }
-
-  #app.app .workspace-picker-icon,
   #app.app .session-search-icon {
     width: 22px !important;
     height: 22px !important;
     flex-basis: 22px !important;
   }
 
-  #app.app .workspace-picker-icon::before,
   #app.app .session-search-icon::before {
     left: 3px !important;
     top: 3px !important;
@@ -334,21 +307,11 @@
     border-width: 2.5px !important;
   }
 
-  #app.app .workspace-picker-icon::after,
   #app.app .session-search-icon::after {
     left: 15px !important;
     top: 15px !important;
     width: 7px !important;
     height: 2.5px !important;
-  }
-
-  #app.app .workspace-picker-name {
-    font-size: 15px !important;
-  }
-
-  #app.app .workspace-picker-meta,
-  #app.app .workspace-picker-arrow {
-    font-size: 14px !important;
   }
 
   #app.app .session-search-row {

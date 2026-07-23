@@ -70,22 +70,22 @@ body.theme-light {
 
   #app.app .sidebar-mask.show { background: var(--mobile-overlay) !important; }
 
-  #app.app aside :is(.brand-text, .workspace-picker-name, .session-title, .sidebar-task-name),
+  #app.app aside :is(.brand-text, .session-title, .sidebar-section-head, .sidebar-task-item),
   #app.app aside .sidebar-task-list.session-list-like .sidebar-task-name.session-title {
     color: var(--mobile-text-strong) !important;
   }
 
-  #app.app aside :is(.sub, .session-preview, .session-meta, .workspace-picker-arrow, .sidebar-section-count) {
+  #app.app aside :is(.sub, .session-preview, .session-meta, .sidebar-section-count) {
     color: var(--mobile-muted) !important;
   }
 
-  #app.app aside :is(.sidebar-toggle, .workspace-picker-trigger, .session-search-box, .session-delete) {
+  #app.app aside :is(.sidebar-toggle, .session-search-box, .session-delete) {
     border-color: var(--mobile-border) !important;
     background: var(--mobile-panel-soft) !important;
     color: var(--mobile-text) !important;
   }
 
-  #app.app aside :is(.workspace-picker-meta, .pin-mark) {
+  #app.app aside .pin-mark {
     background: var(--mobile-accent-soft) !important;
     color: var(--mobile-accent-text) !important;
   }
@@ -104,23 +104,23 @@ body.theme-light {
     box-shadow: var(--mobile-accent-shadow) !important;
   }
 
-  #app.app :is(.quick-palette, .quick-palette-head, .quick-palette-foot, .quick-palette-item, .model-picker-popover, .workspace-picker-sheet, .session-actions-sheet) {
+  #app.app :is(.quick-palette, .quick-palette-head, .quick-palette-foot, .quick-palette-item, .model-picker-popover, .session-actions-sheet) {
     border-color: var(--mobile-border) !important;
     background: var(--mobile-panel-translucent) !important;
     color: var(--mobile-text) !important;
   }
 
-  #app.app :is(.quick-palette-head input, .quick-palette-item em, .quick-palette-close, .model-provider-item, .model-chip, .workspace-picker-item) {
+  #app.app :is(.quick-palette-head input, .quick-palette-item em, .quick-palette-close, .model-provider-item, .model-chip) {
     border-color: var(--mobile-border) !important;
     background: var(--mobile-panel-soft) !important;
     color: var(--mobile-text) !important;
   }
 
-  #app.app :is(.quick-palette-item b, .model-picker-popover b, .workspace-picker-item b, .session-actions-sheet b) {
+  #app.app :is(.quick-palette-item b, .model-picker-popover b, .session-actions-sheet b) {
     color: var(--mobile-text-strong) !important;
   }
 
-  #app.app :is(.quick-palette-item small, .quick-palette-foot, .model-picker-popover small, .workspace-picker-item span) {
+  #app.app :is(.quick-palette-item small, .quick-palette-foot, .model-picker-popover small) {
     color: var(--mobile-muted) !important;
   }
 }

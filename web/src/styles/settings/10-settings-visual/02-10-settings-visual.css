@@ -113,7 +113,7 @@
 
   .settings-page .product-card,
   .settings-page .task-card,
-  .settings-page .workspace-summary-card,
+  .settings-page .project-summary-card,
   .settings-page .stat-card,
   .settings-page .model-summary-card,
   .settings-page .empty.compact {
@@ -121,13 +121,13 @@
     border-radius: 15px !important;
   }
 
-  .settings-page .workspace-summary-grid {
+  .settings-page .project-summary-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     gap: 12px !important;
     margin: 0 0 14px !important;
   }
 
-  .settings-page #workspaceCards,
+  .settings-page #projectCards,
   .settings-page .provider-grid,
   .settings-page .tasks-list {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -289,7 +289,7 @@
   .settings-page .mcp-form-card,
   .settings-page .product-card,
   .settings-page .task-card,
-  .settings-page .workspace-summary-card,
+  .settings-page .project-summary-card,
   .settings-page .stat-card,
   .settings-page .model-summary-card,
   .settings-page .empty.compact {
@@ -297,12 +297,12 @@
     border-radius: 13px !important;
   }
 
-  .settings-page .workspace-summary-grid {
+  .settings-page .project-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 8px !important;
   }
 
-  .settings-page #workspaceCards,
+  .settings-page #projectCards,
   .settings-page .provider-grid,
   .settings-page .tasks-list,
   .settings-page .mcp-form-list,

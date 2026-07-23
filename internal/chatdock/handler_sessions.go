@@ -225,9 +225,16 @@ func (a *App) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func sessionProjectFilterFromRequest(r *http.Request) storepkg.SessionProjectFilter {
-	value := strings.TrimSpace(r.URL.Query().Get("project_id"))
-	if value == "" {
+	values, ok := r.URL.Query()["project_id"]
+	if !ok {
 		return storepkg.SessionProjectFilter{Mode: storepkg.SessionProjectFilterAll}
+	}
+	value := ""
+	if len(values) > 0 {
+		value = strings.TrimSpace(values[0])
+	}
+	if value == "" {
+		return storepkg.SessionProjectFilter{Mode: storepkg.SessionProjectFilterNoProject}
 	}
 	switch strings.ToLower(value) {
 	case "null", "none", "empty":

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchSessions, searchSessions } from '../lib/sessionApi.js';
 import { mergeSessionPages, normalizeSessionPage, SESSION_PAGE_SIZE, upsertSessionSummary } from '../lib/sessionPagination.js';
 
-export function useSessionList(api) {
+export function useSessionList(api, projectFilter = 'all') {
   const [sessions, setSessions] = useState([]);
   const [sessionsHasMore, setSessionsHasMore] = useState(false);
   const [sessionsLoadingMore, setSessionsLoadingMore] = useState(false);
@@ -23,8 +23,10 @@ export function useSessionList(api) {
   const searchLoadingMoreRef = useRef(false);
   const searchRequestRef = useRef(0);
   const searchValueRef = useRef('');
+  const projectFilterRef = useRef(projectFilter);
 
   useEffect(() => {
+    projectFilterRef.current = projectFilter;
     listRequestRef.current += 1;
     searchRequestRef.current += 1;
     listCursorRef.current = '';
@@ -42,7 +44,7 @@ export function useSessionList(api) {
     setSessionSearchBusy(false);
     setSessionSearchHasMore(false);
     setSessionSearchLoadingMore(false);
-  }, [api]);
+  }, [api, projectFilter]);
 
   const loadSessions = useCallback(async ({ reset = false } = {}) => {
     const requestID = listRequestRef.current + 1;
@@ -55,14 +57,14 @@ export function useSessionList(api) {
       let hasMore = true;
       let loadedPages = 0;
       for (let pageIndex = 0; pageIndex < targetPages && hasMore; pageIndex += 1) {
-        const page = normalizeSessionPage(await fetchSessions(api, { cursor, limit: SESSION_PAGE_SIZE }));
-        if (requestID !== listRequestRef.current) return [];
+        const page = normalizeSessionPage(await fetchSessions(api, { cursor, limit: SESSION_PAGE_SIZE, projectFilter }));
+        if (requestID !== listRequestRef.current || projectFilter !== projectFilterRef.current) return [];
         items = mergeSessionPages(items, page.sessions);
         cursor = page.nextCursor;
         hasMore = page.hasMore;
         loadedPages += 1;
       }
-      if (requestID !== listRequestRef.current) return [];
+      if (requestID !== listRequestRef.current || projectFilter !== projectFilterRef.current) return [];
       listCursorRef.current = cursor;
       listHasMoreRef.current = hasMore;
       loadedPagesRef.current = Math.max(1, loadedPages);
@@ -72,7 +74,7 @@ export function useSessionList(api) {
     } finally {
       if (requestID === listRequestRef.current) listRefreshingRef.current = false;
     }
-  }, [api]);
+  }, [api, projectFilter]);
 
   const loadMoreSessions = useCallback(async () => {
     if (!listHasMoreRef.current || listLoadingMoreRef.current || listRefreshingRef.current) return;
@@ -80,8 +82,9 @@ export function useSessionList(api) {
     listLoadingMoreRef.current = true;
     setSessionsLoadingMore(true);
     try {
-      const page = normalizeSessionPage(await fetchSessions(api, { cursor: listCursorRef.current, limit: SESSION_PAGE_SIZE }));
-      if (requestID !== listRequestRef.current) return;
+      const activeFilter = projectFilterRef.current;
+      const page = normalizeSessionPage(await fetchSessions(api, { cursor: listCursorRef.current, limit: SESSION_PAGE_SIZE, projectFilter: activeFilter }));
+      if (requestID !== listRequestRef.current || activeFilter !== projectFilterRef.current) return;
       setSessions(current => mergeSessionPages(current, page.sessions));
       listCursorRef.current = page.nextCursor;
       listHasMoreRef.current = page.hasMore;
@@ -114,8 +117,9 @@ export function useSessionList(api) {
     setSessionSearchBusy(true);
     const timer = window.setTimeout(async () => {
       try {
-        const page = normalizeSessionPage(await searchSessions(api, query, { limit: SESSION_PAGE_SIZE }));
-        if (requestID !== searchRequestRef.current || query !== searchValueRef.current) return;
+        const activeFilter = projectFilterRef.current;
+        const page = normalizeSessionPage(await searchSessions(api, query, { limit: SESSION_PAGE_SIZE, projectFilter: activeFilter }));
+        if (requestID !== searchRequestRef.current || query !== searchValueRef.current || activeFilter !== projectFilterRef.current) return;
         setSessionSearchResults(page.sessions);
         searchCursorRef.current = page.nextCursor;
         searchHasMoreRef.current = page.hasMore;
@@ -127,7 +131,7 @@ export function useSessionList(api) {
       }
     }, 260);
     return () => window.clearTimeout(timer);
-  }, [api, sessionSearch]);
+  }, [api, sessionSearch, projectFilter]);
 
   const loadMoreSearchSessions = useCallback(async () => {
     const query = searchValueRef.current;
@@ -136,8 +140,9 @@ export function useSessionList(api) {
     searchLoadingMoreRef.current = true;
     setSessionSearchLoadingMore(true);
     try {
-      const page = normalizeSessionPage(await searchSessions(api, query, { cursor: searchCursorRef.current, limit: SESSION_PAGE_SIZE }));
-      if (requestID !== searchRequestRef.current || query !== searchValueRef.current) return;
+      const activeFilter = projectFilterRef.current;
+      const page = normalizeSessionPage(await searchSessions(api, query, { cursor: searchCursorRef.current, limit: SESSION_PAGE_SIZE, projectFilter: activeFilter }));
+      if (requestID !== searchRequestRef.current || query !== searchValueRef.current || activeFilter !== projectFilterRef.current) return;
       setSessionSearchResults(current => mergeSessionPages(current, page.sessions));
       searchCursorRef.current = page.nextCursor;
       searchHasMoreRef.current = page.hasMore;

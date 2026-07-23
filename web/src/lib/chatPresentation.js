@@ -84,7 +84,9 @@ export function scheduledTaskRunsText(task, runs = []) {
 
 export function contextPreviewText(data = {}) {
   const lines = [];
-  lines.push('工作空间：' + (data.workspace || '-'));
+  if (data.project_name) lines.push('项目：' + data.project_name);
+  else if (data.project_id) lines.push('项目 ID：' + data.project_id);
+  else lines.push('会话归属：普通会话');
   lines.push('上下文模式：' + (data.context_mode || '-') + ' · 最近消息窗口：' + (data.recent_messages || 0) + ' · 早期摘要：' + (data.summarize_old ? '开启' : '关闭'));
   lines.push('会话消息：' + (data.message_count || 0) + ' 条 · 实际发送片段：' + (data.context_count || 0) + ' 条 · 粗略 token：' + (data.estimated_tokens || 0));
   lines.push('');

@@ -1,14 +1,21 @@
 import { fetchWithAuth } from './http.js';
 
-export function fetchSessions(api, { cursor = '', limit = 30 } = {}) {
+function appendProjectFilter(params, projectFilter = 'all') {
+  if (projectFilter === 'plain') params.set('project_id', '');
+  else if (projectFilter && projectFilter !== 'all') params.set('project_id', projectFilter);
+}
+
+export function fetchSessions(api, { cursor = '', limit = 30, projectFilter = 'all' } = {}) {
   const params = new URLSearchParams({ limit: String(limit) });
   if (cursor) params.set('cursor', cursor);
+  appendProjectFilter(params, projectFilter);
   return api('/api/sessions?' + params.toString());
 }
 
-export function searchSessions(api, query, { cursor = '', limit = 30 } = {}) {
+export function searchSessions(api, query, { cursor = '', limit = 30, projectFilter = 'all' } = {}) {
   const params = new URLSearchParams({ q: query, limit: String(limit) });
   if (cursor) params.set('cursor', cursor);
+  appendProjectFilter(params, projectFilter);
   return api('/api/sessions/search?' + params.toString());
 }
 
@@ -16,8 +23,9 @@ export function fetchContextPreview(api, id) {
   return api('/api/sessions/' + encodeURIComponent(id) + '/context-preview');
 }
 
-export function createSessionRecord(api) {
-  return api('/api/sessions', {method:'POST', body:'{}'});
+export function createSessionRecord(api, { projectID = '' } = {}) {
+  const body = projectID ? JSON.stringify({project_id: projectID}) : '{}';
+  return api('/api/sessions', {method:'POST', body});
 }
 
 export function fetchSession(api, id) {

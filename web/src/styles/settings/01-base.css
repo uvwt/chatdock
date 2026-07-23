@@ -246,7 +246,6 @@ body.theme-light .model-option { background:#f8fafc; }
 .diagnostics-preview,
 .backup-item,
 .setup-banner,
-.workspace-picker-sheet,
 .session-actions-sheet,
 .quick-palette,
 .app-modal-card,
@@ -269,8 +268,7 @@ body.theme-light .model-option { background:#f8fafc; }
 .hint,
 .stat-label,
 .empty,
-.quick-palette-foot,
-.workspace-picker-item-main span {
+.quick-palette-foot {
   color: var(--gpt-muted);
 }
 
@@ -289,16 +287,13 @@ label,
 
 input,
 textarea,
-select,
-.workspace-picker-item,
-.workspace-picker-trigger {
+select {
   border-color: var(--gpt-border);
   background: var(--gpt-surface);
   color: var(--gpt-text);
 }
 
 .quick-palette-backdrop.show,
-.workspace-picker-backdrop.show,
 .session-actions-backdrop.show,
 .app-modal-backdrop {
   background: rgba(0,0,0,.52);

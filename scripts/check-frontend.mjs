@@ -15,7 +15,7 @@ const settingsCssNonImportLines = settingsCss.filter(line => !line.startsWith('@
 if (settingsCssNonImportLines.length) failures.push('web/src/styles/settings.css must stay import-only; move real rules into web/src/styles/settings/*.css');
 
 const appSource = read('web/src/App.jsx');
-const settingFetchNames = ['fetchConfig', 'fetchDataStatus', 'fetchMCPConfig', 'fetchMCPStatus', 'fetchModelProviders', 'fetchScheduledTasks', 'fetchSetupStatus', 'fetchSystemStatus', 'fetchWorkspaces'];
+const settingFetchNames = ['fetchConfig', 'fetchDataStatus', 'fetchMCPConfig', 'fetchMCPStatus', 'fetchModelProviders', 'fetchScheduledTasks', 'fetchSetupStatus', 'fetchSystemStatus', 'fetchProjects'];
 for (const name of settingFetchNames) {
   if (appSource.includes(name)) failures.push(`settings fetch helper should stay in useSettingsData.js, not App.jsx: ${name}`);
 }

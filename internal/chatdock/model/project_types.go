@@ -10,6 +10,11 @@ type Project struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type ProjectSummary struct {
+	Project
+	SessionCount int `json:"session_count"`
+}
+
 type CreateProjectRequest struct {
 	Name   string `json:"name"`
 	Prompt string `json:"prompt"`
@@ -21,7 +26,9 @@ type UpdateProjectRequest struct {
 }
 
 type ProjectListResponse struct {
-	Projects []Project `json:"projects"`
+	Projects          []ProjectSummary `json:"projects"`
+	SessionCount      int              `json:"session_count"`
+	PlainSessionCount int              `json:"plain_session_count"`
 }
 
 type PromptPreviewResponse struct {

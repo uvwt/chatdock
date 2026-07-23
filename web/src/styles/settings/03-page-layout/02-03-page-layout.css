@@ -1,4 +1,4 @@
-/* 2026-07 配置中心桌面视觉重做：参考独立控制台布局，强化白色画布、左侧导航和工作区卡片。 */
+/* 2026-07 配置中心桌面视觉重做：参考独立控制台布局，强化白色画布、左侧导航和项目卡片。 */
 @media (min-width: 1040px) {
   .settings-page {
     padding: 30px clamp(34px, 4vw, 70px);
@@ -186,7 +186,7 @@
     color: #ffffff;
   }
 
-  .settings-page #workspaceCards,
+  .settings-page #projectCards,
   .settings-page .provider-grid,
   .settings-page .tasks-list,
   .settings-page .tasks-list,
@@ -196,7 +196,7 @@
     gap: 22px;
   }
 
-  .settings-page #workspaceCards .product-card,
+  .settings-page #projectCards .product-card,
   .settings-page .provider-grid .product-card,
   .settings-page .task-card,
   .settings-page .stat-card,
@@ -211,7 +211,7 @@
     box-shadow: none;
   }
 
-  .settings-page #workspaceCards .product-card::before,
+  .settings-page #projectCards .product-card::before,
   .settings-page .provider-grid .product-card::before {
     content: "□";
     position: absolute;
@@ -229,14 +229,14 @@
     font-weight: 900;
   }
 
-  .settings-page #workspaceCards .product-card:nth-child(2)::before,
+  .settings-page #projectCards .product-card:nth-child(2)::before,
   .settings-page .provider-grid .product-card:nth-child(2)::before {
     content: "✣";
     background: #faf5ff;
     color: #7c3aed;
   }
 
-  .settings-page #workspaceCards .product-card:nth-child(3)::before,
+  .settings-page #projectCards .product-card:nth-child(3)::before,
   .settings-page .provider-grid .product-card:nth-child(3)::before {
     content: "Aa";
     background: #ecfdf5;
@@ -245,7 +245,7 @@
   }
 
   .settings-page .product-card.active,
-  .settings-page #workspaceCards .product-card.active {
+  .settings-page #projectCards .product-card.active {
     border-color: #0f766e;
     background: linear-gradient(135deg, #fbfaf7, #ffffff);
     box-shadow: inset 0 0 0 1px rgba(15, 118, 110, .18);
@@ -305,14 +305,14 @@
 }
 
 /* 2026-07 前端美化收尾：配置中心更像独立控制台，先给用户扫一眼关键状态。 */
-.workspace-summary-grid {
+.project-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin: 2px 0 18px;
 }
 
-.workspace-summary-card {
+.project-summary-card {
   position: relative;
   min-width: 0;
   padding: 16px 18px;
@@ -323,7 +323,7 @@
     var(--gpt-surface-2);
 }
 
-.workspace-summary-card span {
+.project-summary-card span {
   display: block;
   color: var(--gpt-muted);
   font-size: 12px;
@@ -331,7 +331,7 @@
   letter-spacing: .02em;
 }
 
-.workspace-summary-card b {
+.project-summary-card b {
   display: block;
   min-width: 0;
   margin-top: 8px;
@@ -370,13 +370,13 @@
     min-height: calc(100dvh - 222px);
   }
 
-  .settings-page .workspace-summary-grid {
+  .settings-page .project-summary-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 18px;
     margin-bottom: 22px;
   }
 
-  .settings-page .workspace-summary-card {
+  .settings-page .project-summary-card {
     padding: 20px 22px;
     border-color: #dbe4f0;
     border-radius: 16px;
@@ -386,24 +386,24 @@
     box-shadow: 0 12px 30px rgba(15, 23, 42, .05);
   }
 
-  .settings-page .workspace-summary-card span {
+  .settings-page .project-summary-card span {
     color: #64748b;
     font-size: 13px;
   }
 
-  .settings-page .workspace-summary-card b {
+  .settings-page .project-summary-card b {
     color: #0f172a;
     font-size: 24px;
   }
 
-  .settings-page #workspaceCards .product-card,
+  .settings-page #projectCards .product-card,
   .settings-page .provider-grid .product-card,
   .settings-page .task-card,
   .settings-page .mcp-status-grid .product-card {
     transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
   }
 
-  .settings-page #workspaceCards .product-card:hover,
+  .settings-page #projectCards .product-card:hover,
   .settings-page .provider-grid .product-card:hover,
   .settings-page .task-card:hover,
   .settings-page .task-card:hover,
@@ -419,17 +419,17 @@
 }
 
 @media (max-width: 760px) {
-  .workspace-summary-grid {
+  .project-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
 
-  .workspace-summary-card {
+  .project-summary-card {
     padding: 13px 14px;
     border-radius: 16px;
   }
 
-  .workspace-summary-card b {
+  .project-summary-card b {
     font-size: 18px;
   }
 }

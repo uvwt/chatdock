@@ -26,11 +26,11 @@ type SessionSearchResult struct {
 }
 
 func (s *Store) SearchSessions(query string, limit int) ([]SessionSearchResult, error) {
-	items, _, _, err := s.SearchSessionPage(query, "", limit)
+	items, _, _, err := s.SearchSessionPage(query, SessionProjectFilter{Mode: SessionProjectFilterAll}, "", limit)
 	return items, err
 }
 
-func (s *Store) SearchSessionPage(query string, cursor string, limit int) ([]SessionSearchResult, string, bool, error) {
+func (s *Store) SearchSessionPage(query string, filter SessionProjectFilter, cursor string, limit int) ([]SessionSearchResult, string, bool, error) {
 	limit = normalizeSessionPageLimit(limit)
 	offset := 0
 	if strings.TrimSpace(cursor) != "" {
@@ -40,7 +40,7 @@ func (s *Store) SearchSessionPage(query string, cursor string, limit int) ([]Ses
 		}
 		offset = parsed
 	}
-	results, err := s.searchSessions(query)
+	results, err := s.searchSessions(query, filter)
 	if err != nil {
 		return nil, "", false, err
 	}
@@ -59,7 +59,7 @@ func (s *Store) SearchSessionPage(query string, cursor string, limit int) ([]Ses
 	return results[offset:end], nextCursor, hasMore, nil
 }
 
-func (s *Store) searchSessions(query string) ([]SessionSearchResult, error) {
+func (s *Store) searchSessions(query string, filter SessionProjectFilter) ([]SessionSearchResult, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return []SessionSearchResult{}, nil
@@ -81,6 +81,20 @@ func (s *Store) searchSessions(query string) ([]SessionSearchResult, error) {
 	}
 	results := make([]SessionSearchResult, 0)
 	for _, session := range sessions {
+		switch filter.Mode {
+		case SessionProjectFilterByProject:
+			if strings.TrimSpace(filter.ProjectID) == "" {
+				return nil, fmt.Errorf("project id is empty")
+			}
+			if session.ProjectID != strings.TrimSpace(filter.ProjectID) {
+				continue
+			}
+		case SessionProjectFilterNoProject:
+			if strings.TrimSpace(session.ProjectID) != "" {
+				continue
+			}
+		default:
+		}
 		if _, scheduled := scheduledSessionIDs[session.ID]; scheduled {
 			continue
 		}

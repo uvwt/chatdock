@@ -1,26 +1,26 @@
-// Configuration-center modules: workspace, model/provider, MCP tools, automation, and system diagnostics.
+// Configuration-center modules: projects, model/provider, MCP tools, automation, and system diagnostics.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '../styles/settings-entry.css';
 import { TextCard } from './base.jsx';
 import { settingsModules, diagnosticsText, fmtBytes, fmtRelativeAge, fmtTime, runStatusClass, runStatusLabel, safePathName, scheduleSummary, taskStatusClass, taskStatusLabel } from '../lib/appUtils.js';
 
 const settingsModuleMeta = {
-  workspace: {label: '工作区', desc: '工作空间、会话数量和自动化任务的整体入口。'},
+  projects: {label: '项目', desc: '管理项目名称、项目提示词和会话归属。'},
   model: {label: '模型', desc: '默认供应商和默认模型。'},
   providers: {label: '供应商', desc: '新增、编辑、测试模型供应商和候选模型。'},
   tools: {label: '工具', desc: '添加、检测和维护 MCP Server。'},
-  automation: {label: '自动化', desc: '管理当前工作空间下的定时任务和运行状态。'},
+  automation: {label: '自动化', desc: '管理全局自动化任务和运行状态。'},
   security: {label: '系统', desc: '查看运行状态、数据库、备份、诊断信息和访问入口。'},
 };
 
 export function SettingsPanel(props) {
   const {
-    activeModule, busy, closeSettings, config, configDirty, mcpConfigDirty, createWorkspace, dataStatus, deleteScheduledTask, deleteWorkspace, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
+    activeModule, busy, closeSettings, config, configDirty, mcpConfigDirty, editProject, dataStatus, deleteScheduledTask, deleteProject, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
     editScheduledTask, loadDataStatus, loadMCPConfig, loadMCPStatus, loadScheduledTasks,
-    loadSystemStatus, logout, builtinTools, mcpConfig, mcpStatus, onCopy, providers, workspacePromptPreview, refreshProductState, refreshVisibleSettings, runScheduledTaskNow, viewScheduledTaskRuns, openScheduledTaskSession, runSetupWizard,
-    saveConfig, saveMCPConfig, scheduledTasks, selectWorkspace, setConfig, setMcpConfig, setTaskSearch, setupStatus,
-    showWorkspacePromptPreview, switchSettingsModule, systemStatus, taskSearch, testMCP, fetchMCPServerTools, testModelProvider, fetchProviderModels, availableModels, candidateProviderID, addCandidateModelToProvider, loadingModels, toggleScheduledTask,
-    workspaces,
+    loadSystemStatus, logout, builtinTools, mcpConfig, mcpStatus, onCopy, providers, projectPromptPreview, projectSessionCounts, refreshProductState, refreshVisibleSettings, runScheduledTaskNow, viewScheduledTaskRuns, openScheduledTaskSession, runSetupWizard,
+    saveConfig, saveMCPConfig, scheduledTasks, setConfig, setMcpConfig, setTaskSearch, setupStatus,
+    showProjectPromptPreview, switchSettingsModule, systemStatus, taskSearch, testMCP, fetchMCPServerTools, testModelProvider, fetchProviderModels, availableModels, candidateProviderID, addCandidateModelToProvider, loadingModels, toggleScheduledTask,
+    projects,
   } = props;
   const filteredTasks = useMemo(() => {
     const q = taskSearch.trim().toLowerCase();
@@ -53,7 +53,6 @@ export function SettingsPanel(props) {
 
   const configSaveState = saveState.scope === 'config' ? saveState : {scope: 'config', status: 'idle', message: ''};
   const mcpSaveState = saveState.scope === 'mcp' ? saveState : {scope: 'mcp', status: 'idle', message: ''};
-  const activeWorkspaceName = setupStatus?.active_workspace || workspaces.find(ws => ws.active)?.name || '默认工作空间';
   const refreshSettings = () => {
     if (unsavedCount && !window.confirm('刷新会丢弃尚未保存的配置修改，确定继续吗？')) return;
     (refreshVisibleSettings || refreshProductState)?.();
@@ -64,7 +63,7 @@ export function SettingsPanel(props) {
         <button className="secondary small settings-back-button" onClick={() => closeSettings()} aria-label="返回聊天" title="返回聊天"><svg className="settings-header-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg></button>
         <div>
           <div className="settings-title-row"><h2>配置中心</h2>{unsavedCount ? <span className="settings-global-save-state dirty"><span aria-hidden="true" />{unsavedCount} 处未保存</span> : saveState.status === 'saved' ? <span className="settings-global-save-state saved">✓ 已保存</span> : null}</div>
-          <p>统一管理工作区、模型、工具与自动化。</p>
+          <p>统一管理项目、模型、工具与自动化。</p>
         </div>
       </div>
       <div className="settings-header-actions"><button className="secondary small settings-refresh-button" onClick={refreshSettings} aria-label="刷新配置" title="刷新配置"><svg className="settings-header-icon settings-refresh-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.34 5.66" /><path d="M20 4v7h-7" /></svg><span className="settings-refresh-text">刷新</span></button></div>
@@ -74,14 +73,14 @@ export function SettingsPanel(props) {
         {settingsModules.map(m => <option key={m} value={m}>{moduleLabel(m)}{moduleIsDirty(m) ? ' · 未保存' : ''}</option>)}
       </select>
       <nav className="module-tabs" aria-label="配置模块">{settingsModules.map(m => { const dirty = moduleIsDirty(m); return <button key={m} className={'module-tab ' + (activeModule === m ? 'active ' : '') + (dirty ? 'dirty' : '')} onClick={() => switchSettingsModule(m)}><span className="module-tab-label">{moduleLabel(m)}</span>{dirty ? <span className="module-tab-dirty" aria-label="有未保存修改">未保存</span> : null}</button>; })}</nav>
-      <div className="settings-sidebar-footer"><span>当前工作空间</span><b title={activeWorkspaceName}>{activeWorkspaceName}</b></div>
+      <div className="settings-sidebar-footer"><span>项目</span><b title={String(projects.length || 0)}>{projects.length || 0} 个</b></div>
     </div>
     <main className="settings-content">
-      <ModuleView name="workspace" activeModule={activeModule}><WorkspaceModule setupStatus={setupStatus} workspaces={workspaces} createWorkspace={createWorkspace} selectWorkspace={selectWorkspace} deleteWorkspace={deleteWorkspace} runSetupWizard={runSetupWizard} /></ModuleView>
-      <ModuleView name="model" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="保存后将用于新的对话和自动化任务。"><ModelModule config={config} configDirty={configDirty} saveState={configSaveState} setConfig={setConfig} saveConfig={() => saveScope('config')} showWorkspacePromptPreview={showWorkspacePromptPreview} workspacePromptPreview={workspacePromptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>
+      <ModuleView name="projects" activeModule={activeModule}><ProjectManager setupStatus={setupStatus} projects={projects} projectSessionCounts={projectSessionCounts} editProject={editProject} deleteProject={deleteProject} showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} runSetupWizard={runSetupWizard} /></ModuleView>
+      <ModuleView name="model" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="保存后将用于新的对话和自动化任务。"><ModelModule config={config} configDirty={configDirty} saveState={configSaveState} setConfig={setConfig} saveConfig={() => saveScope('config')} showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>
       <ModuleView name="providers" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="当前默认供应商需要保存后才会生效。"><ProvidersModule config={config} setConfig={setConfig} providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} /></ModuleView>
       <ModuleView name="tools" activeModule={activeModule} dirty={mcpConfigDirty} saveState={mcpSaveState} onSave={() => saveScope('mcp')} saveHint="保存后工具加载方式和权限才会生效。"><ToolsModule builtinTools={builtinTools} mcpStatus={mcpStatus} mcpConfig={mcpConfig} mcpConfigDirty={mcpConfigDirty} saveState={mcpSaveState} setMcpConfig={setMcpConfig} saveMCPConfig={() => saveScope('mcp')} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} /></ModuleView>
-      <ModuleView name="automation" activeModule={activeModule}><div className="settings-block-head"><label>自动化任务（当前工作空间）</label><button className="secondary small" onClick={() => editScheduledTask()}>新增任务</button></div><input className="session-search" placeholder="搜索任务" value={taskSearch} onChange={e => setTaskSearch(e.target.value)} /><div className="tasks-list">{filteredTasks.length ? filteredTasks.map(t => <TaskCard key={t.id} task={t} editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} toggleScheduledTask={toggleScheduledTask} runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} openScheduledTaskSession={openScheduledTaskSession} />) : <div className="hint">暂无定时任务。默认每次独立执行，运行结果写入任务记录；需要连续上下文时可在编辑中开启。</div>}</div><div className="settings-actions"><button className="secondary" onClick={() => loadScheduledTasks?.()}>刷新任务</button></div></ModuleView>
+      <ModuleView name="automation" activeModule={activeModule}><div className="settings-block-head"><label>全局自动化任务</label><button className="secondary small" onClick={() => editScheduledTask()}>新增任务</button></div><input className="session-search" placeholder="搜索任务" value={taskSearch} onChange={e => setTaskSearch(e.target.value)} /><div className="tasks-list">{filteredTasks.length ? filteredTasks.map(t => <TaskCard key={t.id} task={t} editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} toggleScheduledTask={toggleScheduledTask} runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} openScheduledTaskSession={openScheduledTaskSession} />) : <div className="hint">暂无定时任务。默认每次独立执行，运行结果写入任务记录；需要连续上下文时可在编辑中开启。</div>}</div><div className="settings-actions"><button className="secondary" onClick={() => loadScheduledTasks?.()}>刷新任务</button></div></ModuleView>
       <ModuleView name="security" activeModule={activeModule}><SecurityModule systemStatus={systemStatus} setupStatus={setupStatus} dataStatus={dataStatus} mcpStatus={mcpStatus} providers={providers} loadSystemStatus={loadSystemStatus} loadDataStatus={loadDataStatus} logout={logout} onCopy={onCopy} /></ModuleView>
     </main>
   </section>;
@@ -107,7 +106,7 @@ function SettingsSaveState({ dirty, state = {}, onSave, hint }) {
   const content = {
     dirty: ['修改尚未保存', hint || '保存后配置才会生效。'],
     saving: ['正在保存', '完成前请保持当前页面。'],
-    saved: ['保存成功', '配置已写入当前工作空间。'],
+    saved: ['保存成功', '配置已写入全局配置。'],
     error: ['保存失败', state.message || '请检查配置后重试。'],
   }[status];
   return <div className={'settings-save-state ' + status} role={status === 'error' ? 'alert' : 'status'}>
@@ -131,27 +130,23 @@ function modelListText(config) {
   return normalizeModelNames(models).join('\n');
 }
 
-function WorkspaceModule({ setupStatus, workspaces, createWorkspace, selectWorkspace, deleteWorkspace, runSetupWizard }) {
-  const activeWorkspace = workspaces.find(ws => ws.active) || workspaces[0] || {};
-  const totals = workspaces.reduce((acc, ws) => ({
-    sessions: acc.sessions + Number(ws.session_count || 0),
-    tasks: acc.tasks + Number(ws.task_count || 0),
-  }), {sessions: 0, tasks: 0});
+function ProjectManager({ setupStatus, projects, projectSessionCounts, editProject, deleteProject, showProjectPromptPreview, projectPromptPreview, runSetupWizard }) {
   const summaryItems = [
-    ['当前工作空间', setupStatus?.active_workspace || activeWorkspace.name || '-'],
-    ['工作空间', String(workspaces.length || 0)],
-    ['会话总数', String(totals.sessions)],
-    ['自动化任务', String(totals.tasks)],
+    ['项目', String(projects.length || 0)],
+    ['全部会话', String(projectSessionCounts?.all ?? '-')],
+    ['普通会话', String(projectSessionCounts?.plain ?? '-')],
+    ['初始化', setupStatus?.needs_setup ? '待完成' : '已完成'],
   ];
   return <>
-    <div className="workspace-summary-grid">{summaryItems.map(([label, value]) => <div className="workspace-summary-card" key={label}><span>{label}</span><b>{value}</b></div>)}</div>
-    <div className={'setup-banner show ' + (setupStatus && !setupStatus.needs_setup ? 'ok' : '')}>{setupStatus?.needs_setup ? <><div><b>首次配置未完成</b><div className="hint">请配置模型供应商和默认工作空间，完成后即可开始对话。</div></div><button className="small" onClick={runSetupWizard}>开始引导</button></> : <div><b>系统已就绪</b><div className="hint">当前工作空间：{setupStatus?.active_workspace || '-'} · 数据目录：{setupStatus?.data_dir || '-'}</div></div>}</div>
-    <div className="settings-block-head"><label>工作空间概览</label><button className="secondary small" onClick={createWorkspace}>新增工作空间</button></div>
-    <div id="workspaceCards">{workspaces.length ? workspaces.map(ws => <TextCard key={ws.id || ws.name} title={ws.name} hint={ws.description || ''} badge={ws.active ? '当前' : '可切换'} active={ws.active}><div className="product-meta">模型：{ws.model || '-'} · 会话 {ws.session_count || 0} · 任务 {ws.task_count || 0}</div><div className="product-actions">{!ws.active ? <button className="secondary small" onClick={() => selectWorkspace(ws.id || ws.name)}>切换到此工作空间</button> : null}{(ws.id || ws.name) !== 'default' && workspaces.length > 1 ? <button className="danger small" onClick={() => deleteWorkspace(ws.id || ws.name, ws.name || ws.id)}>{ws.active ? '删除当前工作空间' : '删除'}</button> : null}</div></TextCard>) : <div className="empty compact">还没有工作空间，请创建第一个工作空间。</div>}</div>
+    <div className="project-summary-grid">{summaryItems.map(([label, value]) => <div className="project-summary-card" key={label}><span>{label}</span><b>{value}</b></div>)}</div>
+    <div className={'setup-banner show ' + (setupStatus && !setupStatus.needs_setup ? 'ok' : '')}>{setupStatus?.needs_setup ? <><div><b>首次配置未完成</b><div className="hint">请配置模型供应商和默认模型，完成后即可开始对话。</div></div><button className="small" onClick={runSetupWizard}>开始引导</button></> : <div><b>系统已就绪</b><div className="hint">数据目录：{setupStatus?.data_dir || '-'}</div></div>}</div>
+    <div className="settings-block-head"><label>项目管理</label><button className="secondary small" onClick={() => editProject?.()}>新增项目</button></div>
+    <div id="projectCards">{projects.length ? projects.map(project => <TextCard key={project.id} title={project.name} hint={project.prompt || '未设置项目提示词'} badge={(projectSessionCounts?.byProject?.[project.id] || 0) + ' 会话'}><div className="product-meta">ID：{project.id}</div><div className="product-actions"><button className="secondary small" onClick={() => editProject?.(project)}>编辑</button><button className="secondary small" onClick={() => showProjectPromptPreview?.(project.id)}>预览 Prompt</button><button className="danger small" onClick={() => deleteProject?.(project)}>删除</button></div></TextCard>) : <div className="empty compact">还没有项目。普通会话不需要项目。</div>}</div>
+    {projectPromptPreview ? <section className="settings-section"><div className="settings-section-head"><div><b>最终 Prompt 预览</b><div className="hint">后端按全局系统提示词 + 项目提示词拼接。</div></div></div><pre className="code-preview compact">{projectPromptPreview}</pre></section> : null}
   </>;
 }
 
-function ModelModule({ config, configDirty, saveState, setConfig, saveConfig, showWorkspacePromptPreview, workspacePromptPreview, testModelProvider, providers }) {
+function ModelModule({ config, configDirty, saveState, setConfig, saveConfig, showProjectPromptPreview, projectPromptPreview, testModelProvider, providers }) {
   const update = (key, value) => setConfig(c => ({...c, [key]: value}));
   const providerModels = (provider) => normalizeModelNames([...(provider?.models || []), provider?.default_model].filter(Boolean));
   const activeProvider = providers.find(p => p.id === config.provider_id) || providers[0] || null;
@@ -180,7 +175,7 @@ function ModelModule({ config, configDirty, saveState, setConfig, saveConfig, sh
   const saving = saveState?.status === 'saving';
   return <>
     <section className="model-quick-panel model-page-single">
-      <div className="model-quick-head"><div><b>默认模型</b><span>{activeProvider?.name || '未选择供应商'} · {config.model || activeProvider?.default_model || '未选择模型'}</span></div><div className="model-quick-actions"><button className={configDirty ? 'settings-inline-save-button dirty' : 'settings-inline-save-button'} onClick={() => saveConfig?.()} disabled={!configDirty || saving}>{saving ? '保存中…' : configDirty ? '保存更改' : '已保存'}</button><button className="secondary" onClick={() => testModelProvider?.()}>测试</button><button className="secondary" onClick={() => showWorkspacePromptPreview?.()}>Prompt</button></div></div>
+      <div className="model-quick-head"><div><b>默认模型</b><span>{activeProvider?.name || '未选择供应商'} · {config.model || activeProvider?.default_model || '未选择模型'}</span></div><div className="model-quick-actions"><button className={configDirty ? 'settings-inline-save-button dirty' : 'settings-inline-save-button'} onClick={() => saveConfig?.()} disabled={!configDirty || saving}>{saving ? '保存中…' : configDirty ? '保存更改' : '已保存'}</button><button className="secondary" onClick={() => testModelProvider?.()}>测试</button><button className="secondary" onClick={() => showProjectPromptPreview?.('')}>全局 Prompt</button></div></div>
       <div className="model-quick-grid">
         <label>供应商<select value={activeProvider?.id || ''} onChange={e => chooseProvider(e.target.value)}>{providers.length ? providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>) : <option value="">未配置供应商</option>}</select></label>
         <label>模型<input value={config.model || ''} onChange={e => chooseModel(e.target.value)} placeholder={activeProvider?.default_model || 'gpt-4o-mini'} /></label>
@@ -195,9 +190,9 @@ function ModelModule({ config, configDirty, saveState, setConfig, saveConfig, sh
         <div className="settings-section-head"><div><b>回复</b></div></div>
         <div className="settings-form-grid compact"><label>上下文<select value={contextMode} onChange={e => update('context_mode', e.target.value)}><option value="auto">自动</option><option value="compact">精简</option><option value="expanded">更多历史</option><option value="custom">自定义</option></select></label><label>Temperature<input type="number" step="0.1" min="0" max="2" value={config.temperature} onChange={e => update('temperature', e.target.value)} /></label></div>
         {contextMode === 'custom' ? <label>最近消息数<input type="number" min="1" max="200" value={config.max_context_messages} onChange={e => update('max_context_messages', e.target.value)} /></label> : null}
-        <details className="model-mini-details"><summary>System Prompt</summary><textarea className="system-prompt-editor compact" value={config.system_prompt} onChange={e => update('system_prompt', e.target.value)} /></details>
+        <details className="model-mini-details"><summary>全局系统提示词</summary><textarea className="system-prompt-editor compact" value={config.system_prompt} onChange={e => update('system_prompt', e.target.value)} /></details>
         <div className="thinking-options compact"><label className="check-row"><input type="checkbox" checked={!!config.hide_thinking} onChange={e => update('hide_thinking', e.target.checked)} /> 隐藏模型思考内容</label></div>
-        {workspacePromptPreview ? <pre className="code-preview compact">{workspacePromptPreview}</pre> : null}
+        {projectPromptPreview ? <pre className="code-preview compact">{projectPromptPreview}</pre> : null}
       </section>
       <section className="settings-section model-inline-card embedding-inline-card">
         <div className="settings-section-head"><div><b>向量</b></div></div>
@@ -670,7 +665,7 @@ function DataStatus({ dataStatus, onCopy }) {
     ['数据目录', safePathName(dataStatus.data_dir)],
     ['数据库健康', dataStatus.database_healthy ? '正常' : (dataStatus.database_warning || '需要检查')],
     ['WAL', dataStatus.wal_enabled ? '启用' : '未检测到'],
-    ['工作空间 / 会话', `${dataStatus.workspace_count || 0} / ${dataStatus.session_count || 0}`],
+    ['项目 / 会话', `${dataStatus.project_count || 0} / ${dataStatus.session_count || 0}`],
   ];
   const backupItems = [
     ['备份目录', safePathName(dataStatus.backup_dir || '未检测到')],
@@ -696,10 +691,9 @@ function SecurityModule({ systemStatus, setupStatus, dataStatus, mcpStatus, prov
   const setup = setupStatus || systemStatus?.setup || {};
   const data = dataStatus || systemStatus?.data || {};
   const healthy = Boolean(systemStatus?.ok);
-  const activeWorkspace = setup.active_workspace || data.active_workspace || '-';
   const overview = [
     ['运行状态', healthy ? '正常' : '待检查'],
-    ['当前工作空间', activeWorkspace],
+    ['项目数量', String(data.project_count ?? setup.project_count ?? '-')],
     ['数据库大小', fmtBytes(data.database_size_bytes)],
     ['最近备份', data.latest_backup_at ? fmtRelativeAge(data.latest_backup_age_seconds) : '暂无'],
   ];
@@ -707,7 +701,7 @@ function SecurityModule({ systemStatus, setupStatus, dataStatus, mcpStatus, prov
     ['访问地址', systemStatus?.addr || '-'],
     ['Web 资源', systemStatus?.web_dir ? safePathName(systemStatus.web_dir) : '内嵌'],
     ['数据库文件', safePathName(data.database_path || systemStatus?.database)],
-    ['会话 / 工作空间', `${data.session_count ?? '-'} / ${data.workspace_count ?? setup.workspace_count ?? '-'}`],
+    ['会话 / 项目', `${data.session_count ?? '-'} / ${data.project_count ?? setup.project_count ?? '-'}`],
     ['模型供应商', String((providers || []).length)],
     ['MCP Server', String((mcpStatus || []).length)],
   ];
@@ -718,7 +712,7 @@ function SecurityModule({ systemStatus, setupStatus, dataStatus, mcpStatus, prov
       <div><b>{healthy ? 'ChatDock 运行正常' : 'ChatDock 状态待确认'}</b><div className="hint">{healthy ? '核心服务可用，配置和数据状态已加载。' : '刷新后仍异常时，可展开下方诊断信息排查。'}</div></div>
       <span className={'badge ' + (healthy ? 'ok' : 'warn')}>{healthy ? 'healthy' : 'unknown'}</span>
     </div>
-    <div className="workspace-summary-grid">{overview.map(([label, value]) => <div className="workspace-summary-card" key={label}><span>{label}</span><b className="stat-value" title={value}>{value}</b></div>)}</div>
+    <div className="project-summary-grid">{overview.map(([label, value]) => <div className="project-summary-card" key={label}><span>{label}</span><b className="stat-value" title={value}>{value}</b></div>)}</div>
     <section className="settings-section data-table-section">
       <div className="settings-section-head"><div><b>运行环境</b><div className="hint">服务入口、数据与扩展连接概览</div></div></div>
       <div className="data-info-table">{runtime.map(([label, value]) => <div className="data-info-row" key={label}><span>{label}</span><b title={value}>{value}</b></div>)}</div>

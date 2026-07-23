@@ -83,7 +83,7 @@
   .settings-page .mcp-status-grid,
   .settings-page .tasks-list,
   .settings-page .tasks-list,
-  .settings-page #workspaceCards {
+  .settings-page #projectCards {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;

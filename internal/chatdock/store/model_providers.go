@@ -86,7 +86,7 @@ func (s *Store) resolveChatModelConfigLocked(base model.ModelConfig, providerID 
 	return next, nil
 }
 
-// ResolveFallbackModelConfig 把工作空间保存的备用供应商选择解析成可直接调用的完整配置。
+// ResolveFallbackModelConfig 把全局配置中的备用供应商选择解析成可直接调用的完整配置。
 // 备用模型只继承当前请求的提示词、上下文和采样参数，不改变当前会话选中的主模型。
 func (s *Store) ResolveFallbackModelConfig(base model.ModelConfig) (*model.ModelConfig, error) {
 	s.mu.RLock()

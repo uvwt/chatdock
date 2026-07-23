@@ -85,6 +85,43 @@ func TestSessionProjectFilters(t *testing.T) {
 	}
 }
 
+func TestProjectListIncludesExactSessionCounts(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	alpha, err := store.CreateProject(model.CreateProjectRequest{Name: "Alpha"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	beta, err := store.CreateProject(model.CreateProjectRequest{Name: "Beta"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, projectID := range []string{alpha.ID, alpha.ID, beta.ID, ""} {
+		if _, err := store.CreateSession(projectID); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result, err := store.ListProjects()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.SessionCount != 4 || result.PlainSessionCount != 1 {
+		t.Fatalf("session counts = total %d plain %d, want 4 and 1", result.SessionCount, result.PlainSessionCount)
+	}
+	counts := map[string]int{}
+	for _, project := range result.Projects {
+		counts[project.ID] = project.SessionCount
+	}
+	if counts[alpha.ID] != 2 || counts[beta.ID] != 1 {
+		t.Fatalf("project session counts = %#v, want alpha=2 beta=1", counts)
+	}
+}
+
 func assertSQLiteForeignKeysClean(t *testing.T, store *Store) {
 	t.Helper()
 	rows, err := store.db.Query(`PRAGMA foreign_key_check`)

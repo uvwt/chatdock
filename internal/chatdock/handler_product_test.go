@@ -142,6 +142,20 @@ func TestProjectResourceAPIs(t *testing.T) {
 		t.Fatalf("session project_id = %q, want %q", session.ProjectID, project.ID)
 	}
 
+	r = httptest.NewRequest(http.MethodGet, "/api/projects", nil)
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("list projects status %d: %s", w.Code, w.Body.String())
+	}
+	var projectList model.ProjectListResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &projectList); err != nil {
+		t.Fatal(err)
+	}
+	if projectList.SessionCount != 1 || projectList.PlainSessionCount != 0 || len(projectList.Projects) != 1 || projectList.Projects[0].SessionCount != 1 {
+		t.Fatalf("unexpected project session counts: %#v", projectList)
+	}
+
 	r = httptest.NewRequest(http.MethodDelete, "/api/projects/"+project.ID, nil)
 	w = httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
@@ -160,6 +174,16 @@ func TestProjectResourceAPIs(t *testing.T) {
 	}
 	if detachedSession.ProjectID != "" {
 		t.Fatalf("deleted project should clear session project_id: %#v", detachedSession)
+	}
+
+	r = httptest.NewRequest(http.MethodGet, "/api/projects", nil)
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if err := json.Unmarshal(w.Body.Bytes(), &projectList); err != nil {
+		t.Fatal(err)
+	}
+	if projectList.SessionCount != 1 || projectList.PlainSessionCount != 1 || len(projectList.Projects) != 0 {
+		t.Fatalf("project deletion counts = %#v, want one plain session", projectList)
 	}
 }
 

@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useStat
 import { EmptyState, MemoizedMessageView } from './components/chat.jsx';
 import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
 import { CurrentSessionTask, TaskPanel } from './components/taskPanel.jsx';
-import { DialogHost, LoginPage, Markdown, QuickPalette, WorkspacePicker } from './components/base.jsx';
+import { DialogHost, LoginPage, Markdown, QuickPalette } from './components/base.jsx';
 import { agentTaskDataEnabled, cronScheduleFormValue, cronSchedulePayload, defaultRunAtValue, diagnosticsText, filenameFromResponse, fmtTime, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath } from './lib/appUtils.js';
 import { attachmentLooksLikeImage, chatErrorDetails, contextPreviewText, finalAssistantMessageFromSession, readableChatError, scheduledTaskContextLabel, scheduledTaskRunsText, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
@@ -10,13 +10,13 @@ import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, guideChatJob, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
 import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessionToolEvent, pinSession, renameSession, updateSessionModel } from './lib/sessionApi.js';
-import { createModelProvider as createModelProviderRequest, createWorkspaceRecord, deleteModelProvider as deleteModelProviderRequest, deleteScheduledTaskRecord, deleteWorkspaceRecord, fetchProviderModels as fetchProviderModelsRequest, fetchWorkspacePromptPreview, fetchScheduledTaskRuns, initializeSetup, runScheduledTask, saveMCPConfigRequest, saveScheduledTaskRecord, saveWorkspaceConfig, selectWorkspace as selectWorkspaceRequest, testMCPServer, testModelProvider as testModelProviderRequest, updateModelProvider as updateModelProviderRequest } from './lib/settingsApi.js';
+import { createModelProvider as createModelProviderRequest, createProject as createProjectRequest, deleteModelProvider as deleteModelProviderRequest, deleteProject as deleteProjectRequest, deleteScheduledTaskRecord, fetchProviderModels as fetchProviderModelsRequest, fetchProjectPromptPreview, fetchScheduledTaskRuns, initializeSetup, runScheduledTask, saveGlobalConfig, saveMCPConfigRequest, saveScheduledTaskRecord, testMCPServer, testModelProvider as testModelProviderRequest, updateModelProvider as updateModelProviderRequest, updateProject as updateProjectRequest } from './lib/settingsApi.js';
 import { useAttachments } from './hooks/useAttachments.js';
 import { useAgentTasks } from './hooks/useAgentTasks.js';
 import { useCurrentSessionTask } from './hooks/useCurrentSessionTask.js';
 import { useActiveAssistantStream } from './hooks/useActiveAssistantStream.js';
 import { chatStreamAssistantAfterEvent, chatStreamStatsAfterEvent, projectsChatStreamAssistant } from './lib/chatStreamEvents.js';
-import { providerChoiceID, providerKeyRows, providerLabel, providerPayloadForModelAppend, providerPayloadFromFormValues, sessionModelChoice, uniqueModelNames, workspaceDefaultModelChoice } from './lib/modelProviderForm.js';
+import { globalDefaultModelChoice, providerChoiceID, providerKeyRows, providerLabel, providerPayloadForModelAppend, providerPayloadFromFormValues, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
 import { useSettingsData } from './hooks/useSettingsData.js';
 import { useSessionList } from './hooks/useSessionList.js';
 import { useVisualViewportLayout } from './hooks/useVisualViewportLayout.js';
@@ -34,12 +34,11 @@ export default function App() {
     return saved == null ? window.matchMedia('(max-width: 720px)').matches : saved === '1';
   });
   const [settingsOpen, setSettingsOpen] = useState(() => !!settingsModuleFromPath());
-  const [activeModule, setActiveModule] = useState(() => normalizeSettingsModule(settingsModuleFromPath() || localStorage.getItem('chatdock.settingsModule') || 'workspace'));
+  const [activeModule, setActiveModule] = useState(() => normalizeSettingsModule(settingsModuleFromPath() || localStorage.getItem('chatdock.settingsModule') || 'projects'));
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
   const [dialog, setDialog] = useState(null);
-  const [workspacePickerOpen, setWorkspacePickerOpen] = useState(false);
-  const [selectedWorkspaceID, setSelectedWorkspaceID] = useState(() => localStorage.getItem('chatdock.workspaceID') || 'default');
+  const [projectFilter, setProjectFilterState] = useState(() => localStorage.getItem('chatdock.projectFilter') || 'plain');
   const [quickPaletteOpen, setQuickPaletteOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
@@ -198,9 +197,8 @@ export default function App() {
 
   const authHeaders = useCallback((extra = {}) => {
     const token = localStorage.getItem('chatdock.authToken') || '';
-    const scoped = { 'X-Workspace-ID': selectedWorkspaceID || 'default', ...extra };
-    return token ? { 'Authorization': 'Bearer ' + token, ...scoped } : scoped;
-  }, [selectedWorkspaceID]);
+    return token ? { 'Authorization': 'Bearer ' + token, ...extra } : extra;
+  }, []);
 
   const api = useMemo(() => createJsonApi({ authHeaders, onUnauthorized: setAuthPage }), [authHeaders]);
   const {
@@ -218,21 +216,21 @@ export default function App() {
     loadMoreSearchSessions,
     upsertSession,
     removeSession,
-  } = useSessionList(api);
+  } = useSessionList(api, projectFilter);
 
   const {
     setupStatus,
-    workspaces,
-    setWorkspaces,
+    projects,
+    projectsLoaded,
+    projectSessionCounts,
     providers,
-    workspaceSummaries,
     scheduledTasks,
     setScheduledTasks,
     dataStatus,
     systemStatus,
     mcpStatus,
-    workspacePromptPreview,
-    setWorkspacePromptPreview,
+    projectPromptPreview,
+    setProjectPromptPreview,
     mcpConfig,
     setMcpConfig,
     builtinTools,
@@ -240,11 +238,10 @@ export default function App() {
     setConfig,
     configDirty,
     mcpConfigDirty,
-    loadWorkspaceSummaries,
     loadConfig,
     loadMCPConfig,
     loadSetupStatus,
-    loadWorkspaces,
+    loadProjects,
     loadModelProviders,
     loadScheduledTasks,
     loadDataStatus,
@@ -318,16 +315,32 @@ export default function App() {
   }, []);
 
   const refreshProductState = useCallback(async () => {
-    await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
-  }, [loadSetupStatus, loadWorkspaces, loadModelProviders, loadDataStatus, loadSystemStatus]);
+    await Promise.allSettled([loadSetupStatus(), loadProjects(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
+  }, [loadSetupStatus, loadProjects, loadModelProviders, loadDataStatus, loadSystemStatus]);
 
   const refreshVisibleSettings = useCallback(async () => {
-    const jobs = [loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadDataStatus(), loadSystemStatus()];
+    const jobs = [loadSetupStatus(), loadProjects(), loadModelProviders(), loadDataStatus(), loadSystemStatus()];
     if (activeModule === 'tools') jobs.push(loadMCPStatus());
     if (activeModule === 'automation') jobs.push(loadScheduledTasks());
     await Promise.allSettled(jobs);
     showToast('配置中心已刷新', 'success');
-  }, [activeModule, loadDataStatus, loadMCPStatus, loadModelProviders, loadScheduledTasks, loadSetupStatus, loadSystemStatus, loadWorkspaces, showToast]);
+  }, [activeModule, loadDataStatus, loadMCPStatus, loadModelProviders, loadScheduledTasks, loadSetupStatus, loadSystemStatus, loadProjects, showToast]);
+
+  const setProjectFilter = useCallback((value) => {
+    const next = String(value || '').trim() || 'plain';
+    setProjectFilterState(next);
+    localStorage.setItem('chatdock.projectFilter', next);
+    setSelectedScheduledTaskID('');
+    setSelectedScheduledTaskRuns([]);
+    setSessionMenuID('');
+  }, []);
+
+  useEffect(() => {
+    if (!projectsLoaded) return;
+    if (projectFilter === 'all' || projectFilter === 'plain') return;
+    if (projects.some(project => project.id === projectFilter)) return;
+    setProjectFilter('plain');
+  }, [projectFilter, projects, projectsLoaded, setProjectFilter]);
 
   const loadSessionFromRoute = useCallback(async (id) => {
     if (!id) return false;
@@ -338,21 +351,20 @@ export default function App() {
     clearAttachments();
     applySessionModel(s);
     upsertSession(s);
+    setProjectFilter(s.project_id || 'plain');
     return true;
-  }, [api, applySessionModel, clearAttachments, upsertSession]);
+  }, [api, applySessionModel, clearAttachments, setProjectFilter, upsertSession]);
 
   const refreshAfterLogin = useCallback(async () => {
-    const workspaceData = await loadWorkspaceSummaries();
-    const activeWorkspaceID = workspaceData.active || 'default';
-    if (activeWorkspaceID !== selectedWorkspaceID) {
-      setSelectedWorkspaceID(activeWorkspaceID);
-      localStorage.setItem('chatdock.workspaceID', activeWorkspaceID);
-      return;
-    }
-    await Promise.allSettled([refreshProductState(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions()]);
+    await Promise.allSettled([refreshProductState(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions({reset: true})]);
     const routeSession = sessionIDFromPath();
     if (routeSession) await loadSessionFromRoute(routeSession).catch(e => showToast('会话路由加载失败：' + e.message, 'error'));
-  }, [refreshProductState, loadWorkspaceSummaries, loadConfig, loadMCPConfig, loadScheduledTasks, loadSessions, loadSessionFromRoute, selectedWorkspaceID, showToast]);
+  }, [refreshProductState, loadConfig, loadMCPConfig, loadScheduledTasks, loadSessions, loadSessionFromRoute, showToast]);
+
+  useEffect(() => {
+    if (authPage || !setupStatus || setupStatus.needs_setup) return;
+    loadSessions({reset: true}).catch(() => {});
+  }, [authPage, loadSessions, projectFilter, setupStatus]);
 
   useEffect(() => {
     let mounted = true;
@@ -450,12 +462,11 @@ export default function App() {
       if (event.key !== 'Escape') return;
       if (dialog) closeDialog(null);
       else if (quickPaletteOpen) setQuickPaletteOpen(false);
-      else if (workspacePickerOpen) setWorkspacePickerOpen(false);
       else if (settingsOpen) closeSettings();
     }
     window.addEventListener('keydown', closeTopLayer);
     return () => window.removeEventListener('keydown', closeTopLayer);
-  }, [closeDialog, closeSettings, dialog, quickPaletteOpen, settingsOpen, workspacePickerOpen]);
+  }, [closeDialog, closeSettings, dialog, quickPaletteOpen, settingsOpen]);
 
   useEffect(() => {
     function onGlobalShortcut(event) {
@@ -476,40 +487,18 @@ export default function App() {
     return () => window.removeEventListener('keydown', onGlobalShortcut);
   }, []);
 
-  const selectWorkspace = useCallback(async (name) => {
-    if (busy) { showToast('当前回复还在进行中，请先暂停或中断后再切换工作空间。', 'error'); return; }
-    if (!name || name === selectedWorkspaceID) return;
-    if ((configDirty || mcpConfigDirty) && !window.confirm('切换工作空间会丢弃尚未保存的配置修改，确定继续吗？')) return;
-    setWorkspacePickerOpen(false);
-    try {
-      const data = await selectWorkspaceRequest(api, name);
-      const activeWorkspaceID = data.active || name;
-      setWorkspaces(data.workspaces || []);
-      setSelectedWorkspaceID(activeWorkspaceID);
-      localStorage.setItem('chatdock.workspaceID', activeWorkspaceID);
-      setCurrent(null);
-      setCurrentTitle('未选择会话');
-      setMessages([{ role: 'empty', content: '已切换工作空间。创建或选择一个会话。' }]);
-      clearAttachments();
-      setChatModel({ provider_id: '', model: '' });
-      if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
-      closeSidebarOnMobile();
-    } catch (error) {
-      showToast('切换工作空间失败：' + error.message, 'error');
-    }
-  }, [api, busy, clearAttachments, closeSidebarOnMobile, configDirty, mcpConfigDirty, selectedWorkspaceID, showToast]);
-
   const createPersistedSession = useCallback(async ({ refreshList = true } = {}) => {
-    const s = await createSessionRecord(api);
+    const s = await createSessionRecord(api, { projectID: projectFilter !== 'all' && projectFilter !== 'plain' ? projectFilter : '' });
     setCurrent(s.id);
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
     clearAttachments();
     applySessionModel(s, { fallbackToDefault: false });
     if (refreshList) upsertSession(s);
+    void loadProjects().catch(() => {});
     if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
     return s;
-  }, [api, applySessionModel, clearAttachments, upsertSession]);
+  }, [api, applySessionModel, clearAttachments, loadProjects, projectFilter, upsertSession]);
 
   const createSession = useCallback(() => {
     if (busy) detachActiveStream();
@@ -548,12 +537,13 @@ export default function App() {
       setMessages(s.messages || []);
       applySessionModel(s);
       upsertSession(s);
+      setProjectFilter(s.project_id || 'plain');
     } catch (e) {
       if (sessionOpenSeqRef.current !== seq) return;
       setMessages([{ role: 'empty', content: '会话加载失败：' + e.message }]);
       showToast('会话加载失败：' + e.message, 'error');
     }
-  }, [api, applySessionModel, busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, messages.length, resetMessageAutoFollow, showToast, upsertSession]);
+  }, [api, applySessionModel, busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, messages.length, resetMessageAutoFollow, setProjectFilter, showToast, upsertSession]);
 
   const newSession = useCallback(async () => { await createSession(); }, [createSession]);
 
@@ -603,9 +593,9 @@ export default function App() {
       if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
     }
     removeSession(id);
-    await loadSessions();
+    await Promise.all([loadSessions(), loadProjects()]);
     showToast('会话已删除', 'success');
-  }, [api, busy, current, loadSessions, removeSession, showDialog, showToast]);
+  }, [api, busy, current, loadProjects, loadSessions, removeSession, showDialog, showToast]);
 
   const deleteCurrent = useCallback(async () => {
     if (!current) return;
@@ -642,12 +632,13 @@ export default function App() {
       setMessages(s.messages || []);
       applySessionModel(s);
       upsertSession(s);
+      await loadProjects();
       if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
       showToast('会话已复制', 'success');
     } catch (e) {
       showToast('复制会话失败：' + e.message, 'error');
     }
-  }, [api, applySessionModel, busy, current, showToast, upsertSession]);
+  }, [api, applySessionModel, busy, current, loadProjects, showToast, upsertSession]);
 
 
   const branchCurrent = useCallback(async (messageIndex = messages.length - 1) => {
@@ -660,13 +651,14 @@ export default function App() {
       clearAttachments();
       applySessionModel(s);
       upsertSession(s);
+      await loadProjects();
       if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
       closeSidebarOnMobile();
       showToast('已在新聊天中创建分支对话', 'success');
     } catch (e) {
       showToast('创建分支对话失败：' + e.message, 'error');
     }
-  }, [api, applySessionModel, busy, closeSidebarOnMobile, current, messages.length, showToast, upsertSession]);
+  }, [api, applySessionModel, busy, closeSidebarOnMobile, current, loadProjects, messages.length, showToast, upsertSession]);
 
   const pinCurrent = useCallback(async () => {
     if (!current) return;
@@ -800,13 +792,8 @@ export default function App() {
     return () => { stopped = true; resetStreamText(); abort.abort(); };
   }, [current, api, authHeaders, handleChatStreamEvent, appendToActiveAssistant, currentTitle, finishActiveAssistant, flushStreamText, resetStreamText, upsertSession, waitForStreamText]);
 
-  const activeWorkspace = useMemo(() => workspaceSummaries.find(w => w.name === selectedWorkspaceID) || workspaceSummaries.find(w => w.active) || workspaceSummaries[0] || null, [selectedWorkspaceID, workspaceSummaries]);
-  useEffect(() => {
-    if (!activeWorkspace?.name || activeWorkspace.name === selectedWorkspaceID) return;
-    setSelectedWorkspaceID(activeWorkspace.name);
-    localStorage.setItem('chatdock.workspaceID', activeWorkspace.name);
-  }, [activeWorkspace?.name, selectedWorkspaceID]);
-  const draftKey = useMemo(() => 'chatdock.draft.' + encodeURIComponent(activeWorkspace?.name || 'default') + '.' + encodeURIComponent(current || 'new'), [activeWorkspace?.name, current]);
+  const selectedProject = useMemo(() => projects.find(project => project.id === projectFilter) || null, [projectFilter, projects]);
+  const draftKey = useMemo(() => 'chatdock.draft.project-filter.' + encodeURIComponent(projectFilter || 'plain') + '.' + encodeURIComponent(current || 'new'), [projectFilter, current]);
 
 
   const providerChoices = useMemo(() => providers.map(provider => {
@@ -821,7 +808,7 @@ export default function App() {
       || providerChoices[0]
       || null;
   }, [chatModel.provider_id, config.provider_id, providerChoices]);
-  const selectedChatModel = chatModel.model || workspaceDefaultModelChoice(config, selectedModelProvider).model;
+  const selectedChatModel = chatModel.model || globalDefaultModelChoice(config, selectedModelProvider).model;
   const selectedModelBaseURL = selectedModelProvider?.base_url || config.base_url || '';
 
   useEffect(() => {
@@ -829,7 +816,7 @@ export default function App() {
     const stillValid = providerChoices.some(provider => provider.choice_id === chatModel.provider_id && (!chatModel.model || provider.models.includes(chatModel.model)));
     if (stillValid) return;
     const provider = providerChoices.find(item => item.choice_id === (config.provider_id || '')) || providerChoices[0];
-    setChatModel(workspaceDefaultModelChoice(config, provider));
+    setChatModel(globalDefaultModelChoice(config, provider));
   }, [chatModel.model, chatModel.provider_id, config.model, config.provider_id, providerChoices]);
 
   const selectChatModel = useCallback((provider, modelName) => {
@@ -1044,63 +1031,43 @@ export default function App() {
     }
   }, [api, appendToActiveAssistant, showToast]);
 
-  const createWorkspace = useCallback(async () => {
+  const editProject = useCallback(async (project = null) => {
     if (busy) return;
     const values = await showDialog({
-      title: '新增工作空间', confirmText: '创建工作空间', fields: [
-        { name: 'name', label: '工作空间名称', value: '', required: true },
-        { name: 'system_prompt', label: '系统提示词内容', type: 'textarea', rows: 5, value: config.system_prompt || '' },
+      title: project ? '编辑项目' : '新增项目', confirmText: project ? '保存项目' : '创建项目', fields: [
+        { name: 'name', label: '项目名称', value: project?.name || '', required: true },
+        { name: 'prompt', label: '项目提示词', type: 'textarea', rows: 5, value: project?.prompt || '' },
       ]
     });
     if (!values || !values.name.trim()) return;
-    const nextWorkspaceID = values.name.trim();
+    const payload = { name: values.name.trim(), prompt: values.prompt || '' };
     try {
-      const data = await createWorkspaceRecord(api, { name: nextWorkspaceID, system_prompt: values.system_prompt || '' });
-      const activeWorkspaceID = data.active || nextWorkspaceID;
-      setWorkspaces(data.workspaces || []);
-      setSelectedWorkspaceID(activeWorkspaceID);
-      localStorage.setItem('chatdock.workspaceID', activeWorkspaceID);
-      setCurrent(null);
-      setCurrentTitle('未选择会话');
-      setMessages([{ role: 'empty', content: '已创建并切换到新工作空间。' }]);
-      clearAttachments();
+      const savedProject = project?.id ? await updateProjectRequest(api, project.id, payload) : await createProjectRequest(api, payload);
+      await Promise.allSettled([loadProjects(), loadSetupStatus()]);
+      if (savedProject?.id) setProjectFilter(savedProject.id);
       closeSidebarOnMobile();
-      showToast('工作空间已创建', 'success');
+      showToast(project ? '项目已保存' : '项目已创建', 'success');
     } catch (error) {
-      showToast('创建工作空间失败：' + error.message, 'error');
+      showToast((project ? '保存项目失败：' : '创建项目失败：') + error.message, 'error');
     }
-  }, [api, busy, clearAttachments, closeSidebarOnMobile, config.system_prompt, showDialog, showToast]);
+  }, [api, busy, closeSidebarOnMobile, loadProjects, loadSetupStatus, setProjectFilter, showDialog, showToast]);
 
-  const deleteWorkspace = useCallback(async (id, name) => {
-    if (busy && id === selectedWorkspaceID) {
-      showToast('当前工作空间仍在生成，请先停止任务再删除。', 'error');
-      return;
-    }
-    const ok = await showDialog({ title: '删除工作空间', message: '确定删除工作空间「' + (name || id) + '」？这会删除该工作空间下的配置、任务和会话。若删除当前工作空间，会自动切换到默认工作空间。', confirmText: '删除', danger: true, type: 'confirm' });
+  const deleteProject = useCallback(async (project) => {
+    if (!project?.id) return;
+    const ok = await showDialog({ title: '删除项目', message: '确定删除项目「' + (project.name || project.id) + '」？会话会保留并转为普通会话。', confirmText: '删除项目', danger: true, type: 'confirm' });
     if (!ok) return;
     try {
-      const data = await deleteWorkspaceRecord(api, id);
-      const activeWorkspaceID = data.active || 'default';
-      const activeChanged = activeWorkspaceID !== selectedWorkspaceID;
-      setWorkspaces(data.workspaces || []);
-      setSelectedWorkspaceID(activeWorkspaceID);
-      localStorage.setItem('chatdock.workspaceID', activeWorkspaceID);
-      setCurrent(null);
-      setCurrentTitle('未选择会话');
-      setMessages([{ role: 'empty', content: '工作空间已删除。当前工作空间：' + activeWorkspaceID }]);
-      clearAttachments();
-      if (!activeChanged) {
-        await Promise.allSettled([loadWorkspaceSummaries(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions(), loadSetupStatus(), loadModelProviders(), loadDataStatus(), loadSystemStatus()]);
-      }
-      showToast('工作空间已删除', 'success');
+      await deleteProjectRequest(api, project.id);
+      setProjectFilter('plain');
+      await Promise.allSettled([loadProjects(), loadSetupStatus()]);
+      showToast('项目已删除，会话已转为普通会话', 'success');
     } catch (error) {
-      showToast('删除工作空间失败：' + error.message, 'error');
+      showToast('删除项目失败：' + error.message, 'error');
     }
-  }, [api, busy, clearAttachments, loadConfig, loadDataStatus, loadMCPConfig, loadModelProviders, loadWorkspaceSummaries, loadScheduledTasks, loadSessions, loadSetupStatus, loadSystemStatus, selectedWorkspaceID, showDialog, showToast]);
+  }, [api, loadProjects, loadSetupStatus, setProjectFilter, showDialog, showToast]);
 
   const saveConfig = useCallback(async ({silent = false} = {}) => {
-    const workspaceID = activeWorkspace?.name || selectedWorkspaceID || 'default';
-    await saveWorkspaceConfig(api, workspaceID, {
+    await saveGlobalConfig(api, {
       provider_id: config.provider_id,
       model: config.model,
       fallback_provider_id: config.fallback_provider_id,
@@ -1116,20 +1083,23 @@ export default function App() {
     });
     setConfig(c => ({ ...c, api_key: '', embedding_api_key: '' }));
     await loadConfig();
-    await Promise.allSettled([loadSetupStatus(), loadWorkspaces(), loadModelProviders(), loadSystemStatus()]);
-    if (!silent) showToast('已保存到工作空间：' + workspaceID, 'success');
-  }, [activeWorkspace?.name, api, config, loadConfig, loadModelProviders, loadSetupStatus, loadSystemStatus, loadWorkspaces, selectedWorkspaceID, showToast]);
+    await Promise.allSettled([loadSetupStatus(), loadProjects(), loadModelProviders(), loadSystemStatus()]);
+    if (!silent) showToast('全局配置已保存', 'success');
+  }, [api, config, loadConfig, loadModelProviders, loadSetupStatus, loadSystemStatus, loadProjects, showToast]);
 
-  const showWorkspacePromptPreview = useCallback(async () => {
-    const workspaceID = activeWorkspace?.name || selectedWorkspaceID || 'default';
-    const data = await fetchWorkspacePromptPreview(api, workspaceID);
-    setWorkspacePromptPreview(data.content || '(空)');
-  }, [activeWorkspace?.name, api, selectedWorkspaceID]);
+  const showProjectPromptPreview = useCallback(async (projectID = null) => {
+    const id = projectID == null ? (selectedProject?.id || '') : String(projectID || '').trim();
+    if (!id) {
+      setProjectPromptPreview(config.system_prompt || '(全局系统提示词为空)');
+      return;
+    }
+    const data = await fetchProjectPromptPreview(api, id);
+    setProjectPromptPreview(data.content || '(空)');
+  }, [api, config.system_prompt, selectedProject?.id, setProjectPromptPreview]);
 
   const runSetupWizard = useCallback(async () => {
     const values = await showDialog({
-      title: '首次配置', message: '配置默认工作空间和模型后即可开始对话。', confirmText: '完成初始化', fields: [
-        { name: 'workspace_name', label: '默认工作空间名称', value: 'default', required: true },
+      title: '首次配置', message: '配置默认模型后即可开始对话。', confirmText: '完成初始化', fields: [
         { name: 'base_url', label: '模型 Base URL', value: config.base_url || 'https://api.openai.com/v1', required: true },
         { name: 'model', label: '默认模型', value: config.model || 'gpt-4o-mini', required: true },
         { name: 'api_key', label: 'API Key（可留空）', type: 'password', value: '' },
@@ -1138,9 +1108,9 @@ export default function App() {
     });
     if (!values) return;
     await initializeSetup(api, values);
-    await Promise.allSettled([refreshProductState(), loadWorkspaceSummaries(), loadConfig()]);
+    await Promise.allSettled([refreshProductState(), loadConfig()]);
     showToast('初始化完成', 'success');
-  }, [api, config, loadConfig, loadWorkspaceSummaries, refreshProductState, showDialog, showToast]);
+  }, [api, config, loadConfig, refreshProductState, showDialog, showToast]);
 
   const testModelProvider = useCallback(async () => {
     try {
@@ -1200,9 +1170,9 @@ export default function App() {
       model: name,
       models: payload.models,
     }));
-    await Promise.allSettled([loadModelProviders(), loadWorkspaces()]);
+    await Promise.allSettled([loadModelProviders(), loadProjects()]);
     showToast((provider.models || []).includes(name) ? '候选模型已在可用列表：' + name : '已加入可用模型列表：' + name, 'success');
-  }, [api, candidateProviderID, config.provider_id, loadModelProviders, loadWorkspaces, providers, showToast]);
+  }, [api, candidateProviderID, config.provider_id, loadModelProviders, loadProjects, providers, showToast]);
 
   const editModelProvider = useCallback(async (existing = null) => {
     const modelText = uniqueModelNames([...(existing?.models || []), existing?.default_model].filter(Boolean)).join('\n');
@@ -1228,18 +1198,18 @@ export default function App() {
     const payload = providerPayloadFromFormValues(values);
     if (existing) await updateModelProviderRequest(api, existing.id, payload);
     else await createModelProviderRequest(api, payload);
-    await Promise.allSettled([loadModelProviders(), loadConfig(), loadSetupStatus(), loadWorkspaces()]);
+    await Promise.allSettled([loadModelProviders(), loadConfig(), loadSetupStatus(), loadProjects()]);
     showToast(existing ? '模型供应商已保存' : '模型供应商已新增', 'success');
-  }, [api, loadConfig, loadModelProviders, loadSetupStatus, loadWorkspaces, showDialog, showToast]);
+  }, [api, loadConfig, loadModelProviders, loadSetupStatus, loadProjects, showDialog, showToast]);
 
   const deleteModelProvider = useCallback(async (provider) => {
     if (!provider?.id) return;
-    const ok = await showDialog({ title: '删除模型供应商', message: '确定删除模型供应商「' + (provider.name || provider.id) + '」？正在被工作空间使用的供应商不会被删除。', confirmText: '删除', danger: true, type: 'confirm' });
+    const ok = await showDialog({ title: '删除模型供应商', message: '确定删除模型供应商「' + (provider.name || provider.id) + '」？正在被全局配置使用的供应商不会被删除。', confirmText: '删除', danger: true, type: 'confirm' });
     if (!ok) return;
     await deleteModelProviderRequest(api, provider.id);
-    await Promise.allSettled([loadModelProviders(), loadConfig(), loadSetupStatus(), loadWorkspaces()]);
+    await Promise.allSettled([loadModelProviders(), loadConfig(), loadSetupStatus(), loadProjects()]);
     showToast('模型供应商已删除', 'success');
-  }, [api, loadConfig, loadModelProviders, loadSetupStatus, loadWorkspaces, showDialog, showToast]);
+  }, [api, loadConfig, loadModelProviders, loadSetupStatus, loadProjects, showDialog, showToast]);
 
   const testSavedModelProvider = useCallback(async (provider) => {
     if (!provider?.id) return;
@@ -1483,24 +1453,24 @@ export default function App() {
   const quickActions = useMemo(() => buildQuickActions({
     branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned,
     deleteCurrent, exportCurrent, inputRef, messagesLength: messages.length, openSettings, pinCurrent,
-    productDiagnostics, workspaceSummaryCount: workspaceSummaries.length, renameCurrent, sendMsg, setThemeState, setWorkspacePickerOpen,
+    productDiagnostics, projectCount: projects.length, renameCurrent, sendMsg, setProjectFilter, setThemeState,
     showContextPreview, theme,
-  }), [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, messages.length, openSettings, pinCurrent, productDiagnostics, workspaceSummaries.length, renameCurrent, sendMsg, showContextPreview, theme]);
+  }), [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, messages.length, openSettings, pinCurrent, productDiagnostics, projects.length, renameCurrent, sendMsg, setProjectFilter, showContextPreview, theme]);
 
   const settingsPanel = (
     <SettingsPanel
       activeModule={activeModule} busy={busy} closeSettings={closeSettings} config={config}
       configDirty={configDirty} mcpConfigDirty={mcpConfigDirty}
-      createWorkspace={createWorkspace} dataStatus={dataStatus} deleteScheduledTask={deleteScheduledTask} deleteWorkspace={deleteWorkspace}
+      editProject={editProject} dataStatus={dataStatus} deleteScheduledTask={deleteScheduledTask} deleteProject={deleteProject}
       editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels}
       editScheduledTask={editScheduledTask} loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig}
       loadMCPStatus={loadMCPStatus} loadScheduledTasks={loadScheduledTasks} loadSystemStatus={loadSystemStatus}
-      builtinTools={builtinTools} mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers} workspacePromptPreview={workspacePromptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
+      builtinTools={builtinTools} mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers} projectPromptPreview={projectPromptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
       runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} openScheduledTaskSession={openScheduledTaskSession} runSetupWizard={runSetupWizard} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
-      scheduledTasks={scheduledTasks} selectWorkspace={selectWorkspace} setConfig={setConfig} setMcpConfig={setMcpConfig} setTaskSearch={setTaskSearch}
-      setupStatus={setupStatus} showWorkspacePromptPreview={showWorkspacePromptPreview} switchSettingsModule={switchSettingsModule}
+      scheduledTasks={scheduledTasks} setConfig={setConfig} setMcpConfig={setMcpConfig} setTaskSearch={setTaskSearch}
+      setupStatus={setupStatus} showProjectPromptPreview={showProjectPromptPreview} switchSettingsModule={switchSettingsModule}
       systemStatus={systemStatus} taskSearch={taskSearch} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} toggleScheduledTask={toggleScheduledTask}
-      workspaces={workspaces} logout={logout}
+      projects={projects} projectSessionCounts={projectSessionCounts} logout={logout}
     />
   );
 
@@ -1508,14 +1478,14 @@ export default function App() {
     <div id="sidebarMask" className={'sidebar-mask ' + (!settingsOpen && !sidebarCollapsed ? 'show' : '')} onClick={() => setSidebarCollapsed(true)} />
     {settingsOpen ? <div id="settingsPage" className="settings-page"><Suspense fallback={<div className="empty compact" role="status">正在加载配置中心…</div>}>{settingsPanel}</Suspense></div> : <div id="app" className={appClass}>
       <Sidebar
-        activeWorkspace={activeWorkspace} activeScheduledTasks={activeScheduledTasks} busy={busy} clearScheduledTaskRunList={clearScheduledTaskRunList}
+        activeScheduledTasks={activeScheduledTasks} busy={busy} clearScheduledTaskRunList={clearScheduledTaskRunList}
         current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} goHome={goHome}
         hasMoreSessions={visibleSessionsHasMore} loadingMoreSessions={visibleSessionsLoadingMore} newSession={newSession}
         onLoadMoreSessions={loadMoreVisibleSessions} openScheduledTaskRunList={openScheduledTaskRunList} openSession={openSession} openSettings={openSettings}
-        pinSessionByID={pinSessionByID} workspaceSummaries={workspaceSummaries} renameSessionByID={renameSessionByID}
+        pinSessionByID={pinSessionByID} projects={projects} projectFilter={projectFilter} projectSessionCounts={projectSessionCounts} setProjectFilter={setProjectFilter} editProject={editProject} renameSessionByID={renameSessionByID}
         selectedScheduledTask={selectedScheduledTask} selectedScheduledTaskID={selectedScheduledTaskID} selectedScheduledTaskSessions={selectedScheduledTaskSessions}
         sessionMenuID={sessionMenuID} sessionSearch={sessionSearch} sessionSearchBusy={sessionSearchBusy}
-        setSessionMenuID={setSessionMenuID} setSessionSearch={setSessionSearch} setWorkspacePickerOpen={setWorkspacePickerOpen}
+        setSessionMenuID={setSessionMenuID} setSessionSearch={setSessionSearch}
         sessions={sessions} setSidebarCollapsed={setSidebarCollapsed} sidebarCollapsed={sidebarCollapsed}
       />
       <main>
@@ -1527,7 +1497,7 @@ export default function App() {
           showContextPreview={showContextPreview} sidebarCollapsed={sidebarCollapsed} taskPanelAvailable={taskDataEnabled} taskPanelOpen={taskPanelOpen}
           taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
         />
-        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openWorkspacePicker={() => setWorkspacePickerOpen(true)} busy={busy} hasWorkspaces={!!workspaceSummaries.length} setInput={setInput} modelReady={modelReady} />}</div>
+        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openProjects={() => openSettings('projects')} busy={busy} hasProjects={!!projects.length} setInput={setInput} modelReady={modelReady} />}</div>
         {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息">↓</button> : null}
         <CurrentSessionTask
           error={currentSessionTask.error} loading={currentSessionTask.loading} onRefresh={currentSessionTask.refresh}
@@ -1554,7 +1524,6 @@ export default function App() {
       </> : null}
 
     </div>}
-    <WorkspacePicker open={workspacePickerOpen} workspaceSummaries={workspaceSummaries} busy={busy} activeName={activeWorkspace?.name || ''} onClose={() => setWorkspacePickerOpen(false)} onSelect={selectWorkspace} />
     <QuickPalette open={quickPaletteOpen} actions={quickActions} onClose={() => setQuickPaletteOpen(false)} />
     {authPage ? <LoginPage api={api} error={authPage} refreshAfterLogin={refreshAfterLogin} setAuthPage={setAuthPage} /> : null}
     <DialogHost dialog={dialog} closeDialog={closeDialog} />

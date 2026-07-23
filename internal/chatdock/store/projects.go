@@ -18,7 +18,15 @@ func (s *Store) ListProjects() (model.ProjectListResponse, error) {
 	if err != nil {
 		return model.ProjectListResponse{}, err
 	}
-	return model.ProjectListResponse{Projects: projects}, nil
+	sessionCount, plainSessionCount, err := projectSessionCountsWith(s.db)
+	if err != nil {
+		return model.ProjectListResponse{}, err
+	}
+	return model.ProjectListResponse{
+		Projects:          projects,
+		SessionCount:      sessionCount,
+		PlainSessionCount: plainSessionCount,
+	}, nil
 }
 
 func (s *Store) CreateProject(input model.CreateProjectRequest) (model.Project, error) {
@@ -113,21 +121,37 @@ func projectCountWith(reader sqlQueryer) (int, error) {
 	return count, err
 }
 
-func listProjectsWith(reader sqlQueryer) ([]model.Project, error) {
-	rows, err := reader.Query(`SELECT id, name, prompt, created_at, updated_at FROM projects ORDER BY updated_at DESC, name ASC`)
+func listProjectsWith(reader sqlQueryer) ([]model.ProjectSummary, error) {
+	rows, err := reader.Query(`
+		SELECT p.id, p.name, p.prompt, p.created_at, p.updated_at, COUNT(s.id)
+		FROM projects p
+		LEFT JOIN sessions s ON s.project_id = p.id
+		GROUP BY p.id, p.name, p.prompt, p.created_at, p.updated_at
+		ORDER BY p.updated_at DESC, p.name ASC`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	projects := []model.Project{}
+	projects := []model.ProjectSummary{}
 	for rows.Next() {
-		project, err := scanProject(rows)
-		if err != nil {
+		var summary model.ProjectSummary
+		var createdAt, updatedAt string
+		if err := rows.Scan(&summary.ID, &summary.Name, &summary.Prompt, &createdAt, &updatedAt, &summary.SessionCount); err != nil {
 			return nil, err
 		}
-		projects = append(projects, project)
+		summary.CreatedAt = parseDBTimeZero(createdAt)
+		summary.UpdatedAt = parseDBTimeZero(updatedAt)
+		projects = append(projects, summary)
 	}
 	return projects, rows.Err()
+}
+
+func projectSessionCountsWith(reader sqlQueryer) (int, int, error) {
+	var total, plain int
+	if err := reader.QueryRow(`SELECT COUNT(*), COALESCE(SUM(CASE WHEN project_id IS NULL THEN 1 ELSE 0 END), 0) FROM sessions`).Scan(&total, &plain); err != nil {
+		return 0, 0, err
+	}
+	return total, plain, nil
 }
 
 func projectByIDWith(reader sqlQueryer, id string) (model.Project, bool, error) {

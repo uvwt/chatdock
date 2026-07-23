@@ -108,7 +108,7 @@
 }
 
 .settings-page .product-card,
-.settings-page #workspaceCards .product-card,
+.settings-page #projectCards .product-card,
 .settings-page .provider-grid .product-card,
 .settings-page .task-card,
 .settings-page .mcp-status-grid .product-card {
@@ -117,7 +117,7 @@
   overflow: hidden;
 }
 
-.settings-page #workspaceCards .product-card::before,
+.settings-page #projectCards .product-card::before,
 .settings-page .provider-grid .product-card::before,
 .settings-page .setup-banner::before {
   content: none !important;
@@ -125,7 +125,7 @@
 }
 
 .settings-page .product-card.active,
-.settings-page #workspaceCards .product-card.active {
+.settings-page #projectCards .product-card.active {
   border-color: #5eead4 !important;
   background:
     radial-gradient(circle at 92% 8%, rgba(15, 118, 110, .08), transparent 32%),
@@ -234,17 +234,17 @@
   color: #065f46 !important;
 }
 
-.settings-page .workspace-summary-card {
+.settings-page .project-summary-card {
   border: 1px solid #e2e8f0 !important;
   background: #ffffff !important;
   box-shadow: 0 10px 26px rgba(15, 23, 42, .045) !important;
 }
 
-.settings-page .workspace-summary-card b {
+.settings-page .project-summary-card b {
   color: #0f172a !important;
 }
 
-.settings-page .workspace-summary-card span {
+.settings-page .project-summary-card span {
   color: #64748b !important;
 }
 
@@ -430,13 +430,13 @@
     backdrop-filter: blur(14px);
   }
 
-  .settings-page .workspace-summary-grid {
+  .settings-page .project-summary-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     gap: 14px !important;
     margin: 0 0 18px !important;
   }
 
-  .settings-page #workspaceCards,
+  .settings-page #projectCards,
   .settings-page .provider-grid,
   .settings-page .tasks-list,
   .settings-page .tasks-list,

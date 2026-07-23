@@ -1,8 +1,25 @@
 export function fetchConfig(api) { return api('/api/config'); }
 export function fetchMCPConfig(api) { return api('/api/mcp-config'); }
 export function fetchSetupStatus(api) { return api('/api/setup/status'); }
-export function fetchWorkspaces(api) { return api('/api/workspaces'); }
+export function fetchProjects(api) { return api('/api/projects'); }
 export function fetchModelProviders(api) { return api('/api/model-providers'); }
+
+export function normalizeProjectListResponse(data) {
+  if (!data || !Array.isArray(data.projects) || !Number.isInteger(data.session_count) || !Number.isInteger(data.plain_session_count)) {
+    throw new TypeError('invalid project list response');
+  }
+  if (data.projects.some(project => !project?.id || !Number.isInteger(project.session_count))) {
+    throw new TypeError('invalid project summary response');
+  }
+  return {
+    projects: data.projects,
+    sessionCounts: {
+      all: data.session_count,
+      plain: data.plain_session_count,
+      byProject: Object.fromEntries(data.projects.map(project => [project.id, project.session_count])),
+    },
+  };
+}
 
 export function createModelProvider(api, payload) {
   return api('/api/model-providers', {method:'POST', body: JSON.stringify(payload)});
@@ -21,24 +38,24 @@ export function fetchDataStatus(api) { return api('/api/data/status'); }
 export function fetchSystemStatus(api) { return api('/api/system/status'); }
 export function fetchMCPStatus(api) { return api('/api/mcp/status'); }
 
-export function selectWorkspace(api, name) {
-  return api('/api/workspaces/' + encodeURIComponent(name) + '/select', {method:'POST', body:'{}'});
+export function createProject(api, input) {
+  return api('/api/projects', {method:'POST', body: JSON.stringify(input)});
 }
 
-export function createWorkspaceRecord(api, input) {
-  return api('/api/workspaces', {method:'POST', body: JSON.stringify(input)});
+export function updateProject(api, id, input) {
+  return api('/api/projects/' + encodeURIComponent(id), {method:'PUT', body: JSON.stringify(input)});
 }
 
-export function deleteWorkspaceRecord(api, id) {
-  return api('/api/workspaces/' + encodeURIComponent(id), {method:'DELETE'});
+export function deleteProject(api, id) {
+  return api('/api/projects/' + encodeURIComponent(id), {method:'DELETE'});
 }
 
-export function saveWorkspaceConfig(api, workspaceID, config) {
-  return api('/api/workspaces/' + encodeURIComponent(workspaceID) + '/config', {method:'POST', body: JSON.stringify(config)});
+export function saveGlobalConfig(api, config) {
+  return api('/api/config', {method:'POST', body: JSON.stringify(config)});
 }
 
-export function fetchWorkspacePromptPreview(api, workspaceID) {
-  return api('/api/workspaces/' + encodeURIComponent(workspaceID) + '/prompt-preview');
+export function fetchProjectPromptPreview(api, projectID) {
+  return api('/api/projects/' + encodeURIComponent(projectID) + '/prompt-preview');
 }
 
 export function initializeSetup(api, input) {

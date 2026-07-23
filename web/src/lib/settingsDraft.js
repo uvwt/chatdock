@@ -3,8 +3,8 @@ function finiteNumber(value, fallback) {
   return Number.isFinite(number) ? number : fallback;
 }
 
-// 只比较真正会提交到工作空间配置接口的字段，避免 providers/models 等派生展示数据误报未保存。
-export function workspaceConfigDraftSignature(config = {}) {
+// 只比较真正会提交到全局配置接口的字段，避免 providers/models 等派生展示数据误报未保存。
+export function globalConfigDraftSignature(config = {}) {
   return JSON.stringify({
     provider_id: String(config.provider_id || ''),
     model: String(config.model || ''),
@@ -21,9 +21,9 @@ export function workspaceConfigDraftSignature(config = {}) {
   });
 }
 
-export function workspaceConfigDraftChanged(current, saved) {
+export function globalConfigDraftChanged(current, saved) {
   if (!saved) return false;
-  return workspaceConfigDraftSignature(current) !== workspaceConfigDraftSignature(saved);
+  return globalConfigDraftSignature(current) !== globalConfigDraftSignature(saved);
 }
 
 function normalizeLineEndings(value) {

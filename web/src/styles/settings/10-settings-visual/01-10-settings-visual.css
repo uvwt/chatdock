@@ -34,7 +34,7 @@
 .settings-page .mcp-form-card,
 .settings-page .product-card,
 .settings-page .task-card,
-.settings-page .workspace-summary-card,
+.settings-page .project-summary-card,
 .settings-page .backup-item,
 .settings-page .backup-health,
 .settings-page .empty.compact { background: var(--v4-card) !important; border: 1px solid var(--v4-line) !important; border-radius: 13px !important; box-shadow: 0 1px 2px rgba(15,23,42,.035) !important; }
@@ -143,7 +143,7 @@
 .settings-page .mcp-form-card,
 .settings-page .product-card,
 .settings-page .task-card,
-.settings-page .workspace-summary-card,
+.settings-page .project-summary-card,
 .settings-page .stat-card,
 .settings-page .model-summary-card,
 .settings-page .backup-item,
@@ -252,7 +252,7 @@
 .settings-page .mcp-form-card,
 .settings-page .product-card,
 .settings-page .task-card,
-.settings-page .workspace-summary-card,
+.settings-page .project-summary-card,
 .settings-page .stat-card,
 .settings-page .model-summary-card,
 .settings-page .backup-item,
@@ -283,7 +283,7 @@
 .settings-page .task-name,
 .settings-page .task-name,
 .settings-page .stat-value,
-.settings-page .workspace-summary-card b,
+.settings-page .project-summary-card b,
 .settings-page .model-summary-card b {
   color: var(--settings-v5-text) !important;
   font-weight: 820 !important;

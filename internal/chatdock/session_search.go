@@ -12,7 +12,7 @@ func (a *App) handleSearchSessions(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	items, nextCursor, hasMore, err := a.store.SearchSessionPage(query.Get("q"), query.Get("cursor"), limit)
+	items, nextCursor, hasMore, err := a.store.SearchSessionPage(query.Get("q"), sessionProjectFilterFromRequest(r), query.Get("cursor"), limit)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Errorf("search sessions failed: %w", err))
 		return

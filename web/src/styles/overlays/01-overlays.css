@@ -33,22 +33,6 @@
 .theme-light .login-card { background:#fff; border-color:#cbd5e1; }
 .theme-light .login-card b { color:#0f172a; }
 
-
-.workspace-picker-backdrop { display: none; position: fixed; inset: 0; z-index: 70; background: rgba(2, 6, 23, .58); backdrop-filter: blur(3px); }
-.workspace-picker-backdrop.show { display: flex; align-items: center; justify-content: center; padding: 16px; }
-.workspace-picker-sheet { width: min(420px, 100%); max-height: min(72dvh, 560px); overflow: auto; border: 1px solid var(--border); border-radius: 20px; background: var(--panel); box-shadow: 0 24px 80px rgba(0, 0, 0, .42); }
-.workspace-picker-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid var(--border); }
-.workspace-picker-list { display: grid; gap: 8px; padding: 12px; }
-.workspace-picker-item { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel-soft); color: var(--text); text-align: left; }
-.workspace-picker-item.active { border-color: var(--primary); background: rgba(37, 99, 235, .16); }
-.workspace-picker-item-main { min-width: 0; display: grid; gap: 4px; }
-.workspace-picker-item-main b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.workspace-picker-item-main span { color: var(--muted); font-size: 12px; }
-.workspace-picker-check { flex: 0 0 auto; color: var(--primary); font-weight: 800; font-size: 18px; }
-body.theme-light .workspace-picker-sheet { background: #ffffff; border-color: #e2e8f0; }
-body.theme-light .workspace-picker-item { background: #f8fafc; border-color: #e2e8f0; color: #0f172a; }
-body.theme-light .workspace-picker-item.active { border-color: #2563eb; background: #eff6ff; }
-
 .session-actions-toggle { display: none; }
 .session-actions-backdrop { display: none; position: fixed; inset: 0; z-index: 72; background: rgba(2, 6, 23, .58); backdrop-filter: blur(3px); }
 .session-actions-backdrop.show { display: flex; align-items: flex-end; justify-content: center; padding: 0 12px 12px; }
@@ -56,32 +40,6 @@ body.theme-light .workspace-picker-item.active { border-color: #2563eb; backgrou
 .session-actions-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
 .session-actions-sheet button { width: 100%; min-height: 44px; justify-content: center; }
 body.theme-light .session-actions-sheet { background: #ffffff; border-color: #e2e8f0; }
-
-@media (max-width: 720px) {
-  .workspace-picker-backdrop.show {
-    align-items: flex-end;
-    padding: 0;
-  }
-
-  .workspace-picker-sheet {
-    width: 100%;
-    max-height: 72dvh;
-    border-radius: 24px 24px 0 0;
-    border-left: 0;
-    border-right: 0;
-    border-bottom: 0;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-
-  .workspace-picker-head {
-    padding: 18px 16px 12px;
-  }
-
-  .workspace-picker-item {
-    min-height: 54px;
-    font-size: 16px;
-  }
-}
 
 .auth-page-visible .app,
 .auth-page-visible .settings-page,

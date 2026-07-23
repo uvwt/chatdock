@@ -116,7 +116,7 @@ func (a *App) modelConfigFromRequest(r *http.Request) (model.ModelConfig, error)
 		}
 	}
 	// 前端密码框为空或显示掩码时，继续复用已保存 Key；但如果本次按 provider_id 解析，
-	// 只能使用该 provider 自己的 key，不能错误回退到当前工作区/其他 provider 的 key。
+	// 只能使用该 provider 自己的 key，不能错误回退到全局默认或其他 provider 的 key。
 	if !resolvedFromProvider && (strings.TrimSpace(next.APIKey) == "" || isMaskedModelSecret(next.APIKey)) {
 		next.APIKey = cfg.APIKey
 	}

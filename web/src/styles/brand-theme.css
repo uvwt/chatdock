@@ -106,7 +106,7 @@
   text-transform: uppercase;
 }
 
-#app.app aside :is(.workspace-picker-name, .session-title, .sidebar-task-name) {
+#app.app aside :is(.project-nav-item span, .session-title, .sidebar-task-name) {
   color: var(--gpt-text) !important;
 }
 
@@ -114,7 +114,7 @@
   color: var(--gpt-muted-2) !important;
 }
 
-#app.app aside :is(.workspace-picker-trigger, .session-search-box) {
+#app.app aside .session-search-box {
   border: 1px solid color-mix(in srgb, var(--gpt-accent) 12%, var(--gpt-border)) !important;
   border-radius: 12px !important;
   background: color-mix(in srgb, var(--gpt-surface-2) 72%, transparent) !important;
@@ -122,20 +122,33 @@
   box-shadow: inset 0 1px 0 color-mix(in srgb, white 5%, transparent) !important;
 }
 
-#app.app aside .workspace-picker-trigger:hover:not(:disabled),
 #app.app aside .session-search-box:focus-within {
   border-color: color-mix(in srgb, var(--gpt-accent) 42%, var(--gpt-border)) !important;
   background: color-mix(in srgb, var(--gpt-accent) 8%, var(--gpt-surface-2)) !important;
   box-shadow: 0 0 0 3px var(--gpt-accent-soft) !important;
 }
 
-#app.app aside .workspace-picker-meta,
+#app.app aside .project-nav-item em,
 #app.app aside .sidebar-section-count {
   border: 0 !important;
   border-radius: 8px !important;
   background: var(--gpt-accent-soft) !important;
   color: color-mix(in srgb, var(--gpt-accent) 76%, var(--gpt-text)) !important;
   box-shadow: none !important;
+}
+
+#app.app aside .project-nav-row:hover,
+#app.app aside .project-nav-row.active {
+  background: color-mix(in srgb, var(--gpt-accent) 9%, var(--gpt-surface-2)) !important;
+}
+
+#app.app aside .project-nav-row.active {
+  box-shadow: inset 2px 0 0 var(--gpt-accent) !important;
+}
+
+#app.app aside .project-edit-button:hover {
+  background: var(--gpt-accent-soft) !important;
+  color: var(--gpt-accent) !important;
 }
 
 #app.app aside .new {

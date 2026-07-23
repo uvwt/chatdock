@@ -27,9 +27,9 @@
 
 .settings-page .settings-form-grid,
 .settings-page .mcp-form-grid,
-.settings-page .workspace-summary-grid,
+.settings-page .project-summary-grid,
 .settings-page .model-inline-grid,
-.settings-page #workspaceCards,
+.settings-page #projectCards,
 .settings-page .provider-grid,
 .settings-page .tasks-list,
 .settings-page .tasks-list,
@@ -155,7 +155,7 @@
 }
 
 .settings-page .stat-value,
-.settings-page .workspace-summary-card b {
+.settings-page .project-summary-card b {
   color: #172033 !important;
   font-size: 18px !important;
   letter-spacing: -.02em !important;
@@ -216,7 +216,7 @@
     max-width: 998px !important;
   }
 
-  .settings-page .workspace-summary-grid {
+  .settings-page .project-summary-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 
@@ -228,7 +228,7 @@
   .settings-page .tasks-list,
   .settings-page .mcp-form-list,
   .settings-page .mcp-status-grid,
-  .settings-page #workspaceCards {
+  .settings-page #projectCards {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
@@ -304,7 +304,7 @@
   .settings-page .product-card,
   .settings-page .task-card,
   .settings-page .stat-card,
-  .settings-page .workspace-summary-card,
+  .settings-page .project-summary-card,
   .settings-page .model-summary-card,
   .settings-page .mcp-form-card,
   .settings-page .mcp-status-grid .product-card,

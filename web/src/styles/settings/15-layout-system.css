@@ -281,7 +281,7 @@
 .settings-page .automation-task-card,
 .settings-page .task-card,
 .settings-page .stat-card,
-.settings-page .workspace-summary-card,
+.settings-page .project-summary-card,
 .settings-page .model-summary-card,
 .settings-page .backup-item,
 .settings-page .backup-health,
@@ -292,7 +292,7 @@
   box-shadow: var(--mobile-shadow-soft) !important;
 }
 
-.settings-page #workspaceCards .product-card.active,
+.settings-page #projectCards .product-card.active,
 .settings-page .provider-grid .product-card.active {
   border-color: color-mix(in srgb, var(--mobile-accent-solid) 34%, var(--mobile-border)) !important;
   background: var(--mobile-accent-panel) !important;
@@ -300,7 +300,7 @@
   box-shadow: inset 3px 0 0 var(--mobile-accent-solid), var(--mobile-shadow-soft) !important;
 }
 
-.settings-page #workspaceCards .product-card.active .badge,
+.settings-page #projectCards .product-card.active .badge,
 .settings-page .provider-grid .product-card.active .badge {
   border-color: color-mix(in srgb, var(--mobile-accent-solid) 24%, var(--mobile-border)) !important;
   background: var(--mobile-accent-soft) !important;
@@ -321,6 +321,6 @@
 .settings-page .tasks-list,
 .settings-page .mcp-form-list,
 .settings-page .mcp-status-grid,
-.settings-page #workspaceCards {
+.settings-page #projectCards {
   gap: 14px !important;
 }

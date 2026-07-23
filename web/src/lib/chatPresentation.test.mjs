@@ -48,5 +48,6 @@ test('attachmentLooksLikeImage recognizes mime aliases', () => {
 
 test('scheduledTaskRunsText and contextPreviewText produce copyable diagnostics', () => {
   assert.match(scheduledTaskRunsText({title: '日报', context_mode: 'session'}, []), /连续会话/);
-  assert.match(contextPreviewText({workspace: 'default', items: [{role: 'user', chars: 2, estimated_tokens: 1, content_preview: 'hi'}]}), /工作空间：default/);
+  assert.match(contextPreviewText({project_name: 'Alpha', items: [{role: 'user', chars: 2, estimated_tokens: 1, content_preview: 'hi'}]}), /项目：Alpha/);
+  assert.match(contextPreviewText({items: []}), /普通会话/);
 });

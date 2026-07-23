@@ -41,7 +41,7 @@ export function ComposerBar({ busy, createPersistedSession, current, downloadAtt
   </div>;
 }
 
-export function Sidebar({ activeWorkspace, activeScheduledTasks, busy, clearScheduledTaskRunList, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openScheduledTaskRunList, openSession, openSettings, pinSessionByID, workspaceSummaries, renameSessionByID, selectedScheduledTask, selectedScheduledTaskID, selectedScheduledTaskSessions, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setWorkspacePickerOpen, sessions, setSidebarCollapsed, sidebarCollapsed }) {
+export function Sidebar({ activeScheduledTasks, busy, clearScheduledTaskRunList, current, deleteSessionByID, editProject, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openScheduledTaskRunList, openSession, openSettings, pinSessionByID, projects, projectFilter, projectSessionCounts, renameSessionByID, selectedScheduledTask, selectedScheduledTaskID, selectedScheduledTaskSessions, sessionMenuID, sessionSearch, sessionSearchBusy, setProjectFilter, setSessionMenuID, setSessionSearch, sessions, setSidebarCollapsed, sidebarCollapsed }) {
   const [menuPosition, setMenuPosition] = React.useState(null);
   const sessionsRef = React.useRef(null);
   const loadMoreRef = React.useRef(null);
@@ -82,7 +82,7 @@ export function Sidebar({ activeWorkspace, activeScheduledTasks, busy, clearSche
 
   React.useEffect(() => {
     if (sessionsRef.current) sessionsRef.current.scrollTop = 0;
-  }, [selectedScheduledTaskID, sessionSearch]);
+  }, [projectFilter, selectedScheduledTaskID, sessionSearch]);
 
   React.useEffect(() => {
     if (!hasMoreSessions || loadingMoreSessions || !onLoadMoreSessions || !window.IntersectionObserver) return undefined;
@@ -117,10 +117,20 @@ export function Sidebar({ activeWorkspace, activeScheduledTasks, busy, clearSche
         <a className="brand" href="/" aria-label="返回 ChatDock 首页" style={{ color: 'inherit', textDecoration: 'none' }} onClick={event => { event.preventDefault(); goHome(); }}><span className="brand-mark" aria-hidden="true"><span /></span><div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">AI workspace · local first</div></div></a>
         <button id="sidebarToggle" className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}>{sidebarCollapsed ? '›' : '‹'}</button>
       </div>
-      <div className="prompt-box"><button className="workspace-picker-trigger" type="button" disabled={busy || !workspaceSummaries.length} onClick={() => setWorkspacePickerOpen(true)}><span className="workspace-picker-name">{activeWorkspace ? (activeWorkspace.name === 'default' ? '默认工作区' : activeWorkspace.name) : '未选择'}</span><span className="workspace-picker-meta">{activeWorkspace ? activeWorkspace.count : sessions.length}</span></button></div>
       <div className="session-search-row"><label className="session-search-box"><input className="session-search" placeholder="搜索聊天记录" value={sessionSearch} onChange={event => setSessionSearch(event.target.value)} /></label><button className="new" onClick={newSession} aria-label="新会话" title="新会话"><span className="new-icon" aria-hidden="true">＋</span></button></div>
+      <div className="project-nav">
+        <div className="sidebar-section-head compact"><div className="sidebar-section-title">项目</div><button type="button" className="secondary small project-add-button" onClick={() => editProject?.()} title="新增项目" aria-label="新增项目">＋</button></div>
+        <div className="project-nav-list">
+          <button type="button" className={'project-nav-item ' + (projectFilter === 'all' ? 'active' : '')} onClick={() => setProjectFilter('all')}><span>全部会话</span><em>{projectSessionCounts?.all ?? sessions.length}</em></button>
+          <button type="button" className={'project-nav-item ' + (projectFilter === 'plain' ? 'active' : '')} onClick={() => setProjectFilter('plain')}><span>普通会话</span><em>{projectSessionCounts?.plain ?? 0}</em></button>
+          {(projects || []).map(project => <div key={project.id} className={'project-nav-row ' + (projectFilter === project.id ? 'active' : '')}>
+            <button type="button" className="project-nav-item" onClick={() => setProjectFilter(project.id)}><span title={project.name}>{project.name}</span><em>{projectSessionCounts?.byProject?.[project.id] || 0}</em></button>
+            <button type="button" className="project-edit-button" onClick={() => editProject?.(project)} title={'编辑项目：' + project.name} aria-label={'编辑项目：' + project.name}>•••</button>
+          </div>)}
+        </div>
+      </div>
       {activeScheduledTasks.length ? <div className="sidebar-tasks"><div className="sidebar-section-head compact"><div className="sidebar-section-title">定时任务</div><span className="sidebar-section-count">{activeScheduledTasks.length}</span></div><div className="sidebar-task-list session-list-like">{activeScheduledTasks.slice(0, 3).map(task => <button key={task.id} type="button" className={'sidebar-task-item session ' + (selectedScheduledTaskID === task.id ? 'active ' : '') + (task.running ? 'running ' : '')} onClick={() => openScheduledTaskRunList(task.id)}><div className="session-main"><div className="sidebar-task-name session-title">{task.title || '未命名任务'}</div></div></button>)}</div>{activeScheduledTasks.length > 3 ? <button type="button" className="sidebar-task-more" onClick={() => openSettings('automation')}>查看全部 {activeScheduledTasks.length} 个任务</button> : null}</div> : null}
-      <div className="sidebar-section-head"><div className="sidebar-section-title">{selectedScheduledTask ? '任务会话' : '最近会话'}</div>{selectedScheduledTask ? <button type="button" className="secondary small sidebar-clear-task" onClick={clearScheduledTaskRunList}>全部</button> : null}</div>
+      <div className="sidebar-section-head"><div className="sidebar-section-title">{selectedScheduledTask ? '任务会话' : projectFilter === 'all' ? '全部会话' : projectFilter === 'plain' ? '普通会话' : ((projects || []).find(project => project.id === projectFilter)?.name || '项目会话')}</div>{selectedScheduledTask ? <button type="button" className="secondary small sidebar-clear-task" onClick={clearScheduledTaskRunList}>全部</button> : null}</div>
       {selectedScheduledTask ? <div className="session-search-meta">{selectedScheduledTask.title || '定时任务'} · {selectedScheduledTaskSessions.length} 次会话</div> : (sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : (hasMoreSessions ? '全文搜索 · 已加载 ' : '全文搜索 ') + filteredSessions.length + ' 条'}</div> : null)}
       <div id="sessions" ref={sessionsRef} onScroll={handleSessionScroll}>{filteredSessions.length ? filteredSessions.map(session => {
         const isActive = current === session.id;

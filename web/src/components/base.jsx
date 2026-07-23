@@ -1,4 +1,4 @@
-// Reusable shell components: product cards, modal, auth, palette, and workspace picker.
+// Reusable shell components: product cards, modal, auth, and palette.
 import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ScheduleBuilder } from './scheduleBuilder.jsx';
 
@@ -42,7 +42,7 @@ export function QuickPalette({ open, actions, onClose }) {
         <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => {
           if (e.key === 'Escape') onClose();
           if (e.key === 'Enter') runAction(filtered.find(a => !a.disabled));
-        }} placeholder="搜索快捷指令，例如：模型、导出、工作空间" />
+        }} placeholder="搜索快捷指令，例如：模型、导出、项目" />
         <button className="secondary small quick-palette-close" onClick={onClose} aria-label="关闭快捷指令">×</button>
       </div>
       <div className="quick-palette-list">
@@ -52,29 +52,6 @@ export function QuickPalette({ open, actions, onClose }) {
         </button>) : <div className="empty compact">没有匹配的快捷指令。</div>}
       </div>
       <div className="quick-palette-foot">快捷键：⌘/Ctrl K 打开，/ 聚焦输入框，Esc 关闭弹层。</div>
-    </div>
-  </div>;
-}
-
-export function WorkspacePicker({ open, workspaceSummaries, busy, activeName, onClose, onSelect }) {
-  if (!open) return null;
-  return <div className="workspace-picker-backdrop show" onClick={onClose}>
-    <div className="workspace-picker-sheet" role="dialog" aria-modal="true" aria-label="选择工作空间" onClick={e => e.stopPropagation()}>
-      <div className="workspace-picker-head">
-        <div><b>选择工作空间</b><div className="hint">切换后会加载对应会话和模型。</div></div>
-        <button className="secondary small" type="button" onClick={onClose}>关闭</button>
-      </div>
-      <div className="workspace-picker-list">
-        {workspaceSummaries.length ? workspaceSummaries.map(item => <button
-          key={item.name}
-          type="button"
-          disabled={busy}
-          className={'workspace-picker-item ' + (item.name === activeName ? 'active' : '')}
-          onClick={() => onSelect(item.name)}>
-          <span className="workspace-picker-item-main"><b>{item.name}</b><span>{item.count} 条会话</span></span>
-          <span className="workspace-picker-check">{item.name === activeName ? '✓' : ''}</span>
-        </button>) : <div className="empty compact">暂无工作空间。</div>}
-      </div>
     </div>
   </div>;
 }
@@ -105,7 +82,7 @@ export function LoginPage({ api, error, refreshAfterLogin, setAuthPage }) {
         <h1>ChatDock</h1>
         <p>把会话、模型供应商、工具和定时任务收进一个轻量工作台。</p>
         <div className="auth-feature-grid">
-          <span>多工作空间</span>
+          <span>项目筛选</span>
           <span>模型路由</span>
           <span>MCP 工具</span>
           <span>定时任务</span>
