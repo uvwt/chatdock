@@ -114,7 +114,7 @@ export function Sidebar({ activeWorkspace, activeScheduledTasks, busy, clearSche
   return <>
     <aside>
       <div className="sidebar-head">
-        <a className="brand" href="/" aria-label="返回 ChatDock 首页" onClick={event => { event.preventDefault(); goHome(); }}><div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">会话、工具、任务，一站协同</div></div></a>
+        <a className="brand" href="/" aria-label="返回 ChatDock 首页" style={{ color: 'inherit', textDecoration: 'none' }} onClick={event => { event.preventDefault(); goHome(); }}><div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">会话、工具、任务，一站协同</div></div></a>
         <button id="sidebarToggle" className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}>{sidebarCollapsed ? '›' : '‹'}</button>
       </div>
       <div className="prompt-box"><button className="workspace-picker-trigger" type="button" disabled={busy || !workspaceSummaries.length} onClick={() => setWorkspacePickerOpen(true)}><span className="workspace-picker-name">{activeWorkspace ? (activeWorkspace.name === 'default' ? '默认工作区' : activeWorkspace.name) : '未选择'}</span><span className="workspace-picker-meta">{activeWorkspace ? activeWorkspace.count : sessions.length}</span></button></div>
