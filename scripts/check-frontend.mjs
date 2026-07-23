@@ -48,6 +48,9 @@ if (!settingsActions.includes('export function useSettingsActions')) failures.pu
 for (const name of ['editProject', 'editModelProvider', 'editScheduledTask']) {
   if (app.includes('const ' + name + ' = useCallback')) failures.push(`settings action should stay outside App.jsx: ${name}`);
 }
+for (const [stateName, setterName] of [['selectedScheduledTaskID', 'setSelectedScheduledTaskID'], ['selectedScheduledTaskRuns', 'setSelectedScheduledTaskRuns']]) {
+  if (app.includes(setterName + '(') && !app.includes(`const [${stateName}, ${setterName}] = useState`)) failures.push(`${setterName} is used without local state ownership`);
+}
 const appLineCount = app.split(/\n/).length;
 if (appLineCount > 1300) failures.push(`App.jsx line count ${appLineCount} exceeds 1300; keep settings mutations in useSettingsActions.js and shell JSX in appChrome.jsx`);
 const appChrome = read('web/src/components/appChrome.jsx');

@@ -47,6 +47,9 @@ export function useSettingsActions({
   refreshProductState,
   scheduledTasks,
   selectedProject,
+  selectedScheduledTaskID,
+  setSelectedScheduledTaskID,
+  setSelectedScheduledTaskRuns,
   setConfig,
   setProjectFilter,
   setProjectPromptPreview,
@@ -58,8 +61,6 @@ export function useSettingsActions({
   const [availableModels, setAvailableModels] = useState([]);
   const [candidateProviderID, setCandidateProviderID] = useState('');
   const [loadingModels, setLoadingModels] = useState(false);
-  const [selectedScheduledTaskID, setSelectedScheduledTaskID] = useState('');
-  const [selectedScheduledTaskRuns, setSelectedScheduledTaskRuns] = useState([]);
 
   const editProject = useCallback(async (project = null) => {
     if (busy) return;
@@ -428,8 +429,6 @@ export function useSettingsActions({
     runSetupWizard,
     saveConfig,
     saveMCPConfig,
-    selectedScheduledTaskID,
-    selectedScheduledTaskRuns,
     showProjectPromptPreview,
     testMCP,
     testModelProvider,

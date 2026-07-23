@@ -55,6 +55,8 @@ export default function App() {
   const [streamPaused, setStreamPaused] = useState(false);
   const [streamStats, setStreamStats] = useState({ state: 'idle', started_at: 0, chars: 0, events: 0, tools: 0, error: '' });
   const [activeJobID, setActiveJobID] = useState('');
+  const [selectedScheduledTaskID, setSelectedScheduledTaskID] = useState('');
+  const [selectedScheduledTaskRuns, setSelectedScheduledTaskRuns] = useState([]);
   const [taskSearch, setTaskSearch] = useState('');
 
   const {
@@ -1047,8 +1049,6 @@ export default function App() {
     runSetupWizard,
     saveConfig,
     saveMCPConfig,
-    selectedScheduledTaskID,
-    selectedScheduledTaskRuns,
     showProjectPromptPreview,
     testMCP,
     testModelProvider,
@@ -1076,6 +1076,9 @@ export default function App() {
     refreshProductState,
     scheduledTasks,
     selectedProject,
+    selectedScheduledTaskID,
+    setSelectedScheduledTaskID,
+    setSelectedScheduledTaskRuns,
     setConfig,
     setProjectFilter,
     setProjectPromptPreview,
