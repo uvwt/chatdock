@@ -205,6 +205,19 @@ ON CONFLICT(id) DO UPDATE SET project_id = excluded.project_id, title = excluded
 			return err
 		}
 	}
+	// Event details are lazy-loaded and may not be present in the in-memory
+	// session. Preserve details whose event IDs were reinserted, and remove only
+	// rows whose events disappeared during this replacement.
+	if _, err := tx.Exec(`DELETE FROM session_message_event_details
+WHERE session_id = ?
+  AND NOT EXISTS (
+    SELECT 1
+    FROM session_message_events AS event
+    WHERE event.session_id = session_message_event_details.session_id
+      AND event.id = session_message_event_details.event_id
+  )`, session.ID); err != nil {
+		return err
+	}
 	return nil
 }
 
