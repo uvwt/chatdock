@@ -81,15 +81,12 @@
   overscroll-behavior: contain !important;
   -webkit-overflow-scrolling: touch !important;
   scrollbar-width: thin !important;
+  scrollbar-color: rgba(148, 163, 184, .12) transparent !important;
 }
 
 #app.app #sessions::-webkit-scrollbar {
   display: block !important;
   width: 6px !important;
-}
-
-#app.app #sessions::-webkit-scrollbar-track {
-  background: transparent !important;
 }
 
 #app.app #sessions::-webkit-scrollbar-thumb {
