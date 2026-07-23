@@ -413,6 +413,22 @@ export default function App() {
     if (window.matchMedia('(max-width: 720px)').matches) setSidebarCollapsed(true);
   }, [setSidebarCollapsed]);
 
+  const goHome = useCallback(() => {
+    if (busy) detachActiveStream();
+    sessionOpenSeqRef.current += 1;
+    setSessionMenuID('');
+    setSelectedScheduledTaskID('');
+    setSelectedScheduledTaskRuns([]);
+    setSessionSearch('');
+    setCurrent(null);
+    setCurrentTitle('未选择会话');
+    setMessages([]);
+    clearAttachments();
+    setChatModel({ provider_id: '', model: '' });
+    if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
+    closeSidebarOnMobile();
+  }, [busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, setSessionSearch]);
+
   const openSettings = useCallback((moduleName = activeModule, syncRoute = true) => {
     const normalized = normalizeSettingsModule(moduleName);
     setActiveModule(normalized);
@@ -1493,7 +1509,7 @@ export default function App() {
     {settingsOpen ? <div id="settingsPage" className="settings-page"><Suspense fallback={<div className="empty compact" role="status">正在加载配置中心…</div>}>{settingsPanel}</Suspense></div> : <div id="app" className={appClass}>
       <Sidebar
         activeWorkspace={activeWorkspace} activeScheduledTasks={activeScheduledTasks} busy={busy} clearScheduledTaskRunList={clearScheduledTaskRunList}
-        current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions}
+        current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} goHome={goHome}
         hasMoreSessions={visibleSessionsHasMore} loadingMoreSessions={visibleSessionsLoadingMore} newSession={newSession}
         onLoadMoreSessions={loadMoreVisibleSessions} openScheduledTaskRunList={openScheduledTaskRunList} openSession={openSession} openSettings={openSettings}
         pinSessionByID={pinSessionByID} workspaceSummaries={workspaceSummaries} renameSessionByID={renameSessionByID}

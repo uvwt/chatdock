@@ -41,7 +41,7 @@ export function ComposerBar({ busy, createPersistedSession, current, downloadAtt
   </div>;
 }
 
-export function Sidebar({ activeWorkspace, activeScheduledTasks, busy, clearScheduledTaskRunList, current, deleteSessionByID, filteredSessions, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openScheduledTaskRunList, openSession, openSettings, pinSessionByID, workspaceSummaries, renameSessionByID, selectedScheduledTask, selectedScheduledTaskID, selectedScheduledTaskSessions, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setWorkspacePickerOpen, sessions, setSidebarCollapsed, sidebarCollapsed }) {
+export function Sidebar({ activeWorkspace, activeScheduledTasks, busy, clearScheduledTaskRunList, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openScheduledTaskRunList, openSession, openSettings, pinSessionByID, workspaceSummaries, renameSessionByID, selectedScheduledTask, selectedScheduledTaskID, selectedScheduledTaskSessions, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setWorkspacePickerOpen, sessions, setSidebarCollapsed, sidebarCollapsed }) {
   const [menuPosition, setMenuPosition] = React.useState(null);
   const sessionsRef = React.useRef(null);
   const loadMoreRef = React.useRef(null);
@@ -114,7 +114,7 @@ export function Sidebar({ activeWorkspace, activeScheduledTasks, busy, clearSche
   return <>
     <aside>
       <div className="sidebar-head">
-        <div className="brand"><div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">会话、工具、任务，一站协同</div></div></div>
+        <a className="brand" href="/" aria-label="返回 ChatDock 首页" onClick={event => { event.preventDefault(); goHome(); }}><div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">会话、工具、任务，一站协同</div></div></a>
         <button id="sidebarToggle" className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}>{sidebarCollapsed ? '›' : '‹'}</button>
       </div>
       <div className="prompt-box"><button className="workspace-picker-trigger" type="button" disabled={busy || !workspaceSummaries.length} onClick={() => setWorkspacePickerOpen(true)}><span className="workspace-picker-name">{activeWorkspace ? (activeWorkspace.name === 'default' ? '默认工作区' : activeWorkspace.name) : '未选择'}</span><span className="workspace-picker-meta">{activeWorkspace ? activeWorkspace.count : sessions.length}</span></button></div>
