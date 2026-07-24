@@ -21,22 +21,12 @@ export function mergeSessionPages(current = [], incoming = []) {
 
 export function sessionSummaryFromSession(session) {
   if (!session?.id) return null;
-  const messages = Array.isArray(session.messages) ? session.messages : [];
-  const last = messages[messages.length - 1] || {};
-  let preview = String(last.content || last.error?.message || '').replace(/\s+/g, ' ').trim();
-  if ([...preview].length > 120) preview = [...preview].slice(0, 120).join('') + '…';
   return {
     id: session.id,
     title: session.title || '新会话',
     pinned: !!session.pinned,
-    provider_id: session.provider_id || '',
-    model: session.model || '',
     project_id: session.project_id || '',
-    preview,
-    last_role: last.role || '',
-    created_at: session.created_at,
     updated_at: session.updated_at,
-    count: messages.length,
   };
 }
 

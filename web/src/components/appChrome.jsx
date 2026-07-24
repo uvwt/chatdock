@@ -16,7 +16,6 @@ import {
 import { AttachmentList } from './chat.jsx';
 import { ComposerModelPicker } from './modelPicker.jsx';
 import { TaskPanelToggle } from './taskPanel.jsx';
-import { fmtTime } from '../lib/appUtils.js';
 
 const iconProps = { size: 17, 'aria-hidden': true };
 
@@ -64,8 +63,11 @@ export function ComposerBar({ busy, createPersistedSession, current, downloadAtt
   </div>;
 }
 
+function SidebarLink({ active, onClick, title }) {
+  return <button type="button" className={'session sidebar-link ' + (active ? 'active' : '')} onClick={onClick}><span className="session-main"><span className="session-title">{title}</span></span></button>;
+}
 
-export function Sidebar({ busy, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openSession, openWorkspacePage, pinSessionByID, projects, projectFilter, renameSessionByID, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setSidebarCollapsed, sidebarCollapsed, workspacePage }) {
+export function Sidebar({ busy, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openProjectSessions, openSession, openWorkspacePage, pinSessionByID, projects, projectFilter, renameSessionByID, scheduledTasks, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setSidebarCollapsed, setTaskSearch, sidebarCollapsed, workspacePage }) {
   const [menuPosition, setMenuPosition] = React.useState(null);
   const sessionsRef = React.useRef(null);
   const loadMoreRef = React.useRef(null);
@@ -142,12 +144,14 @@ export function Sidebar({ busy, current, deleteSessionByID, filteredSessions, go
       : ((projects || []).find(project => project.id === projectFilter)?.name || '项目会话');
   const searchingSessions = !!sessionSearch.trim();
   const pinnedSessions = searchingSessions ? [] : filteredSessions.filter(session => session.pinned);
+  const pinnedEntities = [...(projects || []).filter(item => item.pinned).map(item => ({...item, type: 'project'})), ...(scheduledTasks || []).filter(item => item.pinned).map(item => ({...item, type: 'task'}))];
+  const openPinnedEntity = item => item.type === 'project' ? openProjectSessions(item.id) : (setTaskSearch(item.title), openWorkspacePage('scheduled-tasks'));
   const sessionRows = searchingSessions ? filteredSessions : filteredSessions.filter(session => !session.pinned);
   const renderSession = session => {
     const isActive = current === session.id;
     const menuOpen = sessionMenuID === session.id;
-    return <div key={session.id} data-session-id={session.id} className={'session ' + (session.scheduled_run ? 'scheduled-run ' : '') + (isActive ? 'active ' : '') + (session.pinned ? 'pinned ' : '') + (menuOpen ? 'menu-open' : '')} onClick={() => openSession(session.id, session)}>
-      <div className="session-main"><div className="session-title">{session.title}</div>{session.scheduled_run ? null : (session.match_snippet ? <div className="session-preview search-hit">{session.match_field ? session.match_field + '：' : ''}{session.match_snippet}</div> : (session.preview ? <div className="session-preview">{session.preview}</div> : null))}{session.scheduled_run ? null : <div className="session-meta">{session.count} 条 · {fmtTime(session.updated_at)}</div>}</div>
+    return <div key={session.id} data-session-id={session.id} className={'session ' + (isActive ? 'active ' : '') + (session.pinned ? 'pinned ' : '') + (menuOpen ? 'menu-open' : '')} onClick={() => openSession(session.id, session)}>
+      <div className="session-main"><div className="session-title">{session.title}</div></div>
       <button type="button" className="session-menu-trigger icon-button" disabled={busy} onClick={event => toggleSessionMenu(event, session)} aria-label={(session.title || '会话') + ' 操作'} aria-expanded={menuOpen ? 'true' : 'false'} title="会话操作"><MoreHorizontal size={16} aria-hidden="true" /></button>
     </div>;
   };
@@ -169,8 +173,12 @@ export function Sidebar({ busy, current, deleteSessionByID, filteredSessions, go
         <div className="sidebar-section-head"><div className="sidebar-section-title">置顶</div></div>
         <div className="sidebar-pinned-list">
           {pinnedSessions.map(renderSession)}
-          <button type="button" className={'session sidebar-hub-row ' + (workspacePage === 'projects' ? 'active' : '')} onClick={() => openWorkspacePage('projects')}><span className="session-main"><span className="session-title">项目</span></span></button>
-          <button type="button" className={'session sidebar-hub-row ' + (workspacePage === 'scheduled-tasks' ? 'active' : '')} onClick={() => openWorkspacePage('scheduled-tasks')}><span className="session-main"><span className="session-title">定时任务</span></span></button>
+          {pinnedEntities.map(item => <SidebarLink key={item.type + item.id} title={item.name || item.title} onClick={() => openPinnedEntity(item)} />)}
+        </div>
+        <div className="sidebar-section-head"><div className="sidebar-section-title">工作区</div></div>
+        <div className="sidebar-workspace-list">
+          <SidebarLink title="项目" active={workspacePage === 'projects'} onClick={() => openWorkspacePage('projects')} />
+          <SidebarLink title="定时任务" active={workspacePage === 'scheduled-tasks'} onClick={() => { setTaskSearch(''); openWorkspacePage('scheduled-tasks'); }} />
         </div>
         <div className="sidebar-section-head"><div className="sidebar-section-title">{sessionSectionTitle}</div></div>
         {searchingSessions ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : (hasMoreSessions ? '全文搜索 · 已加载 ' : '全文搜索 ') + filteredSessions.length + ' 条'}</div> : null}

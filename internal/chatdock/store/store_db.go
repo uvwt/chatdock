@@ -39,7 +39,7 @@ func (s *Store) initSQLite() error {
 
 	stmts := []string{
 		`CREATE TABLE IF NOT EXISTS global_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, prompt TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, prompt TEXT NOT NULL DEFAULT '', pinned INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, project_id TEXT NULL, title TEXT NOT NULL DEFAULT '', pinned INTEGER NOT NULL DEFAULT 0, provider_id TEXT NOT NULL DEFAULT '', model TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL, FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE SET NULL)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_updated ON sessions(updated_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_project_updated ON sessions(project_id, updated_at DESC)`,
@@ -80,6 +80,32 @@ func (s *Store) initSQLite() error {
 	for _, stmt := range stmts {
 		if _, err := s.db.Exec(stmt); err != nil {
 			return err
+		}
+	}
+	if err := ensurePinnedEntityColumns(s.db); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ensurePinnedEntityColumns(db *sql.DB) error {
+	// 置顶是当前项目 schema 的向后兼容字段；旧数据默认保持未置顶。
+	for _, item := range []struct {
+		table  string
+		column string
+	}{
+		{table: "projects", column: "pinned"},
+		{table: "scheduled_tasks", column: "pinned"},
+	} {
+		exists, err := sqliteColumnExists(db, item.table, item.column)
+		if err != nil {
+			return err
+		}
+		if exists {
+			continue
+		}
+		if _, err := db.Exec(`ALTER TABLE ` + item.table + ` ADD COLUMN ` + item.column + ` INTEGER NOT NULL DEFAULT 0`); err != nil {
+			return fmt.Errorf("add %s.%s: %w", item.table, item.column, err)
 		}
 	}
 	return nil

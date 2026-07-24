@@ -49,6 +49,21 @@ func (a *App) handleUpdateScheduledTask(w http.ResponseWriter, r *http.Request) 
 	writeJSONResponse(w, http.StatusOK, result)
 }
 
+func (a *App) handlePinScheduledTask(w http.ResponseWriter, r *http.Request) {
+	id := scheduledTaskIDFromRequest(r)
+	var input model.PinRequest
+	if err := readJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := a.store.PinScheduledTask(id, input.Pinned)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, result)
+}
+
 func (a *App) handleDeleteScheduledTask(w http.ResponseWriter, r *http.Request) {
 	id := scheduledTaskIDFromRequest(r)
 	result, err := a.store.DeleteScheduledTask(id)

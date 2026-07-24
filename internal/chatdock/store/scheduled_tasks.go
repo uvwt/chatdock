@@ -83,6 +83,7 @@ func (s *Store) UpdateScheduledTask(id string, input model.ScheduledTaskRequest)
 		return model.ScheduledTaskResponse{}, err
 	}
 	next.ID = tasks[index].ID
+	next.Pinned = tasks[index].Pinned
 	next.SessionID = tasks[index].SessionID
 	next.Running = tasks[index].Running
 	next.LastRunAt = tasks[index].LastRunAt
@@ -94,6 +95,35 @@ func (s *Store) UpdateScheduledTask(id string, input model.ScheduledTaskRequest)
 	}
 	next.UpdatedAt = now
 	tasks[index] = next
+	if err := s.saveScheduledTasksLocked(tasks); err != nil {
+		return model.ScheduledTaskResponse{}, err
+	}
+	return model.ScheduledTaskResponse{Tasks: cloneScheduledTasks(tasks)}, nil
+}
+
+func (s *Store) PinScheduledTask(id string, pinned bool) (model.ScheduledTaskResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return model.ScheduledTaskResponse{}, fmt.Errorf("scheduled task id is empty")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	tasks, err := s.loadScheduledTasksLocked()
+	if err != nil {
+		return model.ScheduledTaskResponse{}, err
+	}
+	found := false
+	for i := range tasks {
+		if tasks[i].ID != id {
+			continue
+		}
+		tasks[i].Pinned = pinned
+		found = true
+		break
+	}
+	if !found {
+		return model.ScheduledTaskResponse{}, fmt.Errorf("scheduled task not found: %s", id)
+	}
 	if err := s.saveScheduledTasksLocked(tasks); err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}

@@ -179,6 +179,11 @@
   box-shadow: 0 22px 62px rgba(19, 52, 35, .07);
 }
 
+.workspace-card.pinned {
+  border-color: color-mix(in srgb, var(--gpt-accent) 34%, var(--gpt-border));
+  box-shadow: inset 3px 0 0 var(--gpt-accent), 0 22px 62px rgba(19, 52, 35, .07);
+}
+
 .workspace-card > header {
   display: flex;
   align-items: flex-start;
@@ -209,10 +214,6 @@
   display: flex;
   align-items: center;
   gap: 7px;
-}
-
-.project-mobile-menu {
-  display: none;
 }
 
 .workspace-card > p {

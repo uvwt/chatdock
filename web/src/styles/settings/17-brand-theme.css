@@ -22,55 +22,37 @@
   --settings-success-bg: var(--gpt-accent-soft);
   --settings-success-line: color-mix(in srgb, var(--gpt-accent) 28%, var(--gpt-border));
   --settings-success-text: var(--gpt-accent);
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--gpt-text) 2.4%, transparent) 1px, transparent 1px),
-    linear-gradient(color-mix(in srgb, var(--gpt-text) 2.4%, transparent) 1px, transparent 1px),
-    var(--gpt-bg) !important;
-  background-size: 64px 64px !important;
-}
-
-.settings-page::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: .03;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
-  mix-blend-mode: soft-light;
+  background: var(--gpt-bg) !important;
 }
 
 @media (min-width: 901px) {
   .settings-page {
-    padding: 16px !important;
+    padding: 0 !important;
   }
 
   .settings-page .settings {
-    position: relative;
-    width: calc(100vw - 32px) !important;
-    height: calc(100dvh - 32px) !important;
-    grid-template-columns: 218px minmax(0, 1fr) !important;
-    grid-template-rows: 80px minmax(0, 1fr) !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    grid-template-columns: 224px minmax(0, 1fr) !important;
+    grid-template-rows: 72px minmax(0, 1fr) !important;
     overflow: hidden;
-    border: 1px solid var(--gpt-border-strong) !important;
-    border-radius: 0 30px 0 30px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
     background: var(--gpt-main) !important;
-    box-shadow: 0 36px 110px rgba(0, 0, 0, .30) !important;
-    animation: settingsEnter .7s var(--dock-ease) both;
+    box-shadow: none !important;
   }
 
   .settings-page .settings-header {
-    min-height: 80px !important;
-    padding: 0 24px !important;
+    min-height: 72px !important;
+    padding: 0 22px !important;
     border-bottom: 1px solid var(--gpt-border) !important;
-    background: color-mix(in srgb, var(--gpt-main) 88%, transparent) !important;
-    backdrop-filter: blur(20px);
+    background: var(--gpt-main) !important;
+    backdrop-filter: none;
   }
 
   .settings-page .settings-sidebar {
     border-right: 1px solid var(--gpt-border) !important;
-    background:
-      linear-gradient(180deg, color-mix(in srgb, var(--gpt-text) 2%, transparent), transparent 26%),
-      var(--gpt-sidebar) !important;
+    background: var(--gpt-sidebar) !important;
   }
 
   .settings-page .module-tabs {
@@ -79,10 +61,8 @@
 
   .settings-page .settings-content {
     position: relative;
-    padding: 38px clamp(30px, 4vw, 66px) 58px !important;
-    background:
-      radial-gradient(circle at 88% 2%, color-mix(in srgb, var(--gpt-accent) 7%, transparent), transparent 28%),
-      transparent !important;
+    padding: 34px clamp(30px, 4vw, 62px) 56px !important;
+    background: var(--gpt-main) !important;
   }
 }
 
@@ -191,16 +171,16 @@
 
 .settings-page .module-view-title > div > span {
   color: var(--gpt-text) !important;
-  font-family: Georgia, "Times New Roman", "Songti SC", serif;
-  font-size: clamp(30px, 3.4vw, 48px) !important;
-  font-weight: 500 !important;
-  line-height: .96 !important;
-  letter-spacing: -.055em !important;
+  font-family: inherit !important;
+  font-size: 28px !important;
+  font-weight: 680 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -.035em !important;
 }
 
 .settings-page .module-view-title p {
   max-width: 620px;
-  margin-top: 8px !important;
+  margin-top: 6px !important;
   color: var(--gpt-muted) !important;
   font-size: 12px !important;
   line-height: 1.55 !important;
@@ -234,19 +214,44 @@
 .settings-page .backup-health,
 .settings-page .empty.compact {
   border: 1px solid var(--gpt-border) !important;
-  border-radius: 0 18px 0 18px !important;
-  background: color-mix(in srgb, var(--gpt-surface) 82%, transparent) !important;
+  border-radius: 14px !important;
+  background: var(--gpt-surface) !important;
   color: var(--gpt-text) !important;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, .09) !important;
-  transition: border-color .24s ease, transform .24s var(--dock-ease), box-shadow .24s ease !important;
+  box-shadow: 0 8px 28px rgba(19, 52, 35, .045) !important;
+  transition: border-color .2s ease, box-shadow .2s ease !important;
+}
+
+body:not(.theme-light) .settings-page .settings-section,
+body:not(.theme-light) .settings-page .model-quick-panel,
+body:not(.theme-light) .settings-page .model-inline-card,
+body:not(.theme-light) .settings-page .mcp-form-card,
+body:not(.theme-light) .settings-page .product-card,
+body:not(.theme-light) .settings-page .automation-task-card,
+body:not(.theme-light) .settings-page .task-card,
+body:not(.theme-light) .settings-page .stat-card,
+body:not(.theme-light) .settings-page .project-summary-card,
+body:not(.theme-light) .settings-page .model-summary-card,
+body:not(.theme-light) .settings-page .backup-item,
+body:not(.theme-light) .settings-page .backup-health,
+body:not(.theme-light) .settings-page .empty.compact {
+  background: var(--gpt-surface) !important;
+  color: var(--gpt-text) !important;
+}
+
+body:not(.theme-light) .settings-page :is(.settings-section, .model-quick-panel, .model-inline-card, .mcp-form-card, .product-card, .task-card, .stat-card, .project-summary-card) :is(b, strong, label) {
+  color: var(--gpt-text) !important;
+}
+
+body:not(.theme-light) .settings-page :is(.model-quick-head span, .product-meta, .hint) {
+  color: var(--gpt-muted) !important;
 }
 
 .settings-page .product-card:hover,
 .settings-page .automation-task-card:hover,
 .settings-page .task-card:hover {
-  transform: translateY(-3px);
+  transform: none;
   border-color: var(--gpt-border-strong) !important;
-  box-shadow: 0 22px 62px rgba(0, 0, 0, .14) !important;
+  box-shadow: 0 10px 32px rgba(19, 52, 35, .07) !important;
 }
 
 body .settings-page [data-module-view="projects"] #projectCards .product-card.active,
@@ -255,7 +260,7 @@ body .settings-page [data-module-view="providers"] .product-card.active,
 .settings-page .provider-grid .product-card.active {
   border-color: color-mix(in srgb, var(--gpt-accent) 44%, var(--gpt-border)) !important;
   background: color-mix(in srgb, var(--gpt-accent) 7%, var(--gpt-surface)) !important;
-  box-shadow: inset 3px 0 0 var(--gpt-accent), 0 18px 50px rgba(0, 0, 0, .10) !important;
+  box-shadow: inset 3px 0 0 var(--gpt-accent), 0 8px 28px rgba(19, 52, 35, .06) !important;
 }
 
 .settings-page .model-option.active,
@@ -273,7 +278,7 @@ body .settings-page [data-module-view="providers"] .product-card.active,
 }
 
 .settings-page .settings-save-state {
-  border-radius: 0 14px 0 14px !important;
+  border-radius: 999px !important;
 }
 
 .settings-page .settings-save-state-icon {
@@ -288,12 +293,12 @@ body .settings-page [data-module-view="providers"] .product-card.active,
   border-radius: 10px !important;
   background: var(--gpt-accent) !important;
   color: var(--gpt-accent-contrast) !important;
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--gpt-accent) 15%, transparent) !important;
+  box-shadow: none !important;
 }
 
 .settings-page button:not(.secondary):not(.danger):not(.module-tab):not(.model-option):hover:not(:disabled),
 .settings-page .settings-actions button:not(.secondary):not(.danger):hover:not(:disabled) {
-  transform: translateY(-2px);
+  transform: none;
   background: var(--gpt-accent-strong) !important;
 }
 
@@ -344,11 +349,6 @@ body .settings-page [data-module-view="providers"] .product-card.active,
   content: none !important;
 }
 
-@keyframes settingsEnter {
-  from { opacity: 0; transform: translateY(18px) scale(.99); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
 @media (max-width: 900px) {
   .settings-page {
     background: var(--gpt-bg) !important;
@@ -389,7 +389,7 @@ body .settings-page [data-module-view="providers"] .product-card.active,
   }
 
   .settings-page .module-view-title > div > span {
-    font-size: 34px !important;
+    font-size: 28px !important;
   }
 }
 

@@ -128,6 +128,19 @@ func TestProjectResourceAPIs(t *testing.T) {
 		t.Fatalf("unexpected updated project: %#v", project)
 	}
 
+	r = httptest.NewRequest(http.MethodPost, "/api/projects/"+project.ID+"/pin", bytes.NewReader([]byte(`{"pinned":true}`)))
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("pin project status %d: %s", w.Code, w.Body.String())
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &project); err != nil {
+		t.Fatal(err)
+	}
+	if !project.Pinned {
+		t.Fatalf("project was not pinned: %#v", project)
+	}
+
 	r = httptest.NewRequest(http.MethodPost, "/api/sessions", bytes.NewReader([]byte(`{"project_id":"`+project.ID+`"}`)))
 	w = httptest.NewRecorder()
 	routes.ServeHTTP(w, r)
@@ -152,7 +165,7 @@ func TestProjectResourceAPIs(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &projectList); err != nil {
 		t.Fatal(err)
 	}
-	if projectList.SessionCount != 1 || projectList.PlainSessionCount != 0 || len(projectList.Projects) != 1 || projectList.Projects[0].SessionCount != 1 {
+	if projectList.SessionCount != 1 || projectList.PlainSessionCount != 0 || len(projectList.Projects) != 1 || projectList.Projects[0].SessionCount != 1 || !projectList.Projects[0].Pinned {
 		t.Fatalf("unexpected project session counts: %#v", projectList)
 	}
 

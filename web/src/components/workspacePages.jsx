@@ -24,12 +24,22 @@ function closeDetailsAndRun(event, action) {
   action();
 }
 
+async function togglePinned(api, type, item, apply, showToast) {
+  try {
+    const data = await api('/api/' + type + '/' + encodeURIComponent(item.id) + '/pin', {method: 'POST', body: JSON.stringify({pinned: !item.pinned})});
+    await apply(data);
+  } catch (error) {
+    showToast('置顶操作失败：' + error.message, 'error');
+  }
+}
+
 export function WorkspacePage(props) {
   if (props.page === 'scheduled-tasks') return <ScheduledTasksPage {...props} />;
   return <ProjectsPage {...props} />;
 }
 
-function ProjectsPage({ closeWorkspacePage, deleteProject, editProject, openProjectSessions, projectPromptPreview, projects, projectSessionCounts, showProjectPromptPreview }) {
+function ProjectsPage({ api, closeWorkspacePage, deleteProject, editProject, loadProjects, openProjectSessions, projectPromptPreview, projects, projectSessionCounts, showProjectPromptPreview, showToast }) {
+  const pinProject = project => togglePinned(api, 'projects', project, loadProjects, showToast);
   return <section className="workspace-page projects-page">
     <PageHeader
       eyebrow="Workspace / Projects"
@@ -46,8 +56,9 @@ function ProjectsPage({ closeWorkspacePage, deleteProject, editProject, openProj
       </div>
       <div className="workspace-section-head"><div><span>项目列表</span><p>选择项目进入对应会话，或在这里维护项目提示词。</p></div></div>
       <div className="workspace-card-grid">
-        {projects.length ? projects.map(project => <article key={project.id} className="workspace-card project-workspace-card">
-          <header><div><span>Project</span><h2>{project.name}</h2></div><div className="project-card-actions"><em>{projectSessionCounts?.byProject?.[project.id] || 0} 会话</em><details className="workspace-more-menu project-mobile-menu"><summary aria-label="更多项目操作" title="更多操作"><MoreHorizontal size={17} aria-hidden="true" /></summary><div>
+        {projects.length ? projects.map(project => <article key={project.id} className={'workspace-card project-workspace-card ' + (project.pinned ? 'pinned' : '')}>
+          <header><div><span>Project</span><h2>{project.name}</h2></div><div className="project-card-actions"><em>{projectSessionCounts?.byProject?.[project.id] || 0} 会话</em><details className="workspace-more-menu"><summary aria-label="更多项目操作" title="更多操作"><MoreHorizontal size={17} aria-hidden="true" /></summary><div>
+            <button type="button" onClick={event => closeDetailsAndRun(event, () => pinProject(project))}>{project.pinned ? '取消置顶' : '置顶项目'}</button>
             <button type="button" onClick={event => closeDetailsAndRun(event, () => editProject(project))}>编辑项目</button>
             <button type="button" onClick={event => closeDetailsAndRun(event, () => showProjectPromptPreview(project.id))}>预览 Prompt</button>
             <button type="button" className="danger" onClick={event => closeDetailsAndRun(event, () => deleteProject(project))}>删除项目</button>
@@ -56,9 +67,6 @@ function ProjectsPage({ closeWorkspacePage, deleteProject, editProject, openProj
           <div className="workspace-card-meta">ID：{project.id}</div>
           <footer>
             <button type="button" onClick={() => openProjectSessions(project.id)}>查看会话</button>
-            <button type="button" className="secondary" onClick={() => editProject(project)}>编辑</button>
-            <button type="button" className="secondary" onClick={() => showProjectPromptPreview(project.id)}>预览 Prompt</button>
-            <button type="button" className="danger" onClick={() => deleteProject(project)}>删除</button>
           </footer>
         </article>) : <div className="workspace-empty"><b>还没有项目</b><span>普通会话不需要项目；需要固定上下文时再创建。</span></div>}
       </div>
@@ -71,14 +79,15 @@ function scheduledTaskContextLabel(mode) {
   return ({stateless: '每次独立执行', last_result: '带上次结果', session: '连续会话'})[mode] || '每次独立执行';
 }
 
-function ScheduledTaskCard({ task, deleteScheduledTask, editScheduledTask, openScheduledTaskSession, openTaskSessions, runScheduledTaskNow, toggleScheduledTask }) {
+function ScheduledTaskCard({ task, deleteScheduledTask, editScheduledTask, openScheduledTaskSession, openTaskSessions, pinScheduledTask, runScheduledTaskNow, toggleScheduledTask }) {
   const prompt = (task.prompt || '').trim().slice(0, 180) || '无提示内容';
-  return <article className="workspace-card scheduled-task-workspace-card">
+  return <article className={'workspace-card scheduled-task-workspace-card ' + (task.pinned ? 'pinned' : '')}>
     <header>
       <div><span>Scheduled Task</span><h2>{task.title || '未命名任务'}</h2></div>
       <div className="scheduled-task-card-actions">
         <em className={'badge ' + taskStatusClass(task)}>{taskStatusLabel(task)}</em>
         <details className="workspace-more-menu"><summary aria-label="更多任务操作" title="更多操作"><MoreHorizontal size={17} aria-hidden="true" /></summary><div>
+          <button type="button" onClick={event => closeDetailsAndRun(event, () => pinScheduledTask(task))}>{task.pinned ? '取消置顶' : '置顶任务'}</button>
           {task.session_id ? <button type="button" onClick={event => closeDetailsAndRun(event, () => openScheduledTaskSession(task.session_id))}>打开最近会话</button> : null}
           <button type="button" onClick={event => closeDetailsAndRun(event, () => editScheduledTask(task.id))}>编辑任务</button>
           <button type="button" className="danger" onClick={event => closeDetailsAndRun(event, () => deleteScheduledTask(task.id))}>删除任务</button>
@@ -115,10 +124,11 @@ function ScheduledSessionList({ onBack, onOpen, rows, task }) {
   </section>;
 }
 
-function ScheduledTasksPage({ api, closeWorkspacePage, deleteScheduledTask, editScheduledTask, loadScheduledTasks, openScheduledTaskSession, runScheduledTaskNow, scheduledTasks, setTaskSearch, taskSearch, toggleScheduledTask }) {
+function ScheduledTasksPage({ api, closeWorkspacePage, deleteScheduledTask, editScheduledTask, loadScheduledTasks, openScheduledTaskSession, runScheduledTaskNow, scheduledTasks, setScheduledTasks, setTaskSearch, showToast, taskSearch, toggleScheduledTask }) {
   const [sessionTask, setSessionTask] = useState(null);
   const [sessionRuns, setSessionRuns] = useState([]);
   const requestRef = useRef(0);
+  const pinScheduledTask = task => togglePinned(api, 'scheduled-tasks', task, data => setScheduledTasks(data.tasks || []), showToast);
   const query = taskSearch.trim().toLowerCase();
   const filteredTasks = query ? scheduledTasks.filter(task => [task.title, task.prompt, task.last_status, task.last_error].some(value => String(value || '').toLowerCase().includes(query))) : scheduledTasks;
   const loadTaskSessions = async task => {
@@ -156,7 +166,7 @@ function ScheduledTasksPage({ api, closeWorkspacePage, deleteScheduledTask, edit
       /> : <>
         <div className="workspace-list-toolbar"><div><span>任务列表</span><p>搜索标题、提示词或运行状态。</p></div><input className="workspace-search" placeholder="搜索定时任务" value={taskSearch} onChange={event => setTaskSearch(event.target.value)} /></div>
         <div className="workspace-card-grid scheduled-task-grid">
-          {filteredTasks.length ? filteredTasks.map(task => <ScheduledTaskCard key={task.id} task={task} deleteScheduledTask={deleteScheduledTask} editScheduledTask={editScheduledTask} openScheduledTaskSession={openScheduledTaskSession} openTaskSessions={loadTaskSessions} runScheduledTaskNow={runScheduledTaskNow} toggleScheduledTask={toggleScheduledTask} />) : <div className="workspace-empty"><b>{taskSearch.trim() ? '没有匹配任务' : '还没有定时任务'}</b><span>{taskSearch.trim() ? '换个关键词再试。' : '创建任务后可按一次、间隔或日历计划自动运行。'}</span></div>}
+          {filteredTasks.length ? filteredTasks.map(task => <ScheduledTaskCard key={task.id} task={task} deleteScheduledTask={deleteScheduledTask} editScheduledTask={editScheduledTask} openScheduledTaskSession={openScheduledTaskSession} openTaskSessions={loadTaskSessions} pinScheduledTask={pinScheduledTask} runScheduledTaskNow={runScheduledTaskNow} toggleScheduledTask={toggleScheduledTask} />) : <div className="workspace-empty"><b>{taskSearch.trim() ? '没有匹配任务' : '还没有定时任务'}</b><span>{taskSearch.trim() ? '换个关键词再试。' : '创建任务后可按一次、间隔或日历计划自动运行。'}</span></div>}
         </div>
       </>}
     </div>

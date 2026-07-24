@@ -186,16 +186,8 @@
     font-size: 12px;
   }
 
-  .project-mobile-menu {
-    display: block;
-  }
-
   .project-workspace-card > footer > button:first-child {
     width: 100%;
-  }
-
-  .project-workspace-card > footer > :is(.secondary, .danger) {
-    display: none;
   }
 
   .scheduled-task-workspace-card > footer {

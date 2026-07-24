@@ -77,9 +77,9 @@ func upsertScheduledTaskTx(tx sqlWriter, task model.ScheduledTask) error {
 	if err != nil {
 		return fmt.Errorf("encode scheduled task cron expressions: %w", err)
 	}
-	_, err = tx.Exec(`INSERT INTO scheduled_tasks(id, title, task_prompt, enabled, running, schedule_type, run_at, cron_expressions, timezone, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id) DO UPDATE SET title = excluded.title, task_prompt = excluded.task_prompt, enabled = excluded.enabled, running = excluded.running, schedule_type = excluded.schedule_type, run_at = excluded.run_at, cron_expressions = excluded.cron_expressions, timezone = excluded.timezone, interval_minutes = excluded.interval_minutes, context_mode = excluded.context_mode, next_run_at = excluded.next_run_at, last_run_at = excluded.last_run_at, last_status = excluded.last_status, last_error = excluded.last_error, session_id = excluded.session_id, created_at = excluded.created_at, updated_at = excluded.updated_at`,
-		task.ID, task.Title, task.Prompt, boolInt(task.Enabled), boolInt(task.Running), task.ScheduleType, formatOptionalTime(task.RunAt), string(cronExpressions), task.Timezone, task.IntervalMinutes, task.ContextMode, formatScheduleDBTime(task.NextRunAt), formatOptionalTime(task.LastRunAt), task.LastStatus, task.LastError, task.SessionID, formatScheduleDBTime(task.CreatedAt), formatScheduleDBTime(task.UpdatedAt))
+	_, err = tx.Exec(`INSERT INTO scheduled_tasks(id, title, task_prompt, pinned, enabled, running, schedule_type, run_at, cron_expressions, timezone, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET title = excluded.title, task_prompt = excluded.task_prompt, pinned = excluded.pinned, enabled = excluded.enabled, running = excluded.running, schedule_type = excluded.schedule_type, run_at = excluded.run_at, cron_expressions = excluded.cron_expressions, timezone = excluded.timezone, interval_minutes = excluded.interval_minutes, context_mode = excluded.context_mode, next_run_at = excluded.next_run_at, last_run_at = excluded.last_run_at, last_status = excluded.last_status, last_error = excluded.last_error, session_id = excluded.session_id, created_at = excluded.created_at, updated_at = excluded.updated_at`,
+		task.ID, task.Title, task.Prompt, boolInt(task.Pinned), boolInt(task.Enabled), boolInt(task.Running), task.ScheduleType, formatOptionalTime(task.RunAt), string(cronExpressions), task.Timezone, task.IntervalMinutes, task.ContextMode, formatScheduleDBTime(task.NextRunAt), formatOptionalTime(task.LastRunAt), task.LastStatus, task.LastError, task.SessionID, formatScheduleDBTime(task.CreatedAt), formatScheduleDBTime(task.UpdatedAt))
 	return err
 }
 
@@ -93,7 +93,7 @@ ON CONFLICT(id) DO UPDATE SET task_id = excluded.task_id, task_title = excluded.
 }
 
 func loadScheduledTasksLocked(reader sqlQueryer) ([]model.ScheduledTask, error) {
-	rows, err := reader.Query(`SELECT id, title, task_prompt, enabled, running, schedule_type, run_at, cron_expressions, timezone, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks`)
+	rows, err := reader.Query(`SELECT id, title, task_prompt, pinned, enabled, running, schedule_type, run_at, cron_expressions, timezone, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks`)
 	if err != nil {
 		return nil, err
 	}
@@ -119,14 +119,15 @@ func scanScheduledTasks(rows *sql.Rows) ([]model.ScheduledTask, error) {
 
 func scanScheduledTask(scanner interface{ Scan(...any) error }) (model.ScheduledTask, error) {
 	var task model.ScheduledTask
-	var enabled, running int
+	var pinned, enabled, running int
 	var runAt, cronExpressions, nextRunAt, lastRunAt, createdAt, updatedAt string
-	if err := scanner.Scan(&task.ID, &task.Title, &task.Prompt, &enabled, &running, &task.ScheduleType, &runAt, &cronExpressions, &task.Timezone, &task.IntervalMinutes, &task.ContextMode, &nextRunAt, &lastRunAt, &task.LastStatus, &task.LastError, &task.SessionID, &createdAt, &updatedAt); err != nil {
+	if err := scanner.Scan(&task.ID, &task.Title, &task.Prompt, &pinned, &enabled, &running, &task.ScheduleType, &runAt, &cronExpressions, &task.Timezone, &task.IntervalMinutes, &task.ContextMode, &nextRunAt, &lastRunAt, &task.LastStatus, &task.LastError, &task.SessionID, &createdAt, &updatedAt); err != nil {
 		return model.ScheduledTask{}, err
 	}
 	if err := json.Unmarshal([]byte(cronExpressions), &task.CronExpressions); err != nil {
 		return model.ScheduledTask{}, fmt.Errorf("decode scheduled task %s cron expressions: %w", task.ID, err)
 	}
+	task.Pinned = pinned != 0
 	task.Enabled = enabled != 0
 	task.Running = running != 0
 	task.RunAt = parseOptionalDBTime(runAt)

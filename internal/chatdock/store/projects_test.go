@@ -122,6 +122,49 @@ func TestProjectListIncludesExactSessionCounts(t *testing.T) {
 	}
 }
 
+func TestPinProjectPersistsAndSortsPinnedFirst(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	first, err := store.CreateProject(model.CreateProjectRequest{Name: "先创建"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := store.CreateProject(model.CreateProjectRequest{Name: "后创建"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pinned, err := store.PinProject(first.ID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pinned.Pinned {
+		t.Fatal("project was not pinned")
+	}
+
+	result, err := store.ListProjects()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Projects) != 2 || result.Projects[0].ID != first.ID || !result.Projects[0].Pinned {
+		t.Fatalf("projects = %#v, pinned project should be first", result.Projects)
+	}
+	if result.Projects[1].ID != second.ID || result.Projects[1].Pinned {
+		t.Fatalf("second project = %#v", result.Projects[1])
+	}
+
+	unpinned, err := store.PinProject(first.ID, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unpinned.Pinned {
+		t.Fatal("project remained pinned")
+	}
+}
+
 func assertSQLiteForeignKeysClean(t *testing.T, store *Store) {
 	t.Helper()
 	rows, err := store.db.Query(`PRAGMA foreign_key_check`)

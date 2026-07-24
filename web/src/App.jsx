@@ -1199,8 +1199,9 @@ export default function App() {
       <Sidebar
         busy={busy} current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} goHome={goHome}
         hasMoreSessions={visibleSessionsHasMore} loadingMoreSessions={visibleSessionsLoadingMore} newSession={newSession}
-        onLoadMoreSessions={loadMoreVisibleSessions} openSession={openSession} openWorkspacePage={openWorkspacePage}
+        onLoadMoreSessions={loadMoreVisibleSessions} openProjectSessions={openProjectSessions} openSession={openSession} openWorkspacePage={openWorkspacePage}
         pinSessionByID={pinSessionByID} projects={projects} projectFilter={projectFilter} renameSessionByID={renameSessionByID}
+        scheduledTasks={scheduledTasks} setTaskSearch={setTaskSearch}
         sessionMenuID={sessionMenuID} sessionSearch={sessionSearch} sessionSearchBusy={sessionSearchBusy}
         setSessionMenuID={setSessionMenuID} setSessionSearch={setSessionSearch}
         setSidebarCollapsed={setSidebarCollapsed} sidebarCollapsed={sidebarCollapsed} workspacePage={workspacePage}
@@ -1209,9 +1210,9 @@ export default function App() {
         {workspacePage ? <Suspense fallback={<div className="empty compact" role="status">正在加载工作区…</div>}><WorkspacePage
           api={api} page={workspacePage} closeWorkspacePage={closeWorkspacePage}
           projects={projects} projectSessionCounts={projectSessionCounts} editProject={editProject} deleteProject={deleteProject}
-          showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} openProjectSessions={openProjectSessions}
+          showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} openProjectSessions={openProjectSessions} loadProjects={loadProjects}
           scheduledTasks={scheduledTasks} taskSearch={taskSearch} setTaskSearch={setTaskSearch}
-          editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} toggleScheduledTask={toggleScheduledTask}
+          editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} setScheduledTasks={setScheduledTasks} showToast={showToast} toggleScheduledTask={toggleScheduledTask}
           runScheduledTaskNow={runScheduledTaskNow} openScheduledTaskSession={openScheduledTaskSession}
           loadScheduledTasks={loadScheduledTasks}
         /></Suspense> : <>

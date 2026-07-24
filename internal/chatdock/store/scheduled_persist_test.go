@@ -138,6 +138,52 @@ END`); err != nil {
 	}
 }
 
+func TestPinScheduledTaskPersistsAndSurvivesEditing(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	created, err := store.CreateScheduledTask(model.ScheduledTaskRequest{
+		Title: "置顶任务", Prompt: "执行", Enabled: true,
+		ScheduleType: scheduleTypeInterval, IntervalMinutes: 30,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(created.Tasks) != 1 {
+		t.Fatalf("created tasks = %#v", created.Tasks)
+	}
+	id := created.Tasks[0].ID
+	pinned, err := store.PinScheduledTask(id, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pinned.Tasks) != 1 || !pinned.Tasks[0].Pinned {
+		t.Fatalf("pinned tasks = %#v", pinned.Tasks)
+	}
+
+	updated, err := store.UpdateScheduledTask(id, model.ScheduledTaskRequest{
+		Title: "置顶任务已编辑", Prompt: "继续执行", Enabled: true,
+		ScheduleType: scheduleTypeInterval, IntervalMinutes: 60,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(updated.Tasks) != 1 || !updated.Tasks[0].Pinned {
+		t.Fatalf("editing lost pinned state: %#v", updated.Tasks)
+	}
+
+	reloaded, err := store.ListScheduledTasks()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reloaded.Tasks) != 1 || !reloaded.Tasks[0].Pinned {
+		t.Fatalf("reloaded tasks = %#v", reloaded.Tasks)
+	}
+}
+
 func TestFinishScheduledTaskRunRollsBackSessionAndTaskTogether(t *testing.T) {
 	store, err := NewStore(t.TempDir())
 	if err != nil {

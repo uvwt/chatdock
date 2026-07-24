@@ -102,6 +102,10 @@ type PinSessionRequest struct {
 	Pinned bool `json:"pinned"`
 }
 
+type PinRequest struct {
+	Pinned bool `json:"pinned"`
+}
+
 // UpdateSessionModelRequest 保存当前会话最后一次选择的模型。
 type UpdateSessionModelRequest struct {
 	ProviderID string `json:"provider_id,omitempty"`

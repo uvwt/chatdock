@@ -43,6 +43,19 @@ func TestScheduledTasksAPI(t *testing.T) {
 		t.Fatalf("update scheduled task status %d: %s", w.Code, w.Body.String())
 	}
 
+	r = httptest.NewRequest(http.MethodPost, "/api/scheduled-tasks/"+id+"/pin", bytes.NewReader([]byte(`{"pinned":true}`)))
+	w = httptest.NewRecorder()
+	routes.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("pin scheduled task status %d: %s", w.Code, w.Body.String())
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Tasks) != 1 || !result.Tasks[0].Pinned {
+		t.Fatalf("scheduled task was not pinned: %#v", result)
+	}
+
 	r = httptest.NewRequest(http.MethodDelete, "/api/scheduled-tasks/"+id, nil)
 	w = httptest.NewRecorder()
 	routes.ServeHTTP(w, r)

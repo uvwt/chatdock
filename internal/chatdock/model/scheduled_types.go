@@ -12,6 +12,7 @@ type ScheduledTask struct {
 	ID              string     `json:"id"`
 	Title           string     `json:"title"`
 	Prompt          string     `json:"prompt"`
+	Pinned          bool       `json:"pinned"`
 	Enabled         bool       `json:"enabled"`
 	ScheduleType    string     `json:"schedule_type"`
 	RunAt           *time.Time `json:"run_at,omitempty"`

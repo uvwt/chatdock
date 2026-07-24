@@ -38,7 +38,7 @@ func (s *Store) CreateProject(input model.CreateProjectRequest) (model.Project, 
 	project := model.Project{ID: model.NewID(), Name: name, Prompt: strings.TrimSpace(input.Prompt), CreatedAt: now, UpdatedAt: now}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, err := s.db.Exec(`INSERT INTO projects(id, name, prompt, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`, project.ID, project.Name, project.Prompt, formatDBTime(project.CreatedAt), formatDBTime(project.UpdatedAt)); err != nil {
+	if _, err := s.db.Exec(`INSERT INTO projects(id, name, prompt, pinned, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?)`, project.ID, project.Name, project.Prompt, boolInt(project.Pinned), formatDBTime(project.CreatedAt), formatDBTime(project.UpdatedAt)); err != nil {
 		return model.Project{}, err
 	}
 	return project, nil
@@ -57,6 +57,34 @@ func (s *Store) UpdateProject(id string, input model.UpdateProjectRequest) (mode
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	result, err := s.db.Exec(`UPDATE projects SET name = ?, prompt = ?, updated_at = ? WHERE id = ?`, name, strings.TrimSpace(input.Prompt), formatDBTime(now), id)
+	if err != nil {
+		return model.Project{}, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return model.Project{}, err
+	}
+	if affected == 0 {
+		return model.Project{}, fmt.Errorf("%w: %s", model.ErrProjectNotFound, id)
+	}
+	project, ok, err := projectByIDWith(s.db, id)
+	if err != nil {
+		return model.Project{}, err
+	}
+	if !ok {
+		return model.Project{}, fmt.Errorf("%w: %s", model.ErrProjectNotFound, id)
+	}
+	return project, nil
+}
+
+func (s *Store) PinProject(id string, pinned bool) (model.Project, error) {
+	id, err := normalizeProjectID(id)
+	if err != nil {
+		return model.Project{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	result, err := s.db.Exec(`UPDATE projects SET pinned = ? WHERE id = ?`, boolInt(pinned), id)
 	if err != nil {
 		return model.Project{}, err
 	}
@@ -123,11 +151,11 @@ func projectCountWith(reader sqlQueryer) (int, error) {
 
 func listProjectsWith(reader sqlQueryer) ([]model.ProjectSummary, error) {
 	rows, err := reader.Query(`
-		SELECT p.id, p.name, p.prompt, p.created_at, p.updated_at, COUNT(s.id)
+		SELECT p.id, p.name, p.prompt, p.pinned, p.created_at, p.updated_at, COUNT(s.id)
 		FROM projects p
 		LEFT JOIN sessions s ON s.project_id = p.id
-		GROUP BY p.id, p.name, p.prompt, p.created_at, p.updated_at
-		ORDER BY p.updated_at DESC, p.name ASC`)
+		GROUP BY p.id, p.name, p.prompt, p.pinned, p.created_at, p.updated_at
+		ORDER BY p.pinned DESC, p.updated_at DESC, p.name ASC`)
 	if err != nil {
 		return nil, err
 	}
@@ -135,10 +163,12 @@ func listProjectsWith(reader sqlQueryer) ([]model.ProjectSummary, error) {
 	projects := []model.ProjectSummary{}
 	for rows.Next() {
 		var summary model.ProjectSummary
+		var pinned int
 		var createdAt, updatedAt string
-		if err := rows.Scan(&summary.ID, &summary.Name, &summary.Prompt, &createdAt, &updatedAt, &summary.SessionCount); err != nil {
+		if err := rows.Scan(&summary.ID, &summary.Name, &summary.Prompt, &pinned, &createdAt, &updatedAt, &summary.SessionCount); err != nil {
 			return nil, err
 		}
+		summary.Pinned = pinned != 0
 		summary.CreatedAt = parseDBTimeZero(createdAt)
 		summary.UpdatedAt = parseDBTimeZero(updatedAt)
 		projects = append(projects, summary)
@@ -156,14 +186,16 @@ func projectSessionCountsWith(reader sqlQueryer) (int, int, error) {
 
 func projectByIDWith(reader sqlQueryer, id string) (model.Project, bool, error) {
 	var project model.Project
+	var pinned int
 	var createdAt, updatedAt string
-	err := reader.QueryRow(`SELECT id, name, prompt, created_at, updated_at FROM projects WHERE id = ?`, id).Scan(&project.ID, &project.Name, &project.Prompt, &createdAt, &updatedAt)
+	err := reader.QueryRow(`SELECT id, name, prompt, pinned, created_at, updated_at FROM projects WHERE id = ?`, id).Scan(&project.ID, &project.Name, &project.Prompt, &pinned, &createdAt, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return model.Project{}, false, nil
 	}
 	if err != nil {
 		return model.Project{}, false, err
 	}
+	project.Pinned = pinned != 0
 	project.CreatedAt = parseDBTimeZero(createdAt)
 	project.UpdatedAt = parseDBTimeZero(updatedAt)
 	return project, true, nil
@@ -184,10 +216,12 @@ func projectExistsWith(reader sqlQueryer, id string) (bool, error) {
 
 func scanProject(scanner interface{ Scan(...any) error }) (model.Project, error) {
 	var project model.Project
+	var pinned int
 	var createdAt, updatedAt string
-	if err := scanner.Scan(&project.ID, &project.Name, &project.Prompt, &createdAt, &updatedAt); err != nil {
+	if err := scanner.Scan(&project.ID, &project.Name, &project.Prompt, &pinned, &createdAt, &updatedAt); err != nil {
 		return model.Project{}, err
 	}
+	project.Pinned = pinned != 0
 	project.CreatedAt = parseDBTimeZero(createdAt)
 	project.UpdatedAt = parseDBTimeZero(updatedAt)
 	return project, nil

@@ -390,11 +390,18 @@ body.theme-light #app.app main::before {
   overscroll-behavior: contain;
 }
 
-#app.app .sidebar-pinned-list {
+#app.app .sidebar-pinned-list,
+#app.app .sidebar-workspace-list {
   display: grid;
   gap: 2px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--gpt-border);
+}
+
+#app.app #sessions .sidebar-link {
+  width: 100%;
+  font: inherit;
+  text-align: left;
 }
 
 #app.app #sessions .session {
@@ -426,13 +433,7 @@ body.theme-light #app.app main::before {
   background: var(--gpt-accent);
 }
 
-#app.app #sessions .sidebar-hub-row {
-  width: 100%;
-  font: inherit;
-  text-align: left;
-}
-
-#app.app #sessions .sidebar-hub-row .session-main {
+#app.app #sessions .sidebar-link .session-main {
   padding-right: 0;
 }
 

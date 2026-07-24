@@ -58,6 +58,9 @@ func (s *Store) saveScheduledTasksLocked(tasks []model.ScheduledTask) error {
 
 func sortScheduledTasks(tasks []model.ScheduledTask) {
 	sort.SliceStable(tasks, func(i, j int) bool {
+		if tasks[i].Pinned != tasks[j].Pinned {
+			return tasks[i].Pinned
+		}
 		if tasks[i].Enabled != tasks[j].Enabled {
 			return tasks[i].Enabled
 		}

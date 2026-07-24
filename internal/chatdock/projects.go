@@ -50,6 +50,24 @@ func (a *App) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, project)
 }
 
+func (a *App) handlePinProject(w http.ResponseWriter, r *http.Request) {
+	var input model.PinRequest
+	if err := readJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	project, err := a.store.PinProject(r.PathValue("id"), input.Pinned)
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, model.ErrProjectNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err)
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, project)
+}
+
 func (a *App) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 	ok, err := a.store.DeleteProject(r.PathValue("id"))
 	if err != nil {

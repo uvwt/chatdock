@@ -33,14 +33,8 @@ test('projects a full session into a compact list summary', () => {
     id: 'session-1',
     title: '分页会话',
     pinned: true,
-    provider_id: '',
-    model: '',
     project_id: '',
-    preview: '最新 回复',
-    last_role: 'assistant',
-    created_at: undefined,
     updated_at: undefined,
-    count: 1,
   });
 });
 
