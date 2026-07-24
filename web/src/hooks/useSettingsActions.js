@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { cronScheduleFormValue, cronSchedulePayload, defaultRunAtValue, fmtTime } from '../lib/appUtils.js';
-import { scheduledTaskRunsText } from '../lib/chatPresentation.js';
 import {
   createModelProvider as createModelProviderRequest,
   createProject as createProjectRequest,
@@ -9,7 +8,6 @@ import {
   deleteScheduledTaskRecord,
   fetchProviderModels as fetchProviderModelsRequest,
   fetchProjectPromptPreview,
-  fetchScheduledTaskRuns,
   initializeSetup,
   runScheduledTask,
   saveGlobalConfig,
@@ -351,30 +349,6 @@ export function useSettingsActions({
     } catch (e) { showToast('打开运行会话失败：' + e.message, 'error'); }
   }, [openSession, showToast]);
 
-  const viewScheduledTaskRuns = useCallback(async (id) => {
-    const existing = scheduledTasks.find(task => task.id === id);
-    if (!existing) return;
-    try {
-      const data = await fetchScheduledTaskRuns(api, id);
-      const runs = data.runs || [];
-      await showDialog({
-        title: '运行记录 · ' + (existing.title || '定时任务'),
-        confirmText: '关闭',
-        hideCancel: true,
-        fields: [{
-          name: 'runs',
-          label: runs.length ? runs.length + ' 条运行记录' : '暂无运行记录',
-          type: 'textarea',
-          rows: 16,
-          value: scheduledTaskRunsText(existing, runs),
-        }],
-      });
-    } catch (error) {
-      showToast('读取运行记录失败：' + error.message, 'error');
-    }
-  }, [api, scheduledTasks, showDialog, showToast]);
-
-
   const runScheduledTaskNow = useCallback(async (id) => {
     const existing = scheduledTasks.find(t => t.id === id);
     if (!existing) return;
@@ -416,6 +390,5 @@ export function useSettingsActions({
     testModelProvider,
     testSavedModelProvider,
     toggleScheduledTask,
-    viewScheduledTaskRuns,
   };
 }

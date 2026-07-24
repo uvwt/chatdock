@@ -382,6 +382,70 @@
   font-size: 18px;
 }
 
+.scheduled-session-view {
+  margin-top: 42px;
+}
+
+.scheduled-session-toolbar {
+  align-items: center;
+  flex-direction: row-reverse;
+  margin: 0 0 16px;
+}
+
+.scheduled-session-toolbar > button:first-child {
+  min-height: 40px;
+}
+
+.scheduled-session-list {
+  display: grid;
+  gap: 10px;
+}
+
+.scheduled-session-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  min-height: 78px;
+  padding: 16px 18px;
+  border: 1px solid var(--gpt-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--gpt-surface) 96%, transparent);
+  color: var(--gpt-text);
+  text-align: left;
+  box-shadow: 0 12px 36px rgba(19, 52, 35, .045);
+}
+
+.scheduled-session-row:hover {
+  border-color: color-mix(in srgb, var(--gpt-accent) 36%, var(--gpt-border));
+  background: var(--gpt-accent-soft);
+}
+
+.scheduled-session-copy {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.scheduled-session-copy b {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 680;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scheduled-session-copy small {
+  color: var(--gpt-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.scheduled-session-row > em {
+  margin: 0;
+  font-style: normal;
+}
+
 @media (max-width: 900px) {
   .workspace-page-header {
     grid-template-columns: 40px minmax(0, 1fr);

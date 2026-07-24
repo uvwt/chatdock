@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useRef, useState } from 'react';
 import { ArrowLeft, MoreHorizontal, Plus, RefreshCw } from './icons.js';
-import { scheduleSummary, taskStatusClass, taskStatusLabel } from '../lib/appUtils.js';
+import { fmtTime, runStatusClass, runStatusLabel, scheduleSummary, taskStatusClass, taskStatusLabel } from '../lib/appUtils.js';
+import { fetchScheduledTaskRuns } from '../lib/settingsApi.js';
+import { scheduledTaskSessionRows } from '../lib/sessionPresentation.js';
 import '../styles/workspace-pages.css';
 import '../styles/workspace-pages-mobile.css';
 
@@ -69,7 +71,7 @@ function scheduledTaskContextLabel(mode) {
   return ({stateless: '每次独立执行', last_result: '带上次结果', session: '连续会话'})[mode] || '每次独立执行';
 }
 
-function ScheduledTaskCard({ task, deleteScheduledTask, editScheduledTask, openScheduledTaskSession, runScheduledTaskNow, toggleScheduledTask, viewScheduledTaskRuns }) {
+function ScheduledTaskCard({ task, deleteScheduledTask, editScheduledTask, openScheduledTaskSession, openTaskSessions, runScheduledTaskNow, toggleScheduledTask }) {
   const prompt = (task.prompt || '').trim().slice(0, 180) || '无提示内容';
   return <article className="workspace-card scheduled-task-workspace-card">
     <header>
@@ -93,16 +95,43 @@ function ScheduledTaskCard({ task, deleteScheduledTask, editScheduledTask, openS
     <footer>
       <label className="workspace-toggle"><input type="checkbox" checked={!!task.enabled} onChange={event => toggleScheduledTask(task.id, event.target.checked)} /><span>启用</span></label>
       <button type="button" className="secondary" disabled={task.running} onClick={() => runScheduledTaskNow(task.id)}>立即运行</button>
-      <button type="button" className="secondary" onClick={() => viewScheduledTaskRuns(task.id)}>运行记录</button>
+      <button type="button" className="secondary" onClick={() => openTaskSessions(task)}>会话记录</button>
     </footer>
   </article>;
 }
 
-function ScheduledTasksPage({ closeWorkspacePage, deleteScheduledTask, editScheduledTask, loadScheduledTasks, openScheduledTaskSession, runScheduledTaskNow, scheduledTasks, setTaskSearch, taskSearch, toggleScheduledTask, viewScheduledTaskRuns }) {
-  const filteredTasks = useMemo(() => {
-    const query = taskSearch.trim().toLowerCase();
-    return query ? scheduledTasks.filter(task => [task.title, task.prompt, task.last_status, task.last_error].some(value => String(value || '').toLowerCase().includes(query))) : scheduledTasks;
-  }, [scheduledTasks, taskSearch]);
+function ScheduledSessionList({ onBack, onOpen, rows, task }) {
+  return <section className="scheduled-session-view">
+    <div className="workspace-list-toolbar scheduled-session-toolbar">
+      <button type="button" className="secondary" onClick={onBack}>返回任务</button>
+      <div><span>{task.title} · 会话记录</span><p>{rows === null ? '正在读取会话' : rows === false ? '读取失败' : rows.length + ' 个运行会话'}</p></div>
+    </div>
+    {rows === null ? <div className="workspace-empty"><b>正在读取会话</b></div> : rows === false ? <div className="workspace-empty"><b>会话读取失败</b></div> : rows.length ? <div className="scheduled-session-list">
+      {rows.map(row => <button type="button" key={row.session_id} className="scheduled-session-row" onClick={() => onOpen(row.session_id)}>
+        <span className="scheduled-session-copy"><b>{row.session_title || row.task_title}</b><small>{fmtTime(row.started_at)} · {row.manual ? '手动运行' : '自动运行'}</small></span>
+        <em className={'badge ' + runStatusClass(row.status)}>{runStatusLabel(row.status)}</em>
+      </button>)}
+    </div> : <div className="workspace-empty"><b>还没有运行会话</b></div>}
+  </section>;
+}
+
+function ScheduledTasksPage({ api, closeWorkspacePage, deleteScheduledTask, editScheduledTask, loadScheduledTasks, openScheduledTaskSession, runScheduledTaskNow, scheduledTasks, setTaskSearch, taskSearch, toggleScheduledTask }) {
+  const [sessionTask, setSessionTask] = useState(null);
+  const [sessionRuns, setSessionRuns] = useState([]);
+  const requestRef = useRef(0);
+  const query = taskSearch.trim().toLowerCase();
+  const filteredTasks = query ? scheduledTasks.filter(task => [task.title, task.prompt, task.last_status, task.last_error].some(value => String(value || '').toLowerCase().includes(query))) : scheduledTasks;
+  const loadTaskSessions = async task => {
+    const request = ++requestRef.current;
+    setSessionTask(task);
+    setSessionRuns(null);
+    try {
+      const data = await fetchScheduledTaskRuns(api, task.id);
+      if (request === requestRef.current) setSessionRuns(scheduledTaskSessionRows(data.runs || []));
+    } catch {
+      if (request === requestRef.current) setSessionRuns(false);
+    }
+  };
   const enabled = scheduledTasks.filter(task => task.enabled).length;
   const running = scheduledTasks.filter(task => task.running).length;
   const failed = scheduledTasks.filter(task => task.last_status === 'failed').length;
@@ -121,10 +150,15 @@ function ScheduledTasksPage({ closeWorkspacePage, deleteScheduledTask, editSched
         <SummaryCard label="运行中" value={running} />
         <SummaryCard label="失败" value={failed} />
       </div>
-      <div className="workspace-list-toolbar"><div><span>任务列表</span><p>搜索标题、提示词或运行状态。</p></div><input className="workspace-search" placeholder="搜索定时任务" value={taskSearch} onChange={event => setTaskSearch(event.target.value)} /></div>
-      <div className="workspace-card-grid scheduled-task-grid">
-        {filteredTasks.length ? filteredTasks.map(task => <ScheduledTaskCard key={task.id} task={task} deleteScheduledTask={deleteScheduledTask} editScheduledTask={editScheduledTask} openScheduledTaskSession={openScheduledTaskSession} runScheduledTaskNow={runScheduledTaskNow} toggleScheduledTask={toggleScheduledTask} viewScheduledTaskRuns={viewScheduledTaskRuns} />) : <div className="workspace-empty"><b>{taskSearch.trim() ? '没有匹配任务' : '还没有定时任务'}</b><span>{taskSearch.trim() ? '换个关键词再试。' : '创建任务后可按一次、间隔或日历计划自动运行。'}</span></div>}
-      </div>
+      {sessionTask ? <ScheduledSessionList
+        task={sessionTask} rows={sessionRuns} onBack={() => { requestRef.current++; setSessionTask(null); }}
+        onOpen={openScheduledTaskSession}
+      /> : <>
+        <div className="workspace-list-toolbar"><div><span>任务列表</span><p>搜索标题、提示词或运行状态。</p></div><input className="workspace-search" placeholder="搜索定时任务" value={taskSearch} onChange={event => setTaskSearch(event.target.value)} /></div>
+        <div className="workspace-card-grid scheduled-task-grid">
+          {filteredTasks.length ? filteredTasks.map(task => <ScheduledTaskCard key={task.id} task={task} deleteScheduledTask={deleteScheduledTask} editScheduledTask={editScheduledTask} openScheduledTaskSession={openScheduledTaskSession} openTaskSessions={loadTaskSessions} runScheduledTaskNow={runScheduledTaskNow} toggleScheduledTask={toggleScheduledTask} />) : <div className="workspace-empty"><b>{taskSearch.trim() ? '没有匹配任务' : '还没有定时任务'}</b><span>{taskSearch.trim() ? '换个关键词再试。' : '创建任务后可按一次、间隔或日历计划自动运行。'}</span></div>}
+        </div>
+      </>}
     </div>
   </section>;
 }

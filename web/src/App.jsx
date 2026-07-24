@@ -1082,7 +1082,6 @@ export default function App() {
     testModelProvider,
     testSavedModelProvider,
     toggleScheduledTask,
-    viewScheduledTaskRuns,
   } = useSettingsActions({
     api,
     busy,
@@ -1208,13 +1207,13 @@ export default function App() {
       />
       <main>
         {workspacePage ? <Suspense fallback={<div className="empty compact" role="status">正在加载工作区…</div>}><WorkspacePage
-          page={workspacePage} closeWorkspacePage={closeWorkspacePage}
+          api={api} page={workspacePage} closeWorkspacePage={closeWorkspacePage}
           projects={projects} projectSessionCounts={projectSessionCounts} editProject={editProject} deleteProject={deleteProject}
           showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} openProjectSessions={openProjectSessions}
           scheduledTasks={scheduledTasks} taskSearch={taskSearch} setTaskSearch={setTaskSearch}
           editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} toggleScheduledTask={toggleScheduledTask}
-          runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns}
-          openScheduledTaskSession={openScheduledTaskSession} loadScheduledTasks={loadScheduledTasks}
+          runScheduledTaskNow={runScheduledTaskNow} openScheduledTaskSession={openScheduledTaskSession}
+          loadScheduledTasks={loadScheduledTasks}
         /></Suspense> : <>
           <Topbar
             busy={busy} cloneCurrent={cloneCurrent} copyCurrentMarkdown={copyCurrentMarkdown} current={current}
