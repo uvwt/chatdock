@@ -64,4 +64,135 @@
     visibility: visible !important;
     opacity: 1 !important;
   }
+
+  body.theme-light #app.app,
+  body.theme-light #app.app main,
+  body.theme-light #app.app .messages {
+    background: #fff !important;
+  }
+
+  body.theme-light #app.app main::before {
+    opacity: 0 !important;
+  }
+
+  #app.app aside {
+    border-right: 0 !important;
+    background: #fff !important;
+    box-shadow: 12px 0 32px rgba(15, 23, 42, .10) !important;
+  }
+
+  #app.app .sidebar-head {
+    min-height: 58px !important;
+    padding: 4px 4px 12px !important;
+    border: 0 !important;
+  }
+
+  #app.app .brand {
+    gap: 0 !important;
+    padding-left: 4px;
+  }
+
+  #app.app .brand-text {
+    color: #1f2937 !important;
+    font-size: 20px !important;
+    font-weight: 760 !important;
+    letter-spacing: -.045em !important;
+  }
+
+  #app.app .brand .sub {
+    color: #9ca3af !important;
+    font-size: 8px !important;
+    letter-spacing: .15em !important;
+  }
+
+  #app.app .sidebar-toggle {
+    position: relative;
+    z-index: 2;
+    width: 40px !important;
+    height: 40px !important;
+    border: 1px solid rgba(15, 23, 42, .08) !important;
+    border-radius: 10px !important;
+    background: #fff !important;
+    color: #4b5563 !important;
+    box-shadow: none !important;
+  }
+
+  #app.app .topbar {
+    height: 64px !important;
+    min-height: 64px !important;
+    padding: 10px 12px !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  #app.app .topbar .top-left {
+    display: flex !important;
+    max-width: none !important;
+  }
+
+  #app.app .topbar-title-wrap {
+    display: none !important;
+  }
+
+  #app.app .mobile-menu {
+    display: inline-grid !important;
+    width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    border: 1px solid rgba(15, 23, 42, .08) !important;
+    border-radius: 10px !important;
+    background: #fff !important;
+    color: #4b5563 !important;
+    box-shadow: none !important;
+  }
+
+  #app.app .top-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 2px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  #app.app .top-actions > button,
+  #app.app .top-actions > .task-panel-toggle {
+    width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    background: transparent !important;
+    color: #4b5563 !important;
+    box-shadow: none !important;
+  }
+
+  #app.app .top-actions > button:active,
+  #app.app .top-actions > .task-panel-toggle:active,
+  #app.app .top-actions > .task-panel-toggle.active {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+  }
+
+  #app.app .task-panel-toggle-count {
+    background: #111827 !important;
+    color: #fff !important;
+    box-shadow: none !important;
+  }
+
+  #app.app .sidebar-tree-session-menu,
+  #app.app .session-menu-trigger {
+    opacity: 1 !important;
+  }
+
+  #app.app .execution-summary,
+  #app.app .execution-summary::before {
+    border: 0 !important;
+  }
 }

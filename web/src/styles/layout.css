@@ -75,9 +75,9 @@
     body.theme-light input { background: #ffffff; color: #0f172a; border-color: #cbd5e1; }
     body.theme-light .session { border-color: #e2e8f0; color: #334155; }
     body.theme-light .session:hover,
-    body.theme-light .session.active { background: #dbeafe; color: #1e3a8a; }
+    body.theme-light .session.active { background: #f3f4f6; color: #111827; }
     body.theme-light .assistant { background: #ffffff; border-color: #dbe3ee; box-shadow: 0 8px 24px rgba(15, 23, 42, .05); }
-    body.theme-light .user { background: #2563eb; color: #ffffff; }
+    body.theme-light .user { background: #111827; color: #ffffff; }
     body.theme-light .reasoning { background: #f1f5f9; color: #475569; border-left-color: #94a3b8; }
     body.theme-light .reasoning-title { color: #334155; }
     body.theme-light .markdown h1,

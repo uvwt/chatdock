@@ -31,32 +31,32 @@ body:not(.theme-light) {
 }
 
 body.theme-light {
-  --mobile-bg: #f8f7f4;
-  --mobile-panel: #ece9e4;
-  --mobile-panel-translucent: rgba(248, 247, 244, .96);
-  --mobile-panel-soft: #f1efeb;
-  --mobile-panel-raised: #fffefd;
-  --mobile-hover: #e2ded8;
-  --mobile-text: #211f29;
-  --mobile-text-strong: #17151d;
-  --mobile-muted: #6e6978;
-  --mobile-muted-weak: #918b99;
-  --mobile-border: rgba(41, 36, 56, .10);
-  --mobile-border-strong: rgba(41, 36, 56, .17);
-  --mobile-shadow-soft: 0 8px 24px rgba(50, 42, 78, .08);
-  --mobile-shadow-raised: 0 22px 60px rgba(50, 42, 78, .18);
-  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(248, 247, 244, .95) 34%, #f8f7f4);
-  --mobile-accent-panel: rgba(111, 92, 232, .12);
-  --mobile-accent-soft: rgba(111, 92, 232, .12);
-  --mobile-accent-text: #5845c8;
-  --mobile-accent-solid: #6f5ce8;
+  --mobile-bg: #ffffff;
+  --mobile-panel: #ffffff;
+  --mobile-panel-translucent: rgba(255, 255, 255, .96);
+  --mobile-panel-soft: #f8fafc;
+  --mobile-panel-raised: #ffffff;
+  --mobile-hover: #f1f5f9;
+  --mobile-text: #111111;
+  --mobile-text-strong: #000000;
+  --mobile-muted: #4b5563;
+  --mobile-muted-weak: #9ca3af;
+  --mobile-border: rgba(15, 23, 42, .08);
+  --mobile-border-strong: rgba(15, 23, 42, .15);
+  --mobile-shadow-soft: 0 8px 24px rgba(15, 23, 42, .07);
+  --mobile-shadow-raised: 0 24px 60px rgba(15, 23, 42, .16);
+  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(255, 255, 255, .96) 34%, #ffffff);
+  --mobile-accent-panel: #f3f4f6;
+  --mobile-accent-soft: #f3f4f6;
+  --mobile-accent-text: #111827;
+  --mobile-accent-solid: #374151;
   --mobile-accent-contrast: #ffffff;
-  --mobile-accent-shadow: 0 12px 28px rgba(95, 75, 218, .20);
-  --mobile-overlay: rgba(31, 27, 43, .42);
-  --mobile-danger-soft: #fde7e9;
-  --mobile-danger-border: #f5c4ca;
-  --mobile-danger-text: #a83e4a;
-  --mobile-action-bg: #6f5ce8;
+  --mobile-accent-shadow: none;
+  --mobile-overlay: rgba(15, 23, 42, .22);
+  --mobile-danger-soft: #fef2f2;
+  --mobile-danger-border: #fecaca;
+  --mobile-danger-text: #b91c1c;
+  --mobile-action-bg: #111827;
   --mobile-action-text: #ffffff;
 }
 

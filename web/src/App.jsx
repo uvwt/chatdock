@@ -214,7 +214,7 @@ export default function App() {
     loadMoreSearchSessions,
     upsertSession,
     removeSession,
-  } = useSessionList(api, projectFilter);
+  } = useSessionList(api, 'plain');
 
   const {
     setupStatus,
@@ -418,8 +418,11 @@ export default function App() {
   }, [settingsOpen, activeModule, loadMCPStatus, loadDataStatus, loadSystemStatus, showToast]);
 
   const setSidebarCollapsed = useCallback((value) => {
-    setSidebarCollapsedState(value);
-    localStorage.setItem('chatdock.sidebarCollapsed', value ? '1' : '0');
+    setSidebarCollapsedState(current => {
+      const next = typeof value === 'function' ? value(current) : value;
+      localStorage.setItem('chatdock.sidebarCollapsed', next ? '1' : '0');
+      return next;
+    });
   }, []);
 
   const closeSidebarOnMobile = useCallback(() => {
@@ -567,10 +570,15 @@ export default function App() {
       setProjectFilter(s.project_id || 'plain');
     } catch (e) {
       if (sessionOpenSeqRef.current !== seq) return;
-      setMessages([{ role: 'empty', content: '会话加载失败：' + e.message }]);
-      showToast('会话加载失败：' + e.message, 'error');
+      if (e?.status === 404) {
+        goHome();
+        showToast('会话已删除', 'error');
+        return false;
+      }
+      setMessages([{ role: 'empty', content: e.message }]);
+      showToast(e.message, 'error');
     }
-  }, [api, applySessionModel, busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, messages.length, resetMessageAutoFollow, setProjectFilter, showToast, upsertSession]);
+  }, [api, applySessionModel, busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, goHome, messages.length, resetMessageAutoFollow, setProjectFilter, showToast, upsertSession]);
 
   const newSession = useCallback(async () => { await createSession(); }, [createSession]);
 

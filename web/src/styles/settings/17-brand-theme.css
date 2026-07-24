@@ -232,7 +232,7 @@
   border-radius: 14px !important;
   background: var(--gpt-surface) !important;
   color: var(--gpt-text) !important;
-  box-shadow: 0 8px 28px rgba(19, 52, 35, .045) !important;
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--palette-ink) 4.5%, transparent) !important;
   transition: border-color .2s ease, box-shadow .2s ease !important;
 }
 
@@ -266,7 +266,7 @@ body:not(.theme-light) .settings-page :is(.model-quick-head span, .product-meta,
 .settings-page .task-card:hover {
   transform: none;
   border-color: var(--gpt-border-strong) !important;
-  box-shadow: 0 10px 32px rgba(19, 52, 35, .07) !important;
+  box-shadow: 0 10px 32px color-mix(in srgb, var(--palette-ink) 7%, transparent) !important;
 }
 
 body .settings-page [data-module-view="projects"] #projectCards .product-card.active,
@@ -275,7 +275,7 @@ body .settings-page [data-module-view="providers"] .product-card.active,
 .settings-page .provider-grid .product-card.active {
   border-color: color-mix(in srgb, var(--gpt-accent) 44%, var(--gpt-border)) !important;
   background: color-mix(in srgb, var(--gpt-accent) 7%, var(--gpt-surface)) !important;
-  box-shadow: inset 3px 0 0 var(--gpt-accent), 0 8px 28px rgba(19, 52, 35, .06) !important;
+  box-shadow: inset 3px 0 0 var(--gpt-accent), 0 8px 28px color-mix(in srgb, var(--palette-ink) 6%, transparent) !important;
 }
 
 .settings-page .model-option.active,

@@ -66,43 +66,6 @@
   background: var(--gpt-surface-2);
 }
 
-#app.app .execution-summary {
-  border-top: 1px solid var(--gpt-border);
-  border-bottom: 1px solid var(--gpt-border);
-  background: transparent;
-}
-
-#app.app .execution-summary-trigger,
-#app.app .tool-step-row {
-  background: transparent;
-  color: var(--gpt-muted);
-}
-
-#app.app .execution-summary-trigger:hover:not(:disabled),
-#app.app .tool-step-row:hover:not(:disabled) {
-  background: var(--gpt-accent-soft);
-  color: var(--gpt-text);
-}
-
-#app.app .execution-summary-icon,
-#app.app .tool-step-icon {
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--gpt-border-strong);
-  background: var(--gpt-surface-2);
-  color: var(--gpt-accent);
-  box-shadow: none;
-}
-
-#app.app .execution-summary-chevron {
-  display: inline-grid;
-  place-items: center;
-}
-
-#app.app .execution-summary.is-open .execution-summary-chevron {
-  transform: rotate(90deg);
-}
-
 #app.app .attachment-icon {
   display: inline-grid;
   place-items: center;

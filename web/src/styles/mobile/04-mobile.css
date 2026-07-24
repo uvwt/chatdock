@@ -111,7 +111,7 @@
   }
 
   aside .new {
-    background: linear-gradient(135deg, #2563eb, #0f6bff) !important;
+    background: #111827 !important;
     border-color: transparent !important;
     color: #ffffff !important;
   }
@@ -149,7 +149,7 @@
   aside .session.active {
     border-color: var(--mobile-border-strong) !important;
     background: var(--mobile-accent-panel) !important;
-    box-shadow: inset 3px 0 0 #2563eb !important;
+    box-shadow: inset 3px 0 0 #6b7280 !important;
   }
 
   aside .session-title {

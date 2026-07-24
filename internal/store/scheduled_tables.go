@@ -94,7 +94,9 @@ ON CONFLICT(id) DO UPDATE SET task_id = excluded.task_id, task_title = excluded.
 }
 
 func loadScheduledTasksLocked(reader sqlQueryer) ([]model.ScheduledTask, error) {
-	rows, err := reader.Query(`SELECT id, title, task_prompt, pinned, enabled, running, schedule_type, run_at, cron_expressions, timezone, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error, session_id, created_at, updated_at FROM scheduled_tasks`)
+	rows, err := reader.Query(`SELECT id, title, task_prompt, pinned, enabled, running, schedule_type, run_at, cron_expressions, timezone, interval_minutes, context_mode, next_run_at, last_run_at, last_status, last_error,
+		CASE WHEN EXISTS (SELECT 1 FROM sessions WHERE sessions.id = scheduled_tasks.session_id) THEN session_id ELSE '' END,
+		created_at, updated_at FROM scheduled_tasks`)
 	if err != nil {
 		return nil, err
 	}

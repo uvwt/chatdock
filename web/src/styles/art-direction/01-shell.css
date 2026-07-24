@@ -490,6 +490,44 @@ body.theme-light #app.app main::before {
   box-shadow: inset 2px 0 0 var(--gpt-accent);
 }
 
+#app.app .sidebar-tree-session-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  align-items: center;
+  min-width: 0;
+  border-radius: 8px;
+}
+
+#app.app .sidebar-tree-session-row .sidebar-tree-session {
+  width: 100%;
+  padding-right: 4px;
+}
+
+#app.app .sidebar-tree-session-menu {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--gpt-muted-2);
+  opacity: 0;
+  transition: opacity .16s ease, background .16s ease, color .16s ease;
+}
+
+#app.app .sidebar-tree-session-row:hover .sidebar-tree-session-menu,
+#app.app .sidebar-tree-session-row:focus-within .sidebar-tree-session-menu {
+  opacity: 1;
+}
+
+#app.app .sidebar-tree-session-menu:hover {
+  background: var(--gpt-sidebar-hover);
+  color: var(--gpt-text);
+}
+
 #app.app .sidebar-tree-more > summary {
   color: var(--gpt-muted-2);
   cursor: pointer;

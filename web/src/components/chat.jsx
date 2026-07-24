@@ -1,12 +1,9 @@
 // Chat workbench, message rendering, empty state, and attachment chips.
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Check,
   ChevronDown,
-  CircleX,
   Copy,
   GitBranch,
-  LoaderCircle,
   MoreHorizontal,
   Paperclip,
   Pencil,
@@ -50,18 +47,17 @@ export function AttachmentList({ attachments, removable = false, onRemove, onDow
 }
 
 function toolEventStatus(event) {
-  if (event.phase === 'running') return { icon: LoaderCircle, text: '运行中' };
-  if (event.phase === 'error') return { icon: CircleX, text: '失败' };
-  return { icon: Check, text: '完成' };
+  if (event.phase === 'running') return { icon: '\u25CB', text: '运行中' };
+  if (event.phase === 'error') return { icon: '\u00D7', text: '失败' };
+  return { icon: '\u2713', text: '完成' };
 }
 
 function ToolEventRow({ event, onInspectToolEvent }) {
   const status = toolEventStatus(event);
-  const StatusIcon = status.icon;
   const name = toolEventDisplayName(event);
   const meta = toolEventMetaText(event);
   return <button type="button" className={'tool-step-row ' + (event.phase ? 'phase-' + event.phase : '')} onClick={() => event.details ? onInspectToolEvent?.(event) : null} disabled={!event.details}>
-    <span className="tool-step-icon"><StatusIcon size={14} aria-hidden="true" /></span>
+    <span className="tool-step-icon">{status.icon}</span>
     <span className="tool-step-body">
       <span className="tool-step-name">{name}</span>
       {meta ? <span className="tool-step-meta">{meta}</span> : null}
@@ -95,9 +91,9 @@ function ExecutionBlock({ block, streaming = false, onInspectToolEvent }) {
     if (!streaming) setManuallyOpen(false);
   }, [streaming]);
 
-  const SummaryIcon = block.kind === 'reasoning'
-    ? LoaderCircle
-    : (summary.tone === 'running' ? LoaderCircle : (summary.tone === 'error' ? CircleX : Check));
+  const icon = block.kind === 'reasoning'
+    ? '\u2726'
+    : (summary.tone === 'running' ? '\u25CB' : (summary.tone === 'error' ? '!' : '\u2713'));
   const summaryLabel = [summary.label, summary.meta].filter(Boolean).join('，');
   return <section className={`execution-summary kind-${block.kind} tone-${summary.tone}${open ? ' is-open' : ''}`}>
     <button
@@ -107,7 +103,7 @@ function ExecutionBlock({ block, streaming = false, onInspectToolEvent }) {
       aria-expanded={open}
       aria-label={streaming ? `${summaryLabel}，流式详情已展开` : `${summaryLabel}，点击${open ? '收起' : '展开'}详情`}
     >
-      <span className="execution-summary-icon" aria-hidden="true"><SummaryIcon size={14} /></span>
+      <span className="execution-summary-icon" aria-hidden="true">{icon}</span>
       <span className="execution-summary-copy">
         <b>{summary.label}</b>
         {summary.meta ? <small>{summary.meta}</small> : null}

@@ -341,13 +341,7 @@ export function useSettingsActions({
     showToast('任务已删除', 'success');
   }, [api, scheduledTasks, showDialog, showToast]);
 
-  const openScheduledTaskSession = useCallback(async (sessionID) => {
-    const id = String(sessionID || '').trim();
-    if (!id) return;
-    try {
-      await openSession(id);
-    } catch (e) { showToast('打开运行会话失败：' + e.message, 'error'); }
-  }, [openSession, showToast]);
+  const openScheduledTaskSession = openSession;
 
   const runScheduledTaskNow = useCallback(async (id) => {
     const existing = scheduledTasks.find(t => t.id === id);
