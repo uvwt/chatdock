@@ -15,7 +15,6 @@ export { default as MoreHorizontal } from 'lucide-react/dist/esm/icons/more-hori
 export { default as Orbit } from 'lucide-react/dist/esm/icons/orbit.js';
 export { default as Paperclip } from 'lucide-react/dist/esm/icons/paperclip.js';
 export { default as Pencil } from 'lucide-react/dist/esm/icons/pencil.js';
-export { default as Pin } from 'lucide-react/dist/esm/icons/pin.js';
 export { default as Plus } from 'lucide-react/dist/esm/icons/plus.js';
 export { default as RefreshCw } from 'lucide-react/dist/esm/icons/refresh-cw.js';
 export { default as Search } from 'lucide-react/dist/esm/icons/search.js';

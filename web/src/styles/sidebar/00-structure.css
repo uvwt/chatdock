@@ -8,13 +8,10 @@
 }
 
 #app.app .sidebar-head,
-#app.app .session-search-row,
-#app.app .sidebar-hubs,
-#app.app aside > .sidebar-section-head {
+#app.app .session-search-row {
   flex: 0 0 auto;
 }
 
-#app.app .sidebar-hubs button,
 #app.app #sessions .session {
   min-width: 0;
 }
@@ -68,8 +65,6 @@
 
   #app.app.sidebar-collapsed .brand,
   #app.app.sidebar-collapsed .session-search-box,
-  #app.app.sidebar-collapsed .sidebar-hubs,
-  #app.app.sidebar-collapsed aside > .sidebar-section-head,
   #app.app.sidebar-collapsed .session-search-meta,
   #app.app.sidebar-collapsed #sessions {
     display: none;

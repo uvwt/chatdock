@@ -8,7 +8,6 @@ import {
   MoreHorizontal,
   Orbit,
   Paperclip,
-  Pin,
   Search,
   Settings2,
   Square,
@@ -141,6 +140,17 @@ export function Sidebar({ busy, current, deleteSessionByID, filteredSessions, go
     : projectFilter === 'plain'
       ? '普通会话'
       : ((projects || []).find(project => project.id === projectFilter)?.name || '项目会话');
+  const searchingSessions = !!sessionSearch.trim();
+  const pinnedSessions = searchingSessions ? [] : filteredSessions.filter(session => session.pinned);
+  const sessionRows = searchingSessions ? filteredSessions : filteredSessions.filter(session => !session.pinned);
+  const renderSession = session => {
+    const isActive = current === session.id;
+    const menuOpen = sessionMenuID === session.id;
+    return <div key={session.id} data-session-id={session.id} className={'session ' + (session.scheduled_run ? 'scheduled-run ' : '') + (isActive ? 'active ' : '') + (session.pinned ? 'pinned ' : '') + (menuOpen ? 'menu-open' : '')} onClick={() => openSession(session.id, session)}>
+      <div className="session-main"><div className="session-title">{session.title}</div>{session.scheduled_run ? null : (session.match_snippet ? <div className="session-preview search-hit">{session.match_field ? session.match_field + '：' : ''}{session.match_snippet}</div> : (session.preview ? <div className="session-preview">{session.preview}</div> : null))}{session.scheduled_run ? null : <div className="session-meta">{session.count} 条 · {fmtTime(session.updated_at)}</div>}</div>
+      <button type="button" className="session-menu-trigger icon-button" disabled={busy} onClick={event => toggleSessionMenu(event, session)} aria-label={(session.title || '会话') + ' 操作'} aria-expanded={menuOpen ? 'true' : 'false'} title="会话操作"><MoreHorizontal size={16} aria-hidden="true" /></button>
+    </div>;
+  };
 
   return <>
     <aside>
@@ -155,20 +165,19 @@ export function Sidebar({ busy, current, deleteSessionByID, filteredSessions, go
         <label className="session-search-box"><Search size={15} aria-hidden="true" /><input className="session-search" placeholder="搜索聊天记录" value={sessionSearch} onChange={event => setSessionSearch(event.target.value)} /></label>
         <button className="new icon-button" onClick={newSession} aria-label="新会话" title="新会话"><MessageSquarePlus {...iconProps} /></button>
       </div>
-      <nav className="sidebar-hubs" aria-label="工作区">
-        <button type="button" className={workspacePage === 'projects' ? 'active' : ''} onClick={() => openWorkspacePage('projects')}><span>项目</span><small>管理上下文</small></button>
-        <button type="button" className={workspacePage === 'scheduled-tasks' ? 'active' : ''} onClick={() => openWorkspacePage('scheduled-tasks')}><span>定时任务</span><small>管理自动执行</small></button>
-      </nav>
-      <div className="sidebar-section-head"><div className="sidebar-section-title">{sessionSectionTitle}</div></div>
-      {sessionSearch.trim() ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : (hasMoreSessions ? '全文搜索 · 已加载 ' : '全文搜索 ') + filteredSessions.length + ' 条'}</div> : null}
-      <div id="sessions" ref={sessionsRef} onScroll={handleSessionScroll}>{filteredSessions.length ? filteredSessions.map(session => {
-        const isActive = current === session.id;
-        const menuOpen = sessionMenuID === session.id;
-        return <div key={session.id} data-session-id={session.id} className={'session ' + (session.scheduled_run ? 'scheduled-run ' : '') + (isActive ? 'active ' : '') + (session.pinned ? 'pinned ' : '') + (menuOpen ? 'menu-open' : '')} onClick={() => openSession(session.id, session)}>
-          <div className="session-main"><div className="session-title">{session.pinned ? <Pin className="pin-mark" size={13} aria-label="置顶" /> : null}{session.title}</div>{session.scheduled_run ? null : (session.match_snippet ? <div className="session-preview search-hit">{session.match_field ? session.match_field + '：' : ''}{session.match_snippet}</div> : (session.preview ? <div className="session-preview">{session.preview}</div> : null))}{session.scheduled_run ? null : <div className="session-meta">{session.count} 条 · {fmtTime(session.updated_at)}</div>}</div>
-          <button type="button" className="session-menu-trigger icon-button" disabled={busy} onClick={event => toggleSessionMenu(event, session)} aria-label={(session.title || '会话') + ' 操作'} aria-expanded={menuOpen ? 'true' : 'false'} title="会话操作"><MoreHorizontal size={16} aria-hidden="true" /></button>
-        </div>;
-      }) : <div className="empty compact">{sessionSearch.trim() ? '没有匹配会话' : '暂无会话，开始新会话'}</div>}<div ref={loadMoreRef} style={{ minHeight: 1 }} aria-hidden="true" />{loadingMoreSessions ? <div className="session-search-meta" role="status">正在加载更多…</div> : null}</div>
+      <div id="sessions" ref={sessionsRef} onScroll={handleSessionScroll}>
+        <div className="sidebar-section-head"><div className="sidebar-section-title">置顶</div></div>
+        <div className="sidebar-pinned-list">
+          {pinnedSessions.map(renderSession)}
+          <button type="button" className={'session sidebar-hub-row ' + (workspacePage === 'projects' ? 'active' : '')} onClick={() => openWorkspacePage('projects')}><span className="session-main"><span className="session-title">项目</span></span></button>
+          <button type="button" className={'session sidebar-hub-row ' + (workspacePage === 'scheduled-tasks' ? 'active' : '')} onClick={() => openWorkspacePage('scheduled-tasks')}><span className="session-main"><span className="session-title">定时任务</span></span></button>
+        </div>
+        <div className="sidebar-section-head"><div className="sidebar-section-title">{sessionSectionTitle}</div></div>
+        {searchingSessions ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : (hasMoreSessions ? '全文搜索 · 已加载 ' : '全文搜索 ') + filteredSessions.length + ' 条'}</div> : null}
+        {sessionRows.length ? sessionRows.map(renderSession) : <div className="empty compact">{searchingSessions ? '没有匹配会话' : '暂无会话，开始新会话'}</div>}
+        <div ref={loadMoreRef} style={{ minHeight: 1 }} aria-hidden="true" />
+        {loadingMoreSessions ? <div className="session-search-meta" role="status">正在加载更多…</div> : null}
+      </div>
     </aside>
     {menu}
   </>;

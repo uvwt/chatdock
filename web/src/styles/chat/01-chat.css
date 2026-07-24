@@ -106,12 +106,6 @@ body.theme-light .quick-palette-item:not(:disabled):hover, body.theme-light .qui
   .composer-meta { margin: -4px 10px 8px; text-align: left; }
 }
 
-/* 会话置顶 */
-.session.pinned { border-left: 3px solid var(--primary); }
-.pin-mark { background:rgba(16,163,127,.18); color:#6ee7b7; }
-body.theme-light .pin-mark { background:#dff7ed; color:#0f766e; }
-
-
 .msg {
   max-width: var(--gpt-msg-width);
   margin: 0 auto 26px;

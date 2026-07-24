@@ -168,15 +168,6 @@
     display: none !important;
   }
 
-  aside .pin-mark {
-    padding: 1px 5px !important;
-    border-radius: 999px !important;
-    background: var(--mobile-accent-soft) !important;
-    color: var(--mobile-accent-text) !important;
-    font-size: 10px !important;
-    vertical-align: 1px;
-  }
-
   .msg.assistant,
   .msg.assistant.markdown {
     padding-left: 0 !important;
