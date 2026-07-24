@@ -435,6 +435,7 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
   const [formError, setFormError] = useState('');
   const [serverTools, setServerTools] = useState({});
   const [loadingTools, setLoadingTools] = useState({});
+  const [detail, setDetail] = useState('');
   const parsed = useMemo(() => parseMCPConfigDraft(mcpConfig), [mcpConfig]);
   const builtinDraft = builtinToolsToDraft(parsed.config.builtin_tools);
   const serverNames = Object.keys(parsed.config.servers || {}).sort();
@@ -481,6 +482,7 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
 
   function removeServer(name) {
     replaceConfig(next => { delete next.servers[name]; });
+    setDetail('');
   }
 
   function renameServer(oldName) {
@@ -497,6 +499,7 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
       next.servers = renamed;
     });
     setRenameDrafts(drafts => { const next = {...drafts}; delete next[oldName]; return next; });
+    setDetail(nextName);
     setFormError('已改名为 ' + nextName + '，记得保存 MCP 配置。');
   }
 
@@ -508,14 +511,8 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
     if (!String(newServer.url || '').trim() && !String(newServer.path || '').trim()) { setFormError('请填写 MCP HTTP 地址；Docker 部署访问本机服务通常用 http://host.docker.internal:18766/mcp。'); return; }
     replaceConfig(next => { next.servers[name] = cleanMCPServerDraft(newServer); });
     setNewServer(defaultMCPServerDraft());
-    setFormError('');
-  }
-
-  function serverStatusSummary(status) {
-    if (!status) return '未检测';
-    if (status.last_error) return status.last_error;
-    if (status.disabled) return '已禁用，不会参与模型工具调用。';
-    return 'allow ' + status.allow_count + ' · deny ' + status.deny_count + ' · confirm ' + status.confirm_count + ' · token ' + (status.has_token ? '已配置' : '无');
+    setDetail(name);
+    setFormError('已添加 ' + name + '，记得保存 MCP 配置。');
   }
 
   const renderServerForm = (name, server, isNew = false) => {
@@ -529,7 +526,7 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
     const tokenExpiry = mcpTokenExpiryState(draft.token);
     return <div className={'mcp-form-card ' + (isNew ? 'new-server' : '')} key={isNew ? 'new' : name}>
       <div className="mcp-form-head">
-        <div><b>{isNew ? '新增 MCP Server' : name}</b><div className="hint">{isNew ? '填地址即可，不需要手写 JSON。' : serverStatusSummary(status)}</div></div>
+        <div><b>{isNew ? '新增 MCP Server' : name}</b><div className="hint">{isNew ? '填地址即可，不需要手写 JSON。' : status?.last_error || (status?.disabled ? '已禁用' : status ? '状态已检测' : '未检测')}</div></div>
         {!isNew ? <div className="mcp-form-head-actions"><button className="secondary small" onClick={() => patchServer(name, {disabled: !draft.disabled})}>{draft.disabled ? '启用' : '禁用'}</button><button className="danger small" onClick={() => removeServer(name)}>删除</button></div> : null}
       </div>
       {isNew ? <label>Server 名称<input value={draft.name} onChange={e => setNewServer(s => ({...s, name: e.target.value}))} placeholder="例如 agentdock" /></label> : <label>Server 名称<div className="mcp-rename-row"><input value={serverNameDraft} onChange={e => setRenameDrafts(drafts => ({...drafts, [name]: e.target.value}))} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); renameServer(name); } }} placeholder="例如 agentdock" /><button type="button" className="secondary small" onClick={() => renameServer(name)} disabled={cleanMCPServerName(serverNameDraft) === name}>改名</button></div></label>}
@@ -567,24 +564,41 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
     </div>;
   };
 
+  const detailName = detail[0] !== '@' && parsed.config.servers?.[detail] ? detail : '';
+  const detailKind = detail === '@builtin' ? 'builtin' : detail === '@new' ? 'new' : detailName ? 'server' : '';
   return <>
-    <section className="settings-section mcp-overview-section builtin-tools-section">
-      <div className="settings-section-head"><div><b>ChatDock 内置工具</b><div className="hint">定时任务、图片和模型供应商工具</div></div></div>
-      <div className="builtin-default-exposure">
-        <div><b>默认加载方式</b><span>未单独设置的工具继承此方式</span></div>
-        <select aria-label="内置工具默认加载方式" value={builtinDraft.tool_exposure} onChange={e => patchBuiltinTools({tool_exposure: e.target.value})}><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select>
+    {detailKind ? <div className="mcp-detail-head"><button type="button" className="secondary small" onClick={() => setDetail('')}><ArrowLeft size={15} aria-hidden="true" />返回工具列表</button><b>{detailKind === 'builtin' ? 'ChatDock 内置工具' : detailKind === 'new' ? '新增 MCP Server' : detailName}</b></div> : null}
+    {detailKind === 'builtin' ? <section className="settings-section mcp-detail-section builtin-tools-section"><div className="builtin-default-exposure"><div><b>默认加载方式</b><span>未单独设置的工具继承此方式</span></div><select aria-label="内置工具默认加载方式" value={builtinDraft.tool_exposure} onChange={e => patchBuiltinTools({tool_exposure: e.target.value})}><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select></div><BuiltinToolExposurePicker draft={builtinDraft} tools={builtinTools || []} onChange={patchBuiltinTools} /></section> : null}
+    {detailKind === 'new' && !parsed.error ? <div className="mcp-form-list redesigned">{renderServerForm('', {}, true)}</div> : null}
+    {detailName ? <div className="mcp-form-list redesigned">{renderServerForm(detailName, parsed.config.servers[detailName])}</div> : null}
+    {!detailKind ? <section className="settings-section mcp-overview-section mcp-directory-section">
+      <div className="settings-section-head">
+        <div><b>工具资源</b><div className="hint">选择资源进入二级配置页面。</div></div>
+        <div className="mcp-directory-actions">
+          <button className="secondary small" onClick={() => loadMCPStatus?.()}>检测</button>
+          <button className="small" onClick={() => setDetail('@new')}>新增 Server</button>
+        </div>
       </div>
-      <BuiltinToolExposurePicker draft={builtinDraft} tools={builtinTools || []} onChange={patchBuiltinTools} />
-    </section>
-    <section className="settings-section mcp-overview-section mcp-status-section">
-      <div className="settings-section-head"><div><b>MCP Server</b><div className="hint">连接状态和工具权限</div></div><button className="secondary small mcp-detect-button" onClick={() => loadMCPStatus?.()}>检测</button></div>
-      <div id="mcpStatusCards" className="mcp-server-list">{mcpStatus.length ? mcpStatus.map(s => <div key={s.name} className="mcp-server-row"><div className="mcp-server-main"><b>{s.name}</b><span>{s.url || '未填写 HTTP 地址'}</span>{s.last_error ? <em>{s.last_error}</em> : null}</div><div className="mcp-server-meta"><span className={'badge ' + runStatusClass(s.last_status || 'unknown')}>{runStatusLabel(s.last_status || 'unknown')}</span><small>allow {s.allow_count} · deny {s.deny_count} · confirm {s.confirm_count}</small><button className="secondary small" onClick={() => testMCP(s.name)} disabled={s.disabled || !s.url}>测试</button></div></div>) : <div className="empty compact">尚未配置 MCP Server。</div>}</div>
-    </section>
-    {parsed.error ? <div className="backup-health warn">当前配置 JSON 损坏，表单无法解析：{parsed.error}。可以在下方高级区修复原始内容。</div> : null}
-    {!parsed.error ? <div className="mcp-form-list redesigned">{serverNames.length ? serverNames.map(name => renderServerForm(name, parsed.config.servers[name])) : <div className="empty compact">暂无 Server，先添加一个 HTTP MCP 地址。</div>}{renderServerForm('', {}, true)}</div> : null}
+      <div className="mcp-config-directory">
+        <button type="button" className="secondary mcp-config-directory-row" onClick={() => setDetail('@builtin')}>
+          <span><b>ChatDock 内置工具</b><small>定时任务、图片和供应商工具</small></span>
+          <em>{(builtinTools || []).length} 个 · 配置</em>
+        </button>
+        {serverNames.map(name => {
+          const server = parsed.config.servers[name];
+          const status = statusByName[name];
+          return <button type="button" className="secondary mcp-config-directory-row" key={name} onClick={() => setDetail(name)}>
+            <span><b>{name}</b><small>{server.url || '未填写 HTTP 地址'}</small></span>
+            <em className={'badge ' + runStatusClass(status?.last_status || 'unknown')}>{status?.last_status ? runStatusLabel(status.last_status) : '未检测'}</em>
+          </button>;
+        })}
+        {!serverNames.length ? <div className="empty compact">暂无 MCP Server。</div> : null}
+      </div>
+    </section> : null}
+    {parsed.error ? <div className="backup-health warn">当前配置 JSON 损坏：{parsed.error}</div> : null}
     {formError ? <div className="backup-health warn">{formError}</div> : null}
-    <div className="settings-actions mcp-primary-actions"><button className={mcpConfigDirty ? 'settings-inline-save-button dirty' : 'settings-inline-save-button'} onClick={() => saveMCPConfig?.()} disabled={!mcpConfigDirty || saving}>{saving ? '保存中…' : mcpConfigDirty ? '保存 MCP 更改' : 'MCP 已保存'}</button><button className="secondary" onClick={() => { if (!mcpConfigDirty || window.confirm('重新加载会丢弃尚未保存的 MCP 修改，确定继续吗？')) loadMCPConfig?.(); }}>重新加载</button><button className="secondary" onClick={() => testMCP()}>测试默认 MCP</button></div>
-    <details className="mcp-raw-json"><summary>高级：查看 / 编辑原始 JSON</summary><textarea className="mcp-editor" value={mcpConfig} onChange={e => setMcpConfig(e.target.value)} /></details>
+    <div className="settings-actions mcp-primary-actions"><button className={mcpConfigDirty ? 'settings-inline-save-button dirty' : 'settings-inline-save-button'} onClick={() => saveMCPConfig?.()} disabled={!mcpConfigDirty || saving}>{saving ? '保存中…' : mcpConfigDirty ? '保存 MCP 更改' : 'MCP 已保存'}</button><button className="secondary" onClick={() => { if (!mcpConfigDirty || window.confirm('重新加载会丢弃尚未保存的 MCP 修改，确定继续吗？')) { setDetail(''); loadMCPConfig?.(); } }}>重新加载</button></div>
+    {!detailKind ? <details className="mcp-raw-json"><summary>高级：查看 / 编辑原始 JSON</summary><textarea className="mcp-editor" value={mcpConfig} onChange={e => setMcpConfig(e.target.value)} /></details> : null}
   </>;
 }
 

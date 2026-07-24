@@ -370,6 +370,89 @@ body .settings-page [data-module-view="providers"] .product-card.active,
   content: none !important;
 }
 
+.settings-page .mcp-directory-section,
+.settings-page .mcp-detail-section,
+.settings-page .mcp-form-list.redesigned {
+  max-width: 920px;
+}
+
+.settings-page .mcp-directory-actions,
+.settings-page .mcp-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-page .mcp-config-directory {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.settings-page button.mcp-config-directory-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 18px !important;
+  width: 100% !important;
+  min-height: 68px !important;
+  padding: 12px 14px !important;
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 12px !important;
+  background: var(--gpt-surface-2) !important;
+  color: var(--gpt-text) !important;
+  box-shadow: none !important;
+  text-align: left !important;
+}
+
+.settings-page button.mcp-config-directory-row:hover {
+  border-color: var(--gpt-border-strong) !important;
+  background: var(--gpt-sidebar-hover) !important;
+}
+
+.settings-page .mcp-config-directory-row > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.settings-page .mcp-config-directory-row b {
+  overflow: hidden;
+  color: var(--gpt-text) !important;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-page .mcp-config-directory-row small,
+.settings-page .mcp-config-directory-row em {
+  overflow: hidden;
+  color: var(--gpt-muted) !important;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-page .mcp-detail-head {
+  align-items: flex-start;
+  max-width: 920px;
+  margin-bottom: 14px;
+}
+
+.settings-page .mcp-detail-head > b {
+  overflow: hidden;
+  color: var(--gpt-text) !important;
+  font-size: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-page .mcp-detail-head > button {
+  flex: 0 0 auto;
+}
+
 @media (max-width: 900px) {
   .settings-page {
     background: var(--gpt-bg) !important;
@@ -411,6 +494,27 @@ body .settings-page [data-module-view="providers"] .product-card.active,
 
   .settings-page .module-view-title > div > span {
     font-size: 28px !important;
+  }
+
+  .settings-page .mcp-directory-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .settings-page button.mcp-config-directory-row {
+    grid-template-columns: 1fr !important;
+    gap: 9px !important;
+    min-height: 78px !important;
+    padding: 12px !important;
+  }
+
+  .settings-page .mcp-detail-head {
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .settings-page .mcp-detail-head > b {
+    font-size: 15px;
   }
 }
 

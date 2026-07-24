@@ -87,3 +87,99 @@ func TestScheduledTaskRunListIncludesGeneratedSessionTitle(t *testing.T) {
 		t.Fatalf("scheduled run should expose generated session title: %#v", runs.Runs)
 	}
 }
+
+func TestScheduledTaskRunListMasksMissingSession(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	created, err := store.CreateScheduledTask(model.ScheduledTaskRequest{
+		Title:           "遗留运行记录",
+		Prompt:          "生成报告",
+		Enabled:         true,
+		ScheduleType:    scheduleTypeInterval,
+		IntervalMinutes: 30,
+		ContextMode:     model.ScheduledTaskContextStateless,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	startedAt := time.Now()
+	run, err := store.PrepareScheduledTaskRun(created.Tasks[0].ID, true, startedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.FinishScheduledTaskRun(run.Task.ID, run.RunID, run.SessionID, "报告完成", startedAt, true, nil, false); err != nil {
+		t.Fatal(err)
+	}
+	// 模拟历史数据：运行记录仍保留 session_id，但目标会话已不存在。
+	if _, err := store.db.Exec(`DELETE FROM sessions WHERE id = ?`, run.SessionID); err != nil {
+		t.Fatal(err)
+	}
+
+	runs, err := store.ListScheduledTaskRuns(run.Task.ID, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(runs.Runs) != 1 {
+		t.Fatalf("run history should be preserved: %#v", runs.Runs)
+	}
+	if runs.Runs[0].SessionID != "" || runs.Runs[0].SessionTitle != "" {
+		t.Fatalf("missing session must not be exposed as an actionable link: %#v", runs.Runs[0])
+	}
+}
+
+func TestDeleteSessionClearsScheduledTaskReferences(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	created, err := store.CreateScheduledTask(model.ScheduledTaskRequest{
+		Title:           "连续上下文任务",
+		Prompt:          "继续生成报告",
+		Enabled:         true,
+		ScheduleType:    scheduleTypeInterval,
+		IntervalMinutes: 30,
+		ContextMode:     model.ScheduledTaskContextSession,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	startedAt := time.Now()
+	run, err := store.PrepareScheduledTaskRun(created.Tasks[0].ID, true, startedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.FinishScheduledTaskRun(run.Task.ID, run.RunID, run.SessionID, "报告完成", startedAt, true, nil, false); err != nil {
+		t.Fatal(err)
+	}
+	deleted, err := store.DeleteSession(run.SessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !deleted {
+		t.Fatal("scheduled session should be deleted")
+	}
+
+	var taskSessionID, runSessionID string
+	if err := store.db.QueryRow(`SELECT session_id FROM scheduled_tasks WHERE id = ?`, run.Task.ID).Scan(&taskSessionID); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.db.QueryRow(`SELECT session_id FROM scheduled_task_runs WHERE id = ?`, run.RunID).Scan(&runSessionID); err != nil {
+		t.Fatal(err)
+	}
+	if taskSessionID != "" || runSessionID != "" {
+		t.Fatalf("deleted session references survived: task=%q run=%q", taskSessionID, runSessionID)
+	}
+	nextRun, err := store.PrepareScheduledTaskRun(run.Task.ID, true, time.Now().Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nextRun.SessionID == "" || nextRun.SessionID == run.SessionID {
+		t.Fatalf("continuous task should create a replacement session: old=%q new=%q", run.SessionID, nextRun.SessionID)
+	}
+}

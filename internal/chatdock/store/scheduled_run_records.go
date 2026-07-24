@@ -24,7 +24,13 @@ func (s *Store) ListScheduledTaskRuns(taskID string, limit int) (model.Scheduled
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	query := `SELECT ` + scheduledTaskRunColumns() + `,
+	query := `SELECT id, task_id, task_title, task_prompt, output, status, error, manual,
+		CASE WHEN EXISTS (
+			SELECT 1
+			FROM sessions
+			WHERE sessions.id = scheduled_task_runs.session_id
+		) THEN session_id ELSE '' END,
+		started_at, finished_at, duration_ms,
 		COALESCE((
 			SELECT title
 			FROM sessions

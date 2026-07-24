@@ -219,6 +219,13 @@ func (s *Store) DeleteSession(id string) (bool, error) {
 		return false, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	// 定时任务运行记录保留输出和状态，但会话删除后不能继续暴露失效链接。
+	if _, err := tx.Exec(`UPDATE scheduled_task_runs SET session_id = '' WHERE session_id = ?`, strings.TrimSpace(id)); err != nil {
+		return false, err
+	}
+	if _, err := tx.Exec(`UPDATE scheduled_tasks SET session_id = '' WHERE session_id = ?`, strings.TrimSpace(id)); err != nil {
+		return false, err
+	}
 	if _, err := tx.Exec(`DELETE FROM sessions WHERE id = ?`, strings.TrimSpace(id)); err != nil {
 		return false, err
 	}
