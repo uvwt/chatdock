@@ -205,15 +205,3 @@
   color: var(--gpt-text);
   box-shadow: 0 12px 34px rgba(0, 0, 0, .18);
 }
-
-#app.app .jump-latest-icon {
-  transform: rotate(180deg);
-}
-
-.auth-page .login-submit-arrow {
-  transform: rotate(90deg);
-}
-
-#app.app .icon-right {
-  transform: rotate(90deg);
-}

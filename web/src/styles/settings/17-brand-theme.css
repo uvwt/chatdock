@@ -131,7 +131,7 @@
 
 .settings-page .module-tab {
   display: grid !important;
-  grid-template-columns: 18px minmax(0, 1fr) auto !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
   align-items: center !important;
   gap: 9px !important;
   width: 100% !important;
@@ -150,20 +150,10 @@
   content: none !important;
 }
 
-.settings-page .module-tab svg {
-  color: var(--gpt-muted-2);
-  transition: color .2s ease, transform .2s var(--dock-ease);
-}
-
 .settings-page .module-tab:hover {
   border-color: var(--gpt-border) !important;
   background: var(--gpt-sidebar-hover) !important;
   color: var(--gpt-text) !important;
-}
-
-.settings-page .module-tab:hover svg {
-  transform: rotate(-5deg);
-  color: var(--gpt-text);
 }
 
 .settings-page .module-tab.active,
@@ -172,10 +162,6 @@
   background: var(--gpt-accent-soft) !important;
   color: var(--gpt-accent) !important;
   box-shadow: inset 2px 0 0 var(--gpt-accent) !important;
-}
-
-.settings-page .module-tab.active svg {
-  color: var(--gpt-accent);
 }
 
 .settings-page .module-tab-label {
@@ -201,18 +187,6 @@
   align-items: flex-start !important;
   gap: 14px !important;
   margin-bottom: 26px !important;
-}
-
-.settings-page .module-view-icon {
-  display: grid;
-  place-items: center;
-  flex: 0 0 42px;
-  width: 42px;
-  height: 42px;
-  border: 1px solid color-mix(in srgb, var(--gpt-accent) 32%, var(--gpt-border));
-  border-radius: 50%;
-  background: var(--gpt-accent-soft);
-  color: var(--gpt-accent);
 }
 
 .settings-page .module-view-title > div > span {
@@ -430,5 +404,5 @@ body .settings-page [data-module-view="providers"] .product-card.active,
 }
 
 .settings-page .settings-back-icon {
-  transform: rotate(-90deg);
+  transform: none;
 }

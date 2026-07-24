@@ -376,7 +376,7 @@ button svg {
 
 #app.app .project-nav-item {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -387,10 +387,6 @@ button svg {
   background: transparent;
   color: var(--gpt-muted);
   text-align: left;
-}
-
-#app.app .project-nav-item svg {
-  color: var(--gpt-muted-2);
 }
 
 #app.app .project-nav-item:hover,

@@ -97,11 +97,6 @@
   .messages {
     scroll-padding-top: 72px;
   }
-
-  .starter-card-arrow {
-    opacity: 1 !important;
-    transform: none !important;
-  }
 }
 
 
@@ -139,15 +134,6 @@
     min-height: 42px !important;
     padding: 0 13px !important;
     font-size: 12px !important;
-  }
-
-  .starter-grid { gap: 6px !important; }
-
-  .starter-card {
-    min-height: 76px !important;
-    padding: 10px !important;
-    border-radius: 14px !important;
-    gap: 12px !important;
   }
 
   .hero-trust-row { display: none !important; }

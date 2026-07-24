@@ -2,13 +2,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Check,
-  ArrowUp,
+  ChevronDown,
+  CircleX,
   Copy,
+  GitBranch,
+  LoaderCircle,
   MoreHorizontal,
-  Orbit,
   Paperclip,
   Pencil,
-  X,
+  Trash2,
 } from './icons.js';
 import { fmtBytes } from '../lib/appUtils.js';
 import { assistantMessageBlocks, executionBlockSummary, toolEventDisplayName, toolEventMetaText } from '../lib/messageExecution.js';
@@ -18,7 +20,7 @@ function MessageActions({ text, onCopy, onBranch, onEdit, user = false }) {
   return <div className={'msg-actions ' + (user ? 'user-message-actions' : '')}>
     <button type="button" className="secondary small msg-action-copy" onClick={() => onCopy(text)} aria-label={user ? '复制当前消息' : '复制当前回复'} title={user ? '复制当前消息' : '复制当前回复'}><Copy className="msg-action-icon" size={16} aria-hidden="true" /></button>
     {onEdit ? <button type="button" className="secondary small msg-action-edit" onClick={onEdit} aria-label="编辑当前消息" title="编辑当前消息"><Pencil className="msg-action-icon" size={16} aria-hidden="true" /></button> : null}
-    {onBranch ? <button type="button" className="secondary small msg-action-branch" onClick={onBranch} aria-label="在新聊天中创建分支对话" title="在新聊天中创建分支对话"><ArrowUp className="msg-action-icon icon-right" size={16} aria-hidden="true" /></button> : null}
+    {onBranch ? <button type="button" className="secondary small msg-action-branch" onClick={onBranch} aria-label="在新聊天中创建分支对话" title="在新聊天中创建分支对话"><GitBranch className="msg-action-icon" size={16} aria-hidden="true" /></button> : null}
     {!user ? <button type="button" className="secondary small msg-action-more" aria-label="更多操作" title="更多操作"><MoreHorizontal className="msg-action-icon" size={16} aria-hidden="true" /></button> : null}
   </div>;
 }
@@ -41,15 +43,15 @@ export function AttachmentList({ attachments, removable = false, onRemove, onDow
       return <div key={item.id || item.name} className={'attachment-chip ' + (item.error ? 'error ' : '') + (canDownload ? 'downloadable' : '')} onClick={download} role={canDownload ? 'button' : undefined} tabIndex={canDownload ? 0 : undefined} onKeyDown={e => { if (canDownload && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); download(); } }} title={canDownload ? '点击下载附件' : undefined}>
         <span className="attachment-icon"><Paperclip size={16} aria-hidden="true" /></span>
         <span className="attachment-main"><b>{item.name || '附件'}</b><span>{fmtBytes(item.size)} · {attachmentStatusLabel(item)}</span></span>
-        {removable ? <button className="attachment-remove icon-button" type="button" onClick={e => { e.stopPropagation(); onRemove?.(item.id); }} title="移除附件" aria-label="移除附件"><X size={14} aria-hidden="true" /></button> : null}
+        {removable ? <button className="attachment-remove icon-button" type="button" onClick={e => { e.stopPropagation(); onRemove?.(item.id); }} title="移除附件" aria-label="移除附件"><Trash2 size={14} aria-hidden="true" /></button> : null}
       </div>;
     })}
   </div>;
 }
 
 function toolEventStatus(event) {
-  if (event.phase === 'running') return { icon: Orbit, text: '运行中' };
-  if (event.phase === 'error') return { icon: X, text: '失败' };
+  if (event.phase === 'running') return { icon: LoaderCircle, text: '运行中' };
+  if (event.phase === 'error') return { icon: CircleX, text: '失败' };
   return { icon: Check, text: '完成' };
 }
 
@@ -94,8 +96,8 @@ function ExecutionBlock({ block, streaming = false, onInspectToolEvent }) {
   }, [streaming]);
 
   const SummaryIcon = block.kind === 'reasoning'
-    ? Orbit
-    : (summary.tone === 'running' ? Orbit : (summary.tone === 'error' ? X : Check));
+    ? LoaderCircle
+    : (summary.tone === 'running' ? LoaderCircle : (summary.tone === 'error' ? CircleX : Check));
   const summaryLabel = [summary.label, summary.meta].filter(Boolean).join('，');
   return <section className={`execution-summary kind-${block.kind} tone-${summary.tone}${open ? ' is-open' : ''}`}>
     <button
@@ -110,7 +112,7 @@ function ExecutionBlock({ block, streaming = false, onInspectToolEvent }) {
         <b>{summary.label}</b>
         {summary.meta ? <small>{summary.meta}</small> : null}
       </span>
-      <span className="execution-summary-chevron" aria-hidden="true"><ArrowUp className="icon-right" size={15} /></span>
+      <span className="execution-summary-chevron" aria-hidden="true"><ChevronDown className={open ? 'is-open' : ''} size={15} /></span>
     </button>
     {open ? <div className="execution-inline-detail">
       {events.length ? <div className="execution-inline-tools">{events.map((event, index) => <ToolEventRow key={event.callKey || event.id || index} event={event} onInspectToolEvent={onInspectToolEvent} />)}</div> : null}
@@ -235,12 +237,7 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEd
 
 export const MemoizedMessageView = React.memo(MessageView);
 
-export function EmptyState({ createSession, openSettings, openProjects, busy, hasProjects, setInput, modelReady }) {
-  const starters = [
-    { number: '01', tag: 'PLAN', title: '把需求拆清楚', text: '整理目标、步骤与关键风险。', prompt: '帮我把这个需求拆成可执行步骤，并指出主要风险：' },
-    { number: '02', tag: 'REVIEW', title: '检查项目状态', text: '找出最值得优先处理的问题。', prompt: '检查当前项目状态，找出最需要优先处理的问题。' },
-    { number: '03', tag: 'FLOW', title: '设计自动化流程', text: '规划触发、执行与失败处理。', prompt: '帮我设计一个自动化任务，包括触发方式、执行步骤和失败处理。' },
-  ];
+export function EmptyState({ createSession, openSettings, openProjects, busy, hasProjects, modelReady }) {
   return <div className="empty-state product-empty-state">
     <section className="product-hero">
       <div className="hero-ambient" aria-hidden="true">
@@ -249,23 +246,13 @@ export function EmptyState({ createSession, openSettings, openProjects, busy, ha
         <span className="hero-core"><i /></span>
       </div>
       <div className="hero-copy">
-        <div className="empty-state-kicker"><Orbit size={14} aria-hidden="true" /> ChatDock · AI Workspace</div>
+        <div className="empty-state-kicker">ChatDock · AI Workspace</div>
         <h1>把想法，<span>推进到完成。</span></h1>
         <p>在一个会话里串起模型、工具与任务。过程清晰，结果可追踪。</p>
         <div className="empty-state-actions hero-actions">
           <button disabled={busy || !modelReady} onClick={createSession}>{modelReady ? '开始对话' : '先配置模型'}</button>
           <button className="secondary" onClick={() => openSettings('model')}>{modelReady ? '配置模型' : '打开配置'}</button>
           <button className="secondary" disabled={!hasProjects || busy} onClick={openProjects}>项目</button>
-        </div>
-      </div>
-      <div className="starter-panel" aria-label="常用起始任务">
-        <div className="starter-panel-head"><div><small>START HERE</small><b>选择一个起点</b></div></div>
-        <div className="starter-grid">
-          {starters.map(item => <button key={item.title} type="button" className="starter-card" onClick={() => setInput(item.prompt)}>
-            <span className="starter-icon">{item.number}</span>
-            <span className="starter-card-copy"><small>{item.tag}</small><b>{item.title}</b><span>{item.text}</span></span>
-            <span className="starter-card-arrow" aria-hidden="true"><ArrowUp className="icon-right" size={17} /></span>
-          </button>)}
         </div>
       </div>
     </section>

@@ -1,10 +1,8 @@
 // Reusable shell components: product cards, modal, auth, and palette.
 import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
-  ArrowUp,
   Orbit,
   Search,
-  Settings2,
   X,
 } from './icons.js';
 import { ScheduleBuilder } from './scheduleBuilder.jsx';
@@ -88,25 +86,25 @@ export function LoginPage({ api, error, refreshAfterLogin, setAuthPage }) {
         <h1>工作流，<br /><span>不止对话。</span></h1>
         <p>把模型、工具、项目与自动化放进同一条可追踪的执行链。</p>
         <div className="auth-feature-grid">
-          <span><Settings2 size={16} />项目上下文</span>
-          <span><Orbit size={16} />模型路由</span>
-          <span><Settings2 size={16} />工具执行</span>
-          <span><Orbit size={16} />任务自动化</span>
+          <span>项目上下文</span>
+          <span>模型路由</span>
+          <span>工具执行</span>
+          <span>任务自动化</span>
         </div>
       </section>
       <form className="login-card" onSubmit={submit}>
         <div className="login-card-head">
           <div>
-            <div className="login-brand"><Orbit size={15} />Private access</div>
+            <div className="login-brand">Private access</div>
             <b>继续到你的工作台</b>
           </div>
           <span>Secure</span>
         </div>
         <div className="hint">{message}</div>
-        <label><span>账号</span><div className="login-input-wrap"><Orbit size={16} aria-hidden="true" /><input autoComplete="username" placeholder="输入账号" value={username} onChange={e => setUsername(e.target.value)} autoFocus /></div></label>
-        <label><span>密码</span><div className="login-input-wrap"><Orbit size={16} aria-hidden="true" /><input type="password" autoComplete="current-password" placeholder="输入密码" value={credential} onChange={e => setCredential(e.target.value)} /></div></label>
+        <label><span>账号</span><div className="login-input-wrap"><input autoComplete="username" placeholder="输入账号" value={username} onChange={e => setUsername(e.target.value)} autoFocus /></div></label>
+        <label><span>密码</span><div className="login-input-wrap"><input type="password" autoComplete="current-password" placeholder="输入密码" value={credential} onChange={e => setCredential(e.target.value)} /></div></label>
         <div className="task-error" role="alert">{loginError}</div>
-        <button type="submit" className="login-submit" disabled={!canSubmit}><span>登录并进入</span><ArrowUp className="login-submit-arrow" size={17} aria-hidden="true" /></button>
+        <button type="submit" className="login-submit" disabled={!canSubmit}>登录并进入</button>
         <div className="login-footnote">凭证只保存在当前浏览器本地。</div>
       </form>
     </div>

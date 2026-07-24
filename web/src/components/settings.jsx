@@ -1,24 +1,23 @@
 // Configuration-center modules: projects, model/provider, MCP tools, automation, and system diagnostics.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowUp,
+  ArrowLeft,
   Check,
   MoreHorizontal,
-  Orbit,
-  Settings2,
-  X,
+  RefreshCw,
+  CircleX,
 } from './icons.js';
 import '../styles/settings-entry.css';
 import { TextCard } from './base.jsx';
 import { settingsModules, diagnosticsText, fmtBytes, fmtRelativeAge, fmtTime, runStatusClass, runStatusLabel, safePathName, scheduleSummary, taskStatusClass, taskStatusLabel } from '../lib/appUtils.js';
 
 const settingsModuleMeta = {
-  projects: {label: '项目', desc: '管理项目名称、项目提示词和会话归属。', icon: Settings2},
-  model: {label: '模型', desc: '默认供应商和默认模型。', icon: Settings2},
-  providers: {label: '供应商', desc: '新增、编辑、测试模型供应商和候选模型。', icon: Settings2},
-  tools: {label: '工具', desc: '添加、检测和维护 MCP Server。', icon: Settings2},
-  automation: {label: '自动化', desc: '管理全局自动化任务和运行状态。', icon: Orbit},
-  security: {label: '系统', desc: '查看运行状态、数据库、备份、诊断信息和访问入口。', icon: Settings2},
+  projects: {label: '项目', desc: '管理项目名称、项目提示词和会话归属。'},
+  model: {label: '模型', desc: '默认供应商和默认模型。'},
+  providers: {label: '供应商', desc: '新增、编辑、测试模型供应商和候选模型。'},
+  tools: {label: '工具', desc: '添加、检测和维护 MCP Server。'},
+  automation: {label: '自动化', desc: '管理全局自动化任务和运行状态。'},
+  security: {label: '系统', desc: '查看运行状态、数据库、备份、诊断信息和访问入口。'},
 };
 
 export function SettingsPanel(props) {
@@ -68,19 +67,19 @@ export function SettingsPanel(props) {
   return <section className="settings">
     <header className="settings-header">
       <div className="settings-header-main">
-        <button className="secondary small settings-back-button icon-button" onClick={() => closeSettings()} aria-label="返回聊天" title="返回聊天"><ArrowUp className="settings-header-icon settings-back-icon" size={17} aria-hidden="true" /></button>
+        <button className="secondary small settings-back-button icon-button" onClick={() => closeSettings()} aria-label="返回聊天" title="返回聊天"><ArrowLeft className="settings-header-icon settings-back-icon" size={17} aria-hidden="true" /></button>
         <div>
           <div className="settings-title-row"><h2>配置中心</h2>{unsavedCount ? <span className="settings-global-save-state dirty"><span aria-hidden="true" />{unsavedCount} 处未保存</span> : saveState.status === 'saved' ? <span className="settings-global-save-state saved"><Check size={13} aria-hidden="true" />已保存</span> : null}</div>
           <p>统一管理项目、模型、工具与自动化。</p>
         </div>
       </div>
-      <div className="settings-header-actions"><button className="secondary small settings-refresh-button" onClick={refreshSettings} aria-label="刷新配置" title="刷新配置"><Orbit className="settings-header-icon settings-refresh-icon" size={16} aria-hidden="true" /><span className="settings-refresh-text">刷新</span></button></div>
+      <div className="settings-header-actions"><button className="secondary small settings-refresh-button" onClick={refreshSettings} aria-label="刷新配置" title="刷新配置"><RefreshCw className="settings-header-icon settings-refresh-icon" size={16} aria-hidden="true" /><span className="settings-refresh-text">刷新</span></button></div>
     </header>
     <div className="settings-sidebar">
       <select className="settings-mobile-module-select" value={activeModule} onChange={e => switchSettingsModule(e.target.value)} aria-label="选择配置模块">
         {settingsModules.map(m => <option key={m} value={m}>{moduleLabel(m)}{moduleIsDirty(m) ? ' · 未保存' : ''}</option>)}
       </select>
-      <nav className="module-tabs" aria-label="配置模块">{settingsModules.map(m => { const dirty = moduleIsDirty(m); const ModuleIcon = settingsModuleMeta[m]?.icon || Settings2; return <button key={m} className={'module-tab ' + (activeModule === m ? 'active ' : '') + (dirty ? 'dirty' : '')} onClick={() => switchSettingsModule(m)}><ModuleIcon size={16} aria-hidden="true" /><span className="module-tab-label">{moduleLabel(m)}</span>{dirty ? <span className="module-tab-dirty" aria-label="有未保存修改">未保存</span> : null}</button>; })}</nav>
+      <nav className="module-tabs" aria-label="配置模块">{settingsModules.map(m => { const dirty = moduleIsDirty(m); return <button key={m} className={'module-tab ' + (activeModule === m ? 'active ' : '') + (dirty ? 'dirty' : '')} onClick={() => switchSettingsModule(m)}><span className="module-tab-label">{moduleLabel(m)}</span>{dirty ? <span className="module-tab-dirty" aria-label="有未保存修改">未保存</span> : null}</button>; })}</nav>
       <div className="settings-sidebar-footer"><span>项目</span><b title={String(projects.length || 0)}>{projects.length || 0} 个</b></div>
     </div>
     <main className="settings-content">
@@ -102,7 +101,7 @@ function moduleDescription(m) {
 }
 function ModuleView({ name, activeModule, children, dirty = false, saveState, onSave, saveHint = '' }) {
   return <div className={'module-view ' + (activeModule === name ? 'active ' : '') + (dirty ? 'dirty' : '')} data-module-view={name}>
-    <div className="module-view-title">{(() => { const ModuleIcon = settingsModuleMeta[name]?.icon || Settings2; return <><span className="module-view-icon"><ModuleIcon size={18} aria-hidden="true" /></span><div><span>{moduleLabel(name)}</span><p>{moduleDescription(name)}</p></div></>; })()}</div>
+    <div className="module-view-title"><div><span>{moduleLabel(name)}</span><p>{moduleDescription(name)}</p></div></div>
     <SettingsSaveState dirty={dirty} state={saveState} onSave={onSave} hint={saveHint} />
     {children}
   </div>;
@@ -118,7 +117,7 @@ function SettingsSaveState({ dirty, state = {}, onSave, hint }) {
     error: ['保存失败', state.message || '请检查配置后重试。'],
   }[status];
   return <div className={'settings-save-state ' + status} role={status === 'error' ? 'alert' : 'status'}>
-    <div className="settings-save-state-copy"><span className="settings-save-state-icon" aria-hidden="true">{status === 'saved' ? <Check size={15} /> : status === 'error' ? <X size={15} /> : null}</span><div><b>{content[0]}</b><span>{content[1]}</span></div></div>
+    <div className="settings-save-state-copy"><span className="settings-save-state-icon" aria-hidden="true">{status === 'saved' ? <Check size={15} /> : status === 'error' ? <CircleX size={15} /> : null}</span><div><b>{content[0]}</b><span>{content[1]}</span></div></div>
     {dirty ? <button type="button" onClick={onSave} disabled={status === 'saving'}>{status === 'saving' ? '保存中…' : '保存更改'}</button> : null}
   </div>;
 }

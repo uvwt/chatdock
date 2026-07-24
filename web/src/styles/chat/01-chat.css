@@ -331,7 +331,7 @@ textarea::placeholder {
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(0, 1.12fr) minmax(330px, .88fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: clamp(34px, 4vw, 62px);
   min-height: 520px;
