@@ -3,7 +3,7 @@ WEB_DIR := web
 DEV_COMPOSE := compose.dev.yaml
 PROD_CHATDOCK_DIR ?= /Volumes/KIOXIA/Docker/chatdock
 
-.PHONY: run build web-deps web-build web-dev js-check css-check bundle-check frontend-test frontend-lint commit-msg-check shell-check test vet fmt fmt-check check clean dev-up dev-down prod-check prod-health deploy-prod
+.PHONY: run build web-deps web-build web-dev js-check css-check bundle-check frontend-test frontend-lint backend-lint commit-msg-check shell-check test vet fmt fmt-check check clean dev-up dev-down prod-check prod-health deploy-prod
 
 run: web-build
 	go run ./cmd/chatdock
@@ -43,6 +43,9 @@ frontend-test: web-deps
 frontend-lint: js-check css-check
 	node scripts/check-frontend.mjs
 
+backend-lint:
+	scripts/check-backend-structure.sh
+
 commit-msg-check:
 	@test -n "$(MSG)" || (echo 'usage: make commit-msg-check MSG="refactor(chatdock): 中文说明"' >&2; exit 2)
 	node scripts/check-commit-message.mjs --message "$(MSG)"
@@ -59,7 +62,7 @@ vet: web-build
 fmt-check:
 	test -z "$$(gofmt -l cmd internal web/*.go)"
 
-check: fmt-check shell-check frontend-lint frontend-test bundle-check vet test build
+check: fmt-check shell-check backend-lint frontend-lint frontend-test bundle-check vet test build
 
 fmt:
 	gofmt -w cmd internal web/*.go

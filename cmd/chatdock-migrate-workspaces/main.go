@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"chatdock/internal/chatdock/legacyworkspace"
+	"chatdock/internal/legacyworkspace"
 )
 
 func main() {

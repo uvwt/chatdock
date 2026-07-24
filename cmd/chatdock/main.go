@@ -2,15 +2,13 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"chatdock/internal/chatdock"
-	"chatdock/internal/chatdock/model"
+	"chatdock/internal/app"
+	"chatdock/internal/model"
 )
 
 func main() {
@@ -29,36 +27,10 @@ func main() {
 		AgentDockContextToken: os.Getenv("CHATDOCK_AGENTDOCK_CONTEXT_TOKEN"),
 	}
 
-	app, err := chatdock.NewApp(cfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if err := run(app); err != nil {
-		log.Fatal(err)
-	}
-}
-
-func run(app *chatdock.App) error {
 	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-
-	serveErr := make(chan error, 1)
-	go func() {
-		serveErr <- app.ListenAndServe()
-	}()
-
-	shutdown := func() error {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
-		return app.Shutdown(shutdownCtx)
-	}
-
-	select {
-	case err := <-serveErr:
-		return errors.Join(err, shutdown())
-	case <-signalCtx.Done():
-		return errors.Join(shutdown(), <-serveErr)
+	if err := app.Run(signalCtx, cfg); err != nil {
+		log.Fatal(err)
 	}
 }
 

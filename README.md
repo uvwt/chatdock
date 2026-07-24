@@ -25,7 +25,7 @@ ChatDock 是一个自用的轻量 AI 对话中控台，目标是：提示词可�
 ```text
 chatdock/
 ├── cmd/chatdock/          # 程序入口
-├── internal/chatdock/     # 后端核心代码
+├── internal/              # app 组合根、httpapi 服务和各稳定能力包
 ├── web/                   # Vite/React 前端源码、构建脚本和 Go embed 包
 │   ├── src/               # React 前端源码
 │   ├── public/            # PWA manifest、图标等静态资源
@@ -84,10 +84,10 @@ make js-check        # 检查前端配置、lib/hook 脚本语法
 make css-check       # check CSS modules and budgets
 make bundle-check    # build front-end and check bundle budget
 make frontend-test   # 运行前端纯逻辑测试
-make check           # fmt-check + frontend-lint + frontend-test + bundle-check + vet + test + build
+make check           # fmt-check + backend-lint + frontend-lint + frontend-test + bundle-check + vet + test + build
 ```
 
-`make check` 会先运行前端结构守卫、CSS 健康预算、前端纯逻辑测试，生成前端 dist，并执行：`fmt-check`、`go vet ./...`、`go test ./...`、`go build`。前端守卫会确保 `app.css` 和 `styles/settings.css` 都只作为 import 入口，配置页数据加载保留在 `useSettingsData`，附件上传下载保留在 `useAttachments`，聊天展示/工具事件详情不回流到 `App.jsx`，并阻止样式重新堆回入口文件。仓库还包含 GitHub Actions 最小 CI，覆盖 CSS 健康预算、前端测试、前端构建、Go 测试、vet、commit message 格式和 `git diff --check`。如果只想调试磁盘静态目录，可以设置 `CHATDOCK_WEB=/path/to/web/dist` 覆盖内嵌资源。
+`make check` 会先运行后端目录守卫、前端结构守卫、CSS 健康预算和前端纯逻辑测试，生成前端 dist，并执行：`fmt-check`、`go vet ./...`、`go test ./...`、`go build`。后端守卫会阻止 `internal/chatdock` 和旧导入路径重新出现，并确保程序入口经由 `internal/app` 组装 `httpapi.Server`。前端守卫会确保 `app.css` 和 `styles/settings.css` 都只作为 import 入口，配置页数据加载保留在 `useSettingsData`，附件上传下载保留在 `useAttachments`，聊天展示/工具事件详情不回流到 `App.jsx`，并阻止样式重新堆回入口文件。仓库还包含 GitHub Actions 最小 CI，覆盖 CSS 健康预算、前端测试、前端构建、Go 测试、vet、commit message 格式和 `git diff --check`。如果只想调试磁盘静态目录，可以设置 `CHATDOCK_WEB=/path/to/web/dist` 覆盖内嵌资源。
 
 ## 数据存储
 

@@ -1,0 +1,181 @@
+package store
+
+import (
+	"testing"
+
+	"chatdock/internal/model"
+)
+
+func TestDeleteProjectDetachesSessions(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	project, err := store.CreateProject(model.CreateProjectRequest{Name: "研究", Prompt: "只做研究总结"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := store.CreateSession(project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deleted, err := store.DeleteProject(project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !deleted {
+		t.Fatal("project was not deleted")
+	}
+
+	detached, ok, err := store.GetSession(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("session was deleted with project")
+	}
+	if detached.ProjectID != "" {
+		t.Fatalf("session project_id = %q, want empty", detached.ProjectID)
+	}
+	assertSQLiteForeignKeysClean(t, store)
+}
+
+func TestSessionProjectFilters(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	project, err := store.CreateProject(model.CreateProjectRequest{Name: "项目"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	projectSession, err := store.CreateSession(project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plainSession, err := store.CreateSession("")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	all, err := store.ListSessions(SessionProjectFilter{Mode: SessionProjectFilterAll})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("all sessions = %#v", all)
+	}
+	projectOnly, err := store.ListSessions(SessionProjectFilter{Mode: SessionProjectFilterByProject, ProjectID: project.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(projectOnly) != 1 || projectOnly[0].ID != projectSession.ID {
+		t.Fatalf("project sessions = %#v", projectOnly)
+	}
+	plainOnly, err := store.ListSessions(SessionProjectFilter{Mode: SessionProjectFilterNoProject})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plainOnly) != 1 || plainOnly[0].ID != plainSession.ID {
+		t.Fatalf("plain sessions = %#v", plainOnly)
+	}
+}
+
+func TestProjectListIncludesExactSessionCounts(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	alpha, err := store.CreateProject(model.CreateProjectRequest{Name: "Alpha"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	beta, err := store.CreateProject(model.CreateProjectRequest{Name: "Beta"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, projectID := range []string{alpha.ID, alpha.ID, beta.ID, ""} {
+		if _, err := store.CreateSession(projectID); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result, err := store.ListProjects()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.SessionCount != 4 || result.PlainSessionCount != 1 {
+		t.Fatalf("session counts = total %d plain %d, want 4 and 1", result.SessionCount, result.PlainSessionCount)
+	}
+	counts := map[string]int{}
+	for _, project := range result.Projects {
+		counts[project.ID] = project.SessionCount
+	}
+	if counts[alpha.ID] != 2 || counts[beta.ID] != 1 {
+		t.Fatalf("project session counts = %#v, want alpha=2 beta=1", counts)
+	}
+}
+
+func TestPinProjectPersistsAndSortsPinnedFirst(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	first, err := store.CreateProject(model.CreateProjectRequest{Name: "先创建"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := store.CreateProject(model.CreateProjectRequest{Name: "后创建"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pinned, err := store.PinProject(first.ID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pinned.Pinned {
+		t.Fatal("project was not pinned")
+	}
+
+	result, err := store.ListProjects()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Projects) != 2 || result.Projects[0].ID != first.ID || !result.Projects[0].Pinned {
+		t.Fatalf("projects = %#v, pinned project should be first", result.Projects)
+	}
+	if result.Projects[1].ID != second.ID || result.Projects[1].Pinned {
+		t.Fatalf("second project = %#v", result.Projects[1])
+	}
+
+	unpinned, err := store.PinProject(first.ID, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unpinned.Pinned {
+		t.Fatal("project remained pinned")
+	}
+}
+
+func assertSQLiteForeignKeysClean(t *testing.T, store *Store) {
+	t.Helper()
+	rows, err := store.db.Query(`PRAGMA foreign_key_check`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	if rows.Next() {
+		t.Fatal("foreign_key_check returned violations")
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+}

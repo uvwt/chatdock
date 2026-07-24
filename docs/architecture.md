@@ -5,21 +5,22 @@ ChatDock 是 Go 后端 + React 前端的单体项目，生产形态是 Go embed 
 ## 顶层目录
 
 ```text
-cmd/chatdock/              进程入口，只负责读取环境变量并启动 App
+cmd/chatdock/              进程入口，只负责读取环境变量和建立系统信号上下文
 cmd/chatdock-migrate-workspaces/ 旧工作空间数据库的一次性迁移入口
-internal/chatdock/         HTTP 组合根、跨域流程和产品 handler
-internal/chatdock/agentdock/ AgentDock HTTP、上下文缓存和任务事件解析
-internal/chatdock/attachment/ 附件文件名规范化和文本提取
-internal/chatdock/chatoutput/ 流式输出、工具时间线和消息 checkpoint
-internal/chatdock/legacyworkspace/ 旧工作空间数据库离线迁移
-internal/chatdock/llm/     OpenAI 兼容请求、流式、工具调用和 embedding
-internal/chatdock/mcp/     MCP 客户端、配置、缓存和过滤规则
-internal/chatdock/model/   DTO、配置和模型类型
-internal/chatdock/modelprovider/ 模型供应商记录、Key 策略、校验和持久化
-internal/chatdock/schedule/ Cron、时区、任务校验和下一次运行计算
-internal/chatdock/store/   当前 SQLite schema、会话、任务、附件和运行记录
-internal/chatdock/toolapproval/ 工具人工确认等待、决策和状态流转
-internal/chatdock/toolschema/ 工具参数 JSON Schema 校验
+internal/app/              进程级依赖组装和服务生命周期
+internal/httpapi/          HTTP Server、路由、handler 与跨域请求编排
+internal/agentdock/        AgentDock HTTP、上下文缓存和任务事件解析
+internal/attachment/       附件文件名规范化和文本提取
+internal/chatoutput/       流式输出、工具时间线和消息 checkpoint
+internal/legacyworkspace/  旧工作空间数据库离线迁移
+internal/llm/              OpenAI 兼容请求、流式、工具调用和 embedding
+internal/mcp/              MCP 客户端、配置、缓存和过滤规则
+internal/model/            DTO、配置和模型类型
+internal/modelprovider/    模型供应商记录、Key 策略、校验和持久化
+internal/schedule/         Cron、时区、任务校验和下一次运行计算
+internal/store/            当前 SQLite schema、会话、任务、附件和运行记录
+internal/toolapproval/     工具人工确认等待、决策和状态流转
+internal/toolschema/       工具参数 JSON Schema 校验
 web/                       前端源码与 Go embed 入口
 web/src/components/        React 组件层
 web/src/lib/               前端 API、传输层、协议解析和纯函数
@@ -29,28 +30,22 @@ scripts/                   本地检查、生产部署保护和辅助脚本
 
 ## 后端分层
 
-`internal/chatdock` 是 HTTP 组合根和跨域业务流程，不再承载外部系统客户端、一次性迁移、供应商内部记录或纯调度计算。稳定且依赖方向清楚的能力进入具体子包；不按 handler/service/repository 机械分层，也不引入 `common`、`utils` 或空泛 manager。
+`internal/app` 是唯一进程组合根，只负责创建 `httpapi.Server`、启动监听，并在系统上下文结束时执行有界关闭。`internal/httpapi` 负责 HTTP 路由、鉴权、handler 和跨域请求编排，不承载外部系统客户端、离线迁移、供应商内部记录或纯调度计算。稳定且依赖方向清楚的能力直接位于 `internal/` 下；不按 handler/service/repository 机械分层，也不引入 `common`、`utils` 或空泛 manager。
 
 ```text
-app.go / routes.go              App 组装、HTTP 路由和服务启动
-setup.go / projects.go          首次配置、项目列表和初始化
-handler.go                      JSON/SSE 读写 helper
-handler_health.go               健康检查
-handler_config.go               全局模型配置与 Prompt 入口
-handler_mcp.go                  MCP 配置、工具列表、测试和工具调用
-handler_tasks.go                自动化任务 CRUD 与立即运行
-handler_sessions.go             会话 CRUD、导出、置顶、复制、重命名、工具事件详情
-handler_chat.go                 普通聊天、流式聊天入口
-chat_jobs.go                    后台聊天任务与事件流
-scheduler.go                    定时任务扫描与触发
-attachments.go                  附件上传、落盘、公开签名图片 URL
-model_providers.go              模型供应商测试、候选模型和 API handler
-system_status.go / data_status.go 系统状态和数据健康状态
-agentdock_tasks.go              AgentDock 任务 HTTP 适配；网络与事件规则在 agentdock 包
-runs.go / session_*.go          工具运行记录、会话标题、搜索和懒加载事件
+internal/app/run.go             进程级启动、监听错误和有界关闭
+internal/httpapi/server.go      Server 依赖组装、HTTP 生命周期和后台任务注册
+internal/httpapi/routes.go      产品路由注册
+internal/httpapi/handler.go     JSON/SSE 请求响应边界
+internal/httpapi/handler_*.go   配置、MCP、会话、聊天和自动化任务 handler
+internal/httpapi/chat_jobs.go   后台聊天任务与事件流编排
+internal/httpapi/scheduler.go   定时任务扫描与触发编排
+internal/httpapi/attachments.go 附件上传、落盘、公开签名图片 URL
+internal/httpapi/model_providers.go 模型供应商测试、候选模型和 API handler
+internal/httpapi/agentdock_tasks.go AgentDock 任务 HTTP 适配
 ```
 
-`internal/chatdock/store/` 只负责当前 SQLite 生命周期、schema、项目、会话、定时任务、运行记录、附件和工具向量。模型供应商内部记录、Key 策略、校验和 meta 持久化由 `modelprovider` 负责，Store 只编排事务与全局模型配置。应用启动显式拒绝旧工作空间 schema；离线转换完整归属 `legacyworkspace`，不再与运行时 Store 混在同一个包。
+`internal/store/` 只负责当前 SQLite 生命周期、schema、项目、会话、定时任务、运行记录、附件和工具向量。模型供应商内部记录、Key 策略、校验和 meta 持久化由 `modelprovider` 负责，Store 只编排事务与全局模型配置。应用启动显式拒绝旧工作空间 schema；离线转换完整归属 `legacyworkspace`，不再与运行时 Store 混在同一个包。
 
 `agentdock` 是具体外部 HTTP 边界；`chatoutput` 承接模型流式输出到消息 checkpoint 的完整链路；`attachment` 和 `toolschema` 承接无状态的附件预处理与工具参数校验；`toolapproval` 持有人工确认的等待 channel、超时和 SQLite 状态流转；`schedule` 只包含无数据库依赖的 Cron、时区、任务校验和下一次运行计算。依赖方向统一由组合根指向具体能力包。
 
@@ -58,7 +53,7 @@ Store 暂时不按实体继续拆成多个 repository：会话、定时任务运
 
 ### 后端新增代码规则
 
-1. 新增 HTTP handler 先放到对应 `handler_*.go`；外部网络、持久化记录或稳定领域规则不得因为访问 App/Store 方便而继续堆进组合根。
+1. 新增 HTTP handler 先放到 `internal/httpapi/handler_*.go`；外部网络、持久化记录或稳定领域规则不得因为访问 Server/Store 方便而继续堆进 HTTP 编排层。
 2. Store 保持直接方法调用，不提前抽 repository/interface；只有数据库读写和外部 HTTP 这类真实边界使用最小接口或具体 Client。
 3. 破坏性 Schema 变更直接维护当前 schema；生产升级必须在独立迁移包和命令中提供完整备份、转换与验证，不在应用启动时隐式修改旧库。
 4. 复杂业务流程需要中文注释说明原因、约束和坑点，不写“解释语法”的无效注释。
@@ -129,7 +124,7 @@ web/src/styles/data.css             数据状态、备份、诊断和运行记�
 - 相同 SHA-256 的附件统一引用 `attachment_blobs` 中的 canonical path；删除会话或附件引用变更后必须重算引用数，零引用且文件已丢失的 Blob 才允许由新上传接管路径。
 - 一次性生产迁移必须在独立工具中完成数据转换和结果校验；失败时保留原数据库备份，不允许应用带着半迁移数据启动。
 
-所有长期 goroutine 都必须通过应用生命周期入口启动，继承 `App` 的 context，并计入统一等待组。SIGTERM 会先停止接收新任务、取消现有请求和后台任务，再等待 HTTP 与后台工作退出；有界 `Shutdown` 超时后不能提前关闭仍可能被使用的 Store，显式 `Close` 才执行强制等待和最终资源回收。
+所有长期 goroutine 都必须由 `httpapi.Server` 的生命周期入口启动，继承服务 context，并计入统一等待组。`internal/app` 接收进程上下文并触发有界 `Shutdown`；SIGTERM 会先停止接收新任务、取消现有请求和后台任务，再等待 HTTP 与后台工作退出。超时前不能提前关闭仍可能被使用的 Store，显式 `Close` 才执行强制等待和最终资源回收。
 
 远程图片探测使用独立 Transport：连接阶段重新解析域名、拒绝私网和特殊用途地址，并直接拨号已验证公网 IP，避免 DNS 校验与实际连接之间的时间差绕过。
 
