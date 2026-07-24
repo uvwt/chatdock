@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { ArrowLeft, MoreHorizontal, RefreshCw } from './icons.js';
+import { ArrowLeft, MoreHorizontal, Plus, RefreshCw } from './icons.js';
 import { scheduleSummary, taskStatusClass, taskStatusLabel } from '../lib/appUtils.js';
 import '../styles/workspace-pages.css';
+import '../styles/workspace-pages-mobile.css';
 
 function PageHeader({ eyebrow, title, description, onClose, actions }) {
   return <header className="workspace-page-header">
@@ -16,6 +17,11 @@ function SummaryCard({ label, value, onClick }) {
   return onClick ? <button type="button" className="workspace-summary-card actionable" onClick={onClick}>{content}</button> : <div className="workspace-summary-card">{content}</div>;
 }
 
+function closeDetailsAndRun(event, action) {
+  event.currentTarget.closest('details')?.removeAttribute('open');
+  action();
+}
+
 export function WorkspacePage(props) {
   if (props.page === 'scheduled-tasks') return <ScheduledTasksPage {...props} />;
   return <ProjectsPage {...props} />;
@@ -28,7 +34,7 @@ function ProjectsPage({ closeWorkspacePage, deleteProject, editProject, openProj
       title="项目"
       description="集中管理上下文、提示词和会话归属。"
       onClose={closeWorkspacePage}
-      actions={<button type="button" onClick={() => editProject()}>新增项目</button>}
+      actions={<button type="button" onClick={() => editProject()}><Plus size={16} aria-hidden="true" /><span>新增项目</span></button>}
     />
     <div className="workspace-page-body">
       <div className="workspace-summary-grid">
@@ -39,7 +45,11 @@ function ProjectsPage({ closeWorkspacePage, deleteProject, editProject, openProj
       <div className="workspace-section-head"><div><span>项目列表</span><p>选择项目进入对应会话，或在这里维护项目提示词。</p></div></div>
       <div className="workspace-card-grid">
         {projects.length ? projects.map(project => <article key={project.id} className="workspace-card project-workspace-card">
-          <header><div><span>Project</span><h2>{project.name}</h2></div><em>{projectSessionCounts?.byProject?.[project.id] || 0} 会话</em></header>
+          <header><div><span>Project</span><h2>{project.name}</h2></div><div className="project-card-actions"><em>{projectSessionCounts?.byProject?.[project.id] || 0} 会话</em><details className="workspace-more-menu project-mobile-menu"><summary aria-label="更多项目操作" title="更多操作"><MoreHorizontal size={17} aria-hidden="true" /></summary><div>
+            <button type="button" onClick={event => closeDetailsAndRun(event, () => editProject(project))}>编辑项目</button>
+            <button type="button" onClick={event => closeDetailsAndRun(event, () => showProjectPromptPreview(project.id))}>预览 Prompt</button>
+            <button type="button" className="danger" onClick={event => closeDetailsAndRun(event, () => deleteProject(project))}>删除项目</button>
+          </div></details></div></header>
           <p>{project.prompt || '未设置项目提示词'}</p>
           <div className="workspace-card-meta">ID：{project.id}</div>
           <footer>
@@ -61,27 +71,25 @@ function scheduledTaskContextLabel(mode) {
 
 function ScheduledTaskCard({ task, deleteScheduledTask, editScheduledTask, openScheduledTaskSession, runScheduledTaskNow, toggleScheduledTask, viewScheduledTaskRuns }) {
   const prompt = (task.prompt || '').trim().slice(0, 180) || '无提示内容';
-  const closeMenuAndRun = (event, action) => {
-    event.currentTarget.closest('details')?.removeAttribute('open');
-    action();
-  };
   return <article className="workspace-card scheduled-task-workspace-card">
     <header>
       <div><span>Scheduled Task</span><h2>{task.title || '未命名任务'}</h2></div>
       <div className="scheduled-task-card-actions">
         <em className={'badge ' + taskStatusClass(task)}>{taskStatusLabel(task)}</em>
         <details className="workspace-more-menu"><summary aria-label="更多任务操作" title="更多操作"><MoreHorizontal size={17} aria-hidden="true" /></summary><div>
-          {task.session_id ? <button type="button" onClick={event => closeMenuAndRun(event, () => openScheduledTaskSession(task.session_id))}>打开最近会话</button> : null}
-          <button type="button" onClick={event => closeMenuAndRun(event, () => editScheduledTask(task.id))}>编辑任务</button>
-          <button type="button" className="danger" onClick={event => closeMenuAndRun(event, () => deleteScheduledTask(task.id))}>删除任务</button>
+          {task.session_id ? <button type="button" onClick={event => closeDetailsAndRun(event, () => openScheduledTaskSession(task.session_id))}>打开最近会话</button> : null}
+          <button type="button" onClick={event => closeDetailsAndRun(event, () => editScheduledTask(task.id))}>编辑任务</button>
+          <button type="button" className="danger" onClick={event => closeDetailsAndRun(event, () => deleteScheduledTask(task.id))}>删除任务</button>
         </div></details>
       </div>
     </header>
     <p>{prompt}</p>
     {task.running ? <div className="workspace-inline-note">任务正在运行，配置修改会从下次执行生效。</div> : null}
     {task.last_error ? <div className="workspace-inline-note error">上次错误：{task.last_error}</div> : null}
-    <div className="workspace-card-meta">{scheduleSummary(task)}</div>
-    <div className="workspace-card-meta">上下文：{scheduledTaskContextLabel(task.context_mode || 'stateless')}</div>
+    <div className="workspace-card-facts">
+      <div className="workspace-card-meta">{scheduleSummary(task)}</div>
+      <div className="workspace-card-meta">上下文：{scheduledTaskContextLabel(task.context_mode || 'stateless')}</div>
+    </div>
     <footer>
       <label className="workspace-toggle"><input type="checkbox" checked={!!task.enabled} onChange={event => toggleScheduledTask(task.id, event.target.checked)} /><span>启用</span></label>
       <button type="button" className="secondary" disabled={task.running} onClick={() => runScheduledTaskNow(task.id)}>立即运行</button>
@@ -104,7 +112,7 @@ function ScheduledTasksPage({ closeWorkspacePage, deleteScheduledTask, editSched
       title="定时任务"
       description="创建、运行和追踪自动执行任务。"
       onClose={closeWorkspacePage}
-      actions={<><button type="button" className="secondary icon-button workspace-refresh" onClick={() => loadScheduledTasks()} aria-label="刷新任务" title="刷新任务"><RefreshCw size={17} aria-hidden="true" /></button><button type="button" onClick={() => editScheduledTask()}>新增任务</button></>}
+      actions={<><button type="button" className="secondary icon-button workspace-refresh" onClick={() => loadScheduledTasks()} aria-label="刷新任务" title="刷新任务"><RefreshCw size={17} aria-hidden="true" /></button><button type="button" onClick={() => editScheduledTask()}><Plus size={16} aria-hidden="true" /><span>新增任务</span></button></>}
     />
     <div className="workspace-page-body">
       <div className="workspace-summary-grid task-summary-grid">

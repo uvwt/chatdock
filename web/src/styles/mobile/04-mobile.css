@@ -129,10 +129,10 @@
   }
 
   aside .session {
-    min-height: auto !important;
-    padding: 12px 13px !important;
+    min-height: 44px !important;
+    padding: 8px 10px 8px 12px !important;
     border: 1px solid transparent !important;
-    border-radius: 16px !important;
+    border-radius: 13px !important;
     background: transparent !important;
     box-shadow: none !important;
   }
@@ -153,33 +153,19 @@
   }
 
   aside .session-title {
-    display: -webkit-box;
+    display: block;
     overflow: hidden;
     color: var(--mobile-text-strong) !important;
-    font-size: 15px !important;
-    line-height: 1.28 !important;
-    font-weight: 780 !important;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    font-size: 14px !important;
+    line-height: 1.35 !important;
+    font-weight: 680 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   aside .session-preview,
   aside .session-meta {
-    display: block !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--mobile-muted-weak) !important;
-    font-size: 11px !important;
-    line-height: 1.3 !important;
-  }
-
-  aside .session-preview {
-    margin-top: 5px !important;
-  }
-
-  aside .session-meta {
-    margin-top: 4px !important;
+    display: none !important;
   }
 
   aside .pin-mark {
