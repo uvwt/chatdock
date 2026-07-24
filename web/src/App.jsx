@@ -4,8 +4,8 @@ import { EmptyState, MemoizedMessageView } from './components/chat.jsx';
 import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
 import { CurrentSessionTask, TaskPanel } from './components/taskPanel.jsx';
 import { DialogHost, LoginPage, Markdown, QuickPalette } from './components/base.jsx';
-import { agentTaskDataEnabled, diagnosticsText, filenameFromResponse, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath } from './lib/appUtils.js';
-import { attachmentLooksLikeImage, chatErrorDetails, contextPreviewText, finalAssistantMessageFromSession, readableChatError, scheduledTaskContextLabel, scheduledTaskRunsText, streamStatusText } from './lib/chatPresentation.js';
+import { agentTaskDataEnabled, diagnosticsText, filenameFromResponse, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath, workspacePageFromPath } from './lib/appUtils.js';
+import { attachmentLooksLikeImage, chatErrorDetails, contextPreviewText, finalAssistantMessageFromSession, readableChatError, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
 import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js';
 import { createJsonApi } from './lib/http.js';
@@ -23,19 +23,21 @@ import { useSessionList } from './hooks/useSessionList.js';
 import { useVisualViewportLayout } from './hooks/useVisualViewportLayout.js';
 import { useMessageAutoFollow } from './hooks/useMessageAutoFollow.js';
 import { buildQuickActions } from './lib/quickActions.js';
-import { scheduledTaskSessionRows, visibleSessionRows } from './lib/sessionPresentation.js';
+import { visibleSessionRows } from './lib/sessionPresentation.js';
 const SettingsPanel = lazy(() => import('./components/settings.jsx').then(module => ({default: module.SettingsPanel})));
+const WorkspacePage = lazy(() => import('./components/workspacePages.jsx').then(module => ({default: module.WorkspacePage})));
 export default function App() {
   useVisualViewportLayout();
 
   const [authPage, setAuthPage] = useState(null);
-  const [theme, setThemeState] = useState(() => localStorage.getItem('chatdock.theme') === 'day' ? 'day' : 'night');
+  const [theme, setThemeState] = useState(() => localStorage.getItem('chatdock.theme.v2') === 'night' ? 'night' : 'day');
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(() => {
     const saved = localStorage.getItem('chatdock.sidebarCollapsed');
     return saved == null ? window.matchMedia('(max-width: 720px)').matches : saved === '1';
   });
   const [settingsOpen, setSettingsOpen] = useState(() => !!settingsModuleFromPath());
-  const [activeModule, setActiveModule] = useState(() => normalizeSettingsModule(settingsModuleFromPath() || localStorage.getItem('chatdock.settingsModule') || 'projects'));
+  const [workspacePage, setWorkspacePage] = useState(workspacePageFromPath);
+  const [activeModule, setActiveModule] = useState(() => normalizeSettingsModule(settingsModuleFromPath() || localStorage.getItem('chatdock.settingsModule') || 'model'));
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
   const [dialog, setDialog] = useState(null);
@@ -56,8 +58,6 @@ export default function App() {
   const [streamPaused, setStreamPaused] = useState(false);
   const [streamStats, setStreamStats] = useState({ state: 'idle', started_at: 0, chars: 0, events: 0, tools: 0, error: '' });
   const [activeJobID, setActiveJobID] = useState('');
-  const [selectedScheduledTaskID, setSelectedScheduledTaskID] = useState('');
-  const [selectedScheduledTaskRuns, setSelectedScheduledTaskRuns] = useState([]);
   const [taskSearch, setTaskSearch] = useState('');
 
   const {
@@ -130,7 +130,7 @@ export default function App() {
   useEffect(() => {
     document.body.classList.toggle('theme-light', theme === 'day');
     document.body.classList.toggle('theme-night', theme !== 'day');
-    localStorage.setItem('chatdock.theme', theme);
+    localStorage.setItem('chatdock.theme.v2', theme);
   }, [theme]);
 
   useEffect(() => {
@@ -138,7 +138,7 @@ export default function App() {
     return () => document.body.classList.remove('auth-page-visible');
   }, [authPage]);
 
-  useEffect(() => { setSettingsDocumentScroll(settingsOpen); return () => setSettingsDocumentScroll(false); }, [settingsOpen]);
+  useEffect(() => { setSettingsDocumentScroll(settingsOpen || !!workspacePage); return () => setSettingsDocumentScroll(false); }, [settingsOpen, workspacePage]);
 
   const showToast = useCallback((message, variant = 'info') => {
     setToast({ message, variant });
@@ -319,17 +319,14 @@ export default function App() {
   const refreshVisibleSettings = useCallback(async () => {
     const jobs = [loadSetupStatus(), loadProjects(), loadModelProviders(), loadDataStatus(), loadSystemStatus()];
     if (activeModule === 'tools') jobs.push(loadMCPStatus());
-    if (activeModule === 'automation') jobs.push(loadScheduledTasks());
     await Promise.allSettled(jobs);
     showToast('配置中心已刷新', 'success');
-  }, [activeModule, loadDataStatus, loadMCPStatus, loadModelProviders, loadScheduledTasks, loadSetupStatus, loadSystemStatus, loadProjects, showToast]);
+  }, [activeModule, loadDataStatus, loadMCPStatus, loadModelProviders, loadSetupStatus, loadSystemStatus, loadProjects, showToast]);
 
   const setProjectFilter = useCallback((value) => {
     const next = String(value || '').trim() || 'plain';
     setProjectFilterState(next);
     localStorage.setItem('chatdock.projectFilter', next);
-    setSelectedScheduledTaskID('');
-    setSelectedScheduledTaskRuns([]);
     setSessionMenuID('');
   }, []);
 
@@ -386,6 +383,12 @@ export default function App() {
 
   useEffect(() => {
     function onPopState() {
+      const routeWorkspacePage = workspacePageFromPath();
+      setWorkspacePage(routeWorkspacePage);
+      if (routeWorkspacePage) {
+        setSettingsOpen(false);
+        return;
+      }
       const routeModule = settingsModuleFromPath();
       if (routeModule) {
         setActiveModule(routeModule);
@@ -427,8 +430,8 @@ export default function App() {
     if (busy) detachActiveStream();
     sessionOpenSeqRef.current += 1;
     setSessionMenuID('');
-    setSelectedScheduledTaskID('');
-    setSelectedScheduledTaskRuns([]);
+    setSettingsOpen(false);
+    setWorkspacePage('');
     setSessionSearch('');
     setCurrent(null);
     setCurrentTitle('未选择会话');
@@ -439,8 +442,31 @@ export default function App() {
     closeSidebarOnMobile();
   }, [busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, setSessionSearch]);
 
+  const openWorkspacePage = useCallback((page) => {
+    const next = page === 'scheduled-tasks' ? 'scheduled-tasks' : 'projects';
+    setSettingsOpen(false);
+    setWorkspacePage(next);
+    setTaskPanelOpen(false);
+    setSessionMenuID('');
+    const path = next === 'projects' ? '/projects' : '/scheduled-tasks';
+    if (window.location.pathname !== path) window.history.pushState({ chatdock: true }, '', path);
+    closeSidebarOnMobile();
+  }, [closeSidebarOnMobile]);
+
+  const closeWorkspacePage = useCallback(() => {
+    setWorkspacePage('');
+    const target = current ? sessionPath(current) : '/';
+    if (window.location.pathname !== target) window.history.pushState({ chatdock: true }, '', target);
+  }, [current]);
+
+  const openProjectSessions = useCallback((projectID) => {
+    setProjectFilter(projectID);
+    goHome();
+  }, [goHome, setProjectFilter]);
+
   const openSettings = useCallback((moduleName = activeModule, syncRoute = true) => {
     const normalized = normalizeSettingsModule(moduleName);
+    setWorkspacePage('');
     setActiveModule(normalized);
     setSettingsOpen(true);
     localStorage.setItem('chatdock.settingsModule', normalized);
@@ -461,10 +487,11 @@ export default function App() {
       if (dialog) closeDialog(null);
       else if (quickPaletteOpen) setQuickPaletteOpen(false);
       else if (settingsOpen) closeSettings();
+      else if (workspacePage) closeWorkspacePage();
     }
     window.addEventListener('keydown', closeTopLayer);
     return () => window.removeEventListener('keydown', closeTopLayer);
-  }, [closeDialog, closeSettings, dialog, quickPaletteOpen, settingsOpen]);
+  }, [closeDialog, closeSettings, closeWorkspacePage, dialog, quickPaletteOpen, settingsOpen, workspacePage]);
 
   useEffect(() => {
     function onGlobalShortcut(event) {
@@ -503,6 +530,7 @@ export default function App() {
     // “新会话”只是进入一个本地草稿，不应该提前写入后端。
     // 真正的 session id 只有在发送首条消息、或上传附件需要绑定会话时才创建。
     setSessionMenuID('');
+    setWorkspacePage('');
     setCurrent(null);
     setCurrentTitle('新会话');
     setMessages([]);
@@ -520,6 +548,7 @@ export default function App() {
     sessionOpenSeqRef.current = seq;
     if (busy) detachActiveStream();
     setSessionMenuID('');
+    setWorkspacePage('');
     setCurrent(id);
     setCurrentTitle(summary?.title || '正在加载会话…');
     clearAttachments();
@@ -1033,7 +1062,6 @@ export default function App() {
     addCandidateModelToProvider,
     availableModels,
     candidateProviderID,
-    clearScheduledTaskRunList,
     deleteModelProvider,
     deleteProject,
     deleteScheduledTask,
@@ -1044,7 +1072,6 @@ export default function App() {
     fetchProviderModels,
     fetchSavedProviderModels,
     loadingModels,
-    openScheduledTaskRunList,
     openScheduledTaskSession,
     runScheduledTaskNow,
     runSetupWizard,
@@ -1059,7 +1086,6 @@ export default function App() {
   } = useSettingsActions({
     api,
     busy,
-    closeSettings,
     closeSidebarOnMobile,
     config,
     loadConfig,
@@ -1077,14 +1103,10 @@ export default function App() {
     refreshProductState,
     scheduledTasks,
     selectedProject,
-    selectedScheduledTaskID,
-    setSelectedScheduledTaskID,
-    setSelectedScheduledTaskRuns,
     setConfig,
     setProjectFilter,
     setProjectPromptPreview,
     setScheduledTasks,
-    setSessionSearch,
     showDialog,
     showToast,
   });
@@ -1127,31 +1149,17 @@ export default function App() {
 
   const logout = useCallback(() => logoutAndReload(), []);
 
-  const activeScheduledTasks = useMemo(() => scheduledTasks.filter(task => task.enabled || task.running), [scheduledTasks]);
-  const selectedScheduledTask = useMemo(() => scheduledTasks.find(task => task.id === selectedScheduledTaskID) || null, [scheduledTasks, selectedScheduledTaskID]);
-
-  useEffect(() => {
-    if (selectedScheduledTaskID && !scheduledTasks.some(task => task.id === selectedScheduledTaskID)) {
-      setSelectedScheduledTaskID('');
-      setSelectedScheduledTaskRuns([]);
-    }
-  }, [scheduledTasks, selectedScheduledTaskID]);
-
-  const selectedScheduledTaskSessions = useMemo(() => scheduledTaskSessionRows({
-    selectedScheduledTaskID, selectedScheduledTaskRuns, selectedScheduledTask, sessions,
-  }), [selectedScheduledTask, selectedScheduledTaskID, selectedScheduledTaskRuns, sessions]);
-
   const filteredSessions = useMemo(() => visibleSessionRows({
-    sessionSearch, sessionSearchResults, selectedScheduledTaskID, selectedScheduledTaskSessions, sessions,
-  }), [selectedScheduledTaskID, selectedScheduledTaskSessions, sessionSearch, sessionSearchResults, sessions]);
+    sessionSearch, sessionSearchResults, sessions,
+  }), [sessionSearch, sessionSearchResults, sessions]);
   const searchingSessions = !!sessionSearch.trim();
-  const visibleSessionsHasMore = !selectedScheduledTaskID && (searchingSessions ? sessionSearchHasMore : sessionsHasMore);
+  const visibleSessionsHasMore = searchingSessions ? sessionSearchHasMore : sessionsHasMore;
   const visibleSessionsLoadingMore = searchingSessions ? sessionSearchLoadingMore : sessionsLoadingMore;
-  const loadMoreVisibleSessions = selectedScheduledTaskID ? null : (searchingSessions ? loadMoreSearchSessions : loadMoreSessions);
+  const loadMoreVisibleSessions = searchingSessions ? loadMoreSearchSessions : loadMoreSessions;
 
   const currentSummary = useMemo(() => sessions.find(s => s.id === current) || null, [current, sessions]);
   const currentPinned = !!currentSummary?.pinned;
-  const appClass = 'app ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (settingsOpen ? 'settings-open ' : '') + (taskPanelOpen ? 'task-panel-open' : '');
+  const appClass = 'app ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (workspacePage ? 'workspace-page-open ' : '') + (taskPanelOpen ? 'task-panel-open' : '');
   const productReady = setupStatus && !setupStatus.needs_setup;
   const modelReady = !!String(selectedModelBaseURL || '').trim() && !!String(selectedChatModel || '').trim();
   const productStatusText = setupStatus == null ? '加载中' : (productReady ? '就绪' : '待配置');
@@ -1164,25 +1172,25 @@ export default function App() {
 
   const quickActions = useMemo(() => buildQuickActions({
     branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned,
-    deleteCurrent, exportCurrent, inputRef, messagesLength: messages.length, openSettings, pinCurrent,
-    productDiagnostics, projectCount: projects.length, renameCurrent, sendMsg, setProjectFilter, setThemeState,
-    showContextPreview, theme,
-  }), [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, messages.length, openSettings, pinCurrent, productDiagnostics, projects.length, renameCurrent, sendMsg, setProjectFilter, showContextPreview, theme]);
+    deleteCurrent, exportCurrent, inputRef, messagesLength: messages.length, openSettings, openWorkspacePage, pinCurrent,
+    productDiagnostics, renameCurrent, sendMsg, setProjectFilter, setThemeState, showContextPreview, theme,
+  }), [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, messages.length, openSettings, openWorkspacePage, pinCurrent, productDiagnostics, renameCurrent, sendMsg, setProjectFilter, showContextPreview, theme]);
 
   const settingsPanel = (
     <SettingsPanel
-      activeModule={activeModule} busy={busy} closeSettings={closeSettings} config={config}
-      configDirty={configDirty} mcpConfigDirty={mcpConfigDirty}
-      editProject={editProject} dataStatus={dataStatus} deleteScheduledTask={deleteScheduledTask} deleteProject={deleteProject}
-      editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels}
-      editScheduledTask={editScheduledTask} loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig}
-      loadMCPStatus={loadMCPStatus} loadScheduledTasks={loadScheduledTasks} loadSystemStatus={loadSystemStatus}
-      builtinTools={builtinTools} mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers} projectPromptPreview={projectPromptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
-      runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} openScheduledTaskSession={openScheduledTaskSession} runSetupWizard={runSetupWizard} saveConfig={saveConfig} saveMCPConfig={saveMCPConfig}
-      scheduledTasks={scheduledTasks} setConfig={setConfig} setMcpConfig={setMcpConfig} setTaskSearch={setTaskSearch}
+      activeModule={activeModule} closeSettings={closeSettings} config={config}
+      configDirty={configDirty} mcpConfigDirty={mcpConfigDirty} dataStatus={dataStatus}
+      editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider}
+      testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels}
+      loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} loadSystemStatus={loadSystemStatus}
+      builtinTools={builtinTools} mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers}
+      projectPromptPreview={projectPromptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
+      saveConfig={saveConfig} saveMCPConfig={saveMCPConfig} setConfig={setConfig} setMcpConfig={setMcpConfig}
       setupStatus={setupStatus} showProjectPromptPreview={showProjectPromptPreview} switchSettingsModule={switchSettingsModule}
-      systemStatus={systemStatus} taskSearch={taskSearch} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} toggleScheduledTask={toggleScheduledTask}
-      projects={projects} projectSessionCounts={projectSessionCounts} logout={logout}
+      systemStatus={systemStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools}
+      testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels}
+      candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels}
+      logout={logout}
     />
   );
 
@@ -1190,42 +1198,50 @@ export default function App() {
     <div id="sidebarMask" className={'sidebar-mask ' + (!settingsOpen && !sidebarCollapsed ? 'show' : '')} onClick={() => setSidebarCollapsed(true)} />
     {settingsOpen ? <div id="settingsPage" className="settings-page"><Suspense fallback={<div className="empty compact" role="status">正在加载配置中心…</div>}>{settingsPanel}</Suspense></div> : <div id="app" className={appClass}>
       <Sidebar
-        activeScheduledTasks={activeScheduledTasks} busy={busy} clearScheduledTaskRunList={clearScheduledTaskRunList}
-        current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} goHome={goHome}
+        busy={busy} current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} goHome={goHome}
         hasMoreSessions={visibleSessionsHasMore} loadingMoreSessions={visibleSessionsLoadingMore} newSession={newSession}
-        onLoadMoreSessions={loadMoreVisibleSessions} openScheduledTaskRunList={openScheduledTaskRunList} openSession={openSession} openSettings={openSettings}
-        pinSessionByID={pinSessionByID} projects={projects} projectFilter={projectFilter} projectSessionCounts={projectSessionCounts} setProjectFilter={setProjectFilter} editProject={editProject} renameSessionByID={renameSessionByID}
-        selectedScheduledTask={selectedScheduledTask} selectedScheduledTaskID={selectedScheduledTaskID} selectedScheduledTaskSessions={selectedScheduledTaskSessions}
+        onLoadMoreSessions={loadMoreVisibleSessions} openSession={openSession} openWorkspacePage={openWorkspacePage}
+        pinSessionByID={pinSessionByID} projects={projects} projectFilter={projectFilter} renameSessionByID={renameSessionByID}
         sessionMenuID={sessionMenuID} sessionSearch={sessionSearch} sessionSearchBusy={sessionSearchBusy}
         setSessionMenuID={setSessionMenuID} setSessionSearch={setSessionSearch}
-        sessions={sessions} setSidebarCollapsed={setSidebarCollapsed} sidebarCollapsed={sidebarCollapsed}
+        setSidebarCollapsed={setSidebarCollapsed} sidebarCollapsed={sidebarCollapsed} workspacePage={workspacePage}
       />
       <main>
-        <Topbar
-          busy={busy} cloneCurrent={cloneCurrent} copyCurrentMarkdown={copyCurrentMarkdown} current={current}
-          currentPinned={currentPinned} currentTitle={currentTitle} deleteCurrent={deleteCurrent} exportCurrent={exportCurrent}
-          newSession={newSession} openSettings={openSettings} pinCurrent={pinCurrent} renameCurrent={renameCurrent}
-          setQuickPaletteOpen={setQuickPaletteOpen} setSidebarCollapsed={setSidebarCollapsed} setThemeState={setThemeState}
-          showContextPreview={showContextPreview} sidebarCollapsed={sidebarCollapsed} taskPanelAvailable={taskDataEnabled} taskPanelOpen={taskPanelOpen}
-          taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
-        />
-        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openProjects={() => openSettings('projects')} busy={busy} hasProjects={!!projects.length} modelReady={modelReady} />}</div>
-        {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息"><ArrowDown className="jump-latest-icon" size={17} aria-hidden="true" /></button> : null}
-        <CurrentSessionTask
-          error={currentSessionTask.error} loading={currentSessionTask.loading} onRefresh={currentSessionTask.refresh}
-          task={currentSessionTask.task} taskID={currentSessionTask.taskID}
-        />
-        <ComposerBar
-          busy={busy} createPersistedSession={createPersistedSession} current={current} downloadAttachment={downloadAttachment}
-          fileInputRef={fileInputRef} guideActiveJob={guideActiveJob} handleFileSelect={handleFileSelect}
-          input={input} inputRef={inputRef} inputStats={inputStats} modelPickerOpen={modelPickerOpen} modelReady={modelReady}
-          openSettings={openSettings} pendingAttachmentIDs={pendingAttachmentIDs} pendingAttachments={pendingAttachments}
-          providerChoices={providerChoices} removePendingAttachment={removePendingAttachment} selectChatModel={selectChatModel}
-          selectedChatModel={selectedChatModel} selectedModelProvider={selectedModelProvider} sendMsg={sendMsg}
-          setInput={setInput} setModelPickerOpen={setModelPickerOpen} stopStreaming={stopStreaming} uploadingFiles={uploadingFiles}
-        />
+        {workspacePage ? <Suspense fallback={<div className="empty compact" role="status">正在加载工作区…</div>}><WorkspacePage
+          page={workspacePage} closeWorkspacePage={closeWorkspacePage}
+          projects={projects} projectSessionCounts={projectSessionCounts} editProject={editProject} deleteProject={deleteProject}
+          showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} openProjectSessions={openProjectSessions}
+          scheduledTasks={scheduledTasks} taskSearch={taskSearch} setTaskSearch={setTaskSearch}
+          editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} toggleScheduledTask={toggleScheduledTask}
+          runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns}
+          openScheduledTaskSession={openScheduledTaskSession} loadScheduledTasks={loadScheduledTasks}
+        /></Suspense> : <>
+          <Topbar
+            busy={busy} cloneCurrent={cloneCurrent} copyCurrentMarkdown={copyCurrentMarkdown} current={current}
+            currentPinned={currentPinned} currentTitle={currentTitle} deleteCurrent={deleteCurrent} exportCurrent={exportCurrent}
+            newSession={newSession} openSettings={openSettings} pinCurrent={pinCurrent} renameCurrent={renameCurrent}
+            setQuickPaletteOpen={setQuickPaletteOpen} setSidebarCollapsed={setSidebarCollapsed} setThemeState={setThemeState}
+            showContextPreview={showContextPreview} sidebarCollapsed={sidebarCollapsed} taskPanelAvailable={taskDataEnabled} taskPanelOpen={taskPanelOpen}
+            taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
+          />
+          <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openProjects={() => openWorkspacePage('projects')} busy={busy} hasProjects={!!projects.length} modelReady={modelReady} />}</div>
+          {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息"><ArrowDown className="jump-latest-icon" size={17} aria-hidden="true" /></button> : null}
+          <CurrentSessionTask
+            error={currentSessionTask.error} loading={currentSessionTask.loading} onRefresh={currentSessionTask.refresh}
+            task={currentSessionTask.task} taskID={currentSessionTask.taskID}
+          />
+          <ComposerBar
+            busy={busy} createPersistedSession={createPersistedSession} current={current} downloadAttachment={downloadAttachment}
+            fileInputRef={fileInputRef} guideActiveJob={guideActiveJob} handleFileSelect={handleFileSelect}
+            input={input} inputRef={inputRef} inputStats={inputStats} modelPickerOpen={modelPickerOpen} modelReady={modelReady}
+            openSettings={openSettings} pendingAttachmentIDs={pendingAttachmentIDs} pendingAttachments={pendingAttachments}
+            providerChoices={providerChoices} removePendingAttachment={removePendingAttachment} selectChatModel={selectChatModel}
+            selectedChatModel={selectedChatModel} selectedModelProvider={selectedModelProvider} sendMsg={sendMsg}
+            setInput={setInput} setModelPickerOpen={setModelPickerOpen} stopStreaming={stopStreaming} uploadingFiles={uploadingFiles}
+          />
+        </>}
       </main>
-      {taskPanelOpen ? <>
+      {!workspacePage && taskPanelOpen ? <>
         <div className="agent-task-panel-mask" onClick={closeTaskPanel} />
         <TaskPanel
           available={taskDataEnabled} deletingTaskID={deletingAgentTaskID} detailError={agentTasks.detailError} detailLoading={agentTasks.detailLoading} error={agentTasks.error}
@@ -1234,7 +1250,6 @@ export default function App() {
           taskDetail={agentTasks.taskDetail} tasks={agentTasks.tasks}
         />
       </> : null}
-
     </div>}
     <QuickPalette open={quickPaletteOpen} actions={quickActions} onClose={() => setQuickPaletteOpen(false)} />
     {authPage ? <LoginPage api={api} error={authPage} refreshAfterLogin={refreshAfterLogin} setAuthPage={setAuthPage} /> : null}

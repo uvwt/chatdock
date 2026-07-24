@@ -8,11 +8,11 @@
   padding: 32px;
   overflow: auto;
   background:
-    linear-gradient(90deg, rgba(230, 240, 234, .035) 1px, transparent 1px),
-    linear-gradient(rgba(230, 240, 234, .035) 1px, transparent 1px),
-    #07110d;
+    linear-gradient(90deg, rgba(16, 39, 28, .035) 1px, transparent 1px),
+    linear-gradient(rgba(16, 39, 28, .035) 1px, transparent 1px),
+    #ffffff;
   background-size: 52px 52px;
-  color: #e6f0ea;
+  color: #10271c;
 }
 
 .auth-page::before,
@@ -41,7 +41,7 @@
   inset: 0;
   pointer-events: none;
   opacity: .6;
-  background: linear-gradient(118deg, transparent 48%, rgba(230, 240, 234, .05) 48.08%, transparent 48.16%);
+  background: linear-gradient(118deg, transparent 48%, rgba(16, 39, 28, .05) 48.08%, transparent 48.16%);
 }
 
 .auth-shell {
@@ -51,11 +51,11 @@
   grid-template-columns: minmax(0, 1.18fr) minmax(360px, .82fr);
   width: min(1120px, 100%);
   min-height: min(680px, calc(100dvh - 64px));
-  border: 1px solid rgba(230, 240, 234, .15);
+  border: 1px solid rgba(16, 39, 28, .15);
   border-radius: 0 36px 0 36px;
   overflow: hidden;
-  background: rgba(10, 23, 18, .82);
-  box-shadow: 0 40px 130px rgba(0, 0, 0, .48);
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 34px 100px rgba(16, 39, 28, .16);
   backdrop-filter: blur(24px);
   animation: canvasEnter .8s var(--dock-ease) both;
 }
@@ -68,7 +68,7 @@
   min-height: 0;
   padding: clamp(42px, 6vw, 78px);
   border: 0;
-  border-right: 1px solid rgba(230, 240, 234, .12);
+  border-right: 1px solid rgba(16, 39, 28, .12);
   border-radius: 0;
   background:
     radial-gradient(circle at 86% 8%, rgba(111, 175, 138, .11), transparent 30%),
@@ -84,7 +84,7 @@
   display: inline-flex;
   align-items: center;
   gap: 11px;
-  color: rgba(230, 240, 234, .56);
+  color: rgba(16, 39, 28, .56);
   font-size: 9px;
   font-weight: 760;
   letter-spacing: .16em;
@@ -102,7 +102,7 @@
 
 .auth-eyebrow {
   margin-bottom: 20px;
-  color: #6faf8a;
+  color: #2f6f4d;
   font-size: 9px;
   font-weight: 780;
   letter-spacing: .18em;
@@ -111,7 +111,7 @@
 
 .auth-intro h1 {
   margin: 0;
-  color: #e6f0ea;
+  color: #10271c;
   font-family: Georgia, "Times New Roman", "Songti SC", serif;
   font-size: clamp(68px, 8vw, 116px);
   font-weight: 500;
@@ -126,7 +126,7 @@
 .auth-intro > p {
   max-width: 520px;
   margin: 30px 0 32px;
-  color: rgba(230, 240, 234, .64);
+  color: rgba(16, 39, 28, .64);
   font-size: 14px;
   line-height: 1.82;
 }
@@ -135,8 +135,8 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0;
-  border-top: 1px solid rgba(230, 240, 234, .12);
-  border-left: 1px solid rgba(230, 240, 234, .12);
+  border-top: 1px solid rgba(16, 39, 28, .12);
+  border-left: 1px solid rgba(16, 39, 28, .12);
 }
 
 .auth-feature-grid span {
@@ -146,11 +146,11 @@
   min-height: 54px;
   padding: 0 14px;
   border: 0;
-  border-right: 1px solid rgba(230, 240, 234, .12);
-  border-bottom: 1px solid rgba(230, 240, 234, .12);
+  border-right: 1px solid rgba(16, 39, 28, .12);
+  border-bottom: 1px solid rgba(16, 39, 28, .12);
   border-radius: 0;
   background: transparent;
-  color: rgba(230, 240, 234, .76);
+  color: rgba(16, 39, 28, .76);
   font-size: 11px;
   font-weight: 620;
 }
@@ -161,7 +161,7 @@
   bottom: 20px;
   display: flex;
   gap: 10px;
-  color: rgba(230, 240, 234, .25);
+  color: rgba(16, 39, 28, .25);
   font-size: 8px;
   letter-spacing: .1em;
 }
@@ -175,7 +175,7 @@
   padding: clamp(34px, 4.5vw, 62px);
   border: 0;
   border-radius: 0;
-  background: rgba(12, 29, 22, .72);
+  background: #ffffff;
   box-shadow: none;
   backdrop-filter: none;
 }
@@ -193,7 +193,7 @@
   align-items: center;
   gap: 7px;
   margin-bottom: 12px;
-  color: #6faf8a;
+  color: #2f6f4d;
   font-size: 9px;
   font-weight: 780;
   letter-spacing: .16em;
@@ -202,7 +202,7 @@
 
 .auth-page .login-card b {
   display: block;
-  color: #e6f0ea;
+  color: #10271c;
   font-size: clamp(28px, 3vw, 40px);
   font-weight: 620;
   line-height: 1.08;
@@ -214,7 +214,7 @@
   border: 1px solid rgba(111, 175, 138, .28);
   border-radius: 999px;
   background: rgba(111, 175, 138, .08);
-  color: #6faf8a;
+  color: #2f6f4d;
   font-size: 8px;
   font-weight: 780;
   letter-spacing: .12em;
@@ -223,7 +223,7 @@
 
 .auth-page .login-card .hint {
   margin-bottom: 18px;
-  color: rgba(230, 240, 234, .52);
+  color: rgba(16, 39, 28, .52);
   font-size: 12px;
   line-height: 1.6;
 }
@@ -232,7 +232,7 @@
   display: grid;
   gap: 8px;
   margin: 13px 0 0;
-  color: rgba(230, 240, 234, .64);
+  color: rgba(16, 39, 28, .64);
   font-size: 10px;
   font-weight: 690;
   letter-spacing: .08em;
@@ -244,16 +244,16 @@
   gap: 9px;
   min-height: 50px;
   padding: 0 13px;
-  border: 1px solid rgba(230, 240, 234, .14);
+  border: 1px solid rgba(16, 39, 28, .14);
   border-radius: 12px;
-  background: rgba(7, 17, 13, .46);
-  color: rgba(230, 240, 234, .42);
+  background: #ffffff;
+  color: rgba(16, 39, 28, .42);
   transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
 }
 
 .login-input-wrap:focus-within {
   border-color: rgba(111, 175, 138, .58);
-  background: rgba(7, 17, 13, .68);
+  background: #ffffff;
   box-shadow: 0 0 0 4px rgba(111, 175, 138, .09);
 }
 
@@ -264,7 +264,7 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: #e6f0ea;
+  color: #10271c;
   outline: 0;
   box-shadow: none;
 }
@@ -292,7 +292,7 @@
 
 .login-footnote {
   margin-top: 16px;
-  color: rgba(230, 240, 234, .34);
+  color: rgba(16, 39, 28, .34);
   font-size: 10px;
   text-align: center;
 }
@@ -551,7 +551,7 @@
     min-height: 440px;
     padding: 84px 26px 34px;
     border-right: 0;
-    border-bottom: 1px solid rgba(230, 240, 234, .12);
+    border-bottom: 1px solid rgba(16, 39, 28, .12);
   }
 
   .auth-brand-lockup {

@@ -9,19 +9,12 @@
 
 #app.app .sidebar-head,
 #app.app .session-search-row,
-#app.app .project-nav,
-#app.app .sidebar-tasks,
+#app.app .sidebar-hubs,
 #app.app aside > .sidebar-section-head {
   flex: 0 0 auto;
 }
 
-#app.app .project-nav-list,
-#app.app .sidebar-task-list {
-  min-width: 0;
-}
-
-#app.app .project-nav-item,
-#app.app .sidebar-task-item,
+#app.app .sidebar-hubs button,
 #app.app #sessions .session {
   min-width: 0;
 }
@@ -56,24 +49,6 @@
   pointer-events: auto;
 }
 
-#app.app .sidebar-tasks {
-  display: grid;
-  gap: 5px;
-  max-height: min(29dvh, 190px);
-  overflow: hidden;
-}
-
-#app.app .sidebar-task-list {
-  max-height: 150px;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-#app.app .sidebar-task-more,
-#app.app .sidebar-clear-task {
-  width: auto;
-}
-
 .sidebar-mask {
   display: none;
 }
@@ -93,8 +68,7 @@
 
   #app.app.sidebar-collapsed .brand,
   #app.app.sidebar-collapsed .session-search-box,
-  #app.app.sidebar-collapsed .project-nav,
-  #app.app.sidebar-collapsed .sidebar-tasks,
+  #app.app.sidebar-collapsed .sidebar-hubs,
   #app.app.sidebar-collapsed aside > .sidebar-section-head,
   #app.app.sidebar-collapsed .session-search-meta,
   #app.app.sidebar-collapsed #sessions {

@@ -70,12 +70,11 @@ body.theme-light {
 
   #app.app .sidebar-mask.show { background: var(--mobile-overlay) !important; }
 
-  #app.app aside :is(.brand-text, .session-title, .sidebar-section-head, .sidebar-task-item),
-  #app.app aside .sidebar-task-list.session-list-like .sidebar-task-name.session-title {
+  #app.app aside :is(.brand-text, .session-title, .sidebar-section-head, .sidebar-hubs span) {
     color: var(--mobile-text-strong) !important;
   }
 
-  #app.app aside :is(.sub, .session-preview, .session-meta, .sidebar-section-count) {
+  #app.app aside :is(.sub, .session-preview, .session-meta, .sidebar-hubs small) {
     color: var(--mobile-muted) !important;
   }
 

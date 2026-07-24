@@ -65,7 +65,8 @@ const componentExportChecks = [
   ['web/src/components/base.jsx', 'export function DialogHost'],
   ['web/src/hooks/useAttachments.js', 'export function useAttachments'],
   ['web/src/hooks/useSettingsData.js', 'export function useSettingsData'],
-  ['web/src/lib/sessionPresentation.js', 'export function scheduledTaskSessionRows'],
+  ['web/src/components/workspacePages.jsx', 'export function WorkspacePage'],
+  ['web/src/lib/sessionPresentation.js', 'export function visibleSessionRows'],
 ];
 for (const [file, token] of componentExportChecks) {
   if (!read(file).includes(token)) failures.push(`expected export missing in ${file}: ${token}`);

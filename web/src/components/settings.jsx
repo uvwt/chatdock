@@ -1,38 +1,29 @@
-// Configuration-center modules: projects, model/provider, MCP tools, automation, and system diagnostics.
+// Configuration-center modules: model/provider, MCP tools, and system diagnostics.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Check,
-  MoreHorizontal,
   RefreshCw,
   CircleX,
 } from './icons.js';
 import '../styles/settings-entry.css';
 import { TextCard } from './base.jsx';
-import { settingsModules, diagnosticsText, fmtBytes, fmtRelativeAge, fmtTime, runStatusClass, runStatusLabel, safePathName, scheduleSummary, taskStatusClass, taskStatusLabel } from '../lib/appUtils.js';
+import { settingsModules, diagnosticsText, fmtBytes, fmtRelativeAge, fmtTime, runStatusClass, runStatusLabel, safePathName } from '../lib/appUtils.js';
 
 const settingsModuleMeta = {
-  projects: {label: '项目', desc: '管理项目名称、项目提示词和会话归属。'},
   model: {label: '模型', desc: '默认供应商和默认模型。'},
   providers: {label: '供应商', desc: '新增、编辑、测试模型供应商和候选模型。'},
   tools: {label: '工具', desc: '添加、检测和维护 MCP Server。'},
-  automation: {label: '自动化', desc: '管理全局自动化任务和运行状态。'},
   security: {label: '系统', desc: '查看运行状态、数据库、备份、诊断信息和访问入口。'},
 };
 
 export function SettingsPanel(props) {
   const {
-    activeModule, busy, closeSettings, config, configDirty, mcpConfigDirty, editProject, dataStatus, deleteScheduledTask, deleteProject, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
-    editScheduledTask, loadDataStatus, loadMCPConfig, loadMCPStatus, loadScheduledTasks,
-    loadSystemStatus, logout, builtinTools, mcpConfig, mcpStatus, onCopy, providers, projectPromptPreview, projectSessionCounts, refreshProductState, refreshVisibleSettings, runScheduledTaskNow, viewScheduledTaskRuns, openScheduledTaskSession, runSetupWizard,
-    saveConfig, saveMCPConfig, scheduledTasks, setConfig, setMcpConfig, setTaskSearch, setupStatus,
-    showProjectPromptPreview, switchSettingsModule, systemStatus, taskSearch, testMCP, fetchMCPServerTools, testModelProvider, fetchProviderModels, availableModels, candidateProviderID, addCandidateModelToProvider, loadingModels, toggleScheduledTask,
-    projects,
+    activeModule, closeSettings, config, configDirty, mcpConfigDirty, dataStatus, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
+    loadDataStatus, loadMCPConfig, loadMCPStatus, loadSystemStatus, logout, builtinTools, mcpConfig, mcpStatus, onCopy, providers, projectPromptPreview, refreshProductState, refreshVisibleSettings,
+    saveConfig, saveMCPConfig, setConfig, setMcpConfig, setupStatus, showProjectPromptPreview, switchSettingsModule, systemStatus,
+    testMCP, fetchMCPServerTools, testModelProvider, fetchProviderModels, availableModels, candidateProviderID, addCandidateModelToProvider, loadingModels,
   } = props;
-  const filteredTasks = useMemo(() => {
-    const q = taskSearch.trim().toLowerCase();
-    return q ? scheduledTasks.filter(t => [t.title, t.prompt, t.schedule_type, t.last_status, t.last_error].some(v => String(v || '').toLowerCase().includes(q))) : scheduledTasks;
-  }, [scheduledTasks, taskSearch]);
   const saveTimerRef = useRef(null);
   const [saveState, setSaveState] = useState({scope: '', status: 'idle', message: ''});
   const unsavedCount = Number(!!configDirty) + Number(!!mcpConfigDirty);
@@ -70,7 +61,7 @@ export function SettingsPanel(props) {
         <button className="secondary small settings-back-button icon-button" onClick={() => closeSettings()} aria-label="返回聊天" title="返回聊天"><ArrowLeft className="settings-header-icon settings-back-icon" size={17} aria-hidden="true" /></button>
         <div>
           <div className="settings-title-row"><h2>配置中心</h2>{unsavedCount ? <span className="settings-global-save-state dirty"><span aria-hidden="true" />{unsavedCount} 处未保存</span> : saveState.status === 'saved' ? <span className="settings-global-save-state saved"><Check size={13} aria-hidden="true" />已保存</span> : null}</div>
-          <p>统一管理项目、模型、工具与自动化。</p>
+          <p>统一管理模型、供应商、工具与系统。</p>
         </div>
       </div>
       <div className="settings-header-actions"><button className="secondary small settings-refresh-button" onClick={refreshSettings} aria-label="刷新配置" title="刷新配置"><RefreshCw className="settings-header-icon settings-refresh-icon" size={16} aria-hidden="true" /><span className="settings-refresh-text">刷新</span></button></div>
@@ -80,14 +71,11 @@ export function SettingsPanel(props) {
         {settingsModules.map(m => <option key={m} value={m}>{moduleLabel(m)}{moduleIsDirty(m) ? ' · 未保存' : ''}</option>)}
       </select>
       <nav className="module-tabs" aria-label="配置模块">{settingsModules.map(m => { const dirty = moduleIsDirty(m); return <button key={m} className={'module-tab ' + (activeModule === m ? 'active ' : '') + (dirty ? 'dirty' : '')} onClick={() => switchSettingsModule(m)}><span className="module-tab-label">{moduleLabel(m)}</span>{dirty ? <span className="module-tab-dirty" aria-label="有未保存修改">未保存</span> : null}</button>; })}</nav>
-      <div className="settings-sidebar-footer"><span>项目</span><b title={String(projects.length || 0)}>{projects.length || 0} 个</b></div>
     </div>
     <main className="settings-content">
-      <ModuleView name="projects" activeModule={activeModule}><ProjectManager setupStatus={setupStatus} projects={projects} projectSessionCounts={projectSessionCounts} editProject={editProject} deleteProject={deleteProject} showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} runSetupWizard={runSetupWizard} /></ModuleView>
       <ModuleView name="model" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="保存后将用于新的对话和自动化任务。"><ModelModule config={config} configDirty={configDirty} saveState={configSaveState} setConfig={setConfig} saveConfig={() => saveScope('config')} showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>
       <ModuleView name="providers" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="当前默认供应商需要保存后才会生效。"><ProvidersModule config={config} setConfig={setConfig} providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} /></ModuleView>
       <ModuleView name="tools" activeModule={activeModule} dirty={mcpConfigDirty} saveState={mcpSaveState} onSave={() => saveScope('mcp')} saveHint="保存后工具加载方式和权限才会生效。"><ToolsModule builtinTools={builtinTools} mcpStatus={mcpStatus} mcpConfig={mcpConfig} mcpConfigDirty={mcpConfigDirty} saveState={mcpSaveState} setMcpConfig={setMcpConfig} saveMCPConfig={() => saveScope('mcp')} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} /></ModuleView>
-      <ModuleView name="automation" activeModule={activeModule}><div className="settings-block-head"><label>全局自动化任务</label><button className="secondary small" onClick={() => editScheduledTask()}>新增任务</button></div><input className="session-search" placeholder="搜索任务" value={taskSearch} onChange={e => setTaskSearch(e.target.value)} /><div className="tasks-list">{filteredTasks.length ? filteredTasks.map(t => <TaskCard key={t.id} task={t} editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} toggleScheduledTask={toggleScheduledTask} runScheduledTaskNow={runScheduledTaskNow} viewScheduledTaskRuns={viewScheduledTaskRuns} openScheduledTaskSession={openScheduledTaskSession} />) : <div className="hint">暂无定时任务。默认每次独立执行，运行结果写入任务记录；需要连续上下文时可在编辑中开启。</div>}</div><div className="settings-actions"><button className="secondary" onClick={() => loadScheduledTasks?.()}>刷新任务</button></div></ModuleView>
       <ModuleView name="security" activeModule={activeModule}><SecurityModule systemStatus={systemStatus} setupStatus={setupStatus} dataStatus={dataStatus} mcpStatus={mcpStatus} providers={providers} loadSystemStatus={loadSystemStatus} loadDataStatus={loadDataStatus} logout={logout} onCopy={onCopy} /></ModuleView>
     </main>
   </section>;
@@ -135,22 +123,6 @@ function normalizeModelNames(value) {
 function modelListText(config) {
   const models = Array.isArray(config.models) && config.models.length ? config.models : [config.model].filter(Boolean);
   return normalizeModelNames(models).join('\n');
-}
-
-function ProjectManager({ setupStatus, projects, projectSessionCounts, editProject, deleteProject, showProjectPromptPreview, projectPromptPreview, runSetupWizard }) {
-  const summaryItems = [
-    ['项目', String(projects.length || 0)],
-    ['全部会话', String(projectSessionCounts?.all ?? '-')],
-    ['普通会话', String(projectSessionCounts?.plain ?? '-')],
-    ['初始化', setupStatus?.needs_setup ? '待完成' : '已完成'],
-  ];
-  return <>
-    <div className="project-summary-grid">{summaryItems.map(([label, value]) => <div className="project-summary-card" key={label}><span>{label}</span><b>{value}</b></div>)}</div>
-    <div className={'setup-banner show ' + (setupStatus && !setupStatus.needs_setup ? 'ok' : '')}>{setupStatus?.needs_setup ? <><div><b>首次配置未完成</b><div className="hint">请配置模型供应商和默认模型，完成后即可开始对话。</div></div><button className="small" onClick={runSetupWizard}>开始引导</button></> : <div><b>系统已就绪</b><div className="hint">数据目录：{setupStatus?.data_dir || '-'}</div></div>}</div>
-    <div className="settings-block-head"><label>项目管理</label><button className="secondary small" onClick={() => editProject?.()}>新增项目</button></div>
-    <div id="projectCards">{projects.length ? projects.map(project => <TextCard key={project.id} title={project.name} hint={project.prompt || '未设置项目提示词'} badge={(projectSessionCounts?.byProject?.[project.id] || 0) + ' 会话'}><div className="product-meta">ID：{project.id}</div><div className="product-actions"><button className="secondary small" onClick={() => editProject?.(project)}>编辑</button><button className="secondary small" onClick={() => showProjectPromptPreview?.(project.id)}>预览 Prompt</button><button className="danger small" onClick={() => deleteProject?.(project)}>删除</button></div></TextCard>) : <div className="empty compact">还没有项目。普通会话不需要项目。</div>}</div>
-    {projectPromptPreview ? <section className="settings-section"><div className="settings-section-head"><div><b>最终 Prompt 预览</b><div className="hint">后端按全局系统提示词 + 项目提示词拼接。</div></div></div><pre className="code-preview compact">{projectPromptPreview}</pre></section> : null}
-  </>;
 }
 
 function ModelModule({ config, configDirty, saveState, setConfig, saveConfig, showProjectPromptPreview, projectPromptPreview, testModelProvider, providers }) {
@@ -614,56 +586,6 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
     <div className="settings-actions mcp-primary-actions"><button className={mcpConfigDirty ? 'settings-inline-save-button dirty' : 'settings-inline-save-button'} onClick={() => saveMCPConfig?.()} disabled={!mcpConfigDirty || saving}>{saving ? '保存中…' : mcpConfigDirty ? '保存 MCP 更改' : 'MCP 已保存'}</button><button className="secondary" onClick={() => { if (!mcpConfigDirty || window.confirm('重新加载会丢弃尚未保存的 MCP 修改，确定继续吗？')) loadMCPConfig?.(); }}>重新加载</button><button className="secondary" onClick={() => testMCP()}>测试默认 MCP</button></div>
     <details className="mcp-raw-json"><summary>高级：查看 / 编辑原始 JSON</summary><textarea className="mcp-editor" value={mcpConfig} onChange={e => setMcpConfig(e.target.value)} /></details>
   </>;
-}
-
-function scheduledTaskContextLabel(mode) {
-  return ({stateless: '每次独立执行', last_result: '带上次结果', session: '连续会话'})[mode] || '每次独立执行';
-}
-
-function TaskCard({ task, editScheduledTask, deleteScheduledTask, toggleScheduledTask, runScheduledTaskNow, viewScheduledTaskRuns, openScheduledTaskSession }) {
-  const prompt = (task.prompt || '').trim().slice(0, 160) || '无提示内容';
-  const closeMenuAndRun = (event, action) => {
-    event.currentTarget.closest('details')?.removeAttribute('open');
-    action();
-  };
-
-  return <article className="task-card automation-task-card">
-    <header className="task-head automation-task-head">
-      <div className="automation-task-title-wrap">
-        <div className="task-name">{task.title || '未命名任务'}</div>
-        {task.running ? <span className="automation-task-running">运行中</span> : null}
-      </div>
-      <div className="automation-task-head-actions">
-        <span className={'badge ' + taskStatusClass(task)}>{taskStatusLabel(task)}</span>
-        <details className="automation-task-more">
-          <summary aria-label="更多任务操作" title="更多操作"><MoreHorizontal size={17} aria-hidden="true" /></summary>
-          <div className="automation-task-menu">
-            {task.session_id ? <button type="button" className="secondary small" onClick={event => closeMenuAndRun(event, () => openScheduledTaskSession(task.session_id))}>打开最近会话</button> : null}
-            <button type="button" className="secondary small" onClick={event => closeMenuAndRun(event, () => editScheduledTask(task.id))}>编辑任务</button>
-            <button type="button" className="danger small" onClick={event => closeMenuAndRun(event, () => deleteScheduledTask(task.id))}>删除任务</button>
-          </div>
-        </details>
-      </div>
-    </header>
-
-    <div className="task-desc automation-task-desc" title={prompt}>{prompt}</div>
-
-    {task.running ? <div className="hint automation-task-notice">任务运行中：编辑和启用状态会从下次运行生效；删除不会中断已发出的模型请求。</div> : null}
-    {task.last_error ? <div className="task-error automation-task-error">上次错误：{task.last_error}</div> : null}
-
-    <div className="automation-task-meta-list">
-      <div className="task-meta">{scheduleSummary(task)}</div>
-      <div className="task-meta">上下文：{scheduledTaskContextLabel(task.context_mode || 'stateless')}{task.context_mode === 'session' && task.session_id ? ' · 会话 ' + task.session_id : ''}</div>
-    </div>
-
-    <footer className="automation-task-footer">
-      <label className="task-toggle automation-task-toggle"><input type="checkbox" checked={!!task.enabled} onChange={e => toggleScheduledTask(task.id, e.target.checked)} /><span>启用</span></label>
-      <div className="task-actions automation-task-primary-actions">
-        <button type="button" className="secondary small" disabled={task.running} onClick={() => runScheduledTaskNow(task.id)}>立即运行</button>
-        <button type="button" className="secondary small" onClick={() => viewScheduledTaskRuns(task.id)}>查看记录</button>
-      </div>
-    </footer>
-  </article>;
 }
 
 function DataStatus({ dataStatus, onCopy }) {

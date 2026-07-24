@@ -335,9 +335,43 @@ button svg {
   background: var(--gpt-accent-strong);
 }
 
-#app.app .project-nav,
-#app.app .sidebar-tasks {
-  padding: 3px 2px 8px;
+#app.app .sidebar-hubs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 3px 2px 12px;
+}
+
+#app.app .sidebar-hubs button {
+  display: grid;
+  gap: 3px;
+  min-height: 58px;
+  padding: 10px;
+  border: 1px solid var(--gpt-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--gpt-surface-2) 76%, transparent);
+  color: var(--gpt-text);
+  text-align: left;
+}
+
+#app.app .sidebar-hubs button:hover,
+#app.app .sidebar-hubs button.active {
+  border-color: color-mix(in srgb, var(--gpt-accent) 38%, var(--gpt-border));
+  background: var(--gpt-accent-soft);
+}
+
+#app.app .sidebar-hubs span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#app.app .sidebar-hubs small {
+  overflow: hidden;
+  color: var(--gpt-muted-2);
+  font-size: 9px;
+  font-weight: 540;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #app.app .sidebar-section-head {
@@ -358,90 +392,6 @@ button svg {
   text-transform: uppercase;
 }
 
-#app.app .project-add-button {
-  width: 26px;
-  height: 26px;
-  min-height: 26px;
-  margin-left: auto;
-  border-color: transparent;
-  background: transparent;
-  color: var(--gpt-muted-2);
-}
-
-#app.app .project-nav-list,
-#app.app .sidebar-task-list {
-  display: grid;
-  gap: 2px;
-}
-
-#app.app .project-nav-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 38px;
-  padding: 7px 9px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--gpt-muted);
-  text-align: left;
-}
-
-#app.app .project-nav-item:hover,
-#app.app .project-nav-item.active,
-#app.app .project-nav-row:hover,
-#app.app .project-nav-row.active {
-  border-color: var(--gpt-border);
-  background: var(--gpt-sidebar-hover);
-  color: var(--gpt-text);
-  box-shadow: none;
-}
-
-#app.app .project-nav-row {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 30px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-}
-
-#app.app .project-nav-row .project-nav-item {
-  border: 0;
-  background: transparent;
-}
-
-#app.app .project-nav-row.active::before {
-  content: "";
-  position: absolute;
-  inset: 10px auto 10px -2px;
-  width: 2px;
-  border-radius: 999px;
-  background: var(--gpt-accent);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--gpt-accent) 45%, transparent);
-}
-
-#app.app .project-nav-item em,
-#app.app .sidebar-section-count {
-  min-width: 26px;
-  padding: 2px 7px;
-  border: 0;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--gpt-text) 5%, transparent);
-  color: var(--gpt-muted-2);
-  font-size: 10px;
-  font-style: normal;
-  text-align: center;
-}
-
-#app.app .project-nav-item.active em,
-#app.app .project-nav-row.active em {
-  background: var(--gpt-accent-soft);
-  color: var(--gpt-accent);
-}
-
-#app.app .project-edit-button,
 #app.app .session-menu-trigger {
   display: inline-grid;
   place-items: center;
@@ -464,8 +414,7 @@ button svg {
   overscroll-behavior: contain;
 }
 
-#app.app #sessions .session,
-#app.app .sidebar-task-item {
+#app.app #sessions .session {
   position: relative;
   display: flex;
   min-height: 38px;
@@ -479,9 +428,7 @@ button svg {
 }
 
 #app.app #sessions .session:hover,
-#app.app #sessions .session.active,
-#app.app .sidebar-task-item:hover,
-#app.app .sidebar-task-item.active {
+#app.app #sessions .session.active {
   border-color: var(--gpt-border);
   background: var(--gpt-sidebar-hover);
   color: var(--gpt-text);
@@ -501,8 +448,7 @@ button svg {
   padding-right: 30px;
 }
 
-#app.app .session-title,
-#app.app .sidebar-task-name {
+#app.app .session-title {
   display: flex;
   align-items: center;
   min-width: 0;
@@ -554,8 +500,4 @@ button svg {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-#app.app .sidebar-task-list.session-list-like .sidebar-task-name.session-title {
-  color: var(--gpt-muted);
 }

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { cronScheduleFormValue, cronSchedulePayload, defaultRunAtValue, fmtTime } from '../lib/appUtils.js';
+import { scheduledTaskRunsText } from '../lib/chatPresentation.js';
 import {
   createModelProvider as createModelProviderRequest,
   createProject as createProjectRequest,
@@ -29,7 +30,6 @@ import {
 export function useSettingsActions({
   api,
   busy,
-  closeSettings,
   closeSidebarOnMobile,
   config,
   loadConfig,
@@ -47,14 +47,10 @@ export function useSettingsActions({
   refreshProductState,
   scheduledTasks,
   selectedProject,
-  selectedScheduledTaskID,
-  setSelectedScheduledTaskID,
-  setSelectedScheduledTaskRuns,
   setConfig,
   setProjectFilter,
   setProjectPromptPreview,
   setScheduledTasks,
-  setSessionSearch,
   showDialog,
   showToast,
 }) {
@@ -352,39 +348,31 @@ export function useSettingsActions({
     if (!id) return;
     try {
       await openSession(id);
-      closeSettings();
     } catch (e) { showToast('打开运行会话失败：' + e.message, 'error'); }
-  }, [closeSettings, openSession, showToast]);
-
-  const openScheduledTaskRunList = useCallback(async (taskID) => {
-    const id = String(taskID || '').trim();
-    if (!id) return;
-    try {
-      const data = await fetchScheduledTaskRuns(api, id);
-      setSelectedScheduledTaskID(id);
-      setSelectedScheduledTaskRuns(data.runs || []);
-      setSessionSearch('');
-    } catch (e) { showToast('读取任务会话失败：' + e.message, 'error'); }
-  }, [api, showToast]);
-
-  const clearScheduledTaskRunList = useCallback(() => {
-    setSelectedScheduledTaskID('');
-    setSelectedScheduledTaskRuns([]);
-  }, []);
+  }, [openSession, showToast]);
 
   const viewScheduledTaskRuns = useCallback(async (id) => {
-    const existing = scheduledTasks.find(t => t.id === id);
+    const existing = scheduledTasks.find(task => task.id === id);
     if (!existing) return;
     try {
       const data = await fetchScheduledTaskRuns(api, id);
       const runs = data.runs || [];
-      setSelectedScheduledTaskID(id);
-      setSelectedScheduledTaskRuns(runs);
-      setSessionSearch('');
-      closeSettings();
-      showToast(runs.length ? ('已在侧边栏展示 ' + runs.length + ' 条运行会话') : '这个任务还没有运行记录', runs.length ? 'success' : 'info');
-    } catch (e) { showToast('读取运行记录失败：' + e.message, 'error'); }
-  }, [api, closeSettings, scheduledTasks, showToast]);
+      await showDialog({
+        title: '运行记录 · ' + (existing.title || '定时任务'),
+        confirmText: '关闭',
+        hideCancel: true,
+        fields: [{
+          name: 'runs',
+          label: runs.length ? runs.length + ' 条运行记录' : '暂无运行记录',
+          type: 'textarea',
+          rows: 16,
+          value: scheduledTaskRunsText(existing, runs),
+        }],
+      });
+    } catch (error) {
+      showToast('读取运行记录失败：' + error.message, 'error');
+    }
+  }, [api, scheduledTasks, showDialog, showToast]);
 
 
   const runScheduledTaskNow = useCallback(async (id) => {
@@ -396,23 +384,18 @@ export function useSettingsActions({
       const result = await runScheduledTask(api, id);
       await loadScheduledTasks();
       await loadSessions();
-      if (selectedScheduledTaskID === id) {
-        const runsData = await fetchScheduledTaskRuns(api, id).catch(() => null);
-        if (runsData) setSelectedScheduledTaskRuns(runsData.runs || []);
-      }
       await refreshProductState();
       if (result.session && result.session.id) {
         await openScheduledTaskSession(result.session.id);
       }
       showToast(result.session ? '定时任务已运行，已打开运行会话' : '定时任务已运行，结果已写入运行记录', 'success');
     } catch (e) { await loadScheduledTasks().catch(() => { }); showToast('运行失败：' + e.message, 'error'); }
-  }, [api, loadScheduledTasks, loadSessions, openScheduledTaskSession, refreshProductState, scheduledTasks, selectedScheduledTaskID, showDialog, showToast]);
+  }, [api, loadScheduledTasks, loadSessions, openScheduledTaskSession, refreshProductState, scheduledTasks, showDialog, showToast]);
 
   return {
     addCandidateModelToProvider,
     availableModels,
     candidateProviderID,
-    clearScheduledTaskRunList,
     deleteModelProvider,
     deleteProject,
     deleteScheduledTask,
@@ -423,7 +406,6 @@ export function useSettingsActions({
     fetchProviderModels,
     fetchSavedProviderModels,
     loadingModels,
-    openScheduledTaskRunList,
     openScheduledTaskSession,
     runScheduledTaskNow,
     runSetupWizard,

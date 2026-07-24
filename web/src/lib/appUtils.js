@@ -1,9 +1,16 @@
 // Shared UI formatting, routing, and product-status helpers.
-export const settingsModules = ['projects', 'model', 'providers', 'tools', 'automation', 'security'];
+export const settingsModules = ['model', 'providers', 'tools', 'security'];
 
 export function normalizeSettingsModule(name) {
   if (name === 'data') return 'security';
-  return settingsModules.includes(name) ? name : 'projects';
+  return settingsModules.includes(name) ? name : 'model';
+}
+
+export function workspacePageFromPath() {
+  const path = window.location.pathname;
+  if (path === '/projects') return 'projects';
+  if (path === '/scheduled-tasks') return 'scheduled-tasks';
+  return '';
 }
 
 export function agentTaskDataEnabled(setupStatus, systemStatus, authPageVisible = false) {
@@ -198,7 +205,7 @@ export function scheduleSummary(t) {
 export function settingsModuleFromPath() {
   const parts = window.location.pathname.split('/').filter(Boolean);
   if (parts[0] !== 'settings') return '';
-  return normalizeSettingsModule(parts[1] || localStorage.getItem('chatdock.settingsModule') || 'projects');
+  return normalizeSettingsModule(parts[1] || localStorage.getItem('chatdock.settingsModule') || 'model');
 }
 
 export function sessionIDFromPath() {

@@ -7,8 +7,8 @@ function actionsFor(overrides = {}) {
   return buildQuickActions({
     branchCurrent: noop, busy: false, cloneCurrent: noop, copyCurrentMarkdown: noop, copyText: noop,
     createSession: noop, current: 's1', currentPinned: false, deleteCurrent: noop, exportCurrent: noop,
-    inputRef: { current: { focus: noop } }, messagesLength: 2, openSettings: noop, pinCurrent: noop,
-    productDiagnostics: 'diag', projectCount: 1, renameCurrent: noop, sendMsg: noop, setProjectFilter: noop, setThemeState: noop,
+    inputRef: { current: { focus: noop } }, messagesLength: 2, openSettings: noop, openWorkspacePage: noop, pinCurrent: noop,
+    productDiagnostics: 'diag', renameCurrent: noop, sendMsg: noop, setProjectFilter: noop, setThemeState: noop,
     showContextPreview: noop, theme: 'day', ...overrides,
   });
 }
@@ -20,10 +20,10 @@ test('buildQuickActions exposes stable primary actions', () => {
   assert.ok(actions.some(item => item.id === 'copy-diagnostics'));
 });
 
-test('buildQuickActions marks unavailable actions disabled', () => {
-  const actions = actionsFor({ current: '', busy: true, projectCount: 0, messagesLength: 0 });
+test('buildQuickActions keeps creation pages available while disabling session-only actions', () => {
+  const actions = actionsFor({ current: '', busy: true, messagesLength: 0 });
   assert.equal(actions.find(item => item.id === 'continue').disabled, true);
-  assert.equal(actions.find(item => item.id === 'settings-projects').disabled, true);
+  assert.equal(actions.find(item => item.id === 'settings-projects').disabled, undefined);
   assert.equal(actions.find(item => item.id === 'delete-session').disabled, true);
   assert.equal(actions.find(item => item.id === 'branch-session').disabled, true);
 });

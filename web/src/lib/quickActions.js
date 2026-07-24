@@ -1,16 +1,16 @@
 export function buildQuickActions(opts) {
-  const { branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, inputRef, messagesLength, openSettings, pinCurrent, productDiagnostics, projectCount, renameCurrent, sendMsg, setProjectFilter, setThemeState, showContextPreview, theme } = opts;
+  const { branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, inputRef, messagesLength, openSettings, openWorkspacePage, pinCurrent, productDiagnostics, renameCurrent, sendMsg, setProjectFilter, setThemeState, showContextPreview, theme } = opts;
   return [
     { id: 'focus-input', title: '聚焦输入框', hint: '按 / 也可以快速输入', run: () => inputRef.current?.focus() },
     { id: 'new-session', title: '新建会话', hint: '按当前会话筛选创建新对话', run: createSession },
     { id: 'continue', title: '发送“继续”', hint: '让当前会话继续上一轮内容', disabled: busy, run: () => sendMsg('继续') },
     { id: 'all-sessions', title: '全部会话', hint: '显示所有普通会话和项目会话', run: () => setProjectFilter?.('all') },
     { id: 'plain-sessions', title: '普通会话', hint: '只显示未归属项目的会话', run: () => setProjectFilter?.('plain') },
-    { id: 'settings-projects', title: '项目管理', hint: '管理项目名称和项目提示词', disabled: busy || !projectCount, run: () => openSettings('projects') },
-    { id: 'settings', title: '打开配置中心', hint: '项目、模型、工具和数据统一管理', run: () => openSettings() },
+    { id: 'settings-projects', title: '项目管理', hint: '管理项目名称、提示词和会话归属', run: () => openWorkspacePage('projects') },
+    { id: 'settings', title: '打开配置中心', hint: '模型、工具和系统设置', run: () => openSettings() },
     { id: 'settings-model', title: '模型设置', hint: 'Base URL、API Key、模型和最终 Prompt', run: () => openSettings('model') },
     { id: 'settings-tools', title: '工具中心', hint: 'MCP 配置、状态检测和连接测试', run: () => openSettings('tools') },
-    { id: 'settings-automation', title: '自动化任务', hint: '创建、运行和暂停定时任务', run: () => openSettings('automation') },
+    { id: 'settings-automation', title: '定时任务', hint: '创建、运行和暂停自动执行任务', run: () => openWorkspacePage('scheduled-tasks') },
     { id: 'settings-system', title: '系统与数据', hint: '运行状态、数据库、备份和诊断信息', run: () => openSettings('security') },
     { id: 'copy-diagnostics', title: '复制诊断信息', hint: '复制脱敏后的系统、数据库、备份和 MCP 状态', run: () => copyText(productDiagnostics) },
     { id: 'copy-session', title: '复制当前会话全文', hint: '复制为 Markdown', disabled: !current, run: copyCurrentMarkdown },
