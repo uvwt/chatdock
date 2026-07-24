@@ -118,7 +118,6 @@
 }
 
 .settings-page .mcp-advanced-fields,
-.settings-page .mcp-raw-json,
 .settings-page details.settings-section,
 .settings-page .model-mini-details {
   background: var(--set-muted-surface) !important;

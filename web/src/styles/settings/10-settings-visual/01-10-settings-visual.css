@@ -81,7 +81,6 @@
 .settings-page .mcp-server-meta { display: inline-flex !important; align-items: center !important; justify-content: flex-end !important; gap: 8px !important; min-width: 0 !important; }
 .settings-page .mcp-form-list.redesigned { display: grid !important; gap: 12px !important; grid-template-columns: 1fr !important; }
 .settings-page .mcp-advanced-fields,
-.settings-page .mcp-raw-json,
 .settings-page .model-mini-details { border: 1px solid var(--v4-line) !important; background: var(--v4-soft) !important; box-shadow: none !important; border-radius: 11px !important; }
 .settings-page .mcp-tool-policy-row { background: transparent !important; border-radius: 0 !important; border: 0 !important; border-bottom: 1px solid var(--v4-line) !important; }
 .settings-page .data-table-section { padding: 14px !important; }
@@ -355,7 +354,6 @@
 }
 
 .settings-page .mcp-advanced-fields,
-.settings-page .mcp-raw-json,
 .settings-page .model-mini-details,
 .settings-page details.settings-section {
   background: var(--settings-v5-card) !important;

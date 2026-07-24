@@ -16,7 +16,6 @@
 .settings-page .empty.compact,
 .settings-page .backup-item,
 .settings-page .backup-health,
-.settings-page .mcp-raw-json,
 .settings-page .mcp-advanced-fields {
   border-color: #e5e7eb !important;
   background: #fff !important;
@@ -339,14 +338,12 @@
 }
 
 .settings-page details.settings-section,
-.settings-page details.mcp-advanced-fields,
-.settings-page details.mcp-raw-json {
+.settings-page details.mcp-advanced-fields {
   padding: 10px 12px !important;
 }
 
 .settings-page details.settings-section[open],
-.settings-page details.mcp-advanced-fields[open],
-.settings-page details.mcp-raw-json[open] {
+.settings-page details.mcp-advanced-fields[open] {
   padding: 12px !important;
 }
 

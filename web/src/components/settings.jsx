@@ -573,7 +573,7 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
     {detailName ? <div className="mcp-form-list redesigned">{renderServerForm(detailName, parsed.config.servers[detailName])}</div> : null}
     {!detailKind ? <section className="settings-section mcp-overview-section mcp-directory-section">
       <div className="settings-section-head">
-        <div><b>工具资源</b><div className="hint">选择资源进入二级配置页面。</div></div>
+        <div><b>工具资源</b></div>
         <div className="mcp-directory-actions">
           <button className="secondary small" onClick={() => loadMCPStatus?.()}>检测</button>
           <button className="small" onClick={() => setDetail('@new')}>新增 Server</button>
@@ -598,7 +598,6 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
     {parsed.error ? <div className="backup-health warn">当前配置 JSON 损坏：{parsed.error}</div> : null}
     {formError ? <div className="backup-health warn">{formError}</div> : null}
     <div className="settings-actions mcp-primary-actions"><button className={mcpConfigDirty ? 'settings-inline-save-button dirty' : 'settings-inline-save-button'} onClick={() => saveMCPConfig?.()} disabled={!mcpConfigDirty || saving}>{saving ? '保存中…' : mcpConfigDirty ? '保存 MCP 更改' : 'MCP 已保存'}</button><button className="secondary" onClick={() => { if (!mcpConfigDirty || window.confirm('重新加载会丢弃尚未保存的 MCP 修改，确定继续吗？')) { setDetail(''); loadMCPConfig?.(); } }}>重新加载</button></div>
-    {!detailKind ? <details className="mcp-raw-json"><summary>高级：查看 / 编辑原始 JSON</summary><textarea className="mcp-editor" value={mcpConfig} onChange={e => setMcpConfig(e.target.value)} /></details> : null}
   </>;
 }
 
