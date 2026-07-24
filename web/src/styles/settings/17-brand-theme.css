@@ -98,7 +98,7 @@
 }
 
 .settings-page .settings-header-main p {
-  color: var(--gpt-muted-2) !important;
+  color: var(--gpt-muted) !important;
   font-size: 10px !important;
   letter-spacing: .04em;
 }
@@ -159,7 +159,7 @@
 
 .settings-page .settings-sidebar-footer {
   border-top: 1px solid var(--gpt-border) !important;
-  color: var(--gpt-muted-2) !important;
+  color: var(--gpt-muted) !important;
 }
 
 .settings-page .module-view-title {
@@ -184,6 +184,21 @@
   color: var(--gpt-muted) !important;
   font-size: 12px !important;
   line-height: 1.55 !important;
+}
+
+.settings-page :is(
+  .hint,
+  .product-meta,
+  .model-quick-head span,
+  .settings-disclosure p,
+  .data-info-row span,
+  .project-summary-card span,
+  .stat-card span,
+  .task-meta,
+  .mcp-server-main span,
+  .mcp-server-meta small
+) {
+  color: var(--gpt-muted) !important;
 }
 
 .settings-page .settings-block-head,
@@ -329,6 +344,12 @@ body .settings-page [data-module-view="providers"] .product-card.active,
 .settings-page input::placeholder,
 .settings-page textarea::placeholder {
   color: var(--gpt-muted-2) !important;
+  opacity: 1;
+}
+
+.settings-page :is(button, input, textarea, select):disabled {
+  color: var(--gpt-muted) !important;
+  opacity: .86;
 }
 
 .settings-page .automation-task-more summary {

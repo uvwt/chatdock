@@ -10,8 +10,8 @@
   --gpt-border: rgba(220, 235, 226, .10);
   --gpt-border-strong: rgba(220, 235, 226, .18);
   --gpt-text: #e6f0ea;
-  --gpt-muted: #9aafa3;
-  --gpt-muted-2: #667d70;
+  --gpt-muted: #b2c5ba;
+  --gpt-muted-2: #90a79a;
   --gpt-accent: #6faf8a;
   --gpt-accent-strong: #88c79e;
   --gpt-accent-2: #8eaa9b;
@@ -54,8 +54,8 @@ body.theme-light {
   --gpt-border: rgba(14, 43, 30, .10);
   --gpt-border-strong: rgba(14, 43, 30, .16);
   --gpt-text: #10271c;
-  --gpt-muted: #536b5e;
-  --gpt-muted-2: #789083;
+  --gpt-muted: #425c4e;
+  --gpt-muted-2: #5b7064;
   --gpt-accent: #2f6f4d;
   --gpt-accent-strong: #245f40;
   --gpt-accent-2: #59796a;
