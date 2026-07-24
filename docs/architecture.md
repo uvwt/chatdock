@@ -75,7 +75,8 @@ web/src/lib/appUtils.js         时间、容量、状态标签、路由路径、
 web/src/components/base.jsx     通用 UI：Markdown、弹窗、登录页、快捷面板
 web/src/components/chat.jsx     对话工作台、消息、附件卡片、空状态
 web/src/components/appChrome.jsx 主应用壳层：Sidebar、Topbar、ComposerBar
-web/src/components/settings.jsx 配置中心：项目、模型、供应商、MCP、自动化、数据、安全
+web/src/components/managementPages.jsx 项目与定时任务管理页
+web/src/components/settings.jsx 配置中心：模型、供应商、MCP、系统与数据
 ```
 
 ### 前端新增代码规则

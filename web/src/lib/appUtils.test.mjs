@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { agentTaskDataEnabled, cronScheduleFormValue, cronSchedulePayload, fmtBytes, fmtDuration, logoutAndReload, normalizeSettingsModule, runStatusClass, runStatusLabel, scheduleSummary, setSettingsDocumentScroll, taskStatusClass, taskStatusLabel, workspacePageFromPath } from './appUtils.js';
+import { agentTaskDataEnabled, cronScheduleFormValue, cronSchedulePayload, fmtBytes, fmtDuration, logoutAndReload, normalizeSettingsModule, runStatusClass, runStatusLabel, scheduleSummary, setSettingsDocumentScroll, taskStatusClass, taskStatusLabel, managementPageFromPath } from './appUtils.js';
 
 test('format helpers keep compact Chinese UI labels', () => {
   assert.equal(fmtBytes(1536), '1.5 KB');
@@ -16,15 +16,15 @@ test('settings module and task status normalize defaults', () => {
   assert.equal(taskStatusClass({last_status: 'failed'}), 'error');
 });
 
-test('workspace pages resolve from dedicated routes', () => {
+test('management pages resolve from dedicated routes', () => {
   const originalWindow = globalThis.window;
   try {
     globalThis.window = { location: { pathname: '/projects' } };
-    assert.equal(workspacePageFromPath(), 'projects');
+    assert.equal(managementPageFromPath(), 'projects');
     globalThis.window.location.pathname = '/scheduled-tasks';
-    assert.equal(workspacePageFromPath(), 'scheduled-tasks');
+    assert.equal(managementPageFromPath(), 'scheduled-tasks');
     globalThis.window.location.pathname = '/';
-    assert.equal(workspacePageFromPath(), '');
+    assert.equal(managementPageFromPath(), '');
   } finally {
     globalThis.window = originalWindow;
   }

@@ -404,7 +404,7 @@ body.theme-light #app.app main::before {
 }
 
 #app.app .sidebar-pinned-list,
-#app.app .sidebar-workspace-list {
+#app.app .sidebar-manage-list {
   display: grid;
   gap: 2px;
   padding-bottom: 6px;

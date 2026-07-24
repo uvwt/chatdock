@@ -7,7 +7,7 @@ function actionsFor(overrides = {}) {
   return buildQuickActions({
     branchCurrent: noop, busy: false, cloneCurrent: noop, copyCurrentMarkdown: noop, copyText: noop,
     createSession: noop, current: 's1', currentPinned: false, deleteCurrent: noop, exportCurrent: noop,
-    inputRef: { current: { focus: noop } }, messagesLength: 2, openSettings: noop, openWorkspacePage: noop, pinCurrent: noop,
+    inputRef: { current: { focus: noop } }, messagesLength: 2, openSettings: noop, openManagementPage: noop, pinCurrent: noop,
     productDiagnostics: 'diag', renameCurrent: noop, sendMsg: noop, setProjectFilter: noop, setThemeState: noop,
     showContextPreview: noop, theme: 'day', ...overrides,
   });

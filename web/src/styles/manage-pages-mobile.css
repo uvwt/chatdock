@@ -1,9 +1,9 @@
 @media (max-width: 560px) {
-  .workspace-page {
+  .manage-page {
     scroll-padding-top: calc(68px + env(safe-area-inset-top));
   }
 
-  .workspace-page-header {
+  .manage-page-header {
     grid-template-columns: 40px minmax(0, 1fr) auto;
     align-items: center;
     gap: 10px;
@@ -13,19 +13,19 @@
     backdrop-filter: blur(18px);
   }
 
-  .workspace-page-back,
-  .workspace-refresh {
+  .manage-page-back,
+  .manage-refresh {
     width: 40px;
     height: 40px;
     min-height: 40px;
     border-radius: 12px;
   }
 
-  .workspace-page-heading {
+  .manage-page-heading {
     min-width: 0;
   }
 
-  .workspace-page-heading > span {
+  .manage-page-heading > span {
     display: block;
     overflow: hidden;
     font-size: 7px;
@@ -34,7 +34,7 @@
     white-space: nowrap;
   }
 
-  .workspace-page-heading h1 {
+  .manage-page-heading h1 {
     margin: 2px 0 0;
     font-family: inherit;
     font-size: 25px;
@@ -43,18 +43,18 @@
     letter-spacing: -.045em;
   }
 
-  .workspace-page-heading p {
+  .manage-page-heading p {
     display: none;
   }
 
-  .workspace-page-actions {
+  .manage-page-actions {
     grid-column: auto;
     justify-content: flex-end;
     gap: 6px;
     padding-left: 0;
   }
 
-  .workspace-page-actions > button:not(.workspace-refresh) {
+  .manage-page-actions > button:not(.manage-refresh) {
     flex: 0 0 auto;
     min-height: 40px;
     padding: 0 12px;
@@ -62,11 +62,11 @@
     font-size: 12px;
   }
 
-  .workspace-page-body {
+  .manage-page-body {
     padding: 16px 14px calc(72px + env(safe-area-inset-bottom));
   }
 
-  .workspace-summary-grid,
+  .manage-summary-grid,
   .task-summary-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 7px;
@@ -77,11 +77,11 @@
     gap: 6px;
   }
 
-  .workspace-summary-grid:not(.task-summary-grid) .workspace-summary-card:last-child:nth-child(odd) {
+  .manage-summary-grid:not(.task-summary-grid) .manage-summary-card:last-child:nth-child(odd) {
     grid-column: auto;
   }
 
-  .workspace-summary-card {
+  .manage-summary-card {
     gap: 8px;
     min-height: 74px;
     padding: 11px;
@@ -89,7 +89,7 @@
     box-shadow: none;
   }
 
-  .workspace-summary-card span {
+  .manage-summary-card span {
     overflow: hidden;
     font-size: 9px;
     line-height: 1.15;
@@ -97,109 +97,109 @@
     white-space: nowrap;
   }
 
-  .workspace-summary-card b {
+  .manage-summary-card b {
     font-size: 24px;
     line-height: 1;
   }
 
-  .workspace-section-head,
-  .workspace-list-toolbar {
+  .manage-section-head,
+  .manage-list-toolbar {
     gap: 10px;
     margin: 24px 0 12px;
   }
 
-  .workspace-section-head span,
-  .workspace-list-toolbar span {
+  .manage-section-head span,
+  .manage-list-toolbar span {
     margin-bottom: 2px;
     font-size: 17px;
   }
 
-  .workspace-section-head p,
-  .workspace-list-toolbar p {
+  .manage-section-head p,
+  .manage-list-toolbar p {
     font-size: 12px;
     line-height: 1.55;
   }
 
-  .workspace-list-toolbar {
+  .manage-list-toolbar {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .workspace-search {
+  .manage-search {
     width: 100%;
     min-height: 44px;
     border-radius: 13px;
     font-size: 14px;
   }
 
-  .workspace-card-grid {
+  .manage-card-grid {
     gap: 12px;
   }
 
-  .workspace-card {
+  .manage-card {
     min-height: 0;
     padding: 16px;
     border-radius: 18px;
     box-shadow: none;
   }
 
-  .workspace-card > header {
+  .manage-card > header {
     gap: 10px;
   }
 
-  .workspace-card h2 {
+  .manage-card h2 {
     margin-top: 4px;
     font-size: 20px;
     line-height: 1.18;
   }
 
-  .workspace-card > p {
+  .manage-card > p {
     min-height: 0;
     margin: 14px 0 10px;
     font-size: 12.5px;
     line-height: 1.65;
   }
 
-  .workspace-card-facts {
+  .manage-card-facts {
     gap: 4px;
     margin-top: 2px;
     padding-top: 10px;
     border-top: 1px solid var(--gpt-border);
   }
 
-  .workspace-card-meta {
+  .manage-card-meta {
     font-size: 10.5px;
     line-height: 1.55;
   }
 
-  .workspace-card > footer {
+  .manage-card > footer {
     gap: 8px;
     margin-top: 12px;
     padding-top: 12px;
     border-top: 1px solid var(--gpt-border);
   }
 
-  .workspace-card > footer button {
+  .manage-card > footer button {
     min-height: 42px;
     padding: 0 12px;
     border-radius: 12px;
     font-size: 12px;
   }
 
-  .project-workspace-card > footer > button:first-child {
+  .project-manage-card > footer > button:first-child {
     width: 100%;
   }
 
-  .scheduled-task-workspace-card > footer {
+  .scheduled-task-manage-card > footer {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
   }
 
-  .scheduled-task-workspace-card > footer button {
+  .scheduled-task-manage-card > footer button {
     width: 100%;
   }
 
-  .workspace-toggle {
+  .manage-toggle {
     min-height: 42px;
     gap: 6px;
     margin-right: 0;
@@ -207,37 +207,37 @@
     font-size: 12px;
   }
 
-  .workspace-more-menu summary {
+  .manage-more-menu summary {
     width: 38px;
     height: 38px;
     border-radius: 12px;
   }
 
-  .workspace-more-menu > div {
+  .manage-more-menu > div {
     min-width: 172px;
     padding: 7px;
     border-radius: 14px;
   }
 
-  .workspace-more-menu > div button {
+  .manage-more-menu > div button {
     min-height: 42px;
     border-radius: 10px;
     font-size: 13px;
   }
 
-  .workspace-inline-note {
+  .manage-inline-note {
     margin-bottom: 10px;
     padding: 9px 10px;
     font-size: 10.5px;
   }
 
-  .workspace-preview {
+  .manage-preview {
     margin-top: 16px;
     padding: 16px;
     border-radius: 18px;
   }
 
-  .workspace-empty {
+  .manage-empty {
     min-height: 180px;
     padding: 24px 18px;
     border-radius: 18px;
@@ -285,20 +285,20 @@
 }
 
 @media (max-width: 360px) {
-  .workspace-page-header {
+  .manage-page-header {
     gap: 8px;
     padding-inline: 12px;
   }
 
-  .workspace-page-heading > span {
+  .manage-page-heading > span {
     display: none;
   }
 
-  .workspace-page-actions > button:not(.workspace-refresh) {
+  .manage-page-actions > button:not(.manage-refresh) {
     padding-inline: 10px;
   }
 
-  .workspace-page-body {
+  .manage-page-body {
     padding-inline: 12px;
   }
 
@@ -306,7 +306,7 @@
     gap: 4px;
   }
 
-  .workspace-summary-card {
+  .manage-summary-card {
     padding-inline: 9px;
   }
 }

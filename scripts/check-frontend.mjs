@@ -65,7 +65,7 @@ const componentExportChecks = [
   ['web/src/components/base.jsx', 'export function DialogHost'],
   ['web/src/hooks/useAttachments.js', 'export function useAttachments'],
   ['web/src/hooks/useSettingsData.js', 'export function useSettingsData'],
-  ['web/src/components/workspacePages.jsx', 'export function WorkspacePage'],
+  ['web/src/components/managementPages.jsx', 'export function ManagementPage'],
   ['web/src/lib/sessionPresentation.js', 'export function visibleSessionRows'],
 ];
 for (const [file, token] of componentExportChecks) {
@@ -110,6 +110,11 @@ const walkFiles = (directory, suffixes) => fs.readdirSync(path.join(root, direct
   if (entry.isDirectory()) return walkFiles(relative, suffixes);
   return suffixes.some(suffix => entry.name.endsWith(suffix)) ? [relative] : [];
 });
+for (const file of walkFiles('web/src', ['.js', '.jsx', '.css'])) {
+  if (read(file).toLowerCase().includes('workspace')) {
+    failures.push(`${file} still uses the removed workspace concept; use project, task, or management terminology`);
+  }
+}
 const iconComponentFiles = ['web/src/App.jsx', ...walkFiles('web/src/components', ['.jsx'])];
 for (const file of iconComponentFiles) {
   if (read(file).includes('<svg')) failures.push(`${file} contains an inline SVG; use a Lucide component instead`);

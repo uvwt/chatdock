@@ -4,7 +4,7 @@ import { EmptyState, MemoizedMessageView } from './components/chat.jsx';
 import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
 import { CurrentSessionTask, TaskPanel } from './components/taskPanel.jsx';
 import { DialogHost, LoginPage, Markdown, QuickPalette } from './components/base.jsx';
-import { agentTaskDataEnabled, diagnosticsText, filenameFromResponse, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath, workspacePageFromPath } from './lib/appUtils.js';
+import { agentTaskDataEnabled, diagnosticsText, filenameFromResponse, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath, managementPageFromPath } from './lib/appUtils.js';
 import { attachmentLooksLikeImage, chatErrorDetails, contextPreviewText, finalAssistantMessageFromSession, readableChatError, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
 import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js';
@@ -25,7 +25,7 @@ import { useMessageAutoFollow } from './hooks/useMessageAutoFollow.js';
 import { buildQuickActions } from './lib/quickActions.js';
 import { visibleSessionRows } from './lib/sessionPresentation.js';
 const SettingsPanel = lazy(() => import('./components/settings.jsx').then(module => ({default: module.SettingsPanel})));
-const WorkspacePage = lazy(() => import('./components/workspacePages.jsx').then(module => ({default: module.WorkspacePage})));
+const ManagementPage = lazy(() => import('./components/managementPages.jsx').then(module => ({default: module.ManagementPage})));
 export default function App() {
   useVisualViewportLayout();
 
@@ -36,7 +36,7 @@ export default function App() {
     return saved == null ? window.matchMedia('(max-width: 720px)').matches : saved === '1';
   });
   const [settingsOpen, setSettingsOpen] = useState(() => !!settingsModuleFromPath());
-  const [workspacePage, setWorkspacePage] = useState(workspacePageFromPath);
+  const [managementPage, setManagementPage] = useState(managementPageFromPath);
   const [activeModule, setActiveModule] = useState(() => normalizeSettingsModule(settingsModuleFromPath() || localStorage.getItem('chatdock.settingsModule') || 'model'));
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
@@ -138,7 +138,7 @@ export default function App() {
     return () => document.body.classList.remove('auth-page-visible');
   }, [authPage]);
 
-  useEffect(() => { setSettingsDocumentScroll(settingsOpen || !!workspacePage); return () => setSettingsDocumentScroll(false); }, [settingsOpen, workspacePage]);
+  useEffect(() => { setSettingsDocumentScroll(settingsOpen || !!managementPage); return () => setSettingsDocumentScroll(false); }, [settingsOpen, managementPage]);
 
   const showToast = useCallback((message, variant = 'info') => {
     setToast({ message, variant });
@@ -383,9 +383,9 @@ export default function App() {
 
   useEffect(() => {
     function onPopState() {
-      const routeWorkspacePage = workspacePageFromPath();
-      setWorkspacePage(routeWorkspacePage);
-      if (routeWorkspacePage) {
+      const routeManagementPage = managementPageFromPath();
+      setManagementPage(routeManagementPage);
+      if (routeManagementPage) {
         setSettingsOpen(false);
         return;
       }
@@ -431,7 +431,7 @@ export default function App() {
     sessionOpenSeqRef.current += 1;
     setSessionMenuID('');
     setSettingsOpen(false);
-    setWorkspacePage('');
+    setManagementPage('');
     setSessionSearch('');
     setCurrent(null);
     setCurrentTitle('未选择会话');
@@ -442,10 +442,10 @@ export default function App() {
     closeSidebarOnMobile();
   }, [busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, setSessionSearch]);
 
-  const openWorkspacePage = useCallback((page) => {
+  const openManagementPage = useCallback((page) => {
     const next = page === 'scheduled-tasks' ? 'scheduled-tasks' : 'projects';
     setSettingsOpen(false);
-    setWorkspacePage(next);
+    setManagementPage(next);
     setTaskPanelOpen(false);
     setSessionMenuID('');
     const path = next === 'projects' ? '/projects' : '/scheduled-tasks';
@@ -453,8 +453,8 @@ export default function App() {
     closeSidebarOnMobile();
   }, [closeSidebarOnMobile]);
 
-  const closeWorkspacePage = useCallback(() => {
-    setWorkspacePage('');
+  const closeManagementPage = useCallback(() => {
+    setManagementPage('');
     const target = current ? sessionPath(current) : '/';
     if (window.location.pathname !== target) window.history.pushState({ chatdock: true }, '', target);
   }, [current]);
@@ -466,7 +466,7 @@ export default function App() {
 
   const openSettings = useCallback((moduleName = activeModule, syncRoute = true) => {
     const normalized = normalizeSettingsModule(moduleName);
-    setWorkspacePage('');
+    setManagementPage('');
     setActiveModule(normalized);
     setSettingsOpen(true);
     localStorage.setItem('chatdock.settingsModule', normalized);
@@ -487,11 +487,11 @@ export default function App() {
       if (dialog) closeDialog(null);
       else if (quickPaletteOpen) setQuickPaletteOpen(false);
       else if (settingsOpen) closeSettings();
-      else if (workspacePage) closeWorkspacePage();
+      else if (managementPage) closeManagementPage();
     }
     window.addEventListener('keydown', closeTopLayer);
     return () => window.removeEventListener('keydown', closeTopLayer);
-  }, [closeDialog, closeSettings, closeWorkspacePage, dialog, quickPaletteOpen, settingsOpen, workspacePage]);
+  }, [closeDialog, closeSettings, closeManagementPage, dialog, quickPaletteOpen, settingsOpen, managementPage]);
 
   useEffect(() => {
     function onGlobalShortcut(event) {
@@ -530,7 +530,7 @@ export default function App() {
     // “新会话”只是进入一个本地草稿，不应该提前写入后端。
     // 真正的 session id 只有在发送首条消息、或上传附件需要绑定会话时才创建。
     setSessionMenuID('');
-    setWorkspacePage('');
+    setManagementPage('');
     setCurrent(null);
     setCurrentTitle('新会话');
     setMessages([]);
@@ -548,7 +548,7 @@ export default function App() {
     sessionOpenSeqRef.current = seq;
     if (busy) detachActiveStream();
     setSessionMenuID('');
-    setWorkspacePage('');
+    setManagementPage('');
     setCurrent(id);
     setCurrentTitle(summary?.title || '正在加载会话…');
     clearAttachments();
@@ -1158,7 +1158,7 @@ export default function App() {
 
   const currentSummary = useMemo(() => sessions.find(s => s.id === current) || null, [current, sessions]);
   const currentPinned = !!currentSummary?.pinned;
-  const appClass = 'app ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (workspacePage ? 'workspace-page-open ' : '') + (taskPanelOpen ? 'task-panel-open' : '');
+  const appClass = 'app ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (managementPage ? 'manage-page-open ' : '') + (taskPanelOpen ? 'task-panel-open' : '');
   const productReady = setupStatus && !setupStatus.needs_setup;
   const modelReady = !!String(selectedModelBaseURL || '').trim() && !!String(selectedChatModel || '').trim();
   const productStatusText = setupStatus == null ? '加载中' : (productReady ? '就绪' : '待配置');
@@ -1171,9 +1171,9 @@ export default function App() {
 
   const quickActions = useMemo(() => buildQuickActions({
     branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned,
-    deleteCurrent, exportCurrent, inputRef, messagesLength: messages.length, openSettings, openWorkspacePage, pinCurrent,
+    deleteCurrent, exportCurrent, inputRef, messagesLength: messages.length, openSettings, openManagementPage, pinCurrent,
     productDiagnostics, renameCurrent, sendMsg, setProjectFilter, setThemeState, showContextPreview, theme,
-  }), [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, messages.length, openSettings, openWorkspacePage, pinCurrent, productDiagnostics, renameCurrent, sendMsg, setProjectFilter, showContextPreview, theme]);
+  }), [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, messages.length, openSettings, openManagementPage, pinCurrent, productDiagnostics, renameCurrent, sendMsg, setProjectFilter, showContextPreview, theme]);
 
   const settingsPanel = (
     <SettingsPanel
@@ -1199,16 +1199,16 @@ export default function App() {
       <Sidebar
         api={api} busy={busy} current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} goHome={goHome}
         hasMoreSessions={visibleSessionsHasMore} loadingMoreSessions={visibleSessionsLoadingMore} newSession={newSession}
-        onLoadMoreSessions={loadMoreVisibleSessions} openSession={openSession} openWorkspacePage={openWorkspacePage}
+        onLoadMoreSessions={loadMoreVisibleSessions} openSession={openSession} openManagementPage={openManagementPage}
         pinSessionByID={pinSessionByID} projects={projects} projectFilter={projectFilter} renameSessionByID={renameSessionByID}
         scheduledTasks={scheduledTasks} setTaskSearch={setTaskSearch}
         sessionMenuID={sessionMenuID} sessionSearch={sessionSearch} sessionSearchBusy={sessionSearchBusy}
         setSessionMenuID={setSessionMenuID} setSessionSearch={setSessionSearch}
-        setSidebarCollapsed={setSidebarCollapsed} sidebarCollapsed={sidebarCollapsed}
+        setSidebarCollapsed={setSidebarCollapsed} sidebarCollapsed={sidebarCollapsed} managementPage={managementPage}
       />
       <main>
-        {workspacePage ? <Suspense fallback={<div className="empty compact" role="status">正在加载工作区…</div>}><WorkspacePage
-          api={api} page={workspacePage} closeWorkspacePage={closeWorkspacePage}
+        {managementPage ? <Suspense fallback={<div className="empty compact" role="status">正在加载管理页…</div>}><ManagementPage
+          api={api} page={managementPage} closeManagementPage={closeManagementPage}
           projects={projects} projectSessionCounts={projectSessionCounts} editProject={editProject} deleteProject={deleteProject}
           showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} openProjectSessions={openProjectSessions} loadProjects={loadProjects}
           scheduledTasks={scheduledTasks} taskSearch={taskSearch} setTaskSearch={setTaskSearch}
@@ -1239,7 +1239,7 @@ export default function App() {
           />
         </>}
       </main>
-      {!workspacePage && taskPanelOpen ? <>
+      {!managementPage && taskPanelOpen ? <>
         <div className="agent-task-panel-mask" onClick={closeTaskPanel} />
         <TaskPanel
           available={taskDataEnabled} deletingTaskID={deletingAgentTaskID} detailError={agentTasks.detailError} detailLoading={agentTasks.detailLoading} error={agentTasks.error}

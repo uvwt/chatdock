@@ -1,4 +1,4 @@
-.workspace-page {
+.manage-page {
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -9,7 +9,7 @@
   -webkit-overflow-scrolling: touch;
 }
 
-.workspace-page-header {
+.manage-page-header {
   position: sticky;
   top: 0;
   z-index: 8;
@@ -23,8 +23,8 @@
   backdrop-filter: blur(22px);
 }
 
-.workspace-page-back,
-.workspace-refresh {
+.manage-page-back,
+.manage-refresh {
   width: 40px;
   height: 40px;
   min-height: 40px;
@@ -33,9 +33,9 @@
   color: var(--gpt-text);
 }
 
-.workspace-page-heading > span,
-.workspace-card header > div > span,
-.workspace-preview > div > span {
+.manage-page-heading > span,
+.manage-card header > div > span,
+.manage-preview > div > span {
   color: var(--gpt-accent);
   font-size: 9px;
   font-weight: 780;
@@ -43,7 +43,7 @@
   text-transform: uppercase;
 }
 
-.workspace-page-heading h1 {
+.manage-page-heading h1 {
   margin: 4px 0 6px;
   font-family: Georgia, "Times New Roman", "Songti SC", serif;
   font-size: clamp(44px, 6vw, 76px);
@@ -52,41 +52,41 @@
   letter-spacing: -.06em;
 }
 
-.workspace-page-heading p,
-.workspace-section-head p,
-.workspace-list-toolbar p {
+.manage-page-heading p,
+.manage-section-head p,
+.manage-list-toolbar p {
   margin: 0;
   color: var(--gpt-muted);
   font-size: 13px;
   line-height: 1.7;
 }
 
-.workspace-page-actions {
+.manage-page-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
 }
 
-.workspace-page-actions > button {
+.manage-page-actions > button {
   gap: 7px;
   white-space: nowrap;
 }
 
-.workspace-page-actions > button:not(.secondary),
-.workspace-card footer > button:not(.secondary, .danger) {
+.manage-page-actions > button:not(.secondary),
+.manage-card footer > button:not(.secondary, .danger) {
   border-color: var(--gpt-accent);
   background: var(--gpt-accent);
   color: var(--gpt-accent-contrast);
 }
 
-.workspace-page-body {
+.manage-page-body {
   width: min(1180px, 100%);
   margin: 0 auto;
   padding: 34px clamp(28px, 5vw, 72px) 80px;
 }
 
-.workspace-summary-grid {
+.manage-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
@@ -96,7 +96,7 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.workspace-summary-card {
+.manage-summary-card {
   display: grid;
   gap: 14px;
   min-height: 124px;
@@ -109,26 +109,26 @@
   box-shadow: 0 18px 48px rgba(19, 52, 35, .06);
 }
 
-.workspace-summary-card.actionable:hover {
+.manage-summary-card.actionable:hover {
   border-color: color-mix(in srgb, var(--gpt-accent) 42%, var(--gpt-border));
   background: var(--gpt-accent-soft);
 }
 
-.workspace-summary-card span {
+.manage-summary-card span {
   color: var(--gpt-muted);
   font-size: 11px;
   font-weight: 650;
 }
 
-.workspace-summary-card b {
+.manage-summary-card b {
   align-self: end;
   font-size: clamp(28px, 3vw, 42px);
   font-weight: 560;
   letter-spacing: -.05em;
 }
 
-.workspace-section-head,
-.workspace-list-toolbar {
+.manage-section-head,
+.manage-list-toolbar {
   display: flex;
   align-items: end;
   justify-content: space-between;
@@ -136,15 +136,15 @@
   margin: 42px 0 16px;
 }
 
-.workspace-section-head span,
-.workspace-list-toolbar span {
+.manage-section-head span,
+.manage-list-toolbar span {
   display: block;
   margin-bottom: 4px;
   font-size: 16px;
   font-weight: 720;
 }
 
-.workspace-search {
+.manage-search {
   width: min(320px, 42vw);
   min-height: 42px;
   padding: 0 14px;
@@ -155,18 +155,18 @@
   outline: 0;
 }
 
-.workspace-search:focus {
+.manage-search:focus {
   border-color: color-mix(in srgb, var(--gpt-accent) 50%, var(--gpt-border));
   box-shadow: 0 0 0 3px var(--gpt-accent-soft);
 }
 
-.workspace-card-grid {
+.manage-card-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
-.workspace-card {
+.manage-card {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -179,19 +179,19 @@
   box-shadow: 0 22px 62px rgba(19, 52, 35, .07);
 }
 
-.workspace-card.pinned {
+.manage-card.pinned {
   border-color: color-mix(in srgb, var(--gpt-accent) 34%, var(--gpt-border));
   box-shadow: inset 3px 0 0 var(--gpt-accent), 0 22px 62px rgba(19, 52, 35, .07);
 }
 
-.workspace-card > header {
+.manage-card > header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
 }
 
-.workspace-card h2 {
+.manage-card h2 {
   margin: 5px 0 0;
   overflow-wrap: anywhere;
   font-size: 24px;
@@ -199,7 +199,7 @@
   letter-spacing: -.035em;
 }
 
-.workspace-card header > em,
+.manage-card header > em,
 .project-card-actions > em {
   flex: 0 0 auto;
   padding: 5px 9px;
@@ -216,7 +216,7 @@
   gap: 7px;
 }
 
-.workspace-card > p {
+.manage-card > p {
   display: -webkit-box;
   min-height: 48px;
   margin: 22px 0 14px;
@@ -228,19 +228,19 @@
   -webkit-line-clamp: 2;
 }
 
-.workspace-card-meta {
+.manage-card-meta {
   color: var(--gpt-muted-2);
   font-size: 11px;
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
 
-.workspace-card-facts {
+.manage-card-facts {
   display: grid;
   gap: 3px;
 }
 
-.workspace-card > footer {
+.manage-card > footer {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -249,13 +249,13 @@
   padding-top: 22px;
 }
 
-.workspace-card > footer button {
+.manage-card > footer button {
   min-height: 34px;
   padding: 0 12px;
   font-size: 11px;
 }
 
-.workspace-toggle {
+.manage-toggle {
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
@@ -277,11 +277,11 @@
   font-style: normal;
 }
 
-.workspace-more-menu {
+.manage-more-menu {
   position: relative;
 }
 
-.workspace-more-menu summary {
+.manage-more-menu summary {
   display: grid;
   place-items: center;
   width: 32px;
@@ -293,11 +293,11 @@
   list-style: none;
 }
 
-.workspace-more-menu summary::-webkit-details-marker {
+.manage-more-menu summary::-webkit-details-marker {
   display: none;
 }
 
-.workspace-more-menu > div {
+.manage-more-menu > div {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
@@ -311,7 +311,7 @@
   box-shadow: var(--dock-card-shadow);
 }
 
-.workspace-more-menu > div button {
+.manage-more-menu > div button {
   justify-content: flex-start;
   min-height: 34px;
   border: 0;
@@ -320,11 +320,11 @@
   text-align: left;
 }
 
-.workspace-more-menu > div button:hover {
+.manage-more-menu > div button:hover {
   background: var(--gpt-sidebar-hover);
 }
 
-.workspace-inline-note {
+.manage-inline-note {
   margin: 0 0 12px;
   padding: 9px 11px;
   border: 1px solid color-mix(in srgb, var(--gpt-accent) 24%, var(--gpt-border));
@@ -334,13 +334,13 @@
   font-size: 11px;
 }
 
-.workspace-inline-note.error {
+.manage-inline-note.error {
   border-color: color-mix(in srgb, var(--gpt-danger) 30%, var(--gpt-border));
   background: color-mix(in srgb, var(--gpt-danger) 8%, transparent);
   color: var(--gpt-danger);
 }
 
-.workspace-preview {
+.manage-preview {
   margin-top: 24px;
   padding: 22px;
   border: 1px solid var(--gpt-border);
@@ -348,13 +348,13 @@
   background: var(--gpt-surface-2);
 }
 
-.workspace-preview > div {
+.manage-preview > div {
   display: grid;
   gap: 5px;
   margin-bottom: 14px;
 }
 
-.workspace-preview pre {
+.manage-preview pre {
   max-height: 360px;
   margin: 0;
   padding: 16px;
@@ -365,7 +365,7 @@
   white-space: pre-wrap;
 }
 
-.workspace-empty {
+.manage-empty {
   grid-column: 1 / -1;
   display: grid;
   place-items: center;
@@ -378,7 +378,7 @@
   text-align: center;
 }
 
-.workspace-empty b {
+.manage-empty b {
   color: var(--gpt-text);
   font-size: 18px;
 }
@@ -448,35 +448,35 @@
 }
 
 @media (max-width: 900px) {
-  .workspace-page-header {
+  .manage-page-header {
     grid-template-columns: 40px minmax(0, 1fr);
     padding: 18px 18px 16px;
   }
 
-  .workspace-page-actions {
+  .manage-page-actions {
     grid-column: 1 / -1;
     justify-content: stretch;
     padding-left: 58px;
   }
 
-  .workspace-page-actions > button:not(.workspace-refresh) {
+  .manage-page-actions > button:not(.manage-refresh) {
     flex: 1 1 auto;
   }
 
-  .workspace-page-body {
+  .manage-page-body {
     padding: 24px 18px 72px;
   }
 
-  .workspace-summary-grid,
+  .manage-summary-grid,
   .task-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .workspace-summary-grid:not(.task-summary-grid) .workspace-summary-card:last-child:nth-child(odd) {
+  .manage-summary-grid:not(.task-summary-grid) .manage-summary-card:last-child:nth-child(odd) {
     grid-column: 1 / -1;
   }
 
-  .workspace-card-grid {
+  .manage-card-grid {
     grid-template-columns: 1fr;
   }
 }

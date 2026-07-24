@@ -82,7 +82,7 @@ export function LoginPage({ api, error, refreshAfterLogin, setAuthPage }) {
     <div className="auth-shell">
       <section className="auth-intro" aria-label="ChatDock 简介">
         <div className="auth-brand-lockup"><span className="auth-logo"><Orbit size={22} /></span><span>CHATDOCK / PRIVATE</span></div>
-        <div className="auth-eyebrow">Local-first AI workspace</div>
+        <div className="auth-eyebrow">Local-first AI console</div>
         <h1>工作流，<br /><span>不止对话。</span></h1>
         <p>把模型、工具、项目与自动化放进同一条可追踪的执行链。</p>
         <div className="auth-feature-grid">

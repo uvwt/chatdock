@@ -13,7 +13,7 @@ build: web-build
 	go build -buildvcs=false -o bin/$(APP) ./cmd/chatdock
 
 web-deps:
-	@if [ ! -d $(WEB_DIR)/node_modules ]; then \
+	@if ! npm --prefix $(WEB_DIR) ls --depth=0 >/dev/null 2>&1; then \
 		if [ -f $(WEB_DIR)/package-lock.json ]; then \
 			npm --prefix $(WEB_DIR) ci; \
 		else \

@@ -90,7 +90,7 @@ function SidebarTreeNode({ api, current, item, kind, openSession }) {
   </details>;
 }
 
-export function Sidebar({ api, busy, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openSession, openWorkspacePage, pinSessionByID, projects, projectFilter, renameSessionByID, scheduledTasks, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setSidebarCollapsed, setTaskSearch, sidebarCollapsed }) {
+export function Sidebar({ api, busy, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openSession, openManagementPage, pinSessionByID, projects, projectFilter, renameSessionByID, scheduledTasks, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setSidebarCollapsed, setTaskSearch, sidebarCollapsed, managementPage }) {
   const [menuPosition, setMenuPosition] = React.useState(null);
   const sessionsRef = React.useRef(null);
   const loadMoreRef = React.useRef(null);
@@ -170,8 +170,8 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
   const pinnedProjects = (projects || []).filter(item => item.pinned);
   const pinnedTasks = (scheduledTasks || []).filter(item => item.pinned);
   const renderTreeNode = (kind, item) => <SidebarTreeNode key={kind + item.id} api={api} current={current} item={item} kind={kind} openSession={openSession} />;
-  const workspaceProjects = (projects || []).filter(item => !item.pinned);
-  const workspaceTasks = (scheduledTasks || []).filter(item => !item.pinned);
+  const managementProjects = (projects || []).filter(item => !item.pinned);
+  const managementTasks = (scheduledTasks || []).filter(item => !item.pinned);
   const sessionRows = searchingSessions ? filteredSessions : filteredSessions.filter(session => !session.pinned);
   const renderSession = session => {
     const isActive = current === session.id;
@@ -199,10 +199,10 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
         {!searchingSessions ? <>
           <div className="sidebar-section-head"><div className="sidebar-section-title">置顶</div></div>
           <div className="sidebar-pinned-list">{pinnedSessions.map(renderSession)}{pinnedProjects.map(item => renderTreeNode('project', item))}{pinnedTasks.map(item => renderTreeNode('task', item))}</div>
-          <div className="sidebar-section-head"><button className="sidebar-section-title" onClick={() => openWorkspacePage('projects')}>项目</button></div>
-          <div className="sidebar-workspace-list">{workspaceProjects.map(item => renderTreeNode('project', item))}</div>
-          <div className="sidebar-section-head"><button className="sidebar-section-title" onClick={() => { setTaskSearch(''); openWorkspacePage('scheduled-tasks'); }}>定时任务</button></div>
-          <div className="sidebar-workspace-list">{workspaceTasks.map(item => renderTreeNode('task', item))}</div>
+          <div className="sidebar-section-head"><button className={'sidebar-section-title ' + (managementPage === 'projects' ? 'active' : '')} onClick={() => openManagementPage('projects')}>项目</button></div>
+          <div className="sidebar-manage-list">{managementProjects.map(item => renderTreeNode('project', item))}</div>
+          <div className="sidebar-section-head"><button className={'sidebar-section-title ' + (managementPage === 'scheduled-tasks' ? 'active' : '')} onClick={() => { setTaskSearch(''); openManagementPage('scheduled-tasks'); }}>定时任务</button></div>
+          <div className="sidebar-manage-list">{managementTasks.map(item => renderTreeNode('task', item))}</div>
         </> : null}
         <div className="sidebar-section-head"><div className="sidebar-section-title">{sessionSectionTitle}</div></div>
         {searchingSessions ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : (hasMoreSessions ? '全文搜索 · 已加载 ' : '全文搜索 ') + filteredSessions.length + ' 条'}</div> : null}
