@@ -296,10 +296,6 @@ main {
   stroke-linejoin: round;
 }
 
-.top-actions > button:not(.quick-palette-toggle):not(.config-toggle):not(.session-actions-toggle):not(.theme-toggle) {
-  display: none !important;
-}
-
 .quick-palette-toggle,
 .config-toggle,
 .session-actions-toggle,

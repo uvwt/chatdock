@@ -368,6 +368,19 @@ body.theme-light #app.app main::before {
   text-transform: uppercase;
 }
 
+#app.app .sidebar-section-head > button {
+  min-height: 0;
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--gpt-muted-2);
+  font-size: 10px;
+}
+
+#app.app .sidebar-section-head > button:hover {
+  color: var(--gpt-text);
+}
+
 #app.app .session-menu-trigger {
   display: inline-grid;
   place-items: center;
@@ -398,10 +411,92 @@ body.theme-light #app.app main::before {
   border-bottom: 1px solid var(--gpt-border);
 }
 
-#app.app #sessions .sidebar-link {
-  width: 100%;
-  font: inherit;
+#app.app .sidebar-tree-node {
+  min-width: 0;
+}
+
+#app.app .sidebar-tree-node > summary {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 16px;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 9px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--gpt-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+#app.app .sidebar-tree-node > summary::-webkit-details-marker,
+#app.app .sidebar-tree-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+#app.app .sidebar-tree-node > summary:hover,
+#app.app .sidebar-tree-node[open] > summary {
+  border-color: var(--gpt-border);
+  background: var(--gpt-sidebar-hover);
+  color: var(--gpt-text);
+}
+
+#app.app .sidebar-tree-node > summary span {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 540;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#app.app .sidebar-tree-node > summary svg:last-child {
+  transition: transform .18s ease;
+}
+
+#app.app .sidebar-tree-node:not([open]) > summary svg:last-child {
+  transform: rotate(-90deg);
+}
+
+#app.app .sidebar-tree-children {
+  display: grid;
+  gap: 1px;
+  padding: 2px 0 5px 26px;
+}
+
+#app.app .sidebar-tree-session,
+#app.app .sidebar-tree-more > summary,
+#app.app .sidebar-tree-state {
+  display: block;
+  min-width: 0;
+  padding: 7px 9px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gpt-muted);
+  font-size: 12px;
+  line-height: 1.35;
   text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#app.app .sidebar-tree-session:hover,
+#app.app .sidebar-tree-session.active {
+  background: var(--gpt-sidebar-hover);
+  color: var(--gpt-text);
+}
+
+#app.app .sidebar-tree-session.active {
+  box-shadow: inset 2px 0 0 var(--gpt-accent);
+}
+
+#app.app .sidebar-tree-more > summary {
+  color: var(--gpt-muted-2);
+  cursor: pointer;
+}
+
+#app.app .sidebar-tree-more[open] > summary {
+  display: none;
 }
 
 #app.app #sessions .session {

@@ -1,7 +1,10 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import {
+  ArrowDown,
   ArrowUp,
+  Folder,
+  ListTodo,
   Menu,
   MessageSquarePlus,
   Moon,
@@ -16,33 +19,29 @@ import {
 import { AttachmentList } from './chat.jsx';
 import { ComposerModelPicker } from './modelPicker.jsx';
 import { TaskPanelToggle } from './taskPanel.jsx';
+import { fetchSessions } from '../lib/sessionApi.js';
+import { fetchScheduledTaskRuns } from '../lib/settingsApi.js';
+import { scheduledTaskSessionRows } from '../lib/sessionPresentation.js';
 
 const iconProps = { size: 17, 'aria-hidden': true };
 
-export function Topbar({ busy, cloneCurrent, copyCurrentMarkdown, current, currentPinned, currentTitle, deleteCurrent, exportCurrent, newSession, openSettings, pinCurrent, renameCurrent, setQuickPaletteOpen, setSidebarCollapsed, setThemeState, showContextPreview, sidebarCollapsed, taskPanelAvailable, taskPanelOpen, taskPanelTasks, theme, toggleTaskPanel }) {
+export function Topbar({ currentTitle, newSession, openSettings, setQuickPaletteOpen, setSidebarCollapsed, setThemeState, sidebarCollapsed, taskPanelAvailable, taskPanelOpen, taskPanelTasks, theme, toggleTaskPanel }) {
   const darkMode = theme !== 'day';
   const ThemeIcon = darkMode ? Sun : Moon;
   return <div className="topbar">
     <div className="top-left">
-      <button className="mobile-menu icon-button" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label="打开会话列表" title="会话列表"><Menu {...iconProps} /></button>
+      <button className="mobile-menu icon-button" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label="打开会话列表"><Menu {...iconProps} /></button>
       <div className="topbar-title-wrap"><b id="title">{currentTitle}</b></div>
     </div>
     <div className="top-actions">
-      <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)} title="快捷指令（⌘/Ctrl K）"><Search {...iconProps} /><span className="action-label">快捷</span></button>
-      <button className="secondary config-toggle" onClick={() => openSettings()} title="配置中心"><Settings2 {...iconProps} /><span className="action-label">配置</span></button>
+      <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)}><Search {...iconProps} /><span className="action-label">快捷</span></button>
+      <button className="secondary config-toggle" onClick={() => openSettings()}><Settings2 {...iconProps} /><span className="action-label">配置</span></button>
       <TaskPanelToggle available={taskPanelAvailable} open={taskPanelOpen} tasks={taskPanelTasks} onClick={toggleTaskPanel} />
-      <button className="secondary session-actions-toggle mobile-new-toggle icon-button" onClick={newSession} aria-label="新会话" title="新会话"><MessageSquarePlus {...iconProps} /></button>
-      <button className="theme-toggle" onClick={() => setThemeState(darkMode ? 'day' : 'night')} aria-label={darkMode ? '切换到浅色模式' : '切换到深色模式'} title={darkMode ? '切换到浅色模式' : '切换到深色模式'}>
+      <button className="secondary session-actions-toggle mobile-new-toggle icon-button" onClick={newSession} aria-label="新会话"><MessageSquarePlus {...iconProps} /></button>
+      <button className="theme-toggle" onClick={() => setThemeState(darkMode ? 'day' : 'night')} aria-label={darkMode ? '切换到浅色模式' : '切换到深色模式'}>
         <ThemeIcon {...iconProps} />
         <span className="action-label">{darkMode ? '浅色' : '深色'}</span>
       </button>
-      <button className="secondary" onClick={renameCurrent} disabled={!current || busy}>重命名</button>
-      <button className="secondary" onClick={copyCurrentMarkdown} disabled={!current}>复制全文</button>
-      <button className="secondary" onClick={cloneCurrent} disabled={!current || busy}>复制会话</button>
-      <button className="secondary" onClick={pinCurrent} disabled={!current}>{currentPinned ? '取消置顶' : '置顶'}</button>
-      <button className="secondary" onClick={exportCurrent} disabled={!current}>导出</button>
-      <button className="secondary" onClick={showContextPreview} disabled={!current}>上下文</button>
-      <button className="danger" onClick={deleteCurrent} disabled={!current || busy}>删除</button>
     </div>
   </div>;
 }
@@ -52,22 +51,46 @@ export function ComposerBar({ busy, createPersistedSession, current, downloadAtt
     {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} onDownload={downloadAttachment} /> : null}
     <div className={'composer' + (busy ? ' composer-streaming' : '')}>
       <input ref={fileInputRef} type="file" multiple className="file-input" onChange={event => handleFileSelect(event, { current, createPersistedSession })} />
-      <button className="secondary attach-control icon-button" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} aria-label="上传文件" title="上传文件"><Paperclip {...iconProps} /></button>
+      <button className="secondary attach-control icon-button" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} aria-label="上传文件"><Paperclip {...iconProps} /></button>
       <ComposerModelPicker busy={busy} providers={providerChoices} selectedProvider={selectedModelProvider} selectedModel={selectedChatModel} open={modelPickerOpen} setOpen={setModelPickerOpen} selectModel={selectChatModel} openSettings={openSettings} />
-      {busy ? <button className="secondary stream-control guide-control" onClick={guideActiveJob} disabled={!input.trim()} aria-label="追加引导" title="追加引导"><span>引导</span></button> : null}
-      {busy ? <button className="danger stream-control stop-control" onClick={stopStreaming} aria-label="中断生成" title="中断生成"><Square size={13} aria-hidden="true" /><span>中断</span></button> : null}
+      {busy ? <button className="secondary stream-control guide-control" onClick={guideActiveJob} disabled={!input.trim()} aria-label="追加引导"><span>引导</span></button> : null}
+      {busy ? <button className="danger stream-control stop-control" onClick={stopStreaming} aria-label="中断生成"><Square size={13} aria-hidden="true" /><span>中断</span></button> : null}
       <textarea ref={inputRef} id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); busy ? guideActiveJob() : sendMsg(); } }} placeholder={busy ? '输入引导内容' : '输入消息'} />
-      <button id="send" className="icon-button" disabled={busy || uploadingFiles || (!input.trim() && !pendingAttachmentIDs.length) || !modelReady} onClick={() => sendMsg()} aria-label={!modelReady ? '请先配置模型' : '发送'} title={!modelReady ? '请先配置模型' : '发送'}><ArrowUp size={19} aria-hidden="true" /></button>
+      <button id="send" className="icon-button" disabled={busy || uploadingFiles || (!input.trim() && !pendingAttachmentIDs.length) || !modelReady} onClick={() => sendMsg()} aria-label={!modelReady ? '请先配置模型' : '发送'}><ArrowUp size={19} aria-hidden="true" /></button>
     </div>
     {inputStats ? <div className="composer-meta">{inputStats}</div> : null}
   </div>;
 }
 
-function SidebarLink({ active, onClick, title }) {
-  return <button type="button" className={'session sidebar-link ' + (active ? 'active' : '')} onClick={onClick}><span className="session-main"><span className="session-title">{title}</span></span></button>;
+function SidebarTreeNode({ api, current, item, kind, openSession }) {
+  const [rows, setRows] = React.useState();
+  const Icon = kind === 'project' ? Folder : ListTodo;
+  const renderRow = row => {
+    const id = row.id || row.session_id;
+    return <button key={id} className={'sidebar-tree-session ' + (current === id ? 'active' : '')} onClick={() => openSession(id)}>{row.title || row.session_title || row.task_title || '新会话'}</button>;
+  };
+  const loadRows = async event => {
+    if (!event.currentTarget.open || rows === null || Array.isArray(rows)) return;
+    setRows(null);
+    try {
+      const data = kind === 'project' ? await fetchSessions(api, {projectFilter: item.id, limit: 30}) : await fetchScheduledTaskRuns(api, item.id);
+      setRows(kind === 'project' ? data.sessions || [] : scheduledTaskSessionRows(data.runs || []));
+    } catch {
+      setRows(false);
+    }
+  };
+  return <details name="sidebar-tree" className="sidebar-tree-node" onToggle={loadRows}>
+    <summary><Icon size={15} aria-hidden="true" /><span>{item.name || item.title}</span><ArrowDown size={14} aria-hidden="true" /></summary>
+    <div className="sidebar-tree-children">
+      {rows == null ? <span className="sidebar-tree-state">正在加载…</span> : rows === false ? <span className="sidebar-tree-state">加载失败</span> : rows.length ? <>
+        {rows.slice(0, 5).map(renderRow)}
+        {rows.length > 5 ? <details className="sidebar-tree-more"><summary>显示更多</summary>{rows.slice(5).map(renderRow)}</details> : null}
+      </> : <span className="sidebar-tree-state">暂无会话</span>}
+    </div>
+  </details>;
 }
 
-export function Sidebar({ busy, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openProjectSessions, openSession, openWorkspacePage, pinSessionByID, projects, projectFilter, renameSessionByID, scheduledTasks, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setSidebarCollapsed, setTaskSearch, sidebarCollapsed, workspacePage }) {
+export function Sidebar({ api, busy, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openSession, openWorkspacePage, pinSessionByID, projects, projectFilter, renameSessionByID, scheduledTasks, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setSidebarCollapsed, setTaskSearch, sidebarCollapsed }) {
   const [menuPosition, setMenuPosition] = React.useState(null);
   const sessionsRef = React.useRef(null);
   const loadMoreRef = React.useRef(null);
@@ -144,15 +167,18 @@ export function Sidebar({ busy, current, deleteSessionByID, filteredSessions, go
       : ((projects || []).find(project => project.id === projectFilter)?.name || '项目会话');
   const searchingSessions = !!sessionSearch.trim();
   const pinnedSessions = searchingSessions ? [] : filteredSessions.filter(session => session.pinned);
-  const pinnedEntities = [...(projects || []).filter(item => item.pinned).map(item => ({...item, type: 'project'})), ...(scheduledTasks || []).filter(item => item.pinned).map(item => ({...item, type: 'task'}))];
-  const openPinnedEntity = item => item.type === 'project' ? openProjectSessions(item.id) : (setTaskSearch(item.title), openWorkspacePage('scheduled-tasks'));
+  const pinnedProjects = (projects || []).filter(item => item.pinned);
+  const pinnedTasks = (scheduledTasks || []).filter(item => item.pinned);
+  const renderTreeNode = (kind, item) => <SidebarTreeNode key={kind + item.id} api={api} current={current} item={item} kind={kind} openSession={openSession} />;
+  const workspaceProjects = (projects || []).filter(item => !item.pinned);
+  const workspaceTasks = (scheduledTasks || []).filter(item => !item.pinned);
   const sessionRows = searchingSessions ? filteredSessions : filteredSessions.filter(session => !session.pinned);
   const renderSession = session => {
     const isActive = current === session.id;
     const menuOpen = sessionMenuID === session.id;
     return <div key={session.id} data-session-id={session.id} className={'session ' + (isActive ? 'active ' : '') + (session.pinned ? 'pinned ' : '') + (menuOpen ? 'menu-open' : '')} onClick={() => openSession(session.id, session)}>
       <div className="session-main"><div className="session-title">{session.title}</div></div>
-      <button type="button" className="session-menu-trigger icon-button" disabled={busy} onClick={event => toggleSessionMenu(event, session)} aria-label={(session.title || '会话') + ' 操作'} aria-expanded={menuOpen ? 'true' : 'false'} title="会话操作"><MoreHorizontal size={16} aria-hidden="true" /></button>
+      <button type="button" className="session-menu-trigger icon-button" disabled={busy} onClick={event => toggleSessionMenu(event, session)} aria-label={(session.title || '会话') + ' 操作'} aria-expanded={menuOpen ? 'true' : 'false'}><MoreHorizontal size={16} aria-hidden="true" /></button>
     </div>;
   };
 
@@ -163,23 +189,21 @@ export function Sidebar({ busy, current, deleteSessionByID, filteredSessions, go
           <span className="brand-mark" aria-hidden="true"><Orbit size={20} /></span>
           <div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">Local AI</div></div>
         </a>
-        <button id="sidebarToggle" className="sidebar-toggle icon-button" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'} aria-label={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}><Menu {...iconProps} /></button>
+        <button id="sidebarToggle" className="sidebar-toggle icon-button" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}><Menu {...iconProps} /></button>
       </div>
       <div className="session-search-row">
         <label className="session-search-box"><Search size={15} aria-hidden="true" /><input className="session-search" placeholder="搜索聊天记录" value={sessionSearch} onChange={event => setSessionSearch(event.target.value)} /></label>
-        <button className="new icon-button" onClick={newSession} aria-label="新会话" title="新会话"><MessageSquarePlus {...iconProps} /></button>
+        <button className="new icon-button" onClick={newSession} aria-label="新会话"><MessageSquarePlus {...iconProps} /></button>
       </div>
       <div id="sessions" ref={sessionsRef} onScroll={handleSessionScroll}>
-        <div className="sidebar-section-head"><div className="sidebar-section-title">置顶</div></div>
-        <div className="sidebar-pinned-list">
-          {pinnedSessions.map(renderSession)}
-          {pinnedEntities.map(item => <SidebarLink key={item.type + item.id} title={item.name || item.title} onClick={() => openPinnedEntity(item)} />)}
-        </div>
-        <div className="sidebar-section-head"><div className="sidebar-section-title">工作区</div></div>
-        <div className="sidebar-workspace-list">
-          <SidebarLink title="项目" active={workspacePage === 'projects'} onClick={() => openWorkspacePage('projects')} />
-          <SidebarLink title="定时任务" active={workspacePage === 'scheduled-tasks'} onClick={() => { setTaskSearch(''); openWorkspacePage('scheduled-tasks'); }} />
-        </div>
+        {!searchingSessions ? <>
+          <div className="sidebar-section-head"><div className="sidebar-section-title">置顶</div></div>
+          <div className="sidebar-pinned-list">{pinnedSessions.map(renderSession)}{pinnedProjects.map(item => renderTreeNode('project', item))}{pinnedTasks.map(item => renderTreeNode('task', item))}</div>
+          <div className="sidebar-section-head"><button className="sidebar-section-title" onClick={() => openWorkspacePage('projects')}>项目</button></div>
+          <div className="sidebar-workspace-list">{workspaceProjects.map(item => renderTreeNode('project', item))}</div>
+          <div className="sidebar-section-head"><button className="sidebar-section-title" onClick={() => { setTaskSearch(''); openWorkspacePage('scheduled-tasks'); }}>定时任务</button></div>
+          <div className="sidebar-workspace-list">{workspaceTasks.map(item => renderTreeNode('task', item))}</div>
+        </> : null}
         <div className="sidebar-section-head"><div className="sidebar-section-title">{sessionSectionTitle}</div></div>
         {searchingSessions ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : (hasMoreSessions ? '全文搜索 · 已加载 ' : '全文搜索 ') + filteredSessions.length + ' 条'}</div> : null}
         {sessionRows.length ? sessionRows.map(renderSession) : <div className="empty compact">{searchingSessions ? '没有匹配会话' : '暂无会话，开始新会话'}</div>}

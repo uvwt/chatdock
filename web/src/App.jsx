@@ -1197,14 +1197,14 @@ export default function App() {
     <div id="sidebarMask" className={'sidebar-mask ' + (!settingsOpen && !sidebarCollapsed ? 'show' : '')} onClick={() => setSidebarCollapsed(true)} />
     {settingsOpen ? <div id="settingsPage" className="settings-page"><Suspense fallback={<div className="empty compact" role="status">正在加载配置中心…</div>}>{settingsPanel}</Suspense></div> : <div id="app" className={appClass}>
       <Sidebar
-        busy={busy} current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} goHome={goHome}
+        api={api} busy={busy} current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} goHome={goHome}
         hasMoreSessions={visibleSessionsHasMore} loadingMoreSessions={visibleSessionsLoadingMore} newSession={newSession}
-        onLoadMoreSessions={loadMoreVisibleSessions} openProjectSessions={openProjectSessions} openSession={openSession} openWorkspacePage={openWorkspacePage}
+        onLoadMoreSessions={loadMoreVisibleSessions} openSession={openSession} openWorkspacePage={openWorkspacePage}
         pinSessionByID={pinSessionByID} projects={projects} projectFilter={projectFilter} renameSessionByID={renameSessionByID}
         scheduledTasks={scheduledTasks} setTaskSearch={setTaskSearch}
         sessionMenuID={sessionMenuID} sessionSearch={sessionSearch} sessionSearchBusy={sessionSearchBusy}
         setSessionMenuID={setSessionMenuID} setSessionSearch={setSessionSearch}
-        setSidebarCollapsed={setSidebarCollapsed} sidebarCollapsed={sidebarCollapsed} workspacePage={workspacePage}
+        setSidebarCollapsed={setSidebarCollapsed} sidebarCollapsed={sidebarCollapsed}
       />
       <main>
         {workspacePage ? <Suspense fallback={<div className="empty compact" role="status">正在加载工作区…</div>}><WorkspacePage
@@ -1217,14 +1217,12 @@ export default function App() {
           loadScheduledTasks={loadScheduledTasks}
         /></Suspense> : <>
           <Topbar
-            busy={busy} cloneCurrent={cloneCurrent} copyCurrentMarkdown={copyCurrentMarkdown} current={current}
-            currentPinned={currentPinned} currentTitle={currentTitle} deleteCurrent={deleteCurrent} exportCurrent={exportCurrent}
-            newSession={newSession} openSettings={openSettings} pinCurrent={pinCurrent} renameCurrent={renameCurrent}
+            currentTitle={currentTitle} newSession={newSession} openSettings={openSettings}
             setQuickPaletteOpen={setQuickPaletteOpen} setSidebarCollapsed={setSidebarCollapsed} setThemeState={setThemeState}
-            showContextPreview={showContextPreview} sidebarCollapsed={sidebarCollapsed} taskPanelAvailable={taskDataEnabled} taskPanelOpen={taskPanelOpen}
+            sidebarCollapsed={sidebarCollapsed} taskPanelAvailable={taskDataEnabled} taskPanelOpen={taskPanelOpen}
             taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
           />
-          <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} openProjects={() => openWorkspacePage('projects')} busy={busy} hasProjects={!!projects.length} modelReady={modelReady} />}</div>
+          <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} busy={busy} modelReady={modelReady} />}</div>
           {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息"><ArrowDown className="jump-latest-icon" size={17} aria-hidden="true" /></button> : null}
           <CurrentSessionTask
             error={currentSessionTask.error} loading={currentSessionTask.loading} onRefresh={currentSessionTask.refresh}

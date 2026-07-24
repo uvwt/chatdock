@@ -5,6 +5,7 @@ export { default as Check } from 'lucide-react/dist/esm/icons/check.js';
 export { default as ChevronDown } from 'lucide-react/dist/esm/icons/chevron-down.js';
 export { default as CircleX } from 'lucide-react/dist/esm/icons/circle-x.js';
 export { default as Copy } from 'lucide-react/dist/esm/icons/copy.js';
+export { default as Folder } from 'lucide-react/dist/esm/icons/folder.js';
 export { default as GitBranch } from 'lucide-react/dist/esm/icons/git-branch.js';
 export { default as ListTodo } from 'lucide-react/dist/esm/icons/list-todo.js';
 export { default as LoaderCircle } from 'lucide-react/dist/esm/icons/loader-circle.js';

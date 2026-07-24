@@ -237,7 +237,7 @@ export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEd
 
 export const MemoizedMessageView = React.memo(MessageView);
 
-export function EmptyState({ createSession, openSettings, openProjects, busy, hasProjects, modelReady }) {
+export function EmptyState({ createSession, openSettings, busy, modelReady }) {
   return <div className="empty-state product-empty-state">
     <section className="product-hero">
       <div className="hero-ambient" aria-hidden="true">
@@ -252,7 +252,6 @@ export function EmptyState({ createSession, openSettings, openProjects, busy, ha
         <div className="empty-state-actions hero-actions">
           <button disabled={busy || !modelReady} onClick={createSession}>{modelReady ? '开始对话' : '先配置模型'}</button>
           <button className="secondary" onClick={() => openSettings('model')}>{modelReady ? '配置模型' : '打开配置'}</button>
-          <button className="secondary" disabled={!hasProjects || busy} onClick={openProjects}>项目</button>
         </div>
       </div>
     </section>
