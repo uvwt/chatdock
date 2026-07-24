@@ -525,10 +525,7 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
     const tokenEnvLooksLikeHeader = String(draft.token_env || '').trim().toLowerCase() === 'authorization';
     const tokenExpiry = mcpTokenExpiryState(draft.token);
     return <div className={'mcp-form-card ' + (isNew ? 'new-server' : '')} key={isNew ? 'new' : name}>
-      <div className="mcp-form-head">
-        <div><b>{isNew ? '新增 MCP Server' : name}</b><div className="hint">{isNew ? '填地址即可，不需要手写 JSON。' : status?.last_error || (status?.disabled ? '已禁用' : status ? '状态已检测' : '未检测')}</div></div>
-        {!isNew ? <div className="mcp-form-head-actions"><button className="secondary small" onClick={() => patchServer(name, {disabled: !draft.disabled})}>{draft.disabled ? '启用' : '禁用'}</button><button className="danger small" onClick={() => removeServer(name)}>删除</button></div> : null}
-      </div>
+      {!isNew ? <div className="mcp-form-head"><div className="mcp-form-head-actions"><button className="secondary small" onClick={() => patchServer(name, {disabled: !draft.disabled})}>{draft.disabled ? '启用' : '禁用'}</button><button className="danger small" onClick={() => removeServer(name)}>删除</button></div></div> : null}
       {isNew ? <label>Server 名称<input value={draft.name} onChange={e => setNewServer(s => ({...s, name: e.target.value}))} placeholder="例如 agentdock" /></label> : <label>Server 名称<div className="mcp-rename-row"><input value={serverNameDraft} onChange={e => setRenameDrafts(drafts => ({...drafts, [name]: e.target.value}))} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); renameServer(name); } }} placeholder="例如 agentdock" /><button type="button" className="secondary small" onClick={() => renameServer(name)} disabled={cleanMCPServerName(serverNameDraft) === name}>改名</button></div></label>}
       <label>资源说明<input maxLength="240" value={draft.description} onChange={e => update({description: e.target.value})} placeholder="例如 Mac mini 本机开发、文件、命令和 Git 能力" /></label>
       <div className="hint">这段说明会进入模型看到的轻量资源索引；按需资源尚未加载工具时，模型会据此选择目标资源。</div>
@@ -566,16 +563,14 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
 
   const detailName = detail[0] !== '@' && parsed.config.servers?.[detail] ? detail : '';
   const detailKind = detail === '@builtin' ? 'builtin' : detail === '@new' ? 'new' : detailName ? 'server' : '';
+  const detailTitle = detailKind === 'builtin' ? 'ChatDock 内置工具' : detailKind === 'new' ? '新增 MCP Server' : detailName;
   return <>
-    {detailKind ? <div className="mcp-detail-head"><button type="button" className="secondary small" onClick={() => setDetail('')}><ArrowLeft size={15} aria-hidden="true" />返回工具列表</button><b>{detailKind === 'builtin' ? 'ChatDock 内置工具' : detailKind === 'new' ? '新增 MCP Server' : detailName}</b></div> : null}
-    {detailKind === 'builtin' ? <section className="settings-section mcp-detail-section builtin-tools-section"><div className="builtin-default-exposure"><div><b>默认加载方式</b><span>未单独设置的工具继承此方式</span></div><select aria-label="内置工具默认加载方式" value={builtinDraft.tool_exposure} onChange={e => patchBuiltinTools({tool_exposure: e.target.value})}><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select></div><BuiltinToolExposurePicker draft={builtinDraft} tools={builtinTools || []} onChange={patchBuiltinTools} /></section> : null}
-    {detailKind === 'new' && !parsed.error ? <div className="mcp-form-list redesigned">{renderServerForm('', {}, true)}</div> : null}
-    {detailName ? <div className="mcp-form-list redesigned">{renderServerForm(detailName, parsed.config.servers[detailName])}</div> : null}
-    {!detailKind ? <section className="settings-section mcp-overview-section mcp-directory-section">
+    <section className="settings-section mcp-overview-section mcp-directory-section">
       <div className="settings-section-head">
         <div><b>工具资源</b></div>
         <div className="mcp-directory-actions">
           <button className="secondary small" onClick={() => loadMCPStatus?.()}>检测</button>
+          <button className="secondary small" onClick={() => { if (!mcpConfigDirty || window.confirm('重新加载会丢弃尚未保存的 MCP 修改，确定继续吗？')) loadMCPConfig?.(); }}>重新加载</button>
           <button className="small" onClick={() => setDetail('@new')}>新增 Server</button>
         </div>
       </div>
@@ -594,10 +589,22 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
         })}
         {!serverNames.length ? <div className="empty compact">暂无 MCP Server。</div> : null}
       </div>
-    </section> : null}
+    </section>
     {parsed.error ? <div className="backup-health warn">当前配置 JSON 损坏：{parsed.error}</div> : null}
-    {formError ? <div className="backup-health warn">{formError}</div> : null}
-    <div className="settings-actions mcp-primary-actions"><button className={mcpConfigDirty ? 'settings-inline-save-button dirty' : 'settings-inline-save-button'} onClick={() => saveMCPConfig?.()} disabled={!mcpConfigDirty || saving}>{saving ? '保存中…' : mcpConfigDirty ? '保存 MCP 更改' : 'MCP 已保存'}</button><button className="secondary" onClick={() => { if (!mcpConfigDirty || window.confirm('重新加载会丢弃尚未保存的 MCP 修改，确定继续吗？')) { setDetail(''); loadMCPConfig?.(); } }}>重新加载</button></div>
+    {detailKind ? <div className="app-modal-backdrop show" onClick={e => { if (e.target === e.currentTarget) setDetail(''); }}>
+      <div className="app-modal-card provider-modal provider-modal-simple mcp-config-modal" role="dialog" aria-modal="true" aria-labelledby="mcpConfigModalTitle">
+        <div className="app-modal-form">
+          <div id="mcpConfigModalTitle" className="app-modal-title">{detailTitle}</div>
+          <div className="mcp-config-modal-body">
+            {detailKind === 'builtin' ? <section className="settings-section mcp-detail-section builtin-tools-section"><div className="builtin-default-exposure"><div><b>默认加载方式</b><span>未单独设置的工具继承此方式</span></div><select aria-label="内置工具默认加载方式" value={builtinDraft.tool_exposure} onChange={e => patchBuiltinTools({tool_exposure: e.target.value})}><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select></div><BuiltinToolExposurePicker draft={builtinDraft} tools={builtinTools || []} onChange={patchBuiltinTools} /></section> : null}
+            {detailKind === 'new' && !parsed.error ? <div className="mcp-form-list redesigned">{renderServerForm('', {}, true)}</div> : null}
+            {detailName ? <div className="mcp-form-list redesigned">{renderServerForm(detailName, parsed.config.servers[detailName])}</div> : null}
+            {formError ? <div className="backup-health warn">{formError}</div> : null}
+          </div>
+          <div className="app-modal-actions"><button type="button" className="secondary" onClick={() => setDetail('')}>关闭</button><button type="button" className={mcpConfigDirty ? 'settings-inline-save-button dirty' : 'settings-inline-save-button'} onClick={() => saveMCPConfig?.()} disabled={!mcpConfigDirty || saving}>{saving ? '保存中…' : mcpConfigDirty ? '保存更改' : '已保存'}</button></div>
+        </div>
+      </div>
+    </div> : null}
   </>;
 }
 

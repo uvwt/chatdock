@@ -376,8 +376,7 @@ body .settings-page [data-module-view="providers"] .product-card.active,
   max-width: 920px;
 }
 
-.settings-page .mcp-directory-actions,
-.settings-page .mcp-detail-head {
+.settings-page .mcp-directory-actions {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -435,22 +434,38 @@ body .settings-page [data-module-view="providers"] .product-card.active,
   white-space: nowrap;
 }
 
-.settings-page .mcp-detail-head {
-  align-items: flex-start;
-  max-width: 920px;
-  margin-bottom: 14px;
+.settings-page .mcp-config-modal {
+  width: min(920px, 100%);
 }
 
-.settings-page .mcp-detail-head > b {
-  overflow: hidden;
+.settings-page .mcp-config-modal .app-modal-form {
+  display: grid;
+  gap: 16px;
+}
+
+.settings-page .mcp-config-modal .app-modal-title {
+  margin: 0;
   color: var(--gpt-text) !important;
-  font-size: 17px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.settings-page .mcp-detail-head > button {
-  flex: 0 0 auto;
+.settings-page .mcp-config-modal-body,
+.settings-page .mcp-config-modal .mcp-detail-section,
+.settings-page .mcp-config-modal .mcp-form-list.redesigned {
+  min-width: 0;
+  max-width: none;
+}
+
+.settings-page .mcp-config-modal .mcp-detail-section,
+.settings-page .mcp-config-modal .mcp-form-card {
+  margin: 0;
+}
+
+.settings-page .mcp-config-modal .mcp-form-head {
+  justify-content: flex-end;
+}
+
+.settings-page .mcp-config-modal .app-modal-actions {
+  margin-top: 0;
 }
 
 @media (max-width: 900px) {
@@ -497,8 +512,13 @@ body .settings-page [data-module-view="providers"] .product-card.active,
   }
 
   .settings-page .mcp-directory-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
-    justify-content: flex-end;
+  }
+
+  .settings-page .mcp-directory-actions button {
+    width: 100%;
   }
 
   .settings-page button.mcp-config-directory-row {
@@ -508,13 +528,8 @@ body .settings-page [data-module-view="providers"] .product-card.active,
     padding: 12px !important;
   }
 
-  .settings-page .mcp-detail-head {
-    align-items: center;
-    margin-bottom: 12px;
-  }
-
-  .settings-page .mcp-detail-head > b {
-    font-size: 15px;
+  .settings-page .mcp-config-modal .app-modal-form {
+    padding: 16px;
   }
 }
 
