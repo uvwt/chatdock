@@ -1,6 +1,7 @@
 package store
 
 import (
+	"chatdock/internal/chatdock/schedule"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -28,7 +29,7 @@ func normalizeScheduledTaskForDB(task model.ScheduledTask) model.ScheduledTask {
 	task.ScheduleType = strings.TrimSpace(task.ScheduleType)
 	task.CronExpressions = normalizeStoredCronExpressions(task.CronExpressions)
 	task.Timezone = strings.TrimSpace(task.Timezone)
-	task.ContextMode = normalizeScheduledTaskContextMode(task.ContextMode)
+	task.ContextMode = schedule.NormalizeContextMode(task.ContextMode)
 	task.LastStatus = strings.TrimSpace(task.LastStatus)
 	task.LastError = strings.TrimSpace(task.LastError)
 	task.SessionID = strings.TrimSpace(task.SessionID)
@@ -113,7 +114,7 @@ func scanScheduledTasks(rows *sql.Rows) ([]model.ScheduledTask, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	sortScheduledTasks(out)
+	schedule.SortTasks(out)
 	return out, nil
 }
 
@@ -135,7 +136,7 @@ func scanScheduledTask(scanner interface{ Scan(...any) error }) (model.Scheduled
 	task.LastRunAt = parseOptionalDBTime(lastRunAt)
 	task.CreatedAt = parseDBTimeZero(createdAt)
 	task.UpdatedAt = parseDBTimeZero(updatedAt)
-	task.ContextMode = normalizeScheduledTaskContextMode(task.ContextMode)
+	task.ContextMode = schedule.NormalizeContextMode(task.ContextMode)
 	return task, nil
 }
 

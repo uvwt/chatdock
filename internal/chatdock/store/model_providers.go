@@ -1,6 +1,7 @@
 package store
 
 import (
+	"chatdock/internal/chatdock/modelprovider"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -28,32 +29,8 @@ func modelConfigWith(reader sqlQueryer) (model.ModelConfig, error) {
 	return applyProviderToConfigWith(reader, cfg)
 }
 
-func maskSecret(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return ""
-	}
-	runes := []rune(value)
-	if len(runes) <= 8 {
-		if len(runes) <= 2 {
-			return strings.Repeat("*", len(runes))
-		}
-		return string(runes[:1]) + strings.Repeat("*", len(runes)-2) + string(runes[len(runes)-1:])
-	}
-	prefixLen := 6
-	suffixLen := 4
-	if len(runes) > 24 {
-		prefixLen = 8
-		suffixLen = 6
-	}
-	if len(runes) <= prefixLen+suffixLen {
-		return string(runes[:2]) + strings.Repeat("*", len(runes)-4) + string(runes[len(runes)-2:])
-	}
-	return string(runes[:prefixLen]) + strings.Repeat("*", 8) + string(runes[len(runes)-suffixLen:])
-}
-
 func (s *Store) resolveChatModelConfigLocked(base model.ModelConfig, providerID string, selectedModel string) (model.ModelConfig, error) {
-	providerID = normalizeProviderID(providerID)
+	providerID = modelprovider.NormalizeID(providerID)
 	selectedModel = strings.TrimSpace(selectedModel)
 	next := model.NormalizeModelConfig(base)
 	if providerID == "" {
@@ -93,7 +70,7 @@ func (s *Store) ResolveFallbackModelConfig(base model.ModelConfig) (*model.Model
 	defer s.mu.RUnlock()
 
 	base = model.NormalizeModelConfig(base)
-	providerID := normalizeProviderID(base.FallbackProviderID)
+	providerID := modelprovider.NormalizeID(base.FallbackProviderID)
 	modelName := strings.TrimSpace(base.FallbackModel)
 	if providerID == "" && modelName == "" {
 		return nil, nil

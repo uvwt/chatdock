@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/chatoutput"
 	"context"
 	"time"
 
@@ -20,8 +21,8 @@ func chatJobCompletionStatus(ctx context.Context, runErr error) (string, error) 
 	return "success", nil
 }
 
-func (a *App) finishChatJob(ctx context.Context, sessionID string, jobID string, status string, cfg model.ModelConfig, recorder *assistantOutputRecorder, runErr error) {
-	finishedJob, finishErr := a.store.FinishChatJob(jobID, status, recorder.answerText(), recorder.reasoningText(), runErr)
+func (a *App) finishChatJob(ctx context.Context, sessionID string, jobID string, status string, cfg model.ModelConfig, recorder *chatoutput.Recorder, runErr error) {
+	finishedJob, finishErr := a.store.FinishChatJob(jobID, status, recorder.AnswerText(), recorder.ReasoningText(), runErr)
 	fields := logFields{
 		"request_id":  requestIDFromContext(ctx),
 		"job_id":      jobID,

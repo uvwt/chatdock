@@ -1,6 +1,7 @@
 package store
 
 import (
+	"chatdock/internal/chatdock/schedule"
 	"fmt"
 	"strings"
 	"time"
@@ -9,9 +10,9 @@ import (
 )
 
 const (
-	scheduleTypeOnce     = "once"
-	scheduleTypeInterval = "interval"
-	scheduleTypeCron     = "cron"
+	scheduleTypeOnce     = schedule.TypeOnce
+	scheduleTypeInterval = schedule.TypeInterval
+	scheduleTypeCron     = schedule.TypeCron
 )
 
 func (s *Store) ListScheduledTasks() (model.ScheduledTaskResponse, error) {
@@ -21,12 +22,12 @@ func (s *Store) ListScheduledTasks() (model.ScheduledTaskResponse, error) {
 	if err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
-	return model.ScheduledTaskResponse{Tasks: cloneScheduledTasks(tasks)}, nil
+	return model.ScheduledTaskResponse{Tasks: schedule.CloneTasks(tasks)}, nil
 }
 
 func (s *Store) CreateScheduledTask(input model.ScheduledTaskRequest) (model.ScheduledTaskResponse, error) {
 	now := time.Now()
-	next, err := normalizeScheduledTaskInput(input, nil, now)
+	next, err := schedule.NormalizeInput(input, nil, now)
 	if err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
@@ -48,7 +49,7 @@ func (s *Store) CreateScheduledTask(input model.ScheduledTaskRequest) (model.Sch
 	if err := s.saveScheduledTasksLocked(tasks); err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
-	return model.ScheduledTaskResponse{Tasks: cloneScheduledTasks(tasks)}, nil
+	return model.ScheduledTaskResponse{Tasks: schedule.CloneTasks(tasks)}, nil
 }
 
 func (s *Store) UpdateScheduledTask(id string, input model.ScheduledTaskRequest) (model.ScheduledTaskResponse, error) {
@@ -78,7 +79,7 @@ func (s *Store) UpdateScheduledTask(id string, input model.ScheduledTaskRequest)
 			return model.ScheduledTaskResponse{}, fmt.Errorf("scheduled task already exists: %s", input.Title)
 		}
 	}
-	next, err := normalizeScheduledTaskInput(input, &tasks[index], now)
+	next, err := schedule.NormalizeInput(input, &tasks[index], now)
 	if err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
@@ -98,7 +99,7 @@ func (s *Store) UpdateScheduledTask(id string, input model.ScheduledTaskRequest)
 	if err := s.saveScheduledTasksLocked(tasks); err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
-	return model.ScheduledTaskResponse{Tasks: cloneScheduledTasks(tasks)}, nil
+	return model.ScheduledTaskResponse{Tasks: schedule.CloneTasks(tasks)}, nil
 }
 
 func (s *Store) PinScheduledTask(id string, pinned bool) (model.ScheduledTaskResponse, error) {
@@ -127,7 +128,7 @@ func (s *Store) PinScheduledTask(id string, pinned bool) (model.ScheduledTaskRes
 	if err := s.saveScheduledTasksLocked(tasks); err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
-	return model.ScheduledTaskResponse{Tasks: cloneScheduledTasks(tasks)}, nil
+	return model.ScheduledTaskResponse{Tasks: schedule.CloneTasks(tasks)}, nil
 }
 
 func (s *Store) DeleteScheduledTask(id string) (model.ScheduledTaskResponse, error) {
@@ -155,5 +156,5 @@ func (s *Store) DeleteScheduledTask(id string) (model.ScheduledTaskResponse, err
 	if err := s.saveScheduledTasksLocked(tasks); err != nil {
 		return model.ScheduledTaskResponse{}, err
 	}
-	return model.ScheduledTaskResponse{Tasks: cloneScheduledTasks(tasks)}, nil
+	return model.ScheduledTaskResponse{Tasks: schedule.CloneTasks(tasks)}, nil
 }

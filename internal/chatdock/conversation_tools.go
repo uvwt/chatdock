@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"chatdock/internal/chatdock/mcp"
+	"chatdock/internal/chatdock/toolschema"
 )
 
 type conversationToolSet struct {
@@ -267,7 +268,7 @@ func (a *App) callConversationTool(ctx context.Context, sessionID string, mcpCon
 		return nil, err
 	}
 	if requiresConfirmation {
-		if err := a.requestMCPConfirmation(ctx, sessionID, name, args, emit); err != nil {
+		if err := a.approvals.Request(ctx, sessionID, name, args, emit); err != nil {
 			return nil, err
 		}
 		return a.mcpClient.CallToolAfterConfirmation(ctx, mcpConfig, name, args)
@@ -283,7 +284,7 @@ func (a *App) callVisibleConversationTool(ctx context.Context, toolSet *conversa
 	if !ok {
 		return nil, fmt.Errorf("tool is not exposed in this conversation: %s", name)
 	}
-	if err := validateToolArguments(tool.InputSchema, args); err != nil {
+	if err := toolschema.ValidateArguments(tool.InputSchema, args); err != nil {
 		return nil, err
 	}
 	return runRealTool(name, args)

@@ -22,7 +22,9 @@ func (a *App) completeWithRecordedTools(ctx context.Context, jobID string, sessi
 		return "", cfg, err
 	}
 	history = a.prepareVisionAttachmentURLs(history)
-	history = a.appendAgentDockRuntimeContext(ctx, history)
+	if a.agentDock != nil {
+		history = a.agentDock.AppendRuntimeContext(ctx, history)
+	}
 
 	toolSet, mcpConfig, err := a.loadConversationTools(ctx, emit)
 	if err != nil {

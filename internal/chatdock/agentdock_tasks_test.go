@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"chatdock/internal/chatdock/agentdock"
 	"chatdock/internal/chatdock/model"
 )
 
@@ -217,11 +217,11 @@ func TestSessionTaskIDFromDirectTaskManageEvent(t *testing.T) {
 		"arguments": map[string]any{"action": "checkpoint", "task_id": "tsk_direct"},
 		"result":    map[string]any{"task_id": "tsk_direct"},
 	}}
-	if got := sessionTaskIDFromEvent(event); got != "tsk_direct" {
+	if got := agentdock.SessionTaskIDFromEvent(event); got != "tsk_direct" {
 		t.Fatalf("direct task id = %q", got)
 	}
 	event.Details["arguments"] = map[string]any{"action": "get", "task_id": "tsk_read_only"}
-	if got := sessionTaskIDFromEvent(event); got != "" {
+	if got := agentdock.SessionTaskIDFromEvent(event); got != "" {
 		t.Fatalf("read-only task lookup must not bind session, got %q", got)
 	}
 }
@@ -253,16 +253,6 @@ func taskManageProxyEvent(action, taskID string) model.MessageEvent {
 				"result":    outerResult,
 			},
 		},
-	}
-}
-
-func TestAgentDockRuntimeURLUsesContextOriginAndPrefix(t *testing.T) {
-	got, err := agentDockRuntimeURL("https://example.test/agentdock/context", "/internal/runtime/tasks", url.Values{"limit": {"20"}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "https://example.test/agentdock/internal/runtime/tasks?limit=20" {
-		t.Fatalf("runtime URL = %q", got)
 	}
 }
 

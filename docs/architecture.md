@@ -6,11 +6,20 @@ ChatDock 是 Go 后端 + React 前端的单体项目，生产形态是 Go embed 
 
 ```text
 cmd/chatdock/              进程入口，只负责读取环境变量并启动 App
-internal/chatdock/         Go 后端核心包，保持单 package，按职责拆文件
+cmd/chatdock-migrate-workspaces/ 旧工作空间数据库的一次性迁移入口
+internal/chatdock/         HTTP 组合根、跨域流程和产品 handler
+internal/chatdock/agentdock/ AgentDock HTTP、上下文缓存和任务事件解析
+internal/chatdock/attachment/ 附件文件名规范化和文本提取
+internal/chatdock/chatoutput/ 流式输出、工具时间线和消息 checkpoint
+internal/chatdock/legacyworkspace/ 旧工作空间数据库离线迁移
 internal/chatdock/llm/     OpenAI 兼容请求、流式、工具调用和 embedding
 internal/chatdock/mcp/     MCP 客户端、配置、缓存和过滤规则
 internal/chatdock/model/   DTO、配置和模型类型
-internal/chatdock/store/   SQLite 存储、迁移、会话、任务、附件、供应商
+internal/chatdock/modelprovider/ 模型供应商记录、Key 策略、校验和持久化
+internal/chatdock/schedule/ Cron、时区、任务校验和下一次运行计算
+internal/chatdock/store/   当前 SQLite schema、会话、任务、附件和运行记录
+internal/chatdock/toolapproval/ 工具人工确认等待、决策和状态流转
+internal/chatdock/toolschema/ 工具参数 JSON Schema 校验
 web/                       前端源码与 Go embed 入口
 web/src/components/        React 组件层
 web/src/lib/               前端 API、传输层、协议解析和纯函数
@@ -20,7 +29,7 @@ scripts/                   本地检查、生产部署保护和辅助脚本
 
 ## 后端分层
 
-后端当前保持 `internal/chatdock` 单 package。新增代码优先按业务域拆文件，不为了层级感提前抽 interface。
+`internal/chatdock` 是 HTTP 组合根和跨域业务流程，不再承载外部系统客户端、一次性迁移、供应商内部记录或纯调度计算。稳定且依赖方向清楚的能力进入具体子包；不按 handler/service/repository 机械分层，也不引入 `common`、`utils` 或空泛 manager。
 
 ```text
 app.go / routes.go              App 组装、HTTP 路由和服务启动
@@ -37,17 +46,21 @@ scheduler.go                    定时任务扫描与触发
 attachments.go                  附件上传、落盘、公开签名图片 URL
 model_providers.go              模型供应商测试、候选模型和 API handler
 system_status.go / data_status.go 系统状态和数据健康状态
-agentdock_context.go            AgentDock 能力上下文读取和注入
+agentdock_tasks.go              AgentDock 任务 HTTP 适配；网络与事件规则在 agentdock 包
 runs.go / session_*.go          工具运行记录、会话标题、搜索和懒加载事件
 ```
 
-`internal/chatdock/store/` 负责 SQLite 生命周期、当前 schema、项目、会话、定时任务、运行记录、附件、工具向量和模型供应商。模型供应商存储按 CRUD 入口、持久化、公开 DTO、校验/规范化、Key 策略拆分。应用启动只创建当前 schema，并显式拒绝旧工作空间 schema；生产数据通过独立的一次性迁移工具转换，不在运行时兼容旧结构。
+`internal/chatdock/store/` 只负责当前 SQLite 生命周期、schema、项目、会话、定时任务、运行记录、附件和工具向量。模型供应商内部记录、Key 策略、校验和 meta 持久化由 `modelprovider` 负责，Store 只编排事务与全局模型配置。应用启动显式拒绝旧工作空间 schema；离线转换完整归属 `legacyworkspace`，不再与运行时 Store 混在同一个包。
+
+`agentdock` 是具体外部 HTTP 边界；`chatoutput` 承接模型流式输出到消息 checkpoint 的完整链路；`attachment` 和 `toolschema` 承接无状态的附件预处理与工具参数校验；`toolapproval` 持有人工确认的等待 channel、超时和 SQLite 状态流转；`schedule` 只包含无数据库依赖的 Cron、时区、任务校验和下一次运行计算。依赖方向统一由组合根指向具体能力包。
+
+Store 暂时不按实体继续拆成多个 repository：会话、定时任务运行、附件引用和聊天任务存在必须同事务提交的不变量。后续只有在能保持这些原子边界时，才继续拆具体存储服务，不能用代理方法或跨包回调制造“看起来分层”的结构。
 
 ### 后端新增代码规则
 
-1. 新增 HTTP handler 先放到对应 `handler_*.go`；没有明确归属时再扩展新的业务文件，不回填到巨型 `handler.go`。
-2. Store 仍保持直接方法调用，不提前抽 repository/interface；只有真实需要跨 package 复用时再讨论 package 拆分。
-3. 破坏性 Schema 变更直接维护当前 schema；生产升级必须提供独立的一次性迁移工具、完整备份和迁移验证，不在应用启动时隐式修改旧库。
+1. 新增 HTTP handler 先放到对应 `handler_*.go`；外部网络、持久化记录或稳定领域规则不得因为访问 App/Store 方便而继续堆进组合根。
+2. Store 保持直接方法调用，不提前抽 repository/interface；只有数据库读写和外部 HTTP 这类真实边界使用最小接口或具体 Client。
+3. 破坏性 Schema 变更直接维护当前 schema；生产升级必须在独立迁移包和命令中提供完整备份、转换与验证，不在应用启动时隐式修改旧库。
 4. 复杂业务流程需要中文注释说明原因、约束和坑点，不写“解释语法”的无效注释。
 5. 聊天上下文默认使用 `context_mode=auto`：最近消息保留原文，更早消息在模型请求前提炼成系统摘要；只有 `custom` 模式才把 `max_context_messages` 当作硬性最近消息数。
 

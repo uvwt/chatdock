@@ -1,6 +1,7 @@
 package store
 
 import (
+	"chatdock/internal/chatdock/modelprovider"
 	"fmt"
 	"strings"
 	"time"
@@ -45,7 +46,7 @@ func (s *Store) saveModelConfigLocked(next model.ModelConfig) (model.ModelConfig
 	if strings.TrimSpace(next.BaseURL) == "" {
 		next.BaseURL = current.BaseURL
 	}
-	if strings.TrimSpace(next.APIKey) == "" || isMaskedSecret(next.APIKey) {
+	if strings.TrimSpace(next.APIKey) == "" || modelprovider.IsMaskedSecret(next.APIKey) {
 		next.APIKey = current.APIKey
 	}
 	if strings.TrimSpace(next.Model) == "" {
@@ -54,7 +55,7 @@ func (s *Store) saveModelConfigLocked(next model.ModelConfig) (model.ModelConfig
 	if len(next.Models) == 0 {
 		next.Models = append([]string(nil), current.Models...)
 	}
-	if strings.TrimSpace(next.EmbeddingAPIKey) == "" || isMaskedSecret(next.EmbeddingAPIKey) {
+	if strings.TrimSpace(next.EmbeddingAPIKey) == "" || modelprovider.IsMaskedSecret(next.EmbeddingAPIKey) {
 		next.EmbeddingAPIKey = current.EmbeddingAPIKey
 	}
 	embeddingChanged := strings.TrimSpace(next.EmbeddingBaseURL) != current.EmbeddingBaseURL || strings.TrimSpace(next.EmbeddingModel) != current.EmbeddingModel
@@ -95,7 +96,7 @@ func (s *Store) saveModelConfigLocked(next model.ModelConfig) (model.ModelConfig
 }
 
 func normalizeFallbackModelSelectionWith(reader sqlQueryer, cfg *model.ModelConfig) error {
-	providerID := normalizeProviderID(cfg.FallbackProviderID)
+	providerID := modelprovider.NormalizeID(cfg.FallbackProviderID)
 	if providerID == "" {
 		cfg.FallbackProviderID = ""
 		cfg.FallbackModel = ""
@@ -125,12 +126,12 @@ func normalizeFallbackModelSelectionWith(reader sqlQueryer, cfg *model.ModelConf
 }
 
 func upsertProviderFromConfigWith(db sqlQueryWriter, cfg model.ModelConfig) error {
-	records, err := loadModelProviderRecordsWith(db)
+	records, err := modelprovider.LoadRecords(db)
 	if err != nil {
 		return err
 	}
 	now := time.Now()
-	id := normalizeProviderID(cfg.ProviderID)
+	id := modelprovider.NormalizeID(cfg.ProviderID)
 	if id == "" {
 		id = "provider_default"
 	}
@@ -139,15 +140,15 @@ func upsertProviderFromConfigWith(db sqlQueryWriter, cfg model.ModelConfig) erro
 			continue
 		}
 		records[i].BaseURL = strings.TrimSpace(cfg.BaseURL)
-		records[i].APIKeys = upsertProviderAPIKey(records[i].APIKeys, records[i].SelectedKeyID, cfg.APIKey, now)
+		records[i].APIKeys = modelprovider.UpsertAPIKey(records[i].APIKeys, records[i].SelectedKeyID, cfg.APIKey, now)
 		records[i].DefaultModel = strings.TrimSpace(cfg.Model)
-		records[i].Models = normalizeProviderModelNames(cfg.Models, cfg.Model)
+		records[i].Models = modelprovider.NormalizeModelNames(cfg.Models, cfg.Model)
 		records[i].Enabled = strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != ""
 		records[i].UpdatedAt = now
-		records[i] = normalizeModelProviderRecord(records[i])
-		return saveModelProviderRecordsWith(db, records)
+		records[i] = modelprovider.NormalizeRecord(records[i])
+		return modelprovider.SaveRecords(db, records)
 	}
-	record := normalizeModelProviderRecord(modelProviderRecord{ID: id, Name: providerDisplayName(cfg), Type: "openai-compatible", BaseURL: strings.TrimSpace(cfg.BaseURL), APIKeys: upsertProviderAPIKey(nil, "", cfg.APIKey, now), DefaultModel: strings.TrimSpace(cfg.Model), Models: normalizeProviderModelNames(cfg.Models, cfg.Model), TimeoutMS: 120000, Enabled: strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != "", CreatedAt: now, UpdatedAt: now})
+	record := modelprovider.NormalizeRecord(modelprovider.Record{ID: id, Name: modelprovider.DisplayName(cfg), Type: "openai-compatible", BaseURL: strings.TrimSpace(cfg.BaseURL), APIKeys: modelprovider.UpsertAPIKey(nil, "", cfg.APIKey, now), DefaultModel: strings.TrimSpace(cfg.Model), Models: modelprovider.NormalizeModelNames(cfg.Models, cfg.Model), TimeoutMS: 120000, Enabled: strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != "", CreatedAt: now, UpdatedAt: now})
 	records = append(records, record)
-	return saveModelProviderRecordsWith(db, records)
+	return modelprovider.SaveRecords(db, records)
 }

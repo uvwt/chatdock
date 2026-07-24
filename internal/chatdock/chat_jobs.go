@@ -1,6 +1,7 @@
 package chatdock
 
 import (
+	"chatdock/internal/chatdock/chatoutput"
 	"context"
 	"database/sql"
 	"errors"
@@ -84,17 +85,17 @@ func (a *App) runChatJob(ctx context.Context, jobID string, sessionID string, cf
 	defer a.unregisterChatJobCancel(jobID)
 	defer a.clearChatJobGuidance(jobID)
 
-	recorder := newAssistantOutputRecorder(a, sessionID, jobID)
-	finalAnswer, usedCfg, runErr := a.completeWithRecordedTools(ctx, jobID, sessionID, cfg, fallbackCfg, history, recorder.emit)
-	if err := recorder.flushDeltaEvent(true); err != nil && runErr == nil {
+	recorder := chatoutput.NewRecorder(a.store, sessionID, jobID)
+	finalAnswer, usedCfg, runErr := a.completeWithRecordedTools(ctx, jobID, sessionID, cfg, fallbackCfg, history, recorder.Emit)
+	if err := recorder.FlushDeltaEvent(true); err != nil && runErr == nil {
 		runErr = err
 	}
-	recorder.useFinalAnswer(finalAnswer)
+	recorder.UseFinalAnswer(finalAnswer)
 	status, runErr := chatJobCompletionStatus(ctx, runErr)
 	if status == "failed" && runErr != nil {
-		recorder.setError(newMessageError(requestIDFromContext(ctx), runErr.Error()))
+		recorder.SetError(newMessageError(requestIDFromContext(ctx), runErr.Error()))
 	}
-	if err := recorder.saveCheckpoint(true); err != nil {
+	if err := recorder.SaveCheckpoint(true); err != nil {
 		status = "failed"
 		runErr = err
 	}

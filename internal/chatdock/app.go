@@ -11,37 +11,36 @@ import (
 	"sync"
 	"time"
 
+	"chatdock/internal/chatdock/agentdock"
 	"chatdock/internal/chatdock/llm"
 	"chatdock/internal/chatdock/mcp"
 	"chatdock/internal/chatdock/model"
 	storepkg "chatdock/internal/chatdock/store"
+	"chatdock/internal/chatdock/toolapproval"
 )
 
 type App struct {
-	cfg                   model.ServerConfig
-	store                 *storepkg.Store
-	client                *llm.ChatClient
-	mcpClient             *mcp.MCPClient
-	server                *http.Server
-	lifecycleCtx          context.Context
-	lifecycleCancel       context.CancelFunc
-	jobMu                 sync.Mutex
-	jobCancel             map[string]context.CancelFunc
-	jobGuidance           map[string][]chatJobGuidance
-	backgroundWG          sync.WaitGroup
-	closing               bool
-	shutdownOnce          sync.Once
-	closeOnce             sync.Once
-	closeErr              error
-	confirmMu             sync.Mutex
-	confirmations         map[string]*MCPConfirmation
-	runningMu             sync.Mutex
-	running               map[string]bool
-	embeddingMu           sync.Mutex
-	embeddingMemo         map[string][]float64
-	agentDockContextMu    sync.Mutex
-	agentDockContext      string
-	agentDockContextUntil time.Time
+	cfg             model.ServerConfig
+	store           *storepkg.Store
+	client          *llm.ChatClient
+	mcpClient       *mcp.MCPClient
+	agentDock       *agentdock.Client
+	server          *http.Server
+	lifecycleCtx    context.Context
+	lifecycleCancel context.CancelFunc
+	jobMu           sync.Mutex
+	jobCancel       map[string]context.CancelFunc
+	jobGuidance     map[string][]chatJobGuidance
+	backgroundWG    sync.WaitGroup
+	closing         bool
+	shutdownOnce    sync.Once
+	closeOnce       sync.Once
+	closeErr        error
+	approvals       *toolapproval.Service
+	runningMu       sync.Mutex
+	running         map[string]bool
+	embeddingMu     sync.Mutex
+	embeddingMemo   map[string][]float64
 }
 
 func normalizeServerConfig(cfg model.ServerConfig) model.ServerConfig {
@@ -67,9 +66,10 @@ func NewApp(cfg model.ServerConfig) (*App, error) {
 		store:           st,
 		client:          llm.NewChatClient(),
 		mcpClient:       mcp.NewMCPClient(),
+		agentDock:       agentdock.NewClient(cfg.AgentDockContextURL, cfg.AgentDockContextToken),
 		jobCancel:       make(map[string]context.CancelFunc),
 		jobGuidance:     make(map[string][]chatJobGuidance),
-		confirmations:   make(map[string]*MCPConfirmation),
+		approvals:       toolapproval.NewService(st),
 		running:         make(map[string]bool),
 		embeddingMemo:   make(map[string][]float64),
 	}

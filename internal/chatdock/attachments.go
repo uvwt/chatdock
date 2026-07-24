@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"chatdock/internal/chatdock/attachment"
 	"chatdock/internal/chatdock/llm"
 	"chatdock/internal/chatdock/model"
 )
@@ -55,7 +56,7 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	name := cleanUploadName(header.Filename)
+	name := attachment.CleanUploadName(header.Filename)
 	upload, err := a.persistUploadedFile(model.NewID(), name, header.Header.Get("Content-Type"), file)
 	if err != nil {
 		status := http.StatusInternalServerError
@@ -65,7 +66,7 @@ func (a *App) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, status, err)
 		return
 	}
-	text, status, extractErr := extractAttachmentText(upload.StoragePath, name, upload.MIMEType)
+	text, status, extractErr := attachment.ExtractText(upload.StoragePath, name, upload.MIMEType)
 	if extractErr != nil && strings.TrimSpace(text) == "" {
 		status = "stored"
 	}
@@ -352,7 +353,7 @@ func (a *App) modelImageURL(id string, filename string, expiresAt time.Time) (st
 }
 
 func modelImageURLName(filename string) string {
-	name := cleanUploadName(filename)
+	name := attachment.CleanUploadName(filename)
 	if strings.TrimSpace(name) == "" {
 		return "image"
 	}

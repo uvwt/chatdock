@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"chatdock/internal/chatdock/toolschema"
+
 	"chatdock/internal/chatdock/model"
 )
 
@@ -160,7 +162,7 @@ func TestValidateToolArgumentsRejectsSchemaTypeMismatch(t *testing.T) {
 		t.Fatalf("unexpected test tool: %s", tool.FullName)
 	}
 
-	err := validateToolArguments(tool.InputSchema, map[string]any{
+	err := toolschema.ValidateArguments(tool.InputSchema, map[string]any{
 		"title":         "日报",
 		"prompt":        "总结今天",
 		"schedule_type": "interval",

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"chatdock/internal/chatdock/agentdock"
 	"chatdock/internal/chatdock/llm"
 	"chatdock/internal/chatdock/model"
 )
@@ -19,8 +20,8 @@ func TestRuntimeContextProbeMessagesContainCapabilityContext(t *testing.T) {
 	}))
 	defer capabilityServer.Close()
 
-	app := &App{cfg: model.ServerConfig{AgentDockContextURL: capabilityServer.URL}}
-	history := app.appendAgentDockRuntimeContext(context.Background(), []model.Message{
+	client := agentdock.NewClient(capabilityServer.URL, "")
+	history := client.AppendRuntimeContext(context.Background(), []model.Message{
 		{Role: "user", Content: "older"},
 		{Role: "assistant", Content: "older answer"},
 		{Role: "user", Content: "latest"},

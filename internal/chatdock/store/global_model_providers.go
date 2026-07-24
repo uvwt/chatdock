@@ -1,6 +1,7 @@
 package store
 
 import (
+	"chatdock/internal/chatdock/modelprovider"
 	"fmt"
 	"sort"
 	"strings"
@@ -9,47 +10,7 @@ import (
 	"chatdock/internal/chatdock/model"
 )
 
-const (
-	modelProvidersMetaKey          = "model_providers_v1"
-	modelProviderKeyStrategyAuto   = "auto"
-	modelProviderKeyStrategyManual = "manual"
-)
-
-type modelProviderAPIKeyRecord struct {
-	ID           string     `json:"id"`
-	Name         string     `json:"name"`
-	APIKey       string     `json:"api_key,omitempty"`
-	Enabled      bool       `json:"enabled"`
-	Priority     int        `json:"priority"`
-	LastStatus   string     `json:"last_status,omitempty"`
-	LastError    string     `json:"last_error,omitempty"`
-	LastTestedAt *time.Time `json:"last_tested_at,omitempty"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-}
-
-type modelProviderRecord struct {
-	ID            string                      `json:"id"`
-	Name          string                      `json:"name"`
-	Type          string                      `json:"type"`
-	BaseURL       string                      `json:"base_url"`
-	LegacyAPIKey  string                      `json:"api_key,omitempty"`
-	DefaultModel  string                      `json:"default_model"`
-	Models        []string                    `json:"models,omitempty"`
-	TimeoutMS     int                         `json:"timeout_ms"`
-	Enabled       bool                        `json:"enabled"`
-	KeyStrategy   string                      `json:"key_strategy,omitempty"`
-	SelectedKeyID string                      `json:"selected_key_id,omitempty"`
-	APIKeys       []modelProviderAPIKeyRecord `json:"api_keys,omitempty"`
-	CreatedAt     time.Time                   `json:"created_at"`
-	UpdatedAt     time.Time                   `json:"updated_at"`
-}
-
-type ModelProviderKeyConfig struct {
-	KeyID   string
-	KeyName string
-	Config  model.ModelConfig
-}
+type ModelProviderKeyConfig = modelprovider.KeyConfig
 
 func (s *Store) EnsureGlobalModelProviders() error {
 	s.mu.Lock()
@@ -63,7 +24,7 @@ func (s *Store) ensureGlobalModelProvidersLocked() error {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	records, err := loadModelProviderRecordsWith(tx)
+	records, err := modelprovider.LoadRecords(tx)
 	if err != nil {
 		return err
 	}
@@ -76,18 +37,18 @@ func (s *Store) ensureGlobalModelProvidersLocked() error {
 		return err
 	}
 	now := time.Now()
-	id := normalizeProviderID(cfg.ProviderID)
+	id := modelprovider.NormalizeID(cfg.ProviderID)
 	if id == "" {
 		id = "provider_default"
 	}
-	record := normalizeModelProviderRecord(modelProviderRecord{
+	record := modelprovider.NormalizeRecord(modelprovider.Record{
 		ID:           id,
-		Name:         providerDisplayName(cfg),
+		Name:         modelprovider.DisplayName(cfg),
 		Type:         "openai-compatible",
 		BaseURL:      strings.TrimSpace(cfg.BaseURL),
-		APIKeys:      upsertProviderAPIKey(nil, "", cfg.APIKey, now),
+		APIKeys:      modelprovider.UpsertAPIKey(nil, "", cfg.APIKey, now),
 		DefaultModel: strings.TrimSpace(cfg.Model),
-		Models:       normalizeProviderModelNames(cfg.Models, cfg.Model),
+		Models:       modelprovider.NormalizeModelNames(cfg.Models, cfg.Model),
 		TimeoutMS:    120000,
 		Enabled:      strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.Model) != "",
 		CreatedAt:    now,
@@ -98,7 +59,7 @@ func (s *Store) ensureGlobalModelProvidersLocked() error {
 	if err := setGlobalJSONWith(tx, "config", cfg, now); err != nil {
 		return err
 	}
-	if err := saveModelProviderRecordsWith(tx, records); err != nil {
+	if err := modelprovider.SaveRecords(tx, records); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -113,7 +74,7 @@ func (s *Store) ListModelProviders() ([]ModelProvider, error) {
 	}
 	providers := make([]ModelProvider, 0, len(records))
 	for _, record := range records {
-		providers = append(providers, publicModelProvider(record))
+		providers = append(providers, modelprovider.Public(record))
 	}
 	sort.Slice(providers, func(i, j int) bool {
 		if providers[i].Enabled != providers[j].Enabled {
@@ -131,14 +92,14 @@ func (s *Store) CreateModelProvider(input ModelProviderInput) (ModelProvider, er
 	if err != nil {
 		return ModelProvider{}, err
 	}
-	records, record, err := createModelProviderRecord(records, input, time.Now())
+	records, record, err := modelprovider.CreateRecord(records, input, time.Now())
 	if err != nil {
 		return ModelProvider{}, err
 	}
 	if err := s.saveModelProviderRecordsLocked(records); err != nil {
 		return ModelProvider{}, err
 	}
-	return publicModelProvider(record), nil
+	return modelprovider.Public(record), nil
 }
 
 func (s *Store) UpdateModelProvider(id string, input ModelProviderInput) (ModelProvider, error) {
@@ -148,14 +109,14 @@ func (s *Store) UpdateModelProvider(id string, input ModelProviderInput) (ModelP
 	if err != nil {
 		return ModelProvider{}, err
 	}
-	records, record, err := updateModelProviderRecord(records, id, input, time.Now())
+	records, record, err := modelprovider.UpdateRecord(records, id, input, time.Now())
 	if err != nil {
 		return ModelProvider{}, err
 	}
 	if err := s.saveModelProviderRecordsLocked(records); err != nil {
 		return ModelProvider{}, err
 	}
-	return publicModelProvider(record), nil
+	return modelprovider.Public(record), nil
 }
 
 func (s *Store) UpsertModelProvider(id string, input ModelProviderInput, setDefault bool, selectedModel string) (ModelProvider, *model.ModelConfig, error) {
@@ -166,25 +127,25 @@ func (s *Store) UpsertModelProvider(id string, input ModelProviderInput, setDefa
 		return ModelProvider{}, nil, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	records, err := loadModelProviderRecordsWith(tx)
+	records, err := modelprovider.LoadRecords(tx)
 	if err != nil {
 		return ModelProvider{}, nil, err
 	}
 
-	id = normalizeProviderID(id)
-	var record modelProviderRecord
-	if modelProviderRecordExists(records, id) {
-		records, record, err = updateModelProviderRecord(records, id, input, time.Now())
+	id = modelprovider.NormalizeID(id)
+	var record modelprovider.Record
+	if modelprovider.RecordExists(records, id) {
+		records, record, err = modelprovider.UpdateRecord(records, id, input, time.Now())
 	} else {
 		if id != "" {
 			input.ID = id
 		}
-		records, record, err = createModelProviderRecord(records, input, time.Now())
+		records, record, err = modelprovider.CreateRecord(records, input, time.Now())
 	}
 	if err != nil {
 		return ModelProvider{}, nil, err
 	}
-	if err := saveModelProviderRecordsWith(tx, records); err != nil {
+	if err := modelprovider.SaveRecords(tx, records); err != nil {
 		return ModelProvider{}, nil, err
 	}
 
@@ -215,90 +176,12 @@ func (s *Store) UpsertModelProvider(id string, input ModelProviderInput, setDefa
 	if err := tx.Commit(); err != nil {
 		return ModelProvider{}, nil, err
 	}
-	return publicModelProvider(record), savedConfig, nil
-}
-
-func createModelProviderRecord(records []modelProviderRecord, input ModelProviderInput, now time.Time) ([]modelProviderRecord, modelProviderRecord, error) {
-	id := normalizeProviderID(input.ID)
-	if id == "" {
-		id = normalizeProviderID(input.Name)
-	}
-	if id == "" {
-		id = normalizeProviderID(hostFromURL(input.BaseURL))
-	}
-	if id == "" {
-		id = fmt.Sprintf("provider-%d", now.Unix())
-	}
-	id = uniqueProviderID(id, records)
-	enabled := true
-	if input.Enabled != nil {
-		enabled = *input.Enabled
-	}
-	record := modelProviderRecord{
-		ID: id, Name: strings.TrimSpace(input.Name), Type: strings.TrimSpace(input.Type), BaseURL: strings.TrimSpace(input.BaseURL),
-		DefaultModel: strings.TrimSpace(input.DefaultModel), Models: normalizeProviderModelNames(input.Models, input.DefaultModel),
-		TimeoutMS: input.TimeoutMS, Enabled: enabled, CreatedAt: now, UpdatedAt: now,
-	}
-	record.KeyStrategy = input.KeyStrategy
-	record.SelectedKeyID = input.SelectedKeyID
-	record.APIKeys = inputKeysToRecords(input.APIKeys, nil, now)
-	record = normalizeModelProviderRecord(record)
-	if err := validateModelProviderRecord(record); err != nil {
-		return nil, modelProviderRecord{}, err
-	}
-	return append(records, record), record, nil
-}
-
-func updateModelProviderRecord(records []modelProviderRecord, id string, input ModelProviderInput, now time.Time) ([]modelProviderRecord, modelProviderRecord, error) {
-	id = normalizeProviderID(id)
-	if id == "" {
-		return nil, modelProviderRecord{}, fmt.Errorf("model provider id is required")
-	}
-	for i := range records {
-		if records[i].ID != id {
-			continue
-		}
-		record := records[i]
-		record.Name = strings.TrimSpace(input.Name)
-		record.Type = strings.TrimSpace(input.Type)
-		record.BaseURL = strings.TrimSpace(input.BaseURL)
-		record.DefaultModel = strings.TrimSpace(input.DefaultModel)
-		record.Models = normalizeProviderModelNames(input.Models, input.DefaultModel)
-		record.TimeoutMS = input.TimeoutMS
-		if input.Enabled != nil {
-			record.Enabled = *input.Enabled
-		}
-		record.KeyStrategy = strings.TrimSpace(input.KeyStrategy)
-		record.SelectedKeyID = normalizeProviderKeyID(input.SelectedKeyID)
-		if input.APIKeys != nil {
-			record.APIKeys = inputKeysToRecords(input.APIKeys, record.APIKeys, now)
-		}
-		record.UpdatedAt = now
-		record = normalizeModelProviderRecord(record)
-		if err := validateModelProviderRecord(record); err != nil {
-			return nil, modelProviderRecord{}, err
-		}
-		records[i] = record
-		return records, record, nil
-	}
-	return nil, modelProviderRecord{}, fmt.Errorf("model provider not found: %s", id)
-}
-
-func modelProviderRecordExists(records []modelProviderRecord, id string) bool {
-	if id == "" {
-		return false
-	}
-	for _, record := range records {
-		if record.ID == id {
-			return true
-		}
-	}
-	return false
+	return modelprovider.Public(record), savedConfig, nil
 }
 
 func (s *Store) MarkModelProviderKeyTestResult(providerID, keyID string, ok bool, errText string, selectOnSuccess bool) (ModelProvider, error) {
-	providerID = normalizeProviderID(providerID)
-	keyID = normalizeProviderKeyID(keyID)
+	providerID = modelprovider.NormalizeID(providerID)
+	keyID = modelprovider.NormalizeKeyID(keyID)
 	if providerID == "" {
 		return ModelProvider{}, fmt.Errorf("model provider id is required")
 	}
@@ -330,11 +213,11 @@ func (s *Store) MarkModelProviderKeyTestResult(providerID, keyID string, ok bool
 			records[i].APIKeys[j].LastTestedAt = &now
 			records[i].APIKeys[j].UpdatedAt = now
 			records[i].UpdatedAt = now
-			records[i] = normalizeModelProviderRecord(records[i])
+			records[i] = modelprovider.NormalizeRecord(records[i])
 			if err := s.saveModelProviderRecordsLocked(records); err != nil {
 				return ModelProvider{}, err
 			}
-			return publicModelProvider(records[i]), nil
+			return modelprovider.Public(records[i]), nil
 		}
 		return ModelProvider{}, fmt.Errorf("model provider key not found: %s", keyID)
 	}
@@ -342,7 +225,7 @@ func (s *Store) MarkModelProviderKeyTestResult(providerID, keyID string, ok bool
 }
 
 func (s *Store) DeleteModelProvider(id string) error {
-	id = normalizeProviderID(id)
+	id = modelprovider.NormalizeID(id)
 	if id == "" {
 		return fmt.Errorf("model provider id is required")
 	}
@@ -394,11 +277,11 @@ func (s *Store) modelProviderConfigLocked(id string) (model.ModelConfig, bool, e
 }
 
 func modelProviderConfigWith(reader sqlQueryer, id string) (model.ModelConfig, bool, error) {
-	id = normalizeProviderID(id)
+	id = modelprovider.NormalizeID(id)
 	if id == "" {
 		return model.ModelConfig{}, false, nil
 	}
-	records, err := loadModelProviderRecordsWith(reader)
+	records, err := modelprovider.LoadRecords(reader)
 	if err != nil {
 		return model.ModelConfig{}, false, err
 	}
@@ -406,7 +289,7 @@ func modelProviderConfigWith(reader sqlQueryer, id string) (model.ModelConfig, b
 		if record.ID != id {
 			continue
 		}
-		apiKey, err := selectedAPIKeyForRecord(record)
+		apiKey, err := modelprovider.SelectedAPIKey(record)
 		if err != nil {
 			return model.ModelConfig{}, true, err
 		}
@@ -421,9 +304,9 @@ func modelProviderConfigWith(reader sqlQueryer, id string) (model.ModelConfig, b
 	return model.ModelConfig{}, false, nil
 }
 
-func (s *Store) ModelProviderKeyConfigs(id, selectedKeyID, modelName string, allKeys bool) ([]ModelProviderKeyConfig, ModelProvider, error) {
-	id = normalizeProviderID(id)
-	selectedKeyID = normalizeProviderKeyID(selectedKeyID)
+func (s *Store) ModelProviderKeyConfigs(id, selectedKeyID, modelName string, allKeys bool) ([]modelprovider.KeyConfig, ModelProvider, error) {
+	id = modelprovider.NormalizeID(id)
+	selectedKeyID = modelprovider.NormalizeKeyID(selectedKeyID)
 	if id == "" {
 		return nil, ModelProvider{}, fmt.Errorf("model provider id is required")
 	}
@@ -441,11 +324,11 @@ func (s *Store) ModelProviderKeyConfigs(id, selectedKeyID, modelName string, all
 		if modelForTest == "" {
 			modelForTest = record.DefaultModel
 		}
-		makeCfg := func(key modelProviderAPIKeyRecord) ModelProviderKeyConfig {
-			return ModelProviderKeyConfig{KeyID: key.ID, KeyName: key.Name, Config: model.NormalizeModelConfig(model.ModelConfig{ProviderID: record.ID, BaseURL: record.BaseURL, APIKey: key.APIKey, Model: modelForTest, Models: append([]string(nil), record.Models...)})}
+		makeCfg := func(key modelprovider.APIKeyRecord) modelprovider.KeyConfig {
+			return modelprovider.KeyConfig{KeyID: key.ID, KeyName: key.Name, Config: model.NormalizeModelConfig(model.ModelConfig{ProviderID: record.ID, BaseURL: record.BaseURL, APIKey: key.APIKey, Model: modelForTest, Models: append([]string(nil), record.Models...)})}
 		}
 		if len(record.APIKeys) == 0 {
-			return []ModelProviderKeyConfig{{Config: model.NormalizeModelConfig(model.ModelConfig{ProviderID: record.ID, BaseURL: record.BaseURL, Model: modelForTest, Models: append([]string(nil), record.Models...)})}}, publicModelProvider(record), nil
+			return []modelprovider.KeyConfig{{Config: model.NormalizeModelConfig(model.ModelConfig{ProviderID: record.ID, BaseURL: record.BaseURL, Model: modelForTest, Models: append([]string(nil), record.Models...)})}}, modelprovider.Public(record), nil
 		}
 		if selectedKeyID != "" {
 			for _, key := range record.APIKeys {
@@ -453,14 +336,14 @@ func (s *Store) ModelProviderKeyConfigs(id, selectedKeyID, modelName string, all
 					if !key.Enabled || strings.TrimSpace(key.APIKey) == "" {
 						return nil, ModelProvider{}, fmt.Errorf("model provider key is disabled or empty: %s", selectedKeyID)
 					}
-					return []ModelProviderKeyConfig{makeCfg(key)}, publicModelProvider(record), nil
+					return []modelprovider.KeyConfig{makeCfg(key)}, modelprovider.Public(record), nil
 				}
 			}
 			return nil, ModelProvider{}, fmt.Errorf("model provider key not found: %s", selectedKeyID)
 		}
 		if allKeys {
-			keys := sortedProviderKeys(record.APIKeys)
-			out := make([]ModelProviderKeyConfig, 0, len(keys))
+			keys := modelprovider.SortedKeys(record.APIKeys)
+			out := make([]modelprovider.KeyConfig, 0, len(keys))
 			for _, key := range keys {
 				if !key.Enabled || strings.TrimSpace(key.APIKey) == "" {
 					continue
@@ -470,16 +353,16 @@ func (s *Store) ModelProviderKeyConfigs(id, selectedKeyID, modelName string, all
 			if len(out) == 0 {
 				return nil, ModelProvider{}, fmt.Errorf("model provider has no enabled api keys: %s", record.ID)
 			}
-			return out, publicModelProvider(record), nil
+			return out, modelprovider.Public(record), nil
 		}
-		key, ok, err := selectedAPIKeyRecordForRecord(record)
+		key, ok, err := modelprovider.SelectedAPIKeyRecord(record)
 		if err != nil {
 			return nil, ModelProvider{}, err
 		}
 		if !ok {
-			return []ModelProviderKeyConfig{{Config: model.NormalizeModelConfig(model.ModelConfig{ProviderID: record.ID, BaseURL: record.BaseURL, APIKey: "", Model: modelForTest, Models: append([]string(nil), record.Models...)})}}, publicModelProvider(record), nil
+			return []modelprovider.KeyConfig{{Config: model.NormalizeModelConfig(model.ModelConfig{ProviderID: record.ID, BaseURL: record.BaseURL, APIKey: "", Model: modelForTest, Models: append([]string(nil), record.Models...)})}}, modelprovider.Public(record), nil
 		}
-		return []ModelProviderKeyConfig{makeCfg(key)}, publicModelProvider(record), nil
+		return []modelprovider.KeyConfig{makeCfg(key)}, modelprovider.Public(record), nil
 	}
 	return nil, ModelProvider{}, fmt.Errorf("model provider not found: %s", id)
 }

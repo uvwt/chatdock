@@ -1,6 +1,7 @@
 package store
 
 import (
+	"chatdock/internal/chatdock/schedule"
 	"fmt"
 	"strings"
 	"time"
@@ -73,7 +74,7 @@ func (s *Store) scheduledTaskByIDLocked(taskID string) (model.ScheduledTask, err
 }
 
 func finishScheduledTaskState(task model.ScheduledTask, sessionID string, startedAt time.Time, finishedAt time.Time, manual bool, runErr error) (model.ScheduledTask, string, string) {
-	task.ContextMode = normalizeScheduledTaskContextMode(task.ContextMode)
+	task.ContextMode = schedule.NormalizeContextMode(task.ContextMode)
 	task.Running = false
 	task.SessionID = sessionID
 	task.LastRunAt = &startedAt
@@ -86,7 +87,7 @@ func finishScheduledTaskState(task model.ScheduledTask, sessionID string, starte
 		errorText = runErr.Error()
 	}
 	if !manual {
-		advanced, advanceErr := advanceScheduledTask(task, startedAt)
+		advanced, advanceErr := schedule.Advance(task, startedAt)
 		task = advanced
 		if advanceErr != nil {
 			// 计划损坏时停用任务，避免调度器每 30 秒重复捞取同一条无法前进的记录。

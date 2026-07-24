@@ -1,6 +1,7 @@
 package store
 
 import (
+	"chatdock/internal/chatdock/schedule"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -39,7 +40,7 @@ func (s *Store) DueScheduledTasks(now time.Time) (items []DueScheduledTask, err 
 		task.LastRunAt = parseOptionalDBTime(lastRunAt)
 		task.CreatedAt = parseDBTimeZero(createdAt)
 		task.UpdatedAt = parseDBTimeZero(updatedAt)
-		task.ContextMode = normalizeScheduledTaskContextMode(task.ContextMode)
+		task.ContextMode = schedule.NormalizeContextMode(task.ContextMode)
 		out = append(out, DueScheduledTask{Task: task})
 	}
 	if err := rows.Err(); err != nil {
@@ -91,7 +92,7 @@ func scheduledTaskForRun(tasks []model.ScheduledTask, id string, manual bool, no
 		if task.ID != id {
 			continue
 		}
-		task.ContextMode = normalizeScheduledTaskContextMode(task.ContextMode)
+		task.ContextMode = schedule.NormalizeContextMode(task.ContextMode)
 		if task.Running {
 			return -1, model.ScheduledTask{}, fmt.Errorf("scheduled task is already running: %s", task.Title)
 		}
