@@ -5,6 +5,7 @@ import { fetchScheduledTaskRuns } from '../lib/settingsApi.js';
 import { scheduledTaskSessionRows } from '../lib/sessionPresentation.js';
 import '../styles/manage-pages.css';
 import '../styles/manage-pages-mobile.css';
+import '../styles/manage-pages-coherence.css';
 
 function PageHeader({ eyebrow, title, description, actions, embedded = false }) {
   return <header className={'manage-page-header' + (embedded ? ' embedded' : '')}>

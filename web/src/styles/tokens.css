@@ -34,6 +34,33 @@
   --dock-radius-sm: 10px;
   --dock-radius-md: 16px;
   --dock-radius-lg: 26px;
+
+  /* 共享界面尺度：页面只消费语义令牌，不再各自定义高度、圆角和间距。 */
+  --ui-control-compact: 32px;
+  --ui-control: 40px;
+  --ui-control-large: 44px;
+  --ui-radius-small: 8px;
+  --ui-radius-control: 10px;
+  --ui-radius-panel: 14px;
+  --ui-radius-page: 18px;
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-5: 20px;
+  --ui-space-6: 24px;
+  --ui-space-7: 32px;
+  --ui-font-caption: 11px;
+  --ui-font-small: 12px;
+  --ui-font-label: 13px;
+  --ui-font-body: 14px;
+  --ui-font-title: 16px;
+  --ui-weight-medium: 560;
+  --ui-weight-semibold: 640;
+  --ui-weight-bold: 700;
+  --ui-page-width: 1120px;
+  --ui-panel-shadow: 0 12px 32px rgba(0, 0, 0, .12);
+  --ui-focus-ring: 0 0 0 3px color-mix(in srgb, var(--gpt-text) 7%, transparent);
   --bg: var(--gpt-bg);
   --panel: var(--gpt-sidebar);
   --panel-soft: var(--gpt-surface-2);
