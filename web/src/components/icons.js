@@ -1,6 +1,8 @@
 export { default as ArrowDown } from 'lucide-react/dist/esm/icons/arrow-down.js';
 export { default as ArrowLeft } from 'lucide-react/dist/esm/icons/arrow-left.js';
 export { default as ArrowUp } from 'lucide-react/dist/esm/icons/arrow-up.js';
+export { default as Bot } from 'lucide-react/dist/esm/icons/bot.js';
+export { default as Boxes } from 'lucide-react/dist/esm/icons/boxes.js';
 export { default as Check } from 'lucide-react/dist/esm/icons/check.js';
 export { default as ChevronDown } from 'lucide-react/dist/esm/icons/chevron-down.js';
 export { default as CircleX } from 'lucide-react/dist/esm/icons/circle-x.js';
@@ -15,13 +17,17 @@ export { default as MessageSquarePlus } from 'lucide-react/dist/esm/icons/messag
 export { default as Moon } from 'lucide-react/dist/esm/icons/moon.js';
 export { default as MoreHorizontal } from 'lucide-react/dist/esm/icons/more-horizontal.js';
 export { default as Orbit } from 'lucide-react/dist/esm/icons/orbit.js';
+export { default as PanelLeftClose } from 'lucide-react/dist/esm/icons/panel-left-close.js';
+export { default as PanelLeftOpen } from 'lucide-react/dist/esm/icons/panel-left-open.js';
 export { default as Paperclip } from 'lucide-react/dist/esm/icons/paperclip.js';
 export { default as Pencil } from 'lucide-react/dist/esm/icons/pencil.js';
 export { default as Plus } from 'lucide-react/dist/esm/icons/plus.js';
 export { default as RefreshCw } from 'lucide-react/dist/esm/icons/refresh-cw.js';
 export { default as Search } from 'lucide-react/dist/esm/icons/search.js';
 export { default as Settings2 } from 'lucide-react/dist/esm/icons/settings-2.js';
+export { default as ShieldCheck } from 'lucide-react/dist/esm/icons/shield-check.js';
 export { default as Square } from 'lucide-react/dist/esm/icons/square.js';
 export { default as Sun } from 'lucide-react/dist/esm/icons/sun.js';
 export { default as Trash2 } from 'lucide-react/dist/esm/icons/trash-2.js';
+export { default as Wrench } from 'lucide-react/dist/esm/icons/wrench.js';
 export { default as X } from 'lucide-react/dist/esm/icons/x.js';

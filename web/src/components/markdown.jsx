@@ -1,5 +1,6 @@
 // Markdown rendering is isolated so chat and settings shells do not load parser dependencies until content needs them.
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -76,6 +77,35 @@ function CodeBlock({ code, language }) {
   </div>;
 }
 
+function MarkdownImage({ src, alt = '', ...props }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeOnEscape = event => { if (event.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [open]);
+
+  const openPreview = event => {
+    if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    setOpen(true);
+  };
+
+  const preview = open && typeof document !== 'undefined' ? createPortal(
+    <div className="image-preview-backdrop" role="dialog" aria-modal="true" aria-label={alt || '图片预览'} onClick={() => setOpen(false)}>
+      <img className="image-preview-content" src={src} alt={alt} onClick={event => event.stopPropagation()} />
+    </div>,
+    document.body,
+  ) : null;
+
+  return <>
+    <img {...props} className={[props.className, 'markdown-image'].filter(Boolean).join(' ')} src={src} alt={alt} role="button" tabIndex={0} onClick={openPreview} onKeyDown={openPreview} />
+    {preview}
+  </>;
+}
+
 const markdownComponents = {
   table({node, ...props}) {
     return <div className="table-wrap"><table {...props} /></div>;
@@ -97,6 +127,9 @@ const markdownComponents = {
     const href = String(props.href || '');
     const external = /^https?:\/\//i.test(href);
     return <a {...props} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined} />;
+  },
+  img({node, ...props}) {
+    return <MarkdownImage {...props} />;
   },
 };
 

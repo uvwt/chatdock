@@ -1,0 +1,335 @@
+/* 配置中心最终一致性层：所有模块共享同一布局、控件、卡片和数据表视觉。 */
+.settings-page .settings {
+  color: var(--gpt-text) !important;
+}
+
+.settings-page .settings-content {
+  min-width: 0 !important;
+  overflow-x: hidden !important;
+}
+
+.settings-page .module-view.active {
+  width: min(1080px, 100%) !important;
+  margin: 0 auto !important;
+}
+
+.settings-page .module-view-title {
+  margin: 0 0 22px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.settings-page .module-view-title > div > span {
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  line-height: 1.18 !important;
+}
+
+.settings-page .module-view-title p {
+  margin: 6px 0 0 !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+}
+
+.settings-page .module-tabs {
+  display: grid !important;
+  align-content: start !important;
+  gap: 5px !important;
+}
+
+.settings-page .module-tab {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  min-height: 44px !important;
+  padding: 8px 10px !important;
+  border-radius: 10px !important;
+}
+
+.settings-page .module-tab-main {
+  display: inline-flex !important;
+  min-width: 0 !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.settings-page .module-tab-icon {
+  width: 17px !important;
+  height: 17px !important;
+  flex: 0 0 17px !important;
+  stroke-width: 1.8 !important;
+  color: currentColor !important;
+}
+
+.settings-page .module-tab-label {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+.settings-page .settings-section,
+.settings-page .model-quick-panel,
+.settings-page .model-inline-card,
+.settings-page .mcp-form-card,
+.settings-page .product-card,
+.settings-page .automation-task-card,
+.settings-page .task-card,
+.settings-page .backup-health,
+.settings-page .backup-item,
+.settings-page .empty.compact {
+  margin: 0 0 14px !important;
+  padding: 18px !important;
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 16px !important;
+  background: var(--gpt-surface) !important;
+  box-shadow: none !important;
+}
+
+.settings-page .stat-card,
+.settings-page .project-summary-card,
+.settings-page .model-summary-card {
+  min-height: 92px !important;
+  padding: 16px !important;
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 14px !important;
+  background: var(--gpt-surface) !important;
+  box-shadow: none !important;
+}
+
+.settings-page :is(
+  .settings-section-head,
+  .model-quick-head,
+  .settings-block-head,
+  .product-card-head,
+  .mcp-form-head,
+  .provider-card-head
+) {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  margin: 0 0 14px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.settings-page :is(
+  .settings-section-head,
+  .model-quick-head,
+  .settings-block-head,
+  .product-card-head,
+  .mcp-form-head,
+  .provider-card-head
+) b {
+  color: var(--gpt-text) !important;
+  font-size: 14px !important;
+  font-weight: 680 !important;
+  line-height: 1.35 !important;
+}
+
+.settings-page :is(.hint, .product-meta, .settings-section-head p, .model-quick-head span) {
+  color: var(--gpt-muted) !important;
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+}
+
+.settings-page :is(
+  .model-quick-grid,
+  .model-inline-grid,
+  .provider-grid,
+  .project-summary-grid,
+  .settings-summary-grid,
+  .mcp-grid,
+  .settings-form-grid
+) {
+  gap: 14px !important;
+}
+
+.settings-page label {
+  color: var(--gpt-text) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.settings-page :is(input, select, textarea) {
+  min-height: 42px !important;
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 10px !important;
+  background: var(--gpt-surface-2) !important;
+  color: var(--gpt-text) !important;
+  box-shadow: none !important;
+}
+
+.settings-page textarea {
+  min-height: 110px !important;
+  line-height: 1.55 !important;
+}
+
+.settings-page :is(input, select, textarea):focus {
+  border-color: var(--gpt-border-strong) !important;
+  outline: 2px solid color-mix(in srgb, var(--gpt-accent) 14%, transparent) !important;
+  outline-offset: 1px !important;
+}
+
+.settings-page button {
+  min-height: 38px;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+.settings-page :is(.model-option, .model-chip, .tool-chip, .badge) {
+  border-radius: 999px !important;
+}
+
+.settings-page .settings-save-state {
+  margin: 0 0 14px !important;
+  padding: 12px 14px !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+.settings-page .settings-save-state-icon:empty {
+  display: none !important;
+}
+
+.settings-page .data-table-section {
+  padding: 18px !important;
+}
+
+.settings-page .data-info-table {
+  overflow: hidden !important;
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 14px !important;
+  background: var(--gpt-surface) !important;
+}
+
+.settings-page .data-info-row {
+  display: grid !important;
+  grid-template-columns: minmax(140px, .72fr) minmax(0, 1.28fr) !important;
+  align-items: center !important;
+  gap: 18px !important;
+  min-height: 46px !important;
+  padding: 11px 14px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--gpt-border) !important;
+  background: transparent !important;
+}
+
+.settings-page .data-info-row:first-child {
+  background: var(--gpt-surface-2) !important;
+}
+
+.settings-page .data-info-row:last-child {
+  border-bottom: 0 !important;
+}
+
+.settings-page .data-info-row span {
+  color: var(--gpt-muted) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.settings-page .data-info-row b {
+  min-width: 0 !important;
+  overflow-wrap: anywhere !important;
+  color: var(--gpt-text) !important;
+  font-size: 13px !important;
+  font-weight: 560 !important;
+  text-align: left !important;
+}
+
+.settings-page details.settings-disclosure {
+  overflow: hidden !important;
+}
+
+.settings-page details.settings-disclosure > summary {
+  min-height: 48px !important;
+  padding: 0 !important;
+  list-style: none !important;
+}
+
+.settings-page details.settings-disclosure[open] > summary {
+  margin-bottom: 14px !important;
+  padding-bottom: 14px !important;
+  border-bottom: 1px solid var(--gpt-border) !important;
+}
+
+.settings-page .setup-banner {
+  margin: 0 0 14px !important;
+  padding: 14px 16px !important;
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 14px !important;
+  background: var(--gpt-surface-2) !important;
+  box-shadow: none !important;
+}
+
+.settings-page :is(.project-summary-grid, .settings-summary-grid) {
+  margin-bottom: 14px !important;
+}
+
+.settings-page :is(.product-card:hover, .task-card:hover, .automation-task-card:hover) {
+  transform: none !important;
+  border-color: var(--gpt-border-strong) !important;
+  box-shadow: none !important;
+}
+
+@media (min-width: 901px) {
+  .settings-page .settings {
+    grid-template-columns: 216px minmax(0, 1fr) !important;
+    grid-template-rows: 68px minmax(0, 1fr) !important;
+  }
+
+  .settings-page .settings-header {
+    min-height: 68px !important;
+    padding: 0 20px !important;
+  }
+
+  .settings-page .settings-sidebar {
+    padding: 0 !important;
+  }
+
+  .settings-page .module-tabs {
+    padding: 14px 12px !important;
+  }
+
+  .settings-page .settings-content {
+    padding: 28px clamp(24px, 4vw, 52px) 52px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .settings-page .settings-content {
+    padding: 18px 14px 36px !important;
+  }
+
+  .settings-page .module-view.active {
+    width: 100% !important;
+  }
+
+  .settings-page .settings-section,
+  .settings-page .model-quick-panel,
+  .settings-page .model-inline-card,
+  .settings-page .mcp-form-card,
+  .settings-page .product-card,
+  .settings-page .automation-task-card,
+  .settings-page .task-card,
+  .settings-page .backup-health,
+  .settings-page .backup-item,
+  .settings-page .empty.compact {
+    padding: 15px !important;
+    border-radius: 14px !important;
+  }
+
+  .settings-page .data-info-row {
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+    padding: 12px 13px !important;
+  }
+
+  .settings-page .data-info-row:first-child {
+    background: transparent !important;
+  }
+}

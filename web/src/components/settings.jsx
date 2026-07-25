@@ -2,9 +2,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
+  Bot,
+  Boxes,
   Check,
-  RefreshCw,
   CircleX,
+  RefreshCw,
+  ShieldCheck,
+  Wrench,
 } from './icons.js';
 import '../styles/settings-entry.css';
 import { TextCard } from './base.jsx';
@@ -12,10 +16,10 @@ import { settingsModules, diagnosticsText, fmtBytes, fmtRelativeAge, fmtTime, ru
 import { mcpAuthDraft, mcpAuthPayload } from '../lib/mcpAuthDraft.js';
 
 const settingsModuleMeta = {
-  model: {label: '模型', desc: '默认供应商和默认模型。'},
-  providers: {label: '供应商', desc: '新增、编辑、测试模型供应商和候选模型。'},
-  tools: {label: '工具', desc: '添加、检测和维护 MCP Server。'},
-  security: {label: '系统', desc: '查看运行状态、数据库、备份、诊断信息和访问入口。'},
+  model: {label: '模型', desc: '默认供应商和默认模型。', icon: Bot},
+  providers: {label: '供应商', desc: '新增、编辑、测试模型供应商和候选模型。', icon: Boxes},
+  tools: {label: '工具', desc: '添加、检测和维护 MCP Server。', icon: Wrench},
+  security: {label: '系统', desc: '查看运行状态、数据库、备份、诊断信息和访问入口。', icon: ShieldCheck},
 };
 
 export function SettingsPanel(props) {
@@ -71,7 +75,14 @@ export function SettingsPanel(props) {
       <select className="settings-mobile-module-select" value={activeModule} onChange={e => switchSettingsModule(e.target.value)} aria-label="选择配置模块">
         {settingsModules.map(m => <option key={m} value={m}>{moduleLabel(m)}{moduleIsDirty(m) ? ' · 未保存' : ''}</option>)}
       </select>
-      <nav className="module-tabs" aria-label="配置模块">{settingsModules.map(m => { const dirty = moduleIsDirty(m); return <button key={m} className={'module-tab ' + (activeModule === m ? 'active ' : '') + (dirty ? 'dirty' : '')} onClick={() => switchSettingsModule(m)}><span className="module-tab-label">{moduleLabel(m)}</span>{dirty ? <span className="module-tab-dirty" aria-label="有未保存修改">未保存</span> : null}</button>; })}</nav>
+      <nav className="module-tabs" aria-label="配置模块">{settingsModules.map(m => {
+        const dirty = moduleIsDirty(m);
+        const ModuleIcon = settingsModuleMeta[m]?.icon;
+        return <button key={m} className={'module-tab ' + (activeModule === m ? 'active ' : '') + (dirty ? 'dirty' : '')} onClick={() => switchSettingsModule(m)}>
+          <span className="module-tab-main">{ModuleIcon ? <ModuleIcon className="module-tab-icon" size={17} aria-hidden="true" /> : null}<span className="module-tab-label">{moduleLabel(m)}</span></span>
+          {dirty ? <span className="module-tab-dirty" aria-label="有未保存修改">未保存</span> : null}
+        </button>;
+      })}</nav>
     </div>
     <main className="settings-content">
       <ModuleView name="model" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="保存后将用于新的对话和自动化任务。"><ModelModule config={config} configDirty={configDirty} saveState={configSaveState} setConfig={setConfig} saveConfig={() => saveScope('config')} showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>

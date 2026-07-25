@@ -210,7 +210,15 @@ function UserMessageView({ message, messageIndex, onCopy, onEditUserMessage, onD
   </div>;
 }
 
+function ConversationLoadingState({ label = '正在加载会话' }) {
+  return <div className="conversation-loading" role="status" aria-live="polite">
+    <span className="conversation-loading-mark" aria-hidden="true"><i /><i /><i /></span>
+    <span>{label}</span>
+  </div>;
+}
+
 export function MessageView({ message, previousMessage, messageIndex = -1, onCopy, onBranch, onEditUserMessage, onDownloadAttachment, hideThinking = true, onResolveConfirmation, onInspectToolEvent }) {
+  if (message.role === 'loading') return <ConversationLoadingState label={message.content} />;
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
 
   const timeLabel = shouldShowMessageTimeDivider(previousMessage, message)

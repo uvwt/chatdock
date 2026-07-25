@@ -565,7 +565,7 @@ export default function App() {
     setCurrentTitle(summary?.title || '正在加载会话…');
     clearAttachments();
     resetMessageAutoFollow();
-    if (!messages.length) setMessages([{ role: 'empty', content: '正在加载会话…' }]);
+    if (!messages.length) setMessages([{ role: 'loading', content: '正在加载会话' }]);
     if (window.location.pathname !== sessionPath(id)) window.history.pushState({ chatdock: true }, '', sessionPath(id));
     closeSidebarOnMobile();
     try {

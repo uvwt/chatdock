@@ -1,0 +1,196 @@
+/* 最终一致性层：收口侧栏折叠、会话加载、图片预览和 Markdown 表格。 */
+@media (min-width: 721px) {
+  #app.app.sidebar-collapsed {
+    grid-template-columns: 64px minmax(0, 1fr) !important;
+  }
+
+  #app.app.sidebar-collapsed.task-panel-open {
+    grid-template-columns: 64px minmax(0, 1fr) 360px !important;
+  }
+
+  #app.app.sidebar-collapsed aside {
+    width: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
+    padding: 12px 8px !important;
+    border-right: 1px solid var(--gpt-border) !important;
+    background: var(--gpt-sidebar) !important;
+    box-shadow: none !important;
+  }
+
+  #app.app.sidebar-collapsed .sidebar-head {
+    display: flex !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+
+  #app.app.sidebar-collapsed .brand,
+  #app.app.sidebar-collapsed .session-search-box,
+  #app.app.sidebar-collapsed #sessions {
+    display: none !important;
+  }
+
+  #app.app.sidebar-collapsed .sidebar-toggle,
+  #app.app.sidebar-collapsed .new {
+    display: inline-flex !important;
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1px solid transparent !important;
+    border-radius: 12px !important;
+    background: transparent !important;
+    color: var(--gpt-text) !important;
+  }
+
+  #app.app.sidebar-collapsed .sidebar-toggle:hover,
+  #app.app.sidebar-collapsed .new:hover {
+    border-color: var(--gpt-border) !important;
+    background: var(--gpt-sidebar-hover) !important;
+  }
+
+  #app.app.sidebar-collapsed .session-search-row {
+    display: flex !important;
+    justify-content: center !important;
+    width: 100% !important;
+    margin-top: 6px !important;
+    padding: 0 !important;
+  }
+}
+
+.conversation-loading {
+  display: flex;
+  min-height: calc(100dvh - 176px);
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--gpt-muted);
+  font-size: 13px;
+  font-weight: 560;
+  letter-spacing: .01em;
+}
+
+.conversation-loading-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.conversation-loading-mark i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: conversationLoadingPulse 1.05s ease-in-out infinite;
+}
+
+.conversation-loading-mark i:nth-child(2) {
+  animation-delay: .14s;
+}
+
+.conversation-loading-mark i:nth-child(3) {
+  animation-delay: .28s;
+}
+
+@keyframes conversationLoadingPulse {
+  0%, 70%, 100% { opacity: .28; transform: translateY(0); }
+  35% { opacity: 1; transform: translateY(-3px); }
+}
+
+.markdown-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 14px 0;
+  border-radius: 12px;
+  cursor: zoom-in;
+}
+
+.image-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: rgba(5, 8, 15, .84);
+  backdrop-filter: blur(10px);
+  cursor: zoom-out;
+}
+
+.image-preview-content {
+  display: block;
+  max-width: min(94vw, 1500px);
+  max-height: 92dvh;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .42);
+  cursor: default;
+}
+
+.table-wrap {
+  width: 100%;
+  margin: 16px 0;
+  overflow: auto;
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 14px !important;
+  background: var(--gpt-surface) !important;
+  box-shadow: none !important;
+}
+
+.table-wrap table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  background: transparent !important;
+}
+
+.table-wrap th,
+.table-wrap td {
+  padding: 11px 14px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--gpt-border) !important;
+  text-align: left;
+  vertical-align: top;
+}
+
+.table-wrap th {
+  background: var(--gpt-surface-2) !important;
+  color: var(--gpt-muted) !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+}
+
+.table-wrap td {
+  color: var(--gpt-text) !important;
+  font-size: 13px !important;
+}
+
+.table-wrap tr:last-child td {
+  border-bottom: 0 !important;
+}
+
+@media (max-width: 720px) {
+  .conversation-loading {
+    min-height: calc(100dvh - 152px);
+  }
+
+  .image-preview-backdrop {
+    padding: 12px;
+  }
+
+  .image-preview-content {
+    max-width: 100%;
+    max-height: 94dvh;
+    border-radius: 8px;
+  }
+
+  .table-wrap {
+    margin-inline: 0;
+    border-radius: 12px !important;
+  }
+}

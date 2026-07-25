@@ -10,6 +10,8 @@ import {
   MessageSquarePlus,
   Moon,
   MoreHorizontal,
+  PanelLeftClose,
+  PanelLeftOpen,
   Paperclip,
   Search,
   Settings2,
@@ -198,7 +200,7 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
         <a className="brand" href="/" aria-label="返回 ChatDock 首页" onClick={event => { event.preventDefault(); goHome(); }}>
           <div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">Local AI</div></div>
         </a>
-        <button id="sidebarToggle" className="sidebar-toggle icon-button" onClick={() => setSidebarCollapsed(current => !current)} aria-label={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}><Menu {...iconProps} /></button>
+        <button id="sidebarToggle" className="sidebar-toggle icon-button" onClick={() => setSidebarCollapsed(current => !current)} aria-label={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'} title={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}>{sidebarCollapsed ? <PanelLeftOpen {...iconProps} /> : <PanelLeftClose {...iconProps} />}</button>
       </div>
       <div className="session-search-row">
         <label className="session-search-box"><Search size={15} aria-hidden="true" /><input className="session-search" placeholder="搜索聊天记录" value={sessionSearch} onChange={event => setSessionSearch(event.target.value)} /></label>
