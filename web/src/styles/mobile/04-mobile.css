@@ -349,15 +349,19 @@
 
   .model-picker-popover {
     position: fixed !important;
-    left: 18px !important;
-    right: 18px !important;
-    bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
-    width: auto !important;
-    max-height: min(460px, 58vh) !important;
-    padding: 16px !important;
-    border-radius: 26px !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 1400 !important;
+    width: 100% !important;
+    max-height: min(620px, 72dvh) !important;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+    border-left: 0 !important;
+    border-radius: 26px 26px 0 0 !important;
     background: var(--mobile-panel-translucent) !important;
-    box-shadow: var(--mobile-shadow-raised) !important;
+    box-shadow: 0 -24px 70px rgba(15, 23, 42, .18) !important;
   }
 
   .model-provider-item {

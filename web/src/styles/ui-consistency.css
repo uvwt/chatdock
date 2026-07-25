@@ -178,6 +178,7 @@
 .msg.assistant.markdown .table-wrap th,
 .msg.assistant .markdown .table-wrap th,
 .msg.assistant .answer .table-wrap th {
+  border-bottom: 2px solid var(--gpt-border-strong) !important;
   color: var(--gpt-text) !important;
   font-weight: 650 !important;
 }
