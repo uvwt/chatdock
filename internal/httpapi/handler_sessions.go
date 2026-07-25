@@ -19,7 +19,11 @@ type createSessionRequest struct {
 
 func (a *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-	filter := sessionProjectFilterFromRequest(r)
+	filter, err := sessionListFilterFromRequest(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
 	if strings.TrimSpace(query.Get("limit")) == "" && strings.TrimSpace(query.Get("cursor")) == "" {
 		items, err := a.store.ListSessions(filter)
 		if err != nil {
@@ -241,6 +245,33 @@ func sessionProjectFilterFromRequest(r *http.Request) storepkg.SessionProjectFil
 		return storepkg.SessionProjectFilter{Mode: storepkg.SessionProjectFilterNoProject}
 	default:
 		return storepkg.SessionProjectFilter{Mode: storepkg.SessionProjectFilterByProject, ProjectID: value}
+	}
+}
+
+func sessionListFilterFromRequest(r *http.Request) (storepkg.SessionProjectFilter, error) {
+	filter := sessionProjectFilterFromRequest(r)
+	pinned, err := parseOptionalBool(r.URL.Query().Get("pinned"))
+	if err != nil {
+		return storepkg.SessionProjectFilter{}, err
+	}
+	filter.Pinned = pinned
+	return filter, nil
+}
+
+func parseOptionalBool(value string) (*bool, error) {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if value == "" {
+		return nil, nil
+	}
+	switch value {
+	case "1", "true", "yes", "on":
+		v := true
+		return &v, nil
+	case "0", "false", "no", "off":
+		v := false
+		return &v, nil
+	default:
+		return nil, fmt.Errorf("pinned must be 0 or 1")
 	}
 }
 

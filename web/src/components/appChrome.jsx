@@ -102,7 +102,7 @@ function SidebarTreeNode({ api, current, item, kind, openSession, openSessionMen
   </details>;
 }
 
-export function Sidebar({ api, busy, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openSession, openManagementPage, pinSessionByID, projects, projectFilter, renameSessionByID, scheduledTasks, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setSidebarCollapsed, setTaskSearch, sidebarCollapsed, startProjectConversation }) {
+export function Sidebar({ api, busy, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openSession, openManagementPage, pinSessionByID, pinnedSessions = [], pinnedProjects = [], pinnedTasks = [], projects, projectFilter, renameSessionByID, scheduledTasks, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setSidebarCollapsed, setTaskSearch, sidebarCollapsed, startProjectConversation }) {
   const [menuTarget, setMenuTarget] = React.useState(null);
   const sessionsRef = React.useRef(null);
   const loadMoreRef = React.useRef(null);
@@ -175,13 +175,15 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
   ) : null;
 
   const searchingSessions = !!sessionSearch.trim();
-  const pinnedSessions = searchingSessions ? [] : filteredSessions.filter(session => session.pinned);
-  const pinnedProjects = (projects || []).filter(item => item.pinned);
-  const pinnedTasks = (scheduledTasks || []).filter(item => item.pinned);
+  const pinnedSessionRows = searchingSessions ? [] : pinnedSessions;
+  const pinnedProjectRows = searchingSessions ? [] : pinnedProjects;
+  const pinnedTaskRows = searchingSessions ? [] : pinnedTasks;
+  const pinnedProjectIDs = new Set(pinnedProjects.map(item => item.id));
+  const pinnedTaskIDs = new Set(pinnedTasks.map(item => item.id));
   const renderTreeNode = (kind, item) => <SidebarTreeNode key={kind + item.id} api={api} current={current} item={item} kind={kind} openSession={openSession} openSessionMenu={toggleSessionMenu} startProjectConversation={startProjectConversation} />;
-  const managementProjects = (projects || []).filter(item => !item.pinned);
-  const managementTasks = (scheduledTasks || []).filter(item => !item.pinned);
-  const sessionRows = searchingSessions ? filteredSessions : filteredSessions.filter(session => !session.pinned);
+  const managementProjects = (projects || []).filter(item => !item.pinned && !pinnedProjectIDs.has(item.id));
+  const managementTasks = (scheduledTasks || []).filter(item => !item.pinned && !pinnedTaskIDs.has(item.id));
+  const sessionRows = filteredSessions;
   const renderSession = session => {
     const isActive = current === session.id;
     const menuOpen = sessionMenuID === session.id;
@@ -209,7 +211,7 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
       <div id="sessions" ref={sessionsRef} onScroll={handleSessionScroll}>
         {!searchingSessions ? <>
           <div className="sidebar-section-head"><div className="sidebar-section-title">置顶</div></div>
-          <div className="sidebar-pinned-list">{pinnedSessions.map(renderSession)}{pinnedProjects.map(item => renderTreeNode('project', item))}{pinnedTasks.map(item => renderTreeNode('task', item))}</div>
+          <div className="sidebar-pinned-list">{pinnedSessionRows.map(renderSession)}{pinnedProjectRows.map(item => renderTreeNode('project', item))}{pinnedTaskRows.map(item => renderTreeNode('task', item))}</div>
           <div className="sidebar-section-head"><button className="sidebar-section-title" onClick={() => openManagementPage('projects')}>项目</button></div>
           <div className="sidebar-manage-list">{managementProjects.map(item => renderTreeNode('project', item))}</div>
           <div className="sidebar-section-head"><button className="sidebar-section-title" onClick={() => { setTaskSearch(''); openManagementPage('automation'); }}>定时任务</button></div>

@@ -11,6 +11,8 @@ import (
 type SessionProjectFilter struct {
 	Mode      string
 	ProjectID string
+	// Pinned is optional. nil keeps mixed ordering; non-nil restricts to pinned/unpinned only.
+	Pinned *bool
 }
 
 const (
@@ -18,6 +20,16 @@ const (
 	SessionProjectFilterByProject = "by_project"
 	SessionProjectFilterNoProject = "no_project"
 )
+
+func SessionPinnedOnly() *bool {
+	value := true
+	return &value
+}
+
+func SessionPinnedExclude() *bool {
+	value := false
+	return &value
+}
 
 func (s *Store) ListSessions(filter SessionProjectFilter) ([]model.SessionSummary, error) {
 	items := make([]model.SessionSummary, 0)

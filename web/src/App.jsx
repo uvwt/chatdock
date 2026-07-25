@@ -199,6 +199,9 @@ export default function App() {
   const api = useMemo(() => createJsonApi({ authHeaders, onUnauthorized: setAuthPage }), [authHeaders]);
   const {
     sessions,
+    pinnedSessions,
+    pinnedProjects,
+    pinnedTasks,
     sessionSearch,
     setSessionSearch,
     sessionSearchResults,
@@ -208,9 +211,12 @@ export default function App() {
     sessionSearchHasMore,
     sessionSearchLoadingMore,
     loadSessions,
+    loadPinnedFeed,
     loadMoreSessions,
     loadMoreSearchSessions,
     upsertSession,
+    upsertPinnedProject,
+    upsertPinnedTask,
     removeSession,
   } = useSessionList(api, 'plain');
 
@@ -696,15 +702,14 @@ export default function App() {
 
   const pinCurrent = useCallback(async () => {
     if (!current) return;
-    const currentSummary = sessions.find(s => s.id === current);
+    const currentSummary = pinnedSessions.find(s => s.id === current) || sessions.find(s => s.id === current);
     const nextPinned = !currentSummary?.pinned;
     const s = await pinSession(api, current, nextPinned);
     setCurrentTitle(s.title || currentTitle || '新会话');
     setMessages(s.messages || []);
     upsertSession(s);
-    await loadSessions();
     showToast(nextPinned ? '会话已置顶' : '已取消置顶', 'success');
-  }, [api, current, currentTitle, loadSessions, sessions, showToast, upsertSession]);
+  }, [api, current, currentTitle, pinnedSessions, sessions, showToast, upsertSession]);
 
   const pinSessionByID = useCallback(async (id, pinned = false) => {
     if (!id || busy) return;
@@ -716,9 +721,8 @@ export default function App() {
       setMessages(s.messages || []);
     }
     upsertSession(s);
-    await loadSessions();
     showToast(nextPinned ? '会话已置顶' : '已取消置顶', 'success');
-  }, [api, busy, current, currentTitle, loadSessions, showToast, upsertSession]);
+  }, [api, busy, current, currentTitle, showToast, upsertSession]);
 
   const finishActiveAssistant = useCallback((finalSession) => {
     const finalAssistant = finalAssistantMessageFromSession(finalSession);
@@ -1175,7 +1179,10 @@ export default function App() {
   const visibleSessionsLoadingMore = searchingSessions ? sessionSearchLoadingMore : sessionsLoadingMore;
   const loadMoreVisibleSessions = searchingSessions ? loadMoreSearchSessions : loadMoreSessions;
 
-  const currentSummary = useMemo(() => sessions.find(s => s.id === current) || null, [current, sessions]);
+  const currentSummary = useMemo(
+    () => pinnedSessions.find(s => s.id === current) || sessions.find(s => s.id === current) || null,
+    [current, pinnedSessions, sessions],
+  );
   const currentPinned = !!currentSummary?.pinned;
   const appClass = 'app ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (!messages.length ? 'chat-empty ' : '') + (taskPanelOpen ? 'task-panel-open' : '');
   const productReady = setupStatus && !setupStatus.needs_setup;
@@ -1211,6 +1218,7 @@ export default function App() {
       logout={logout}
       projects={projects} projectSessionCounts={projectSessionCounts} editProject={editProject} deleteProject={deleteProject}
       openProjectSessions={openProjectSessions} loadProjects={loadProjects} startProjectConversation={startProjectConversation} showToast={showToast}
+      onPinnedProjectChange={upsertPinnedProject} onPinnedTaskChange={upsertPinnedTask}
       scheduledTasks={scheduledTasks} taskSearch={taskSearch} setTaskSearch={setTaskSearch}
       editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} setScheduledTasks={setScheduledTasks}
       toggleScheduledTask={toggleScheduledTask} runScheduledTaskNow={runScheduledTaskNow} openScheduledTaskSession={openScheduledTaskSession}
@@ -1225,7 +1233,7 @@ export default function App() {
         api={api} busy={busy} current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} goHome={goHome}
         hasMoreSessions={visibleSessionsHasMore} loadingMoreSessions={visibleSessionsLoadingMore} newSession={newSession}
         onLoadMoreSessions={loadMoreVisibleSessions} openSession={openSession} openManagementPage={openManagementPage}
-        pinSessionByID={pinSessionByID} projects={projects} projectFilter={projectFilter} renameSessionByID={renameSessionByID}
+        pinSessionByID={pinSessionByID} pinnedSessions={pinnedSessions} pinnedProjects={pinnedProjects} pinnedTasks={pinnedTasks} projects={projects} projectFilter={projectFilter} renameSessionByID={renameSessionByID}
         startProjectConversation={startProjectConversation}
         scheduledTasks={scheduledTasks} setTaskSearch={setTaskSearch}
         sessionMenuID={sessionMenuID} sessionSearch={sessionSearch} sessionSearchBusy={sessionSearchBusy}

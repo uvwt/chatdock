@@ -30,11 +30,19 @@ export function sessionSummaryFromSession(session) {
   };
 }
 
-export function upsertSessionSummary(items, session) {
+export function upsertSessionSummary(items, session, { requirePinned } = {}) {
   const summary = sessionSummaryFromSession(session);
   if (!summary) return items || [];
-  const merged = mergeSessionPages((items || []).filter(item => item.id !== summary.id), [summary]);
-  return merged.sort(compareSessionSummaries);
+  const rest = (items || []).filter(item => item.id !== summary.id);
+  if (requirePinned === true && !summary.pinned) return rest;
+  if (requirePinned === false && summary.pinned) return rest;
+  return mergeSessionPages(rest, [summary]).sort(compareSessionSummaries);
+}
+
+export function removeSessionSummary(items, sessionID) {
+  const id = String(sessionID || '').trim();
+  if (!id) return items || [];
+  return (items || []).filter(item => item.id !== id);
 }
 
 function compareSessionSummaries(left, right) {

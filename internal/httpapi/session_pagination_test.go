@@ -74,6 +74,7 @@ func TestSessionListAPIRejectsInvalidPagination(t *testing.T) {
 	for _, path := range []string{
 		"/api/sessions?limit=0",
 		"/api/sessions?limit=2&cursor=invalid",
+		"/api/sessions?limit=2&pinned=maybe",
 		"/api/sessions/search?q=test&limit=2&cursor=invalid",
 	} {
 		recorder := httptest.NewRecorder()
@@ -81,6 +82,53 @@ func TestSessionListAPIRejectsInvalidPagination(t *testing.T) {
 		if recorder.Code != http.StatusBadRequest {
 			t.Fatalf("%s status = %d, body=%s", path, recorder.Code, recorder.Body.String())
 		}
+	}
+}
+
+func TestSessionListAPIFiltersPinned(t *testing.T) {
+	app, err := NewServer(model.ServerConfig{Addr: "127.0.0.1:0", DataDir: t.TempDir(), WebDir: "../../web"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pinnedSession, err := app.store.CreateSession("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	appendUserMessageForAppTest(t, app, pinnedSession.ID, "置顶会话")
+	if _, err := app.store.PinSession(pinnedSession.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	plainSession, err := app.store.CreateSession("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	appendUserMessageForAppTest(t, app, plainSession.ID, "普通会话")
+
+	routes := app.routes()
+	pinnedRecorder := httptest.NewRecorder()
+	routes.ServeHTTP(pinnedRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions?limit=10&pinned=1", nil))
+	if pinnedRecorder.Code != http.StatusOK {
+		t.Fatalf("pinned status %d: %s", pinnedRecorder.Code, pinnedRecorder.Body.String())
+	}
+	var pinnedPage sessionPageResponse
+	if err := json.Unmarshal(pinnedRecorder.Body.Bytes(), &pinnedPage); err != nil {
+		t.Fatal(err)
+	}
+	if len(pinnedPage.Sessions) != 1 || pinnedPage.Sessions[0].ID != pinnedSession.ID || !pinnedPage.Sessions[0].Pinned {
+		t.Fatalf("pinned page = %#v, want only %s", pinnedPage, pinnedSession.ID)
+	}
+
+	plainRecorder := httptest.NewRecorder()
+	routes.ServeHTTP(plainRecorder, httptest.NewRequest(http.MethodGet, "/api/sessions?limit=10&pinned=0", nil))
+	if plainRecorder.Code != http.StatusOK {
+		t.Fatalf("plain status %d: %s", plainRecorder.Code, plainRecorder.Body.String())
+	}
+	var plainPage sessionPageResponse
+	if err := json.Unmarshal(plainRecorder.Body.Bytes(), &plainPage); err != nil {
+		t.Fatal(err)
+	}
+	if len(plainPage.Sessions) != 1 || plainPage.Sessions[0].ID != plainSession.ID || plainPage.Sessions[0].Pinned {
+		t.Fatalf("plain page = %#v, want only %s", plainPage, plainSession.ID)
 	}
 }
 

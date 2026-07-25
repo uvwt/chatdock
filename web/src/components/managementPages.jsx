@@ -37,8 +37,11 @@ export function ManagementPage(props) {
   return <ProjectsPage {...props} />;
 }
 
-export function ProjectsPage({ api, deleteProject, editProject, embedded = false, loadProjects, openProjectSessions, projectPromptPreview, projects, projectSessionCounts, showProjectPromptPreview, showToast, startProjectConversation }) {
-  const pinProject = project => togglePinned(api, 'projects', project, loadProjects, showToast);
+export function ProjectsPage({ api, deleteProject, editProject, embedded = false, loadProjects, onPinnedProjectChange, openProjectSessions, projectPromptPreview, projects, projectSessionCounts, showProjectPromptPreview, showToast, startProjectConversation }) {
+  const pinProject = project => togglePinned(api, 'projects', project, async data => {
+    onPinnedProjectChange?.(data);
+    await loadProjects?.();
+  }, showToast);
   return <section className={'manage-page projects-page' + (embedded ? ' embedded' : '')}>
     <PageHeader
       eyebrow="ChatDock / Projects"
@@ -124,11 +127,16 @@ function ScheduledSessionList({ onBack, onOpen, rows, task }) {
   </section>;
 }
 
-export function ScheduledTasksPage({ api, deleteScheduledTask, editScheduledTask, embedded = false, loadScheduledTasks, openScheduledTaskSession, runScheduledTaskNow, scheduledTasks, setScheduledTasks, setTaskSearch, showToast, taskSearch, toggleScheduledTask }) {
+export function ScheduledTasksPage({ api, deleteScheduledTask, editScheduledTask, embedded = false, loadScheduledTasks, onPinnedTaskChange, openScheduledTaskSession, runScheduledTaskNow, scheduledTasks, setScheduledTasks, setTaskSearch, showToast, taskSearch, toggleScheduledTask }) {
   const [sessionTask, setSessionTask] = useState(null);
   const [sessionRuns, setSessionRuns] = useState([]);
   const requestRef = useRef(0);
-  const pinScheduledTask = task => togglePinned(api, 'scheduled-tasks', task, data => setScheduledTasks(data.tasks || []), showToast);
+  const pinScheduledTask = task => togglePinned(api, 'scheduled-tasks', task, data => {
+    setScheduledTasks(data.tasks || []);
+    const next = (data.tasks || []).find(item => item.id === task.id);
+    if (next) onPinnedTaskChange?.(next);
+    else onPinnedTaskChange?.({ ...task, pinned: !task.pinned });
+  }, showToast);
   const query = taskSearch.trim().toLowerCase();
   const filteredTasks = query ? scheduledTasks.filter(task => [task.title, task.prompt, task.last_status, task.last_error].some(value => String(value || '').toLowerCase().includes(query))) : scheduledTasks;
   const loadTaskSessions = async task => {

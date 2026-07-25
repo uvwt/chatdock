@@ -5,11 +5,21 @@ function appendProjectFilter(params, projectFilter = 'all') {
   else if (projectFilter && projectFilter !== 'all') params.set('project_id', projectFilter);
 }
 
-export function fetchSessions(api, { cursor = '', limit = 30, projectFilter = 'all' } = {}) {
+function appendPinnedFilter(params, pinned) {
+  if (pinned === true) params.set('pinned', '1');
+  else if (pinned === false) params.set('pinned', '0');
+}
+
+export function fetchSessions(api, { cursor = '', limit = 30, projectFilter = 'all', pinned } = {}) {
   const params = new URLSearchParams({ limit: String(limit) });
   if (cursor) params.set('cursor', cursor);
   appendProjectFilter(params, projectFilter);
+  appendPinnedFilter(params, pinned);
   return api('/api/sessions?' + params.toString());
+}
+
+export function fetchPinned(api) {
+  return api('/api/pinned');
 }
 
 export function searchSessions(api, query, { cursor = '', limit = 30, projectFilter = 'all' } = {}) {

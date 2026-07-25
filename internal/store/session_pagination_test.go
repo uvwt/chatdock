@@ -72,6 +72,74 @@ func TestListSessionPageKeepsStableOrderAcrossPages(t *testing.T) {
 	}
 }
 
+func TestListSessionPageFiltersPinnedSeparately(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	type fixture struct {
+		title     string
+		pinned    bool
+		updatedAt string
+	}
+	fixtures := []fixture{
+		{title: "普通最旧", updatedAt: "2026-07-21T08:00:00.000000000Z"},
+		{title: "置顶较新", pinned: true, updatedAt: "2026-07-21T12:00:00.000000000Z"},
+		{title: "普通最新", updatedAt: "2026-07-21T10:00:00.000000000Z"},
+		{title: "置顶较旧", pinned: true, updatedAt: "2026-07-21T11:00:00.000000000Z"},
+		{title: "普通居中", updatedAt: "2026-07-21T09:00:00.000000000Z"},
+	}
+	for _, item := range fixtures {
+		session, err := store.CreateSession("")
+		if err != nil {
+			t.Fatal(err)
+		}
+		appendUserMessageForTest(t, store, session.ID, "摘要 "+item.title)
+		if _, err := store.db.Exec(`UPDATE sessions SET title = ?, pinned = ?, updated_at = ? WHERE id = ?`, item.title, boolInt(item.pinned), item.updatedAt, session.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	pinnedOnly, nextCursor, hasMore, err := store.ListSessionPage(SessionProjectFilter{Mode: SessionProjectFilterAll, Pinned: SessionPinnedOnly()}, "", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasMore || nextCursor != "" || len(pinnedOnly) != 2 {
+		t.Fatalf("pinned page = %#v cursor=%q hasMore=%v", pinnedOnly, nextCursor, hasMore)
+	}
+	if pinnedOnly[0].Title != "置顶较新" || pinnedOnly[1].Title != "置顶较旧" || !pinnedOnly[0].Pinned || !pinnedOnly[1].Pinned {
+		t.Fatalf("unexpected pinned page: %#v", pinnedOnly)
+	}
+
+	var unpinnedTitles []string
+	cursor := ""
+	for pageNumber := 0; ; pageNumber++ {
+		items, next, more, err := store.ListSessionPage(SessionProjectFilter{Mode: SessionProjectFilterAll, Pinned: SessionPinnedExclude()}, cursor, 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, item := range items {
+			if item.Pinned {
+				t.Fatalf("unpinned feed returned pinned session: %#v", item)
+			}
+			unpinnedTitles = append(unpinnedTitles, item.Title)
+		}
+		if !more {
+			break
+		}
+		if next == "" || next == cursor {
+			t.Fatalf("page %d returned invalid cursor %q", pageNumber, next)
+		}
+		cursor = next
+	}
+	wantUnpinned := []string{"普通最新", "普通居中", "普通最旧"}
+	if !reflect.DeepEqual(unpinnedTitles, wantUnpinned) {
+		t.Fatalf("unpinned page order = %#v, want %#v", unpinnedTitles, wantUnpinned)
+	}
+}
+
 func TestSearchSessionPageDoesNotRepeatResults(t *testing.T) {
 	store, err := NewStore(t.TempDir())
 	if err != nil {

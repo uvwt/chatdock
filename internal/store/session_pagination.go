@@ -68,20 +68,38 @@ WHERE 1 = 1
 		query += ` AND s.project_id IS NULL`
 	default:
 	}
+	if filter.Pinned != nil {
+		query += ` AND s.pinned = ?`
+		args = append(args, boolInt(*filter.Pinned))
+	}
 	if decodedCursor != nil {
-		query += `
+		if filter.Pinned != nil {
+			// Pinned/unpinned feeds share a single pinned value, so cursor only needs updated_at + id.
+			query += `
+  AND (
+	s.updated_at < ?
+	OR (s.updated_at = ? AND s.id < ?)
+  )`
+			args = append(args, decodedCursor.UpdatedAt, decodedCursor.UpdatedAt, decodedCursor.ID)
+		} else {
+			query += `
   AND (
 	s.pinned < ?
 	OR (s.pinned = ? AND s.updated_at < ?)
 	OR (s.pinned = ? AND s.updated_at = ? AND s.id < ?)
   )`
-		args = append(args,
-			decodedCursor.Pinned,
-			decodedCursor.Pinned, decodedCursor.UpdatedAt,
-			decodedCursor.Pinned, decodedCursor.UpdatedAt, decodedCursor.ID,
-		)
+			args = append(args,
+				decodedCursor.Pinned,
+				decodedCursor.Pinned, decodedCursor.UpdatedAt,
+				decodedCursor.Pinned, decodedCursor.UpdatedAt, decodedCursor.ID,
+			)
+		}
 	}
-	query += ` ORDER BY s.pinned DESC, s.updated_at DESC, s.id DESC LIMIT ?`
+	if filter.Pinned != nil {
+		query += ` ORDER BY s.updated_at DESC, s.id DESC LIMIT ?`
+	} else {
+		query += ` ORDER BY s.pinned DESC, s.updated_at DESC, s.id DESC LIMIT ?`
+	}
 	args = append(args, limit+1)
 
 	rows, err := s.db.Query(query, args...)

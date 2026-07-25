@@ -33,8 +33,8 @@ export function SettingsPanel(props) {
     loadDataStatus, loadMCPConfig, loadMCPStatus, loadSystemStatus, logout, builtinTools, mcpConfig, mcpStatus, onCopy, providers, projectPromptPreview, refreshProductState, refreshVisibleSettings,
     saveConfig, saveMCPConfig, setConfig, setMcpConfig, setupStatus, showProjectPromptPreview, switchSettingsModule, systemStatus,
     testMCP, fetchMCPServerTools, testModelProvider, fetchProviderModels, availableModels, candidateProviderID, addCandidateModelToProvider, loadingModels,
-    projects, projectSessionCounts, editProject, deleteProject, openProjectSessions, loadProjects, startProjectConversation, showToast,
-    scheduledTasks, taskSearch, setTaskSearch, editScheduledTask, deleteScheduledTask, setScheduledTasks, toggleScheduledTask, runScheduledTaskNow, openScheduledTaskSession, loadScheduledTasks,
+    projects, projectSessionCounts, editProject, deleteProject, openProjectSessions, loadProjects, onPinnedProjectChange, startProjectConversation, showToast,
+    scheduledTasks, taskSearch, setTaskSearch, editScheduledTask, deleteScheduledTask, setScheduledTasks, toggleScheduledTask, runScheduledTaskNow, openScheduledTaskSession, loadScheduledTasks, onPinnedTaskChange,
   } = props;
   const saveTimerRef = useRef(null);
   const [saveState, setSaveState] = useState({scope: '', status: 'idle', message: ''});
@@ -107,6 +107,7 @@ export function SettingsPanel(props) {
           projectPromptPreview={projectPromptPreview}
           openProjectSessions={openProjectSessions}
           loadProjects={loadProjects}
+          onPinnedProjectChange={onPinnedProjectChange}
           startProjectConversation={startProjectConversation}
           showToast={showToast}
         />
@@ -126,6 +127,7 @@ export function SettingsPanel(props) {
           runScheduledTaskNow={runScheduledTaskNow}
           openScheduledTaskSession={openScheduledTaskSession}
           loadScheduledTasks={loadScheduledTasks}
+          onPinnedTaskChange={onPinnedTaskChange}
         />
       </ModuleView>
       <ModuleView name="security" activeModule={activeModule}><SecurityModule systemStatus={systemStatus} setupStatus={setupStatus} dataStatus={dataStatus} mcpStatus={mcpStatus} providers={providers} loadSystemStatus={loadSystemStatus} loadDataStatus={loadDataStatus} logout={logout} onCopy={onCopy} /></ModuleView>

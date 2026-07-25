@@ -16,6 +16,7 @@ func (a *Server) routes() http.Handler {
 	mux.HandleFunc("POST /api/model-providers/models", a.handleListProviderModels)
 	mux.HandleFunc("PUT /api/model-providers/{id}", a.handleUpdateModelProvider)
 	mux.HandleFunc("DELETE /api/model-providers/{id}", a.handleDeleteModelProvider)
+	mux.HandleFunc("GET /api/pinned", a.handleListPinned)
 	mux.HandleFunc("GET /api/projects", a.handleListProjects)
 	mux.HandleFunc("POST /api/projects", a.handleCreateProject)
 	mux.HandleFunc("PUT /api/projects/{id}", a.handleUpdateProject)
