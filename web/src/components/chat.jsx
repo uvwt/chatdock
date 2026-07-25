@@ -11,6 +11,7 @@ import {
 } from './icons.js';
 import { fmtBytes } from '../lib/appUtils.js';
 import { assistantMessageBlocks, executionBlockSummary, toolEventDisplayName, toolEventMetaText } from '../lib/messageExecution.js';
+import { formatMessageTimeDivider, shouldShowMessageTimeDivider } from '../lib/messageTimeline.js';
 import { Markdown } from './base.jsx';
 
 function MessageActions({ text, onCopy, onBranch, onEdit, user = false }) {
@@ -209,26 +210,38 @@ function UserMessageView({ message, messageIndex, onCopy, onEditUserMessage, onD
   </div>;
 }
 
-export function MessageView({ message, messageIndex = -1, onCopy, onBranch, onEditUserMessage, onDownloadAttachment, hideThinking = true, onResolveConfirmation, onInspectToolEvent }) {
+export function MessageView({ message, previousMessage, messageIndex = -1, onCopy, onBranch, onEditUserMessage, onDownloadAttachment, hideThinking = true, onResolveConfirmation, onInspectToolEvent }) {
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
+
+  const timeLabel = shouldShowMessageTimeDivider(previousMessage, message)
+    ? formatMessageTimeDivider(message.created_at)
+    : '';
+  let content;
+
   if (message.role === 'assistant-stream') {
-    return <div className="msg assistant" data-model-message="true">
+    content = <div className="msg assistant" data-model-message="true">
       <AssistantContent message={message} streaming hideThinking={hideThinking} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
     </div>;
-  }
-  if (message.role === 'assistant') {
+  } else if (message.role === 'assistant') {
     const copyText = assistantMessageBlocks(message, {hideThinking: true}).textParts.join('\n\n');
-    return <div className="msg assistant markdown" data-model-message="true">
+    content = <div className="msg assistant markdown" data-model-message="true">
       <AssistantContent message={message} hideThinking={hideThinking} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
       <MessageActions text={copyText} onCopy={onCopy} onBranch={onBranch ? () => onBranch(messageIndex) : null} />
     </div>;
+  } else {
+    const role = message.role || 'user';
+    if (role === 'user') {
+      content = <UserMessageView message={message} messageIndex={messageIndex} onCopy={onCopy} onEditUserMessage={onEditUserMessage} onDownloadAttachment={onDownloadAttachment} />;
+    } else {
+      const text = message.content || '';
+      content = <div className={'msg ' + role}>{text ? <div>{text}</div> : null}<AttachmentList attachments={message.attachments || []} onDownload={onDownloadAttachment} /></div>;
+    }
   }
-  const role = message.role || 'user';
-  if (role === 'user') {
-    return <UserMessageView message={message} messageIndex={messageIndex} onCopy={onCopy} onEditUserMessage={onEditUserMessage} onDownloadAttachment={onDownloadAttachment} />;
-  }
-  const text = message.content || '';
-  return <div className={'msg ' + role}>{text ? <div>{text}</div> : null}<AttachmentList attachments={message.attachments || []} onDownload={onDownloadAttachment} /></div>;
+
+  return <>
+    {timeLabel ? <div className="message-time-divider" role="separator" aria-label={'会话时间 ' + timeLabel}><time dateTime={message.created_at}>{timeLabel}</time></div> : null}
+    {content}
+  </>;
 }
 
 export const MemoizedMessageView = React.memo(MessageView);

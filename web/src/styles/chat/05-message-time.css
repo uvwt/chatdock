@@ -1,0 +1,24 @@
+.message-time-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: var(--gpt-msg-width);
+  margin: 20px auto;
+  color: var(--gpt-muted-2);
+  font-size: 12px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.message-time-divider time {
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .message-time-divider {
+    margin: 16px auto;
+    font-size: 11px;
+  }
+}

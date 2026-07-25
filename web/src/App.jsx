@@ -802,7 +802,7 @@ export default function App() {
         pendingReasoningRef.current = '';
         abortRef.current = abort;
         setStreamStats({ state: 'streaming', started_at: Date.now(), chars: 0, events: 0, tools: 0, error: '' });
-        setMessages(prev => prev.some(m => m.role === 'assistant-stream') ? prev : [...prev, { role: 'assistant-stream', answer: '', reasoning: '', events: [{ kind: 'tool', text: '已恢复后台生成', details: { event: 'resume_running_job', job } }] }]);
+        setMessages(prev => prev.some(m => m.role === 'assistant-stream') ? prev : [...prev, { role: 'assistant-stream', answer: '', reasoning: '', created_at: job.created_at || new Date().toISOString(), events: [{ kind: 'tool', text: '已恢复后台生成', details: { event: 'resume_running_job', job } }] }]);
         let finalSession = null;
         await streamChatJobEvents({ jobID: job.id, authHeaders, signal: abort.signal, onEvent: (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; }) });
         if (finalSession && !stopped) {
@@ -989,9 +989,10 @@ export default function App() {
     }
     localStorage.removeItem(draftKey);
     setInput('');
+    const sentAt = new Date().toISOString();
     setMessages(prev => [...prev,
-      { role: 'user', content: text, attachments: attachmentsForMessage },
-      { role: 'assistant-stream', answer: '', reasoning: '', events: [] },
+      { role: 'user', content: text, attachments: attachmentsForMessage, created_at: sentAt },
+      { role: 'assistant-stream', answer: '', reasoning: '', events: [], created_at: sentAt },
     ]);
     clearAttachments();
     await runChatCompletion({
@@ -1005,7 +1006,7 @@ export default function App() {
 
 
   const regenerateEditedReply = useCallback(async (sessionID, baseMessages, title) => {
-    setMessages([...(baseMessages || []), { role: 'assistant-stream', answer: '', reasoning: '', events: [] }]);
+    setMessages([...(baseMessages || []), { role: 'assistant-stream', answer: '', reasoning: '', events: [], created_at: new Date().toISOString() }]);
     await runChatCompletion({ sessionID, regenerate: true, fallbackTitle: title || '新会话' });
   }, [runChatCompletion]);
 
@@ -1241,7 +1242,7 @@ export default function App() {
             sidebarCollapsed={sidebarCollapsed} taskPanelAvailable={taskDataEnabled} taskPanelOpen={taskPanelOpen}
             taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
           />
-          <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} busy={busy} modelReady={modelReady} />}</div>
+          <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} previousMessage={messages[i - 1]} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} busy={busy} modelReady={modelReady} />}</div>
           {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息"><ArrowDown className="jump-latest-icon" size={17} aria-hidden="true" /></button> : null}
           <CurrentSessionTask
             error={currentSessionTask.error} loading={currentSessionTask.loading} onRefresh={currentSessionTask.refresh}
