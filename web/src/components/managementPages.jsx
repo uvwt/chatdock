@@ -1,14 +1,13 @@
 import React, { useRef, useState } from 'react';
-import { ArrowLeft, MessageSquarePlus, MoreHorizontal, Plus, RefreshCw } from './icons.js';
+import { MessageSquarePlus, MoreHorizontal, Plus, RefreshCw } from './icons.js';
 import { fmtTime, runStatusClass, runStatusLabel, scheduleSummary, taskStatusClass, taskStatusLabel } from '../lib/appUtils.js';
 import { fetchScheduledTaskRuns } from '../lib/settingsApi.js';
 import { scheduledTaskSessionRows } from '../lib/sessionPresentation.js';
 import '../styles/manage-pages.css';
 import '../styles/manage-pages-mobile.css';
 
-function PageHeader({ eyebrow, title, description, onClose, actions }) {
-  return <header className="manage-page-header">
-    <button type="button" className="manage-page-back icon-button" onClick={onClose} aria-label="返回聊天" title="返回聊天"><ArrowLeft size={18} aria-hidden="true" /></button>
+function PageHeader({ eyebrow, title, description, actions, embedded = false }) {
+  return <header className={'manage-page-header' + (embedded ? ' embedded' : '')}>
     <div className="manage-page-heading"><span>{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>
     <div className="manage-page-actions">{actions}</div>
   </header>;
@@ -34,18 +33,18 @@ async function togglePinned(api, type, item, apply, showToast) {
 }
 
 export function ManagementPage(props) {
-  if (props.page === 'scheduled-tasks') return <ScheduledTasksPage {...props} />;
+  if (props.page === 'automation') return <ScheduledTasksPage {...props} />;
   return <ProjectsPage {...props} />;
 }
 
-function ProjectsPage({ api, closeManagementPage, deleteProject, editProject, loadProjects, openProjectSessions, projectPromptPreview, projects, projectSessionCounts, showProjectPromptPreview, showToast, startProjectConversation }) {
+export function ProjectsPage({ api, deleteProject, editProject, embedded = false, loadProjects, openProjectSessions, projectPromptPreview, projects, projectSessionCounts, showProjectPromptPreview, showToast, startProjectConversation }) {
   const pinProject = project => togglePinned(api, 'projects', project, loadProjects, showToast);
-  return <section className="manage-page projects-page">
+  return <section className={'manage-page projects-page' + (embedded ? ' embedded' : '')}>
     <PageHeader
       eyebrow="ChatDock / Projects"
       title="项目"
       description="为不同主题保留独立上下文，并直接开始项目对话。"
-      onClose={closeManagementPage}
+      embedded={embedded}
       actions={<button type="button" onClick={() => editProject()}><Plus size={16} aria-hidden="true" /><span>新增项目</span></button>}
     />
     <div className="manage-page-body">
@@ -125,7 +124,7 @@ function ScheduledSessionList({ onBack, onOpen, rows, task }) {
   </section>;
 }
 
-function ScheduledTasksPage({ api, closeManagementPage, deleteScheduledTask, editScheduledTask, loadScheduledTasks, openScheduledTaskSession, runScheduledTaskNow, scheduledTasks, setScheduledTasks, setTaskSearch, showToast, taskSearch, toggleScheduledTask }) {
+export function ScheduledTasksPage({ api, deleteScheduledTask, editScheduledTask, embedded = false, loadScheduledTasks, openScheduledTaskSession, runScheduledTaskNow, scheduledTasks, setScheduledTasks, setTaskSearch, showToast, taskSearch, toggleScheduledTask }) {
   const [sessionTask, setSessionTask] = useState(null);
   const [sessionRuns, setSessionRuns] = useState([]);
   const requestRef = useRef(0);
@@ -146,12 +145,12 @@ function ScheduledTasksPage({ api, closeManagementPage, deleteScheduledTask, edi
   const enabled = scheduledTasks.filter(task => task.enabled).length;
   const running = scheduledTasks.filter(task => task.running).length;
   const failed = scheduledTasks.filter(task => task.last_status === 'failed').length;
-  return <section className="manage-page scheduled-tasks-page">
+  return <section className={'manage-page scheduled-tasks-page' + (embedded ? ' embedded' : '')}>
     <PageHeader
       eyebrow="ChatDock / Scheduled Tasks"
       title="定时任务"
       description="创建、运行和追踪自动执行任务。"
-      onClose={closeManagementPage}
+      embedded={embedded}
       actions={<><button type="button" className="secondary icon-button manage-refresh" onClick={() => loadScheduledTasks()} aria-label="刷新任务" title="刷新任务"><RefreshCw size={17} aria-hidden="true" /></button><button type="button" onClick={() => editScheduledTask()}><Plus size={16} aria-hidden="true" /><span>新增任务</span></button></>}
     />
     <div className="manage-page-body">

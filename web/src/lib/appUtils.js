@@ -1,16 +1,9 @@
 // Shared UI formatting, routing, and product-status helpers.
-export const settingsModules = ['model', 'providers', 'tools', 'security'];
+export const settingsModules = ['model', 'providers', 'tools', 'projects', 'automation', 'security'];
 
 export function normalizeSettingsModule(name) {
   if (name === 'data') return 'security';
   return settingsModules.includes(name) ? name : 'model';
-}
-
-export function managementPageFromPath() {
-  const path = window.location.pathname;
-  if (path === '/projects') return 'projects';
-  if (path === '/scheduled-tasks') return 'scheduled-tasks';
-  return '';
 }
 
 export function agentTaskDataEnabled(setupStatus, systemStatus, authPageVisible = false) {

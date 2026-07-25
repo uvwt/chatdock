@@ -23,6 +23,10 @@ export function fetchContextPreview(api, id) {
   return api('/api/sessions/' + encodeURIComponent(id) + '/context-preview');
 }
 
+export function fetchSessionSystemPrompt(api, id) {
+  return api('/api/sessions/' + encodeURIComponent(id) + '/system-prompt');
+}
+
 export function createSessionRecord(api, { projectID = '' } = {}) {
   const body = projectID ? JSON.stringify({project_id: projectID}) : '{}';
   return api('/api/sessions', {method:'POST', body});

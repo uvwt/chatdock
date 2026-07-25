@@ -6,6 +6,8 @@ import {
   Boxes,
   Check,
   CircleX,
+  Folder,
+  ListTodo,
   RefreshCw,
   ShieldCheck,
   Wrench,
@@ -14,20 +16,25 @@ import '../styles/settings-entry.css';
 import { TextCard } from './base.jsx';
 import { settingsModules, diagnosticsText, fmtBytes, fmtRelativeAge, fmtTime, runStatusClass, runStatusLabel, safePathName } from '../lib/appUtils.js';
 import { mcpAuthDraft, mcpAuthPayload } from '../lib/mcpAuthDraft.js';
+import { ProjectsPage, ScheduledTasksPage } from './managementPages.jsx';
 
 const settingsModuleMeta = {
   model: {label: '模型', desc: '默认供应商和默认模型。', icon: Bot},
   providers: {label: '供应商', desc: '新增、编辑、测试模型供应商和候选模型。', icon: Boxes},
   tools: {label: '工具', desc: '添加、检测和维护 MCP Server。', icon: Wrench},
+  projects: {label: '项目', desc: '管理项目名称、提示词和会话归属。', icon: Folder},
+  automation: {label: '定时任务', desc: '创建、运行和暂停自动执行任务。', icon: ListTodo},
   security: {label: '系统', desc: '查看运行状态、数据库、备份、诊断信息和访问入口。', icon: ShieldCheck},
 };
 
 export function SettingsPanel(props) {
   const {
-    activeModule, closeSettings, config, configDirty, mcpConfigDirty, dataStatus, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
+    activeModule, api, closeSettings, config, configDirty, mcpConfigDirty, dataStatus, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
     loadDataStatus, loadMCPConfig, loadMCPStatus, loadSystemStatus, logout, builtinTools, mcpConfig, mcpStatus, onCopy, providers, projectPromptPreview, refreshProductState, refreshVisibleSettings,
     saveConfig, saveMCPConfig, setConfig, setMcpConfig, setupStatus, showProjectPromptPreview, switchSettingsModule, systemStatus,
     testMCP, fetchMCPServerTools, testModelProvider, fetchProviderModels, availableModels, candidateProviderID, addCandidateModelToProvider, loadingModels,
+    projects, projectSessionCounts, editProject, deleteProject, openProjectSessions, loadProjects, startProjectConversation, showToast,
+    scheduledTasks, taskSearch, setTaskSearch, editScheduledTask, deleteScheduledTask, setScheduledTasks, toggleScheduledTask, runScheduledTaskNow, openScheduledTaskSession, loadScheduledTasks,
   } = props;
   const saveTimerRef = useRef(null);
   const [saveState, setSaveState] = useState({scope: '', status: 'idle', message: ''});
@@ -66,7 +73,7 @@ export function SettingsPanel(props) {
         <button className="secondary small settings-back-button icon-button" onClick={() => closeSettings()} aria-label="返回聊天" title="返回聊天"><ArrowLeft className="settings-header-icon settings-back-icon" size={17} aria-hidden="true" /></button>
         <div>
           <div className="settings-title-row"><h2>配置中心</h2>{unsavedCount ? <span className="settings-global-save-state dirty"><span aria-hidden="true" />{unsavedCount} 处未保存</span> : saveState.status === 'saved' ? <span className="settings-global-save-state saved"><Check size={13} aria-hidden="true" />已保存</span> : null}</div>
-          <p>统一管理模型、供应商、工具与系统。</p>
+          <p>统一管理模型、供应商、工具、项目、定时任务与系统。</p>
         </div>
       </div>
       <div className="settings-header-actions"><button className="secondary small settings-refresh-button" onClick={refreshSettings} aria-label="刷新配置" title="刷新配置"><RefreshCw className="settings-header-icon settings-refresh-icon" size={16} aria-hidden="true" /><span className="settings-refresh-text">刷新</span></button></div>
@@ -88,6 +95,39 @@ export function SettingsPanel(props) {
       <ModuleView name="model" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="保存后将用于新的对话和自动化任务。"><ModelModule config={config} configDirty={configDirty} saveState={configSaveState} setConfig={setConfig} saveConfig={() => saveScope('config')} showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>
       <ModuleView name="providers" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="当前默认供应商需要保存后才会生效。"><ProvidersModule config={config} setConfig={setConfig} providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} /></ModuleView>
       <ModuleView name="tools" activeModule={activeModule} dirty={mcpConfigDirty} saveState={mcpSaveState} onSave={() => saveScope('mcp')} saveHint="保存后工具加载方式和权限才会生效。"><ToolsModule builtinTools={builtinTools} mcpStatus={mcpStatus} mcpConfig={mcpConfig} mcpConfigDirty={mcpConfigDirty} saveState={mcpSaveState} setMcpConfig={setMcpConfig} saveMCPConfig={() => saveScope('mcp')} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} /></ModuleView>
+      <ModuleView name="projects" activeModule={activeModule} bare>
+        <ProjectsPage
+          api={api}
+          embedded
+          projects={projects}
+          projectSessionCounts={projectSessionCounts}
+          editProject={editProject}
+          deleteProject={deleteProject}
+          showProjectPromptPreview={showProjectPromptPreview}
+          projectPromptPreview={projectPromptPreview}
+          openProjectSessions={openProjectSessions}
+          loadProjects={loadProjects}
+          startProjectConversation={startProjectConversation}
+          showToast={showToast}
+        />
+      </ModuleView>
+      <ModuleView name="automation" activeModule={activeModule} bare>
+        <ScheduledTasksPage
+          api={api}
+          embedded
+          scheduledTasks={scheduledTasks}
+          taskSearch={taskSearch}
+          setTaskSearch={setTaskSearch}
+          editScheduledTask={editScheduledTask}
+          deleteScheduledTask={deleteScheduledTask}
+          setScheduledTasks={setScheduledTasks}
+          showToast={showToast}
+          toggleScheduledTask={toggleScheduledTask}
+          runScheduledTaskNow={runScheduledTaskNow}
+          openScheduledTaskSession={openScheduledTaskSession}
+          loadScheduledTasks={loadScheduledTasks}
+        />
+      </ModuleView>
       <ModuleView name="security" activeModule={activeModule}><SecurityModule systemStatus={systemStatus} setupStatus={setupStatus} dataStatus={dataStatus} mcpStatus={mcpStatus} providers={providers} loadSystemStatus={loadSystemStatus} loadDataStatus={loadDataStatus} logout={logout} onCopy={onCopy} /></ModuleView>
     </main>
   </section>;
@@ -99,10 +139,10 @@ function moduleLabel(m) {
 function moduleDescription(m) {
   return settingsModuleMeta[m]?.desc || '';
 }
-function ModuleView({ name, activeModule, children, dirty = false, saveState, onSave, saveHint = '' }) {
-  return <div className={'module-view ' + (activeModule === name ? 'active ' : '') + (dirty ? 'dirty' : '')} data-module-view={name}>
-    <div className="module-view-title"><div><span>{moduleLabel(name)}</span><p>{moduleDescription(name)}</p></div></div>
-    <SettingsSaveState dirty={dirty} state={saveState} onSave={onSave} hint={saveHint} />
+function ModuleView({ name, activeModule, children, dirty = false, saveState, onSave, saveHint = '', bare = false }) {
+  return <div className={'module-view ' + (activeModule === name ? 'active ' : '') + (dirty ? 'dirty ' : '') + (bare ? 'bare' : '')} data-module-view={name}>
+    {bare ? null : <div className="module-view-title"><div><span>{moduleLabel(name)}</span><p>{moduleDescription(name)}</p></div></div>}
+    {bare ? null : <SettingsSaveState dirty={dirty} state={saveState} onSave={onSave} hint={saveHint} />}
     {children}
   </div>;
 }

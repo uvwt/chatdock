@@ -4,13 +4,13 @@ import { EmptyState, MemoizedMessageView } from './components/chat.jsx';
 import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
 import { CurrentSessionTask, TaskPanel } from './components/taskPanel.jsx';
 import { DialogHost, LoginPage, Markdown, PageLoadingState, QuickPalette } from './components/base.jsx';
-import { agentTaskDataEnabled, diagnosticsText, filenameFromResponse, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath, managementPageFromPath } from './lib/appUtils.js';
+import { agentTaskDataEnabled, diagnosticsText, filenameFromResponse, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath } from './lib/appUtils.js';
 import { attachmentLooksLikeImage, chatErrorDetails, contextPreviewText, finalAssistantMessageFromSession, readableChatError, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
 import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js';
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, guideChatJob, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
-import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessionToolEvent, pinSession, renameSession, updateSessionModel } from './lib/sessionApi.js';
+import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessionSystemPrompt, fetchSessionToolEvent, pinSession, renameSession, updateSessionModel } from './lib/sessionApi.js';
 import { useAttachments } from './hooks/useAttachments.js';
 import { useAgentTasks } from './hooks/useAgentTasks.js';
 import { useCurrentSessionTask } from './hooks/useCurrentSessionTask.js';
@@ -25,7 +25,6 @@ import { useMessageAutoFollow } from './hooks/useMessageAutoFollow.js';
 import { buildQuickActions } from './lib/quickActions.js';
 import { visibleSessionRows } from './lib/sessionPresentation.js';
 const SettingsPanel = lazy(() => import('./components/settings.jsx').then(module => ({default: module.SettingsPanel})));
-const ManagementPage = lazy(() => import('./components/managementPages.jsx').then(module => ({default: module.ManagementPage})));
 export default function App() {
   useVisualViewportLayout();
 
@@ -36,7 +35,6 @@ export default function App() {
     return saved == null ? window.matchMedia('(max-width: 720px)').matches : saved === '1';
   });
   const [settingsOpen, setSettingsOpen] = useState(() => !!settingsModuleFromPath());
-  const [managementPage, setManagementPage] = useState(managementPageFromPath);
   const [activeModule, setActiveModule] = useState(() => normalizeSettingsModule(settingsModuleFromPath() || localStorage.getItem('chatdock.settingsModule') || 'model'));
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
@@ -138,7 +136,7 @@ export default function App() {
     return () => document.body.classList.remove('auth-page-visible');
   }, [authPage]);
 
-  useEffect(() => { setSettingsDocumentScroll(settingsOpen || !!managementPage); return () => setSettingsDocumentScroll(false); }, [settingsOpen, managementPage]);
+  useEffect(() => { setSettingsDocumentScroll(settingsOpen); return () => setSettingsDocumentScroll(false); }, [settingsOpen]);
 
   const showToast = useCallback((message, variant = 'info') => {
     setToast({ message, variant });
@@ -392,12 +390,6 @@ export default function App() {
 
   useEffect(() => {
     function onPopState() {
-      const routeManagementPage = managementPageFromPath();
-      setManagementPage(routeManagementPage);
-      if (routeManagementPage) {
-        setSettingsOpen(false);
-        return;
-      }
       const routeModule = settingsModuleFromPath();
       if (routeModule) {
         setActiveModule(routeModule);
@@ -420,11 +412,13 @@ export default function App() {
   useEffect(() => {
     if (!settingsOpen) return;
     if (activeModule === 'tools') loadMCPStatus().catch(e => showToast('MCP 状态加载失败：' + e.message, 'error'));
+    if (activeModule === 'projects') loadProjects().catch(e => showToast('项目加载失败：' + e.message, 'error'));
+    if (activeModule === 'automation') loadScheduledTasks().catch(e => showToast('定时任务加载失败：' + e.message, 'error'));
     if (activeModule === 'security') {
       loadSystemStatus().catch(e => showToast('系统状态加载失败：' + e.message, 'error'));
       loadDataStatus().catch(e => showToast('数据状态加载失败：' + e.message, 'error'));
     }
-  }, [settingsOpen, activeModule, loadMCPStatus, loadDataStatus, loadSystemStatus, showToast]);
+  }, [settingsOpen, activeModule, loadMCPStatus, loadDataStatus, loadSystemStatus, loadProjects, loadScheduledTasks, showToast]);
 
   const setSidebarCollapsed = useCallback((value) => {
     setSidebarCollapsedState(current => {
@@ -443,7 +437,6 @@ export default function App() {
     sessionOpenSeqRef.current += 1;
     setSessionMenuID('');
     setSettingsOpen(false);
-    setManagementPage('');
     setSessionSearch('');
     setCurrent(null);
     setCurrentTitle('未选择会话');
@@ -454,23 +447,6 @@ export default function App() {
     closeSidebarOnMobile();
   }, [busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, setSessionSearch]);
 
-  const openManagementPage = useCallback((page) => {
-    const next = page === 'scheduled-tasks' ? 'scheduled-tasks' : 'projects';
-    setSettingsOpen(false);
-    setManagementPage(next);
-    setTaskPanelOpen(false);
-    setSessionMenuID('');
-    const path = next === 'projects' ? '/projects' : '/scheduled-tasks';
-    if (window.location.pathname !== path) window.history.pushState({ chatdock: true }, '', path);
-    closeSidebarOnMobile();
-  }, [closeSidebarOnMobile]);
-
-  const closeManagementPage = useCallback(() => {
-    setManagementPage('');
-    const target = current ? sessionPath(current) : '/';
-    if (window.location.pathname !== target) window.history.pushState({ chatdock: true }, '', target);
-  }, [current]);
-
   const openProjectSessions = useCallback((projectID) => {
     setProjectFilter(projectID);
     goHome();
@@ -478,12 +454,18 @@ export default function App() {
 
   const openSettings = useCallback((moduleName = activeModule, syncRoute = true) => {
     const normalized = normalizeSettingsModule(moduleName);
-    setManagementPage('');
     setActiveModule(normalized);
     setSettingsOpen(true);
+    setTaskPanelOpen(false);
+    setSessionMenuID('');
     localStorage.setItem('chatdock.settingsModule', normalized);
     if (syncRoute && window.location.pathname !== '/settings/' + normalized) window.history.pushState({ chatdock: true }, '', '/settings/' + normalized);
-  }, [activeModule]);
+    closeSidebarOnMobile();
+  }, [activeModule, closeSidebarOnMobile]);
+
+  const openManagementPage = useCallback((page) => {
+    openSettings(page === 'automation' ? 'automation' : 'projects');
+  }, [openSettings]);
 
   const closeSettings = useCallback((syncRoute = true) => {
     setSettingsOpen(false);
@@ -499,11 +481,10 @@ export default function App() {
       if (dialog) closeDialog(null);
       else if (quickPaletteOpen) setQuickPaletteOpen(false);
       else if (settingsOpen) closeSettings();
-      else if (managementPage) closeManagementPage();
     }
     window.addEventListener('keydown', closeTopLayer);
     return () => window.removeEventListener('keydown', closeTopLayer);
-  }, [closeDialog, closeSettings, closeManagementPage, dialog, quickPaletteOpen, settingsOpen, managementPage]);
+  }, [closeDialog, closeSettings, dialog, quickPaletteOpen, settingsOpen]);
 
   useEffect(() => {
     function onGlobalShortcut(event) {
@@ -542,7 +523,7 @@ export default function App() {
     // “新会话”只是进入一个本地草稿，不应该提前写入后端。
     // 真正的 session id 只有在发送首条消息、或上传附件需要绑定会话时才创建。
     setSessionMenuID('');
-    setManagementPage('');
+    setSettingsOpen(false);
     setCurrent(null);
     setCurrentTitle('新会话');
     setMessages([]);
@@ -569,7 +550,7 @@ export default function App() {
     sessionOpenSeqRef.current = seq;
     if (busy) detachActiveStream();
     setSessionMenuID('');
-    setManagementPage('');
+    setSettingsOpen(false);
     setCurrent(null);
     setCurrentTitle(summary?.title || '正在加载会话…');
     clearAttachments();
@@ -1173,6 +1154,17 @@ export default function App() {
     }
   }, [api, current, showDialog, showToast]);
 
+  const showSystemPrompt = useCallback(async () => {
+    if (!current) return;
+    try {
+      const data = await fetchSessionSystemPrompt(api, current);
+      const prompt = String(data?.system_prompt || '').trim();
+      await showDialog({ title: '当前会话系统提示词', confirmText: '关闭', hideCancel: true, fields: [{ name: 'prompt', label: prompt ? '全局提示词 + 项目提示词合并后的完整 System Prompt' : '当前未配置系统提示词', type: 'textarea', rows: 16, value: prompt || '(空)' }] });
+    } catch (e) {
+      showToast('系统提示词加载失败：' + e.message, 'error');
+    }
+  }, [api, current, showDialog, showToast]);
+
   const logout = useCallback(() => logoutAndReload(), []);
 
   const filteredSessions = useMemo(() => visibleSessionRows({
@@ -1185,7 +1177,7 @@ export default function App() {
 
   const currentSummary = useMemo(() => sessions.find(s => s.id === current) || null, [current, sessions]);
   const currentPinned = !!currentSummary?.pinned;
-  const appClass = 'app ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (managementPage ? 'manage-page-open ' : '') + (!managementPage && !messages.length ? 'chat-empty ' : '') + (taskPanelOpen ? 'task-panel-open' : '');
+  const appClass = 'app ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (!messages.length ? 'chat-empty ' : '') + (taskPanelOpen ? 'task-panel-open' : '');
   const productReady = setupStatus && !setupStatus.needs_setup;
   const modelReady = !!String(selectedModelBaseURL || '').trim() && !!String(selectedChatModel || '').trim();
   const productStatusText = setupStatus == null ? '加载中' : (productReady ? '就绪' : '待配置');
@@ -1198,13 +1190,13 @@ export default function App() {
 
   const quickActions = useMemo(() => buildQuickActions({
     branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned,
-    deleteCurrent, exportCurrent, inputRef, messagesLength: messages.length, openSettings, openManagementPage, pinCurrent,
-    productDiagnostics, renameCurrent, sendMsg, setProjectFilter, setThemeState, showContextPreview, theme,
-  }), [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, messages.length, openSettings, openManagementPage, pinCurrent, productDiagnostics, renameCurrent, sendMsg, setProjectFilter, showContextPreview, theme]);
+    deleteCurrent, exportCurrent, inputRef, messagesLength: messages.length, openSettings, pinCurrent,
+    renameCurrent, sendMsg, showContextPreview, showSystemPrompt, setThemeState, theme,
+  }), [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, messages.length, openSettings, pinCurrent, renameCurrent, sendMsg, showContextPreview, showSystemPrompt, theme]);
 
   const settingsPanel = (
     <SettingsPanel
-      activeModule={activeModule} closeSettings={closeSettings} config={config}
+      activeModule={activeModule} api={api} closeSettings={closeSettings} config={config}
       configDirty={configDirty} mcpConfigDirty={mcpConfigDirty} dataStatus={dataStatus}
       editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider}
       testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels}
@@ -1217,6 +1209,12 @@ export default function App() {
       testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels}
       candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels}
       logout={logout}
+      projects={projects} projectSessionCounts={projectSessionCounts} editProject={editProject} deleteProject={deleteProject}
+      openProjectSessions={openProjectSessions} loadProjects={loadProjects} startProjectConversation={startProjectConversation} showToast={showToast}
+      scheduledTasks={scheduledTasks} taskSearch={taskSearch} setTaskSearch={setTaskSearch}
+      editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} setScheduledTasks={setScheduledTasks}
+      toggleScheduledTask={toggleScheduledTask} runScheduledTaskNow={runScheduledTaskNow} openScheduledTaskSession={openScheduledTaskSession}
+      loadScheduledTasks={loadScheduledTasks}
     />
   );
 
@@ -1232,43 +1230,32 @@ export default function App() {
         scheduledTasks={scheduledTasks} setTaskSearch={setTaskSearch}
         sessionMenuID={sessionMenuID} sessionSearch={sessionSearch} sessionSearchBusy={sessionSearchBusy}
         setSessionMenuID={setSessionMenuID} setSessionSearch={setSessionSearch}
-        setSidebarCollapsed={setSidebarCollapsed} sidebarCollapsed={sidebarCollapsed} managementPage={managementPage}
+        setSidebarCollapsed={setSidebarCollapsed} sidebarCollapsed={sidebarCollapsed}
       />
       <main>
-        {managementPage ? <Suspense fallback={<PageLoadingState title="正在打开管理页" detail="正在整理项目和自动化任务。" />}><ManagementPage
-          api={api} page={managementPage} closeManagementPage={closeManagementPage}
-          projects={projects} projectSessionCounts={projectSessionCounts} editProject={editProject} deleteProject={deleteProject}
-          showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} openProjectSessions={openProjectSessions} loadProjects={loadProjects}
-          startProjectConversation={startProjectConversation}
-          scheduledTasks={scheduledTasks} taskSearch={taskSearch} setTaskSearch={setTaskSearch}
-          editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} setScheduledTasks={setScheduledTasks} showToast={showToast} toggleScheduledTask={toggleScheduledTask}
-          runScheduledTaskNow={runScheduledTaskNow} openScheduledTaskSession={openScheduledTaskSession}
-          loadScheduledTasks={loadScheduledTasks}
-        /></Suspense> : <>
-          <Topbar
-            currentTitle={currentTitle} newSession={newSession} openSettings={openSettings} selectedProject={selectedProject}
-            setQuickPaletteOpen={setQuickPaletteOpen} setSidebarCollapsed={setSidebarCollapsed} setThemeState={setThemeState}
-            sidebarCollapsed={sidebarCollapsed} taskPanelAvailable={taskDataEnabled} taskPanelOpen={taskPanelOpen}
-            taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
-          />
-          <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} previousMessage={messages[i - 1]} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState />}</div>
-          {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息"><ArrowDown className="jump-latest-icon" size={17} aria-hidden="true" /></button> : null}
-          <CurrentSessionTask
-            error={currentSessionTask.error} loading={currentSessionTask.loading} onRefresh={currentSessionTask.refresh}
-            task={currentSessionTask.task} taskID={currentSessionTask.taskID}
-          />
-          <ComposerBar
-            busy={busy} createPersistedSession={createPersistedSession} current={current} downloadAttachment={downloadAttachment}
-            fileInputRef={fileInputRef} guideActiveJob={guideActiveJob} handleFileSelect={handleFileSelect}
-            input={input} inputRef={inputRef} inputStats={inputStats} modelPickerOpen={modelPickerOpen} modelReady={modelReady}
-            openSettings={openSettings} pendingAttachmentIDs={pendingAttachmentIDs} pendingAttachments={pendingAttachments}
-            providerChoices={providerChoices} removePendingAttachment={removePendingAttachment} selectChatModel={selectChatModel}
-            selectedChatModel={selectedChatModel} selectedModelProvider={selectedModelProvider} sendMsg={sendMsg}
-            setInput={setInput} setModelPickerOpen={setModelPickerOpen} stopStreaming={stopStreaming} uploadingFiles={uploadingFiles}
-          />
-        </>}
+        <Topbar
+          currentTitle={currentTitle} newSession={newSession} openSettings={openSettings} selectedProject={selectedProject}
+          setQuickPaletteOpen={setQuickPaletteOpen} setSidebarCollapsed={setSidebarCollapsed} setThemeState={setThemeState}
+          sidebarCollapsed={sidebarCollapsed} taskPanelAvailable={taskDataEnabled} taskPanelOpen={taskPanelOpen}
+          taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
+        />
+        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} previousMessage={messages[i - 1]} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState />}</div>
+        {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息"><ArrowDown className="jump-latest-icon" size={17} aria-hidden="true" /></button> : null}
+        <CurrentSessionTask
+          error={currentSessionTask.error} loading={currentSessionTask.loading} onRefresh={currentSessionTask.refresh}
+          task={currentSessionTask.task} taskID={currentSessionTask.taskID}
+        />
+        <ComposerBar
+          busy={busy} createPersistedSession={createPersistedSession} current={current} downloadAttachment={downloadAttachment}
+          fileInputRef={fileInputRef} guideActiveJob={guideActiveJob} handleFileSelect={handleFileSelect}
+          input={input} inputRef={inputRef} inputStats={inputStats} modelPickerOpen={modelPickerOpen} modelReady={modelReady}
+          openSettings={openSettings} pendingAttachmentIDs={pendingAttachmentIDs} pendingAttachments={pendingAttachments}
+          providerChoices={providerChoices} removePendingAttachment={removePendingAttachment} selectChatModel={selectChatModel}
+          selectedChatModel={selectedChatModel} selectedModelProvider={selectedModelProvider} sendMsg={sendMsg}
+          setInput={setInput} setModelPickerOpen={setModelPickerOpen} stopStreaming={stopStreaming} uploadingFiles={uploadingFiles}
+        />
       </main>
-      {!managementPage && taskPanelOpen ? <>
+      {taskPanelOpen ? <>
         <div className="agent-task-panel-mask" onClick={closeTaskPanel} />
         <TaskPanel
           available={taskDataEnabled} deletingTaskID={deletingAgentTaskID} detailError={agentTasks.detailError} detailLoading={agentTasks.detailLoading} error={agentTasks.error}

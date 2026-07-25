@@ -102,7 +102,7 @@ function SidebarTreeNode({ api, current, item, kind, openSession, openSessionMen
   </details>;
 }
 
-export function Sidebar({ api, busy, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openSession, openManagementPage, pinSessionByID, projects, projectFilter, renameSessionByID, scheduledTasks, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setSidebarCollapsed, setTaskSearch, sidebarCollapsed, startProjectConversation, managementPage }) {
+export function Sidebar({ api, busy, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openSession, openManagementPage, pinSessionByID, projects, projectFilter, renameSessionByID, scheduledTasks, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setSidebarCollapsed, setTaskSearch, sidebarCollapsed, startProjectConversation }) {
   const [menuTarget, setMenuTarget] = React.useState(null);
   const sessionsRef = React.useRef(null);
   const loadMoreRef = React.useRef(null);
@@ -210,9 +210,9 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
         {!searchingSessions ? <>
           <div className="sidebar-section-head"><div className="sidebar-section-title">置顶</div></div>
           <div className="sidebar-pinned-list">{pinnedSessions.map(renderSession)}{pinnedProjects.map(item => renderTreeNode('project', item))}{pinnedTasks.map(item => renderTreeNode('task', item))}</div>
-          <div className="sidebar-section-head"><button className={'sidebar-section-title ' + (managementPage === 'projects' ? 'active' : '')} onClick={() => openManagementPage('projects')}>项目</button></div>
+          <div className="sidebar-section-head"><button className="sidebar-section-title" onClick={() => openManagementPage('projects')}>项目</button></div>
           <div className="sidebar-manage-list">{managementProjects.map(item => renderTreeNode('project', item))}</div>
-          <div className="sidebar-section-head"><button className={'sidebar-section-title ' + (managementPage === 'scheduled-tasks' ? 'active' : '')} onClick={() => { setTaskSearch(''); openManagementPage('scheduled-tasks'); }}>定时任务</button></div>
+          <div className="sidebar-section-head"><button className="sidebar-section-title" onClick={() => { setTaskSearch(''); openManagementPage('automation'); }}>定时任务</button></div>
           <div className="sidebar-manage-list">{managementTasks.map(item => renderTreeNode('task', item))}</div>
         </> : null}
         <div className="sidebar-section-head"><div className="sidebar-section-title">全部会话</div></div>

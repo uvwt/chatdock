@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { agentTaskDataEnabled, cronScheduleFormValue, cronSchedulePayload, fmtBytes, fmtDuration, logoutAndReload, normalizeSettingsModule, runStatusClass, runStatusLabel, scheduleSummary, setSettingsDocumentScroll, taskStatusClass, taskStatusLabel, managementPageFromPath } from './appUtils.js';
+import { agentTaskDataEnabled, cronScheduleFormValue, cronSchedulePayload, fmtBytes, fmtDuration, logoutAndReload, normalizeSettingsModule, runStatusClass, runStatusLabel, scheduleSummary, setSettingsDocumentScroll, settingsModuleFromPath, taskStatusClass, taskStatusLabel } from './appUtils.js';
 
 test('format helpers keep compact Chinese UI labels', () => {
   assert.equal(fmtBytes(1536), '1.5 KB');
@@ -12,19 +12,25 @@ test('format helpers keep compact Chinese UI labels', () => {
 test('settings module and task status normalize defaults', () => {
   assert.equal(normalizeSettingsModule('missing'), 'model');
   assert.equal(normalizeSettingsModule('data'), 'security');
+  assert.equal(normalizeSettingsModule('projects'), 'projects');
+  assert.equal(normalizeSettingsModule('automation'), 'automation');
   assert.equal(taskStatusLabel({running: true}), '运行中');
   assert.equal(taskStatusClass({last_status: 'failed'}), 'error');
 });
 
-test('management pages resolve from dedicated routes', () => {
+test('settings modules resolve only from settings routes', () => {
   const originalWindow = globalThis.window;
   try {
     globalThis.window = { location: { pathname: '/projects' } };
-    assert.equal(managementPageFromPath(), 'projects');
+    assert.equal(settingsModuleFromPath(), '');
     globalThis.window.location.pathname = '/scheduled-tasks';
-    assert.equal(managementPageFromPath(), 'scheduled-tasks');
+    assert.equal(settingsModuleFromPath(), '');
+    globalThis.window.location.pathname = '/settings/projects';
+    assert.equal(settingsModuleFromPath(), 'projects');
+    globalThis.window.location.pathname = '/settings/automation';
+    assert.equal(settingsModuleFromPath(), 'automation');
     globalThis.window.location.pathname = '/';
-    assert.equal(managementPageFromPath(), '');
+    assert.equal(settingsModuleFromPath(), '');
   } finally {
     globalThis.window = originalWindow;
   }
