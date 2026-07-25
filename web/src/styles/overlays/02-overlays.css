@@ -98,7 +98,7 @@
 }
 
 .theme-light .tool-event-primary span {
-  color: #15803d;
+  color: var(--gpt-muted);
 }
 
 .theme-light .tool-event-status {
@@ -107,8 +107,8 @@
 }
 
 .theme-light .tool-event-status.success {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--gpt-accent-soft);
+  color: var(--gpt-accent-strong);
 }
 
 .theme-light .tool-event-status.danger {
@@ -158,11 +158,9 @@
 .tool-event-modal .tool-event-summary {
   align-items: flex-start;
   padding: 18px;
-  border-color: rgba(34, 197, 94, .24);
+  border-color: var(--gpt-border-strong);
   border-radius: 22px;
-  background:
-    radial-gradient(circle at 0 0, rgba(34, 197, 94, .16), transparent 38%),
-    rgba(15, 23, 42, .62);
+  background: var(--gpt-surface-2);
 }
 
 .tool-event-summary-main {
@@ -170,7 +168,7 @@
 }
 
 .tool-event-modal .tool-event-kicker {
-  color: #86efac;
+  color: var(--gpt-muted-2);
   font-size: 12px;
   font-weight: 900;
 }
@@ -267,10 +265,8 @@
 }
 
 .theme-light .tool-event-modal .tool-event-summary {
-  background:
-    radial-gradient(circle at 0 0, rgba(34, 197, 94, .16), transparent 38%),
-    #f8fafc;
-  border-color: #bbf7d0;
+  background: var(--gpt-surface-2);
+  border-color: var(--gpt-border-strong);
 }
 
 .theme-light .tool-event-tool-list span {
