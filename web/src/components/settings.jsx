@@ -9,6 +9,7 @@ import {
 import '../styles/settings-entry.css';
 import { TextCard } from './base.jsx';
 import { settingsModules, diagnosticsText, fmtBytes, fmtRelativeAge, fmtTime, runStatusClass, runStatusLabel, safePathName } from '../lib/appUtils.js';
+import { mcpAuthDraft, mcpAuthPayload } from '../lib/mcpAuthDraft.js';
 
 const settingsModuleMeta = {
   model: {label: '模型', desc: '默认供应商和默认模型。'},
@@ -246,10 +247,6 @@ function dockerHostMCPURL(value) {
   return cleaned.replace(/^http:\/\/(127\.0\.0\.1|localhost)(?=[:/]|$)/i, 'http://host.docker.internal');
 }
 
-function normalizeBearerTokenDraft(value) {
-  return String(value || '').trim().replace(/^Bearer\s+/i, '');
-}
-
 function mcpTokenExpiryState(token) {
   const parts = String(token || '').split('.');
   if (parts.length < 2) return null;
@@ -266,16 +263,13 @@ function mcpTokenExpiryState(token) {
 }
 
 function mcpServerToDraft(server = {}) {
-  const auth = server.auth || {};
   return {
     type: server.type || 'streamable-http',
     url: server.url || '',
     description: server.description || '',
     path: server.path || '',
     disabled: !!server.disabled,
-    auth_type: auth.type || (auth.token || auth.token_env ? 'bearer' : 'none'),
-    token: auth.token || '',
-    token_env: auth.token_env || '',
+    ...mcpAuthDraft(server.auth),
     allow_tools: joinMCPToolList(server.allow_tools),
     deny_tools: joinMCPToolList(server.deny_tools),
     confirm_tools: joinMCPToolList(server.confirm_tools),
@@ -292,19 +286,13 @@ function cleanMCPServerDraft(draft) {
   const url = normalizeMCPURLDraft(draft.url);
   const description = String(draft.description || '').trim();
   const path = String(draft.path || '').trim();
-  const authType = String(draft.auth_type || '').trim();
-  const token = normalizeBearerTokenDraft(draft.token);
-  const tokenEnv = String(draft.token_env || '').trim();
   if (type && type !== 'streamable-http') next.type = type;
   if (url) next.url = url;
   if (description) next.description = description;
   if (path) next.path = path;
   if (draft.disabled) next.disabled = true;
-  if (authType && authType !== 'none') {
-    next.auth = {type: authType};
-    if (token) next.auth.token = token;
-    if (tokenEnv) next.auth.token_env = tokenEnv;
-  }
+  const auth = mcpAuthPayload(draft);
+  if (auth) next.auth = auth;
   const allow = splitMCPToolList(draft.allow_tools);
   const deny = splitMCPToolList(draft.deny_tools);
   const confirm = splitMCPToolList(draft.confirm_tools);
@@ -322,7 +310,7 @@ function cleanMCPServerDraft(draft) {
 }
 
 function defaultMCPServerDraft() {
-  return {name: '', type: 'streamable-http', url: '', description: '', path: '', disabled: false, auth_type: 'none', token: '', token_env: '', allow_tools: '', deny_tools: '', confirm_tools: '', tool_exposure: 'on_demand', tool_overrides: {}, timeout_ms: '30000', cache_ttl_ms: ''};
+  return {name: '', type: 'streamable-http', url: '', description: '', path: '', disabled: false, auth_type: 'none', token: '', token_env: '', saved_token_ref: '', allow_tools: '', deny_tools: '', confirm_tools: '', tool_exposure: 'on_demand', tool_overrides: {}, timeout_ms: '30000', cache_ttl_ms: ''};
 }
 
 function builtinToolsToDraft(config = {}) {
@@ -523,6 +511,7 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
     const urlHasLocalhost = /^http:\/\/(127\.0\.0\.1|localhost)(?=[:/]|$)/i.test(normalizeMCPURLDraft(draft.url));
     const urlHasSpace = /\s/.test(String(draft.url || ''));
     const tokenEnvLooksLikeHeader = String(draft.token_env || '').trim().toLowerCase() === 'authorization';
+    const hasSavedToken = !!String(draft.saved_token_ref || '').trim();
     const tokenExpiry = mcpTokenExpiryState(draft.token);
     return <div className={'mcp-form-card ' + (isNew ? 'new-server' : '')} key={isNew ? 'new' : name}>
       {!isNew ? <div className="mcp-form-head"><div className="mcp-form-head-actions"><button className="secondary small" onClick={() => patchServer(name, {disabled: !draft.disabled})}>{draft.disabled ? '启用' : '禁用'}</button><button className="danger small" onClick={() => removeServer(name)}>删除</button></div></div> : null}
@@ -545,8 +534,9 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
           <label>Token 环境变量名（可选）<input value={draft.token_env} onChange={e => update({token_env: e.target.value})} placeholder="例如 AGENTDOCK_MCP_TOKEN，不是 Authorization" /></label>
         </div>
         {tokenEnvLooksLikeHeader ? <div className="mcp-inline-warning"><b>这里不要填 Authorization</b><span>这是环境变量名，不是 HTTP Header 名。已经在下方 Token 粘贴值时可以留空。</span><button className="secondary small" onClick={() => update({token_env: ''})}>清空此项</button></div> : null}
-        {draft.auth_type !== 'none' ? <label>Token<input type="password" value={draft.token} onChange={e => update({token: e.target.value})} placeholder="粘贴 AgentDock Bearer Token；没有就需要重新授权生成" /></label> : null}
-        {draft.auth_type !== 'none' && tokenExpiry ? <div className={'mcp-inline-warning ' + (tokenExpiry.expired ? 'danger' : 'ok')}><b>{tokenExpiry.expired ? 'Token 已过期，需要重新生成' : 'Token 有效期'}</b><span>{tokenExpiry.text}</span></div> : null}
+        {hasSavedToken ? <div className="mcp-inline-warning ok mcp-token-state"><b>已保存 Token</b><span>{draft.auth_type === 'none' ? '当前认证方式为“无”，Token 会保留但不会发送。' : '留空不会修改；输入新值才会替换。'}</span><button type="button" className="secondary small" onClick={() => update({token: '', saved_token_ref: ''})}>清除已保存 Token</button></div> : null}
+        {draft.auth_type !== 'none' ? <label>{hasSavedToken ? '替换 Token（可选）' : 'Token'}<input type="password" autoComplete="new-password" value={draft.token} onChange={e => update({token: e.target.value})} placeholder={hasSavedToken ? '留空保持已保存 Token' : '粘贴 AgentDock Bearer Token；可带 Bearer 前缀'} /></label> : null}
+        {draft.auth_type !== 'none' && tokenExpiry ? <div className={'mcp-inline-warning ' + (tokenExpiry.expired ? 'danger' : 'ok')}><b>{tokenExpiry.expired ? 'Token 已过期，需要重新生成' : '新 Token 有效期'}</b><span>{tokenExpiry.text}</span></div> : null}
         <div className="mcp-form-grid">
           <label>超时 ms<input type="number" inputMode="numeric" value={draft.timeout_ms} onChange={e => update({timeout_ms: e.target.value})} placeholder="30000" /></label>
           <label>工具缓存 ms<input type="number" inputMode="numeric" value={draft.cache_ttl_ms} onChange={e => update({cache_ttl_ms: e.target.value})} placeholder="可留空" /></label>

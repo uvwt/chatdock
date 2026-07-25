@@ -15,6 +15,11 @@ func (a *Server) handleGetMCPConfig(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	content, err = mcp.RedactConfigTokens(content)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
 	writeJSONResponse(w, http.StatusOK, model.MCPConfigResponse{Content: content, BuiltinTools: builtinChatDockTools()})
 }
 
@@ -24,9 +29,14 @@ func (a *Server) handleSaveMCPConfig(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	content, err := a.store.SaveMCPConfig(input.Content)
+	content, err := a.store.SaveMCPConfigDraft(input.Content)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	content, err = mcp.RedactConfigTokens(content)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSONResponse(w, http.StatusOK, model.MCPConfigResponse{Content: content, BuiltinTools: builtinChatDockTools()})

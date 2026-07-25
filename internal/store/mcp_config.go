@@ -54,6 +54,35 @@ func (s *Store) SaveMCPConfig(content string) (string, error) {
 	return pretty, s.setGlobalRawLocked("mcp", pretty)
 }
 
+func (s *Store) SaveMCPConfigDraft(content string) (string, error) {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		content = DefaultMCPConfig()
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	current, ok, err := s.getGlobalRawLocked("mcp")
+	if err != nil {
+		return "", err
+	}
+	if !ok || strings.TrimSpace(current) == "" {
+		current = DefaultMCPConfig()
+	}
+	merged, err := mcp.MergeConfigTokens(current, content)
+	if err != nil {
+		return "", fmt.Errorf("merge mcp token changes: %w", err)
+	}
+	if _, err := mcp.ParseMCPConfig(merged); err != nil {
+		return "", fmt.Errorf("invalid mcp config: %w", err)
+	}
+	pretty, err := prettyJSON(merged)
+	if err != nil {
+		return "", err
+	}
+	return pretty, s.setGlobalRawLocked("mcp", pretty)
+}
+
 func DefaultMCPConfig() string {
 	return mcp.DefaultMCPConfig()
 }
