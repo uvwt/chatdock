@@ -545,6 +545,15 @@ export default function App() {
     return { id: '', title: '新会话', messages: [], draft: true };
   }, [busy, clearAttachments, closeSidebarOnMobile, detachActiveStream]);
 
+  const startProjectConversation = useCallback((projectID) => {
+    const normalizedProjectID = String(projectID || '').trim();
+    if (!normalizedProjectID) return;
+
+    // 项目对话仍沿用“发送首条消息时再落库”的会话语义，只提前固定项目上下文。
+    setProjectFilter(normalizedProjectID);
+    createSession();
+  }, [createSession, setProjectFilter]);
+
   const openSession = useCallback(async (id, summary = null) => {
     if (!id) return;
     const seq = sessionOpenSeqRef.current + 1;
@@ -1209,6 +1218,7 @@ export default function App() {
         hasMoreSessions={visibleSessionsHasMore} loadingMoreSessions={visibleSessionsLoadingMore} newSession={newSession}
         onLoadMoreSessions={loadMoreVisibleSessions} openSession={openSession} openManagementPage={openManagementPage}
         pinSessionByID={pinSessionByID} projects={projects} projectFilter={projectFilter} renameSessionByID={renameSessionByID}
+        startProjectConversation={startProjectConversation}
         scheduledTasks={scheduledTasks} setTaskSearch={setTaskSearch}
         sessionMenuID={sessionMenuID} sessionSearch={sessionSearch} sessionSearchBusy={sessionSearchBusy}
         setSessionMenuID={setSessionMenuID} setSessionSearch={setSessionSearch}
@@ -1219,13 +1229,14 @@ export default function App() {
           api={api} page={managementPage} closeManagementPage={closeManagementPage}
           projects={projects} projectSessionCounts={projectSessionCounts} editProject={editProject} deleteProject={deleteProject}
           showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} openProjectSessions={openProjectSessions} loadProjects={loadProjects}
+          startProjectConversation={startProjectConversation}
           scheduledTasks={scheduledTasks} taskSearch={taskSearch} setTaskSearch={setTaskSearch}
           editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} setScheduledTasks={setScheduledTasks} showToast={showToast} toggleScheduledTask={toggleScheduledTask}
           runScheduledTaskNow={runScheduledTaskNow} openScheduledTaskSession={openScheduledTaskSession}
           loadScheduledTasks={loadScheduledTasks}
         /></Suspense> : <>
           <Topbar
-            currentTitle={currentTitle} newSession={newSession} openSettings={openSettings}
+            currentTitle={currentTitle} newSession={newSession} openSettings={openSettings} selectedProject={selectedProject}
             setQuickPaletteOpen={setQuickPaletteOpen} setSidebarCollapsed={setSidebarCollapsed} setThemeState={setThemeState}
             sidebarCollapsed={sidebarCollapsed} taskPanelAvailable={taskDataEnabled} taskPanelOpen={taskPanelOpen}
             taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}

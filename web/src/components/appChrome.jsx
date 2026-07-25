@@ -25,13 +25,16 @@ import { scheduledTaskSessionRows, sessionRowID } from '../lib/sessionPresentati
 
 const iconProps = { size: 17, 'aria-hidden': true };
 
-export function Topbar({ currentTitle, newSession, openSettings, setQuickPaletteOpen, setSidebarCollapsed, setThemeState, sidebarCollapsed, taskPanelAvailable, taskPanelOpen, taskPanelTasks, theme, toggleTaskPanel }) {
+export function Topbar({ currentTitle, newSession, openSettings, selectedProject, setQuickPaletteOpen, setSidebarCollapsed, setThemeState, sidebarCollapsed, taskPanelAvailable, taskPanelOpen, taskPanelTasks, theme, toggleTaskPanel }) {
   const darkMode = theme !== 'day';
   const ThemeIcon = darkMode ? Sun : Moon;
   return <div className="topbar">
     <div className="top-left">
       <button className="mobile-menu icon-button" onClick={() => setSidebarCollapsed(current => !current)} aria-label="打开会话列表"><Menu {...iconProps} /></button>
-      <div className="topbar-title-wrap"><b id="title">{currentTitle}</b></div>
+      <div className="topbar-title-wrap">
+        {selectedProject ? <span className="topbar-project-context"><Folder size={12} aria-hidden="true" /><span>{selectedProject.name}</span></span> : null}
+        <b id="title">{currentTitle}</b>
+      </div>
     </div>
     <div className="top-actions">
       <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)}><MoreHorizontal {...iconProps} /><span className="action-label">快捷</span></button>
@@ -62,7 +65,7 @@ export function ComposerBar({ busy, createPersistedSession, current, downloadAtt
   </div>;
 }
 
-function SidebarTreeNode({ api, current, item, kind, openSession, openSessionMenu }) {
+function SidebarTreeNode({ api, current, item, kind, openSession, openSessionMenu, startProjectConversation }) {
   const [rows, setRows] = React.useState();
   const Icon = kind === 'project' ? Folder : ListTodo;
   const removeRow = id => setRows(currentRows => Array.isArray(currentRows) ? currentRows.filter(row => sessionRowID(row) !== id) : currentRows);
@@ -88,6 +91,7 @@ function SidebarTreeNode({ api, current, item, kind, openSession, openSessionMen
   return <details name="sidebar-tree" className="sidebar-tree-node" onToggle={loadRows}>
     <summary><Icon size={15} aria-hidden="true" /><span>{item.name || item.title}</span><ArrowDown size={14} aria-hidden="true" /></summary>
     <div className="sidebar-tree-children">
+      {kind === 'project' ? <button type="button" className="sidebar-tree-new-chat" onClick={() => startProjectConversation(item.id)}><MessageSquarePlus size={14} aria-hidden="true" /><span>新建对话</span></button> : null}
       {rows == null ? <span className="sidebar-tree-state">正在加载…</span> : rows === false ? <span className="sidebar-tree-state">加载失败</span> : rows.length ? <>
         {rows.slice(0, 5).map(renderRow)}
         {rows.length > 5 ? <details className="sidebar-tree-more"><summary>显示更多</summary>{rows.slice(5).map(renderRow)}</details> : null}
@@ -96,7 +100,7 @@ function SidebarTreeNode({ api, current, item, kind, openSession, openSessionMen
   </details>;
 }
 
-export function Sidebar({ api, busy, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openSession, openManagementPage, pinSessionByID, projects, projectFilter, renameSessionByID, scheduledTasks, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setSidebarCollapsed, setTaskSearch, sidebarCollapsed, managementPage }) {
+export function Sidebar({ api, busy, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, newSession, onLoadMoreSessions, openSession, openManagementPage, pinSessionByID, projects, projectFilter, renameSessionByID, scheduledTasks, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setSidebarCollapsed, setTaskSearch, sidebarCollapsed, startProjectConversation, managementPage }) {
   const [menuTarget, setMenuTarget] = React.useState(null);
   const sessionsRef = React.useRef(null);
   const loadMoreRef = React.useRef(null);
@@ -172,7 +176,7 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
   const pinnedSessions = searchingSessions ? [] : filteredSessions.filter(session => session.pinned);
   const pinnedProjects = (projects || []).filter(item => item.pinned);
   const pinnedTasks = (scheduledTasks || []).filter(item => item.pinned);
-  const renderTreeNode = (kind, item) => <SidebarTreeNode key={kind + item.id} api={api} current={current} item={item} kind={kind} openSession={openSession} openSessionMenu={toggleSessionMenu} />;
+  const renderTreeNode = (kind, item) => <SidebarTreeNode key={kind + item.id} api={api} current={current} item={item} kind={kind} openSession={openSession} openSessionMenu={toggleSessionMenu} startProjectConversation={startProjectConversation} />;
   const managementProjects = (projects || []).filter(item => !item.pinned);
   const managementTasks = (scheduledTasks || []).filter(item => !item.pinned);
   const sessionRows = searchingSessions ? filteredSessions : filteredSessions.filter(session => !session.pinned);

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ArrowLeft, MoreHorizontal, Plus, RefreshCw } from './icons.js';
+import { ArrowLeft, MessageSquarePlus, MoreHorizontal, Plus, RefreshCw } from './icons.js';
 import { fmtTime, runStatusClass, runStatusLabel, scheduleSummary, taskStatusClass, taskStatusLabel } from '../lib/appUtils.js';
 import { fetchScheduledTaskRuns } from '../lib/settingsApi.js';
 import { scheduledTaskSessionRows } from '../lib/sessionPresentation.js';
@@ -38,13 +38,13 @@ export function ManagementPage(props) {
   return <ProjectsPage {...props} />;
 }
 
-function ProjectsPage({ api, closeManagementPage, deleteProject, editProject, loadProjects, openProjectSessions, projectPromptPreview, projects, projectSessionCounts, showProjectPromptPreview, showToast }) {
+function ProjectsPage({ api, closeManagementPage, deleteProject, editProject, loadProjects, openProjectSessions, projectPromptPreview, projects, projectSessionCounts, showProjectPromptPreview, showToast, startProjectConversation }) {
   const pinProject = project => togglePinned(api, 'projects', project, loadProjects, showToast);
   return <section className="manage-page projects-page">
     <PageHeader
       eyebrow="ChatDock / Projects"
       title="项目"
-      description="集中管理上下文、提示词和会话归属。"
+      description="为不同主题保留独立上下文，并直接开始项目对话。"
       onClose={closeManagementPage}
       actions={<button type="button" onClick={() => editProject()}><Plus size={16} aria-hidden="true" /><span>新增项目</span></button>}
     />
@@ -66,7 +66,8 @@ function ProjectsPage({ api, closeManagementPage, deleteProject, editProject, lo
           <p>{project.prompt || '未设置项目提示词'}</p>
           <div className="manage-card-meta">ID：{project.id}</div>
           <footer>
-            <button type="button" onClick={() => openProjectSessions(project.id)}>查看会话</button>
+            <button type="button" onClick={() => startProjectConversation(project.id)}><MessageSquarePlus size={15} aria-hidden="true" /><span>新建对话</span></button>
+            <button type="button" className="secondary" onClick={() => openProjectSessions(project.id)}>查看会话</button>
           </footer>
         </article>) : <div className="manage-empty"><b>还没有项目</b><span>普通会话不需要项目；需要固定上下文时再创建。</span></div>}
       </div>

@@ -465,6 +465,26 @@ body.theme-light #app.app main::before {
   padding: 2px 0 5px 26px;
 }
 
+#app.app .sidebar-tree-new-chat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gpt-muted);
+  font-size: 12px;
+  font-weight: 560;
+  text-align: left;
+}
+
+#app.app .sidebar-tree-new-chat:hover {
+  background: color-mix(in srgb, var(--gpt-text) 3.5%, transparent);
+  color: var(--gpt-text);
+}
+
 #app.app .sidebar-tree-session,
 #app.app .sidebar-tree-more > summary,
 #app.app .sidebar-tree-state {
