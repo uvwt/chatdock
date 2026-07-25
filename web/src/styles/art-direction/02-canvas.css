@@ -1,11 +1,11 @@
 /* Topbar */
 #app.app .topbar {
-  height: 66px;
-  min-height: 66px;
-  padding: 0 20px 0 24px;
+  height: 62px;
+  min-height: 62px;
+  padding: 0 18px 0 22px;
   border-bottom: 1px solid var(--gpt-border);
-  background: color-mix(in srgb, var(--gpt-main) 82%, transparent);
-  backdrop-filter: blur(20px) saturate(120%);
+  background: color-mix(in srgb, var(--gpt-main) 94%, transparent);
+  backdrop-filter: blur(18px) saturate(110%);
   box-shadow: none;
 }
 
@@ -35,7 +35,7 @@
 }
 
 #app.app .top-actions {
-  gap: 4px;
+  gap: 2px;
 }
 
 #app.app .top-actions > button,
@@ -43,11 +43,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  min-height: 36px;
-  padding: 7px 9px;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 9px;
   border-color: transparent;
-  border-radius: 10px;
+  border-radius: 8px;
   background: transparent;
   color: var(--gpt-muted);
   box-shadow: none;
@@ -56,8 +56,8 @@
 #app.app .top-actions > button:hover:not(:disabled),
 #app.app .top-actions > .task-panel-toggle:hover:not(:disabled),
 #app.app .top-actions > .task-panel-toggle.active {
-  border-color: var(--gpt-border);
-  background: var(--gpt-surface-2);
+  border-color: transparent;
+  background: color-mix(in srgb, var(--gpt-text) 4.5%, transparent);
   color: var(--gpt-text);
 }
 
@@ -74,7 +74,7 @@
 #app.app .messages {
   position: relative;
   flex: 1;
-  padding: 34px 20px 154px;
+  padding: 28px 20px 146px;
   overflow: auto;
   background: transparent;
   scroll-behavior: smooth;
@@ -83,10 +83,10 @@
 #app.app .product-empty-state {
   display: grid;
   align-items: center;
-  width: min(1180px, calc(100vw - var(--gpt-sidebar-width) - 54px));
+  width: min(980px, calc(100vw - var(--gpt-sidebar-width) - 54px));
   min-height: 100%;
   margin: 0 auto;
-  padding: clamp(26px, 4vh, 52px) 22px 120px;
+  padding: clamp(24px, 3vh, 42px) 22px 112px;
 }
 
 #app.app .product-hero {
@@ -96,13 +96,13 @@
   grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   gap: 0;
-  min-height: min(620px, calc(100dvh - 210px));
+  min-height: min(540px, calc(100dvh - 198px));
   padding: 0;
   overflow: hidden;
-  border: 1px solid var(--gpt-border-strong);
-  border-radius: 0 34px 0 34px;
-  background: color-mix(in srgb, var(--gpt-main) 92%, transparent);
-  box-shadow: var(--dock-card-shadow);
+  border: 1px solid var(--gpt-border);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--gpt-main) 96%, transparent);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, .06);
   animation: canvasEnter .8s var(--dock-ease) both;
 }
 
@@ -132,14 +132,14 @@
 
 #app.app .hero-ambient {
   position: absolute;
-  top: -130px;
-  right: -90px;
+  top: -118px;
+  right: -102px;
   z-index: -1;
-  width: 520px;
-  height: 520px;
-  opacity: .9;
+  width: 470px;
+  height: 470px;
+  opacity: .5;
   pointer-events: none;
-  animation: ambientDrift 12s ease-in-out infinite alternate;
+  animation: ambientDrift 16s ease-in-out infinite alternate;
 }
 
 #app.app .hero-orbit {
@@ -176,7 +176,7 @@
   flex-direction: column;
   justify-content: center;
   max-width: none;
-  padding: clamp(46px, 6vw, 88px);
+  padding: clamp(42px, 5vw, 68px);
 }
 
 #app.app .empty-state-kicker {
@@ -192,14 +192,14 @@
 }
 
 #app.app .hero-copy h1 {
-  max-width: 720px;
-  margin: 24px 0 22px;
+  max-width: 640px;
+  margin: 20px 0 18px;
   color: var(--gpt-text);
   font-family: Georgia, "Times New Roman", "Songti SC", serif;
-  font-size: clamp(58px, 6.8vw, 104px);
+  font-size: clamp(52px, 5.8vw, 82px);
   font-weight: 500;
-  line-height: .84;
-  letter-spacing: -.072em;
+  line-height: .9;
+  letter-spacing: -.064em;
 }
 
 #app.app .hero-copy h1 span {

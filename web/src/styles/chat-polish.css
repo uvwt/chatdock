@@ -90,21 +90,21 @@ body.theme-light #app.app #sessions .session {
   box-sizing: border-box !important;
 }
 
-body.theme-light #app.app #sessions .session:hover {
-  background: color-mix(in srgb, var(--gpt-accent) 8%, var(--gpt-sidebar)) !important;
-  border-color: color-mix(in srgb, var(--gpt-accent) 18%, var(--gpt-border)) !important;
+body.theme-light #app.app #sessions .session:not(.active):hover {
+  background: color-mix(in srgb, var(--gpt-text) 3.5%, transparent) !important;
+  border-color: transparent !important;
 }
 
 body.theme-light #app.app #sessions .session.active {
-  background: color-mix(in srgb, var(--gpt-accent) 12%, var(--gpt-sidebar)) !important;
-  border-color: color-mix(in srgb, var(--gpt-accent) 24%, var(--gpt-border)) !important;
+  background: transparent !important;
+  border-color: transparent !important;
   color: var(--gpt-text) !important;
   box-shadow: none !important;
 }
 
-body.theme-light #app.app #sessions .session.active::before,
-body.theme-light #app.app #sessions .session.active::after {
-  border-color: var(--gpt-accent) !important;
+body.theme-light #app.app #sessions .session.active::before {
+  border-color: var(--gpt-text) !important;
+  background: var(--gpt-text) !important;
 }
 
 /* 2026-07-04 用户消息悬浮操作：按钮独立成气泡下方一行，避免和气泡内容重叠。 */

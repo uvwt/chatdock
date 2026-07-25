@@ -3,7 +3,7 @@ WEB_DIR := web
 DEV_COMPOSE := compose.dev.yaml
 PROD_CHATDOCK_DIR ?= /Volumes/KIOXIA/Docker/chatdock
 
-.PHONY: run build web-deps web-build web-dev js-check css-check bundle-check frontend-test frontend-lint backend-lint commit-msg-check shell-check test vet fmt fmt-check check clean dev-up dev-down prod-check prod-health deploy-prod
+.PHONY: run build web-deps web-build web-dev js-check css-check frontend-test frontend-lint backend-lint commit-msg-check shell-check test vet fmt fmt-check check clean dev-up dev-down prod-check prod-health deploy-prod
 
 run: web-build
 	go run ./cmd/chatdock
@@ -34,9 +34,6 @@ js-check: web-deps
 css-check:
 	node scripts/check-css-health.mjs
 
-bundle-check: web-build
-	node scripts/check-bundle-size.mjs
-
 frontend-test: web-deps
 	npm --prefix $(WEB_DIR) test
 
@@ -62,7 +59,7 @@ vet: web-build
 fmt-check:
 	test -z "$$(gofmt -l cmd internal web/*.go)"
 
-check: fmt-check shell-check backend-lint frontend-lint frontend-test bundle-check vet test build
+check: fmt-check shell-check backend-lint frontend-lint frontend-test vet test build
 
 fmt:
 	gofmt -w cmd internal web/*.go

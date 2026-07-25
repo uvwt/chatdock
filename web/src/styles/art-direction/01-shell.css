@@ -210,10 +210,8 @@ body.theme-light #app.app main::before {
   padding: 13px 10px 12px;
   overflow: hidden;
   border-right: 1px solid var(--gpt-border);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--gpt-text) 2%, transparent), transparent 24%),
-    var(--gpt-sidebar);
-  box-shadow: 20px 0 70px rgba(0, 0, 0, .12);
+  background: var(--gpt-sidebar);
+  box-shadow: 8px 0 28px rgba(0, 0, 0, .035);
 }
 
 #app.app .sidebar-head {
@@ -312,16 +310,16 @@ body.theme-light #app.app main::before {
   padding: 0 12px;
   gap: 8px;
   border: 1px solid var(--gpt-border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--gpt-surface-2) 88%, transparent);
+  border-radius: 10px;
+  background: transparent;
   color: var(--gpt-muted-2);
   transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
 }
 
 #app.app .session-search-box:focus-within {
-  border-color: color-mix(in srgb, var(--gpt-accent) 46%, var(--gpt-border));
+  border-color: var(--gpt-border-strong);
   background: var(--gpt-surface-2);
-  box-shadow: 0 0 0 3px var(--gpt-accent-soft);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gpt-text) 4%, transparent);
 }
 
 #app.app .session-search {
@@ -338,16 +336,17 @@ body.theme-light #app.app main::before {
   height: 40px;
   min-height: 40px;
   margin: 0;
-  border: 1px solid var(--gpt-accent);
-  border-radius: 12px;
-  background: var(--gpt-accent);
-  color: var(--gpt-accent-contrast);
-  box-shadow: 0 8px 28px color-mix(in srgb, var(--gpt-accent) 16%, transparent);
+  border: 1px solid var(--gpt-border-strong);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--gpt-text);
+  box-shadow: none;
 }
 
 #app.app aside .new:hover:not(:disabled) {
-  transform: translateY(-2px) rotate(3deg);
-  background: var(--gpt-accent-strong);
+  transform: translateY(-1px);
+  border-color: var(--gpt-text);
+  background: color-mix(in srgb, var(--gpt-text) 5%, transparent);
 }
 
 #app.app .sidebar-section-head {
@@ -407,8 +406,7 @@ body.theme-light #app.app main::before {
 #app.app .sidebar-manage-list {
   display: grid;
   gap: 2px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--gpt-border);
+  padding: 0 0 8px;
 }
 
 #app.app .sidebar-tree-node {
@@ -421,8 +419,9 @@ body.theme-light #app.app main::before {
   align-items: center;
   min-height: 38px;
   padding: 8px 9px;
-  border: 1px solid transparent;
-  border-radius: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   color: var(--gpt-muted);
   cursor: pointer;
   list-style: none;
@@ -435,9 +434,12 @@ body.theme-light #app.app main::before {
 
 #app.app .sidebar-tree-node > summary:hover,
 #app.app .sidebar-tree-node[open] > summary {
-  border-color: var(--gpt-border);
-  background: var(--gpt-sidebar-hover);
+  background: color-mix(in srgb, var(--gpt-text) 3.5%, transparent);
   color: var(--gpt-text);
+}
+
+#app.app .sidebar-tree-node[open] > summary {
+  box-shadow: inset 2px 0 0 var(--gpt-text);
 }
 
 #app.app .sidebar-tree-node > summary span {
@@ -480,14 +482,15 @@ body.theme-light #app.app main::before {
   white-space: nowrap;
 }
 
-#app.app .sidebar-tree-session:hover,
-#app.app .sidebar-tree-session.active {
-  background: var(--gpt-sidebar-hover);
+#app.app .sidebar-tree-session:hover {
+  background: color-mix(in srgb, var(--gpt-text) 3.5%, transparent);
   color: var(--gpt-text);
 }
 
 #app.app .sidebar-tree-session.active {
-  box-shadow: inset 2px 0 0 var(--gpt-accent);
+  background: transparent;
+  color: var(--gpt-text);
+  box-shadow: inset 2px 0 0 var(--gpt-text);
 }
 
 #app.app .sidebar-tree-session-row {
@@ -543,27 +546,30 @@ body.theme-light #app.app main::before {
   min-height: 38px;
   margin: 0;
   padding: 8px 9px;
-  border: 1px solid transparent;
-  border-radius: 10px;
+  border: 0;
+  border-radius: 8px;
   background: transparent;
   color: var(--gpt-muted);
   box-shadow: none;
 }
 
-#app.app #sessions .session:hover,
+#app.app #sessions .session:not(.active):hover {
+  background: color-mix(in srgb, var(--gpt-text) 3.5%, transparent);
+  color: var(--gpt-text);
+}
+
 #app.app #sessions .session.active {
-  border-color: var(--gpt-border);
-  background: var(--gpt-sidebar-hover);
+  background: transparent;
   color: var(--gpt-text);
 }
 
 #app.app #sessions .session.active::before {
   content: "";
   position: absolute;
-  inset: 11px auto 11px -3px;
+  inset: 8px auto 8px -2px;
   width: 2px;
   border-radius: 999px;
-  background: var(--gpt-accent);
+  background: var(--gpt-text);
 }
 
 #app.app #sessions .sidebar-link .session-main {

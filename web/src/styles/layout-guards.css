@@ -182,9 +182,9 @@
 }
 
 #app.app .model-picker-trigger {
-  flex-direction: column !important;
-  justify-content: center !important;
-  gap: 2px !important;
+  flex-direction: row !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
 }
 
 #app.app .attach-control {

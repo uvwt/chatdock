@@ -74,29 +74,28 @@
 
 /* Composer */
 #app.app .composer-shell {
-  padding: 26px 18px 18px;
-  background: linear-gradient(180deg, transparent, var(--gpt-main) 46%);
+  padding: 20px 18px 16px;
+  background: linear-gradient(180deg, transparent, var(--gpt-main) 50%);
 }
 
 #app.app .composer {
-  width: min(900px, calc(100% - 24px));
-  max-width: 900px;
-  min-height: 64px;
+  width: min(920px, calc(100% - 24px));
+  max-width: 920px;
+  min-height: 60px;
   height: auto;
-  padding: 8px;
-  gap: 7px;
-  border: 1px solid var(--gpt-border-strong);
-  border-radius: 22px;
-  background: color-mix(in srgb, var(--gpt-surface) 88%, transparent);
-  box-shadow: 0 22px 80px rgba(0, 0, 0, .22), inset 0 1px 0 color-mix(in srgb, var(--gpt-text) 6%, transparent);
-  backdrop-filter: blur(24px) saturate(125%);
-  transition: border-color .22s ease, box-shadow .22s ease, transform .22s var(--dock-ease);
+  padding: 7px;
+  gap: 6px;
+  border: 1px solid var(--gpt-border);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--gpt-surface) 96%, transparent);
+  box-shadow: 0 12px 38px rgba(0, 0, 0, .09);
+  backdrop-filter: blur(20px) saturate(110%);
+  transition: border-color .2s ease, box-shadow .2s ease;
 }
 
 #app.app .composer:focus-within {
-  transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--gpt-accent) 58%, var(--gpt-border));
-  box-shadow: 0 26px 90px rgba(0, 0, 0, .26), 0 0 0 4px var(--gpt-accent-soft);
+  border-color: var(--gpt-border-strong);
+  box-shadow: 0 14px 42px rgba(0, 0, 0, .1), 0 0 0 3px color-mix(in srgb, var(--gpt-text) 4%, transparent);
 }
 
 #app.app .composer textarea {

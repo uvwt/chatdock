@@ -142,13 +142,14 @@
 
 .model-picker-trigger {
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
   min-height: 42px;
-  max-width: 180px;
-  padding: 6px 12px;
-  border-radius: 18px;
+  max-width: 240px;
+  padding: 6px 10px;
+  border-radius: 12px;
   line-height: 1.15;
 }
 
