@@ -1,0 +1,159 @@
+/* 懒加载页面在分包到达前也要保持完整的产品外观，不能依赖目标分包里的页面样式。 */
+.route-loading-state {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  padding: clamp(20px, 4vw, 48px);
+  overflow: hidden;
+  color: var(--gpt-text);
+  background:
+    radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--gpt-text) 4%, transparent), transparent 30%),
+    radial-gradient(circle at 82% 88%, color-mix(in srgb, var(--gpt-accent) 6%, transparent), transparent 32%),
+    var(--gpt-main);
+}
+
+.route-loading-state.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1800;
+  min-height: 100dvh;
+}
+
+.route-loading-state.content {
+  min-height: min(620px, calc(100dvh - 62px));
+}
+
+.route-loading-state::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: .28;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--gpt-text) 3%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--gpt-text) 3%, transparent) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: radial-gradient(circle at center, #000 0, transparent 72%);
+}
+
+.route-loading-card {
+  width: min(390px, 100%);
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 15px;
+  padding: 20px;
+  border: 1px solid var(--gpt-border);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--gpt-surface) 96%, transparent);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, .08);
+  backdrop-filter: blur(18px) saturate(108%);
+}
+
+.route-loading-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--gpt-border);
+  border-radius: 14px;
+  background: var(--gpt-surface-2);
+  color: var(--gpt-text);
+}
+
+.route-loading-icon svg {
+  animation: routeLoadingSpin 1.15s linear infinite;
+}
+
+.route-loading-copy {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+}
+
+.route-loading-eyebrow {
+  color: var(--gpt-muted-2);
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: .15em;
+}
+
+.route-loading-copy strong {
+  color: var(--gpt-text);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.route-loading-copy > span:last-child {
+  color: var(--gpt-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.route-loading-progress {
+  grid-column: 1 / -1;
+  position: relative;
+  height: 2px;
+  margin-top: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--gpt-text) 8%, transparent);
+}
+
+.route-loading-progress > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42%;
+  border-radius: inherit;
+  background: var(--gpt-text);
+  animation: routeLoadingProgress 1.45s ease-in-out infinite;
+}
+
+@keyframes routeLoadingSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes routeLoadingProgress {
+  0% { transform: translateX(-115%); }
+  50% { transform: translateX(105%); }
+  100% { transform: translateX(245%); }
+}
+
+@media (max-width: 720px) {
+  .route-loading-state {
+    padding: 18px;
+  }
+
+  .route-loading-state.content {
+    min-height: 100dvh;
+  }
+
+  .route-loading-card {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 13px;
+    padding: 17px;
+    border-radius: 16px;
+  }
+
+  .route-loading-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-loading-icon svg,
+  .route-loading-progress > span {
+    animation: none;
+  }
+
+  .route-loading-progress > span {
+    width: 58%;
+  }
+}

@@ -3,7 +3,7 @@ import { ArrowDown } from './components/icons.js';
 import { EmptyState, MemoizedMessageView } from './components/chat.jsx';
 import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
 import { CurrentSessionTask, TaskPanel } from './components/taskPanel.jsx';
-import { DialogHost, LoginPage, Markdown, QuickPalette } from './components/base.jsx';
+import { DialogHost, LoginPage, Markdown, PageLoadingState, QuickPalette } from './components/base.jsx';
 import { agentTaskDataEnabled, diagnosticsText, filenameFromResponse, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath, managementPageFromPath } from './lib/appUtils.js';
 import { attachmentLooksLikeImage, chatErrorDetails, contextPreviewText, finalAssistantMessageFromSession, readableChatError, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
@@ -1203,7 +1203,7 @@ export default function App() {
 
   return <>
     <div id="sidebarMask" className={'sidebar-mask ' + (!settingsOpen && !sidebarCollapsed ? 'show' : '')} onClick={() => setSidebarCollapsed(true)} />
-    {settingsOpen ? <div id="settingsPage" className="settings-page"><Suspense fallback={<div className="empty compact" role="status">正在加载配置中心…</div>}>{settingsPanel}</Suspense></div> : <div id="app" className={appClass}>
+    {settingsOpen ? <div id="settingsPage" className="settings-page"><Suspense fallback={<PageLoadingState fullscreen title="正在打开配置中心" detail="正在准备模型、工具与系统设置。" />}>{settingsPanel}</Suspense></div> : <div id="app" className={appClass}>
       <Sidebar
         api={api} busy={busy} current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} goHome={goHome}
         hasMoreSessions={visibleSessionsHasMore} loadingMoreSessions={visibleSessionsLoadingMore} newSession={newSession}
@@ -1215,7 +1215,7 @@ export default function App() {
         setSidebarCollapsed={setSidebarCollapsed} sidebarCollapsed={sidebarCollapsed} managementPage={managementPage}
       />
       <main>
-        {managementPage ? <Suspense fallback={<div className="empty compact" role="status">正在加载管理页…</div>}><ManagementPage
+        {managementPage ? <Suspense fallback={<PageLoadingState title="正在打开管理页" detail="正在整理项目和自动化任务。" />}><ManagementPage
           api={api} page={managementPage} closeManagementPage={closeManagementPage}
           projects={projects} projectSessionCounts={projectSessionCounts} editProject={editProject} deleteProject={deleteProject}
           showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} openProjectSessions={openProjectSessions} loadProjects={loadProjects}

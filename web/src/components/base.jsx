@@ -1,6 +1,7 @@
 // Reusable shell components: product cards, modal, auth, and palette.
 import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
+  LoaderCircle,
   Orbit,
   Search,
   X,
@@ -13,6 +14,20 @@ export function Markdown({ value, className = '' }) {
   // 首次渲染 Markdown 时再加载解析器；加载期间保留可读文本，避免消息区域空白或跳动。
   const fallback = <div className={className} aria-busy="true">{value || ''}</div>;
   return <Suspense fallback={fallback}><MarkdownRenderer value={value} className={className} /></Suspense>;
+}
+
+export function PageLoadingState({ title = '正在加载', detail = '正在准备页面内容。', fullscreen = false }) {
+  return <div className={'route-loading-state ' + (fullscreen ? 'fullscreen' : 'content')} role="status" aria-live="polite" aria-busy="true">
+    <div className="route-loading-card">
+      <span className="route-loading-icon" aria-hidden="true"><LoaderCircle size={20} /></span>
+      <div className="route-loading-copy">
+        <span className="route-loading-eyebrow">CHATDOCK</span>
+        <strong>{title}</strong>
+        <span>{detail}</span>
+      </div>
+      <span className="route-loading-progress" aria-hidden="true"><span /></span>
+    </div>
+  </div>;
 }
 
 export function TextCard({ title, hint, badge, badgeClass = '', active, children }) {
