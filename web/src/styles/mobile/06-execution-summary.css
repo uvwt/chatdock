@@ -40,7 +40,9 @@
   }
 
   .execution-summary-copy {
-    display: block;
+    min-height: 20px;
+    display: flex;
+    align-items: center;
   }
 
   .execution-summary-copy b {
@@ -49,7 +51,7 @@
     color: var(--mobile-muted);
     font-size: 13px;
     font-weight: 650;
-    line-height: 1.35;
+    line-height: 1.2;
   }
 
   .execution-summary-copy small {

@@ -149,7 +149,7 @@ function ModelModule({ config, configDirty, saveState, setConfig, saveConfig, sh
     return {...c, fallback_provider_id: provider.id, fallback_model: model};
   });
   const chooseFallbackModel = (name) => setConfig(c => ({...c, fallback_model: name}));
-  const selectedProviderModels = providerModels(activeProvider);
+  const selectedProviderModels = normalizeModelNames([...providerModels(activeProvider), config.model].filter(Boolean));
   const fallbackModels = normalizeModelNames([...providerModels(fallbackProvider), config.fallback_model].filter(Boolean));
   const contextMode = config.context_mode || 'auto';
   const saving = saveState?.status === 'saving';
@@ -158,7 +158,7 @@ function ModelModule({ config, configDirty, saveState, setConfig, saveConfig, sh
       <div className="model-quick-head"><div><b>默认模型</b><span>{activeProvider?.name || '未选择供应商'} · {config.model || activeProvider?.default_model || '未选择模型'}</span></div><div className="model-quick-actions"><button className={configDirty ? 'settings-inline-save-button dirty' : 'settings-inline-save-button'} onClick={() => saveConfig?.()} disabled={!configDirty || saving}>{saving ? '保存中…' : configDirty ? '保存更改' : '已保存'}</button><button className="secondary" onClick={() => testModelProvider?.()}>测试</button><button className="secondary" onClick={() => showProjectPromptPreview?.('')}>全局 Prompt</button></div></div>
       <div className="model-quick-grid">
         <label>供应商<select value={activeProvider?.id || ''} onChange={e => chooseProvider(e.target.value)}>{providers.length ? providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>) : <option value="">未配置供应商</option>}</select></label>
-        <label>模型<input value={config.model || ''} onChange={e => chooseModel(e.target.value)} placeholder={activeProvider?.default_model || 'gpt-4o-mini'} /></label>
+        <label>模型<select value={config.model || ''} onChange={e => chooseModel(e.target.value)} disabled={!activeProvider}><option value="">{activeProvider ? '选择模型' : '先选择供应商'}</option>{selectedProviderModels.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
         <label>备用供应商<select value={fallbackProvider?.id || ''} onChange={e => chooseFallbackProvider(e.target.value)}><option value="">不使用备用模型</option>{providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>)}</select></label>
         <label>备用模型<select value={config.fallback_model || ''} onChange={e => chooseFallbackModel(e.target.value)} disabled={!fallbackProvider}><option value="">{fallbackProvider ? '使用供应商默认模型' : '先选择备用供应商'}</option>{fallbackModels.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
       </div>

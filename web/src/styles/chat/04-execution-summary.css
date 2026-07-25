@@ -10,9 +10,11 @@
 }
 
 .execution-summary-icon {
+  align-self: center;
   display: inline-grid;
   place-items: center;
   border-radius: 999px;
+  line-height: 1;
 }
 
 .execution-summary-copy {
@@ -27,9 +29,17 @@
 }
 
 .execution-summary-chevron {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
   text-align: center;
   transition: transform .16s ease;
+}
+
+.execution-summary-chevron svg {
+  display: block;
 }
 
 .execution-summary.is-open .execution-summary-chevron {

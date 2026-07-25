@@ -22,6 +22,9 @@
   --gpt-accent-soft: rgba(127, 150, 168, .12);
   --gpt-accent-contrast: #07111f;
   --gpt-danger: #fb7185;
+  --agent-task-accent: #0f766e;
+  --agent-task-accent-text: #34d399;
+  --agent-task-accent-soft: rgba(15, 118, 110, .12);
   --gpt-chat-width: 940px;
   --gpt-msg-width: 940px;
   --gpt-sidebar-width: 286px;
@@ -66,6 +69,7 @@ body.theme-light {
   --gpt-accent-soft: rgba(17, 24, 39, .06);
   --gpt-accent-contrast: #ffffff;
   --gpt-danger: #b91c1c;
+  --agent-task-accent-text: #0f766e;
   --dock-gradient: #111827;
   --dock-card-shadow: 0 8px 24px rgba(15, 23, 42, .06);
   --text-strong: #000000;

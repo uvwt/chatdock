@@ -444,6 +444,7 @@ body.theme-light #app.app main::before {
 
 #app.app .sidebar-tree-node > summary span {
   overflow: hidden;
+  color: var(--gpt-text);
   font-size: 13px;
   font-weight: 540;
   text-overflow: ellipsis;
