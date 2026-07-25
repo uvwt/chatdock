@@ -21,7 +21,7 @@ import { ComposerModelPicker } from './modelPicker.jsx';
 import { TaskPanelToggle } from './taskPanel.jsx';
 import { fetchSessions } from '../lib/sessionApi.js';
 import { fetchScheduledTaskRuns } from '../lib/settingsApi.js';
-import { scheduledTaskSessionRows } from '../lib/sessionPresentation.js';
+import { scheduledTaskSessionRows, sessionRowID } from '../lib/sessionPresentation.js';
 
 const iconProps = { size: 17, 'aria-hidden': true };
 
@@ -65,9 +65,9 @@ export function ComposerBar({ busy, createPersistedSession, current, downloadAtt
 function SidebarTreeNode({ api, current, item, kind, openSession, openSessionMenu }) {
   const [rows, setRows] = React.useState();
   const Icon = kind === 'project' ? Folder : ListTodo;
-  const removeRow = id => setRows(currentRows => Array.isArray(currentRows) ? currentRows.filter(row => (row.id || row.session_id) !== id) : currentRows);
+  const removeRow = id => setRows(currentRows => Array.isArray(currentRows) ? currentRows.filter(row => sessionRowID(row) !== id) : currentRows);
   const renderRow = row => {
-    const id = row.id || row.session_id;
+    const id = sessionRowID(row);
     const title = row.title || row.session_title || row.task_title || '新会话';
     const summary = { id, title, pinned: !!row.pinned };
     return <div key={id} className="sidebar-tree-session-row">

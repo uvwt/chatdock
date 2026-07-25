@@ -1,3 +1,7 @@
+export function sessionRowID(row) {
+  return String(row?.session_id || row?.id || '').trim();
+}
+
 export function scheduledTaskSessionRows(runs = []) {
   const seen = new Set();
   return runs.filter(run => {
