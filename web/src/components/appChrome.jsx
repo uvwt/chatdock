@@ -6,6 +6,7 @@ import {
   Folder,
   ListTodo,
   Menu,
+  MessageSquare,
   MessageSquarePlus,
   Moon,
   MoreHorizontal,
@@ -179,7 +180,10 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
     const isActive = current === session.id;
     const menuOpen = sessionMenuID === session.id;
     return <div key={session.id} data-session-id={session.id} className={'session ' + (isActive ? 'active ' : '') + (session.pinned ? 'pinned ' : '') + (menuOpen ? 'menu-open' : '')} onClick={() => openSession(session.id, session)}>
-      <div className="session-main"><div className="session-title">{session.title}</div></div>
+      <div className="session-main">
+        {session.pinned ? <MessageSquare className="session-kind-icon" size={15} aria-hidden="true" /> : null}
+        <div className="session-title">{session.title}</div>
+      </div>
       <button type="button" className="session-menu-trigger icon-button" disabled={busy} onClick={event => toggleSessionMenu(event, session)} aria-label={(session.title || '会话') + ' 操作'} aria-expanded={menuOpen ? 'true' : 'false'}><MoreHorizontal size={16} aria-hidden="true" /></button>
     </div>;
   };

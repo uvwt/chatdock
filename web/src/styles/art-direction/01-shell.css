@@ -372,7 +372,7 @@ body.theme-light #app.app main::before {
   padding: 2px 4px;
   border: 0;
   background: transparent;
-  color: var(--gpt-muted-2);
+  color: var(--gpt-text);
   font-size: 10px;
 }
 
@@ -579,6 +579,16 @@ body.theme-light #app.app main::before {
 #app.app .session-main {
   min-width: 0;
   padding-right: 30px;
+}
+
+#app.app #sessions .session.pinned .session-main {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+}
+
+#app.app #sessions .session-kind-icon {
+  color: var(--gpt-muted);
 }
 
 #app.app .session-title {

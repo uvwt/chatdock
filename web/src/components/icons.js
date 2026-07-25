@@ -10,6 +10,7 @@ export { default as GitBranch } from 'lucide-react/dist/esm/icons/git-branch.js'
 export { default as ListTodo } from 'lucide-react/dist/esm/icons/list-todo.js';
 export { default as LoaderCircle } from 'lucide-react/dist/esm/icons/loader-circle.js';
 export { default as Menu } from 'lucide-react/dist/esm/icons/menu.js';
+export { default as MessageSquare } from 'lucide-react/dist/esm/icons/message-square.js';
 export { default as MessageSquarePlus } from 'lucide-react/dist/esm/icons/message-square-plus.js';
 export { default as Moon } from 'lucide-react/dist/esm/icons/moon.js';
 export { default as MoreHorizontal } from 'lucide-react/dist/esm/icons/more-horizontal.js';
