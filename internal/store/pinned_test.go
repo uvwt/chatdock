@@ -42,12 +42,12 @@ func TestListPinnedFeedReturnsOnlyPinnedItems(t *testing.T) {
 	}
 
 	if _, err := store.CreateScheduledTask(model.ScheduledTaskRequest{
-		Title:        "普通任务",
-		Prompt:       "hello",
-		Enabled:      true,
-		ScheduleType: "interval",
+		Title:           "普通任务",
+		Prompt:          "hello",
+		Enabled:         true,
+		ScheduleType:    "interval",
 		IntervalMinutes: 60,
-		ContextMode:  model.ScheduledTaskContextStateless,
+		ContextMode:     model.ScheduledTaskContextStateless,
 	}); err != nil {
 		t.Fatal(err)
 	}

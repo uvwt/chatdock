@@ -1,0 +1,364 @@
+/*
+ * 跨页面视觉契约。
+ * 这里仅收口共享壳层和通用交互，不承载单个业务页面的特殊布局。
+ */
+
+#app.app {
+  --gpt-sidebar-width: 280px;
+  font-size: var(--ui-font-body);
+}
+
+#app.app :is(button, input, textarea, select):focus-visible,
+.app-modal-backdrop :is(button, input, textarea, select):focus-visible,
+.quick-palette-backdrop :is(button, input, textarea, select):focus-visible {
+  outline: 0;
+  box-shadow: var(--ui-focus-ring);
+}
+
+#app.app button {
+  font-size: var(--ui-font-label);
+  font-weight: var(--ui-weight-semibold);
+}
+
+#app.app :is(input, select, textarea) {
+  font-size: var(--ui-font-body);
+}
+
+#app.app :is(input, select, textarea)::placeholder {
+  color: var(--gpt-muted-2);
+  opacity: 1;
+}
+
+/* App shell */
+#app.app aside {
+  padding: var(--ui-space-3) var(--ui-space-2);
+  border-right-color: var(--gpt-border);
+  box-shadow: none;
+}
+
+#app.app .sidebar-head {
+  min-height: 52px;
+  padding: 0 var(--ui-space-1) var(--ui-space-3) var(--ui-space-2);
+}
+
+#app.app .brand-text {
+  font-size: 18px;
+  font-weight: 740;
+  letter-spacing: -.035em;
+}
+
+#app.app .brand .sub {
+  margin-top: 1px;
+  font-size: 9px;
+  font-weight: var(--ui-weight-bold);
+  letter-spacing: .1em;
+}
+
+#app.app .sidebar-toggle,
+#app.app aside .new {
+  width: var(--ui-control);
+  height: var(--ui-control);
+  min-height: var(--ui-control);
+  border-radius: var(--ui-radius-control);
+}
+
+#app.app .session-search-row {
+  grid-template-columns: minmax(0, 1fr) var(--ui-control);
+  gap: var(--ui-space-2);
+  padding: 0 var(--ui-space-1) var(--ui-space-3);
+}
+
+#app.app .session-search-box {
+  height: var(--ui-control);
+  padding: 0 var(--ui-space-3);
+  gap: var(--ui-space-2);
+  border-radius: var(--ui-radius-control);
+}
+
+#app.app .session-search-box:focus-within {
+  border-color: var(--gpt-border-strong);
+  background: var(--gpt-surface-2);
+  box-shadow: var(--ui-focus-ring);
+}
+
+#app.app #sessions {
+  gap: 1px;
+  padding: 0 var(--ui-space-1) var(--ui-space-4);
+}
+
+#app.app .sidebar-section-head {
+  min-height: 30px;
+  padding: var(--ui-space-2) var(--ui-space-2) var(--ui-space-1);
+}
+
+#app.app .sidebar-section-title,
+#app.app .sidebar-section-head > button {
+  color: var(--gpt-muted-2);
+  font-size: var(--ui-font-caption);
+  font-weight: var(--ui-weight-semibold);
+  letter-spacing: .02em;
+  text-transform: none;
+}
+
+#app.app .sidebar-tree-node > summary,
+#app.app #sessions .session {
+  min-height: var(--ui-control);
+  padding: var(--ui-space-2) var(--ui-space-3);
+  border-radius: var(--ui-radius-control);
+}
+
+#app.app .sidebar-tree-node > summary span,
+#app.app .session-title {
+  font-size: var(--ui-font-label);
+  font-weight: var(--ui-weight-medium);
+  line-height: 1.35;
+}
+
+#app.app .sidebar-tree-children {
+  padding: var(--ui-space-1) 0 var(--ui-space-2) 28px;
+}
+
+#app.app .sidebar-tree-session,
+#app.app .sidebar-tree-new-chat,
+#app.app .sidebar-tree-more > summary,
+#app.app .sidebar-tree-state {
+  min-height: 34px;
+  padding: 7px var(--ui-space-2);
+  border-radius: var(--ui-radius-small);
+  font-size: var(--ui-font-small);
+}
+
+#app.app .session-menu-trigger,
+#app.app .sidebar-tree-session-menu {
+  width: var(--ui-control-compact);
+  height: var(--ui-control-compact);
+  min-height: var(--ui-control-compact);
+  border-radius: var(--ui-radius-small);
+}
+
+/* Top bar */
+#app.app .topbar {
+  height: 60px;
+  min-height: 60px;
+  padding: 0 var(--ui-space-5);
+  background: color-mix(in srgb, var(--gpt-main) 96%, transparent);
+}
+
+#app.app #title {
+  font-size: 15px;
+  font-weight: var(--ui-weight-semibold);
+  letter-spacing: -.012em;
+}
+
+#app.app .top-actions {
+  gap: var(--ui-space-1);
+}
+
+#app.app .top-actions > button,
+#app.app .top-actions > .task-panel-toggle {
+  min-height: 36px;
+  padding: 0 10px;
+  gap: 6px;
+  border-radius: var(--ui-radius-control);
+  color: var(--gpt-muted);
+  font-size: var(--ui-font-label);
+  font-weight: var(--ui-weight-medium);
+}
+
+#app.app .top-actions > button:hover:not(:disabled),
+#app.app .top-actions > .task-panel-toggle:hover:not(:disabled),
+#app.app .top-actions > .task-panel-toggle.active {
+  background: var(--gpt-sidebar-hover);
+  color: var(--gpt-text);
+}
+
+#app.app .task-panel-toggle-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10px;
+}
+
+/* Conversation and composer */
+#app.app .messages {
+  padding-inline: var(--ui-space-5);
+}
+
+.conversation-start h1 {
+  font-size: clamp(28px, 3vw, 34px);
+  font-weight: var(--ui-weight-semibold);
+  letter-spacing: -.035em;
+}
+
+#app.app .composer-shell {
+  padding-inline: var(--ui-space-5);
+}
+
+#app.app .composer {
+  width: min(900px, calc(100% - 24px));
+  max-width: 900px;
+  border-color: var(--gpt-border-strong);
+  border-radius: var(--ui-radius-panel);
+  background: var(--gpt-surface);
+  box-shadow: 0 12px 34px color-mix(in srgb, var(--gpt-text) 8%, transparent);
+}
+
+#app.app .composer:focus-within {
+  border-color: color-mix(in srgb, var(--gpt-text) 24%, var(--gpt-border));
+  box-shadow: 0 12px 34px color-mix(in srgb, var(--gpt-text) 8%, transparent), var(--ui-focus-ring);
+}
+
+#app.app .composer textarea {
+  font-size: var(--ui-font-body);
+}
+
+#app.app :is(.attach-control, .model-picker-trigger, #send, .stream-control) {
+  border-radius: var(--ui-radius-control);
+}
+
+#app.app #send {
+  background: var(--gpt-text);
+  color: var(--gpt-main);
+  box-shadow: none;
+}
+
+#app.app #send:hover:not(:disabled) {
+  background: var(--gpt-accent-strong);
+  transform: none;
+}
+
+#app.app #send:disabled {
+  border-color: var(--gpt-border);
+  background: var(--gpt-surface-2);
+  color: var(--gpt-muted-2);
+  opacity: 1;
+}
+
+/* Shared overlays */
+.quick-palette,
+.app-modal-card {
+  border-color: var(--gpt-border-strong);
+  border-radius: var(--ui-radius-page);
+  background: var(--gpt-surface);
+  box-shadow: var(--ui-panel-shadow);
+}
+
+.quick-palette-head,
+.app-modal-form {
+  gap: var(--ui-space-3);
+}
+
+.quick-palette-head input,
+.app-modal-field :is(input, select, textarea) {
+  border-radius: var(--ui-radius-control);
+}
+
+.quick-palette-item {
+  min-height: 54px;
+  border-radius: var(--ui-radius-control);
+}
+
+.quick-palette-item b,
+.app-modal-title {
+  font-weight: var(--ui-weight-semibold);
+}
+
+.app-modal-actions {
+  gap: var(--ui-space-2);
+}
+
+.app-modal-actions button {
+  min-height: var(--ui-control);
+  border-radius: var(--ui-radius-control);
+}
+
+/* Task panel */
+.agent-task-panel-head {
+  min-height: 68px;
+  padding: var(--ui-space-4) var(--ui-space-3) var(--ui-space-3) var(--ui-space-4);
+}
+
+.agent-task-panel h2 {
+  font-size: var(--ui-font-title);
+  font-weight: var(--ui-weight-semibold);
+}
+
+.agent-task-panel-body {
+  padding: var(--ui-space-3) var(--ui-space-3) var(--ui-space-6);
+}
+
+.agent-task-section-head {
+  font-size: var(--ui-font-caption);
+  font-weight: var(--ui-weight-semibold);
+  letter-spacing: .02em;
+  text-transform: none;
+}
+
+.agent-task-list {
+  gap: var(--ui-space-2);
+}
+
+.agent-task-card {
+  border-radius: var(--ui-radius-panel);
+  background: var(--gpt-surface);
+}
+
+.agent-task-card-summary {
+  padding: var(--ui-space-3);
+}
+
+.agent-task-card h3 {
+  font-size: var(--ui-font-label);
+  font-weight: var(--ui-weight-semibold);
+}
+
+@media (max-width: 720px) {
+  #app.app {
+    --gpt-sidebar-width: min(88vw, 320px);
+  }
+
+  #app.app :is(input, select, textarea) {
+    font-size: 16px;
+  }
+
+  #app.app .topbar {
+    min-height: 56px;
+    height: 56px;
+    padding: 0 var(--ui-space-3);
+  }
+
+  #app.app .top-actions {
+    gap: 2px;
+  }
+
+  #app.app .top-actions > button,
+  #app.app .top-actions > .task-panel-toggle {
+    width: var(--ui-control);
+    min-width: var(--ui-control);
+    height: var(--ui-control);
+    min-height: var(--ui-control);
+    padding: 0;
+  }
+
+  #app.app .messages {
+    padding-inline: var(--ui-space-3);
+  }
+
+  #app.app .composer-shell {
+    padding-inline: var(--ui-space-3);
+  }
+
+  #app.app .composer {
+    width: 100%;
+    border-radius: var(--ui-radius-panel);
+  }
+
+  .conversation-start h1 {
+    font-size: 27px;
+  }
+
+  .quick-palette,
+  .app-modal-card {
+    border-radius: var(--ui-radius-panel);
+  }
+}

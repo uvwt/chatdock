@@ -104,6 +104,19 @@ body .settings-page .mcp-directory-section {
   max-width: none !important;
 }
 
+/* 项目与任务统计中的可点击卡片仍是信息卡，不继承配置页的主按钮填充色。 */
+body .settings-page .manage-page .manage-summary-grid button.manage-summary-card.actionable {
+  border-color: var(--gpt-border) !important;
+  background: var(--gpt-surface) !important;
+  color: var(--gpt-text) !important;
+}
+
+body .settings-page .manage-page .manage-summary-grid button.manage-summary-card.actionable:hover {
+  border-color: var(--gpt-border-strong) !important;
+  background: var(--gpt-surface-2) !important;
+  color: var(--gpt-text) !important;
+}
+
 .settings-page .stat-card,
 .settings-page .project-summary-card,
 .settings-page .model-summary-card {
