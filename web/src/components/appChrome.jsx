@@ -28,7 +28,7 @@ const iconProps = { size: 17, 'aria-hidden': true };
 export function Topbar({ currentTitle, newSession, openSettings, selectedProject, setQuickPaletteOpen, setSidebarCollapsed, setThemeState, sidebarCollapsed, taskPanelAvailable, taskPanelOpen, taskPanelTasks, theme, toggleTaskPanel }) {
   const darkMode = theme !== 'day';
   const ThemeIcon = darkMode ? Sun : Moon;
-  return <div className="topbar">
+  return <div className={'topbar' + (selectedProject ? ' project-context-active' : '')}>
     <div className="top-left">
       <button className="mobile-menu icon-button" onClick={() => setSidebarCollapsed(current => !current)} aria-label="打开会话列表"><Menu {...iconProps} /></button>
       <div className="topbar-title-wrap">

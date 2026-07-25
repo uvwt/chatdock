@@ -136,6 +136,27 @@
     display: none !important;
   }
 
+  #app.app .topbar.project-context-active .top-left {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+  }
+
+  #app.app .topbar.project-context-active .topbar-title-wrap {
+    display: grid !important;
+    min-width: 0 !important;
+    margin-left: 8px !important;
+  }
+
+  #app.app .topbar.project-context-active .topbar-project-context {
+    color: var(--gpt-text) !important;
+    font-size: 12px !important;
+    font-weight: 620 !important;
+  }
+
+  #app.app .topbar.project-context-active #title {
+    display: none !important;
+  }
+
   #app.app .mobile-menu {
     display: inline-grid !important;
     width: 42px !important;
