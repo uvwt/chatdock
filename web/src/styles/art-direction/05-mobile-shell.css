@@ -77,8 +77,8 @@
 
   #app.app aside {
     border-right: 0 !important;
-    background: #fff !important;
-    box-shadow: 12px 0 32px rgba(15, 23, 42, .10) !important;
+    background: var(--mobile-panel) !important;
+    box-shadow: 12px 0 32px rgba(0, 0, 0, .10) !important;
   }
 
   #app.app .sidebar-head {
@@ -93,14 +93,14 @@
   }
 
   #app.app .brand-text {
-    color: #1f2937 !important;
+    color: var(--mobile-text-strong) !important;
     font-size: 20px !important;
     font-weight: 760 !important;
     letter-spacing: -.045em !important;
   }
 
   #app.app .brand .sub {
-    color: #9ca3af !important;
+    color: var(--mobile-muted-weak) !important;
     font-size: 8px !important;
     letter-spacing: .15em !important;
   }
@@ -110,10 +110,10 @@
     z-index: 2;
     width: 40px !important;
     height: 40px !important;
-    border: 1px solid rgba(15, 23, 42, .08) !important;
+    border: 1px solid var(--mobile-border) !important;
     border-radius: 10px !important;
-    background: #fff !important;
-    color: #4b5563 !important;
+    background: var(--mobile-panel-soft) !important;
+    color: var(--mobile-muted) !important;
     box-shadow: none !important;
   }
 
@@ -167,10 +167,10 @@
     width: 42px !important;
     height: 42px !important;
     min-height: 42px !important;
-    border: 1px solid rgba(15, 23, 42, .08) !important;
+    border: 1px solid var(--mobile-border) !important;
     border-radius: 10px !important;
-    background: #fff !important;
-    color: #4b5563 !important;
+    background: var(--mobile-panel-soft) !important;
+    color: var(--mobile-muted) !important;
     box-shadow: none !important;
   }
 
@@ -195,20 +195,20 @@
     border: 0 !important;
     border-radius: 10px !important;
     background: transparent !important;
-    color: #4b5563 !important;
+    color: var(--mobile-muted) !important;
     box-shadow: none !important;
   }
 
   #app.app .top-actions > button:active,
   #app.app .top-actions > .task-panel-toggle:active,
   #app.app .top-actions > .task-panel-toggle.active {
-    background: #f3f4f6 !important;
-    color: #111827 !important;
+    background: var(--mobile-hover) !important;
+    color: var(--mobile-text-strong) !important;
   }
 
   #app.app .task-panel-toggle-count {
-    background: #111827 !important;
-    color: #fff !important;
+    background: var(--mobile-text-strong) !important;
+    color: var(--mobile-panel) !important;
     box-shadow: none !important;
   }
 

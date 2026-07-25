@@ -15,7 +15,7 @@ import { useAttachments } from './hooks/useAttachments.js';
 import { useAgentTasks } from './hooks/useAgentTasks.js';
 import { useCurrentSessionTask } from './hooks/useCurrentSessionTask.js';
 import { useActiveAssistantStream } from './hooks/useActiveAssistantStream.js';
-import { chatStreamAssistantAfterEvent, chatStreamStatsAfterEvent, projectsChatStreamAssistant } from './lib/chatStreamEvents.js';
+import { chatStreamAssistantAfterEvent, chatStreamStatsAfterEvent, messagesForRunningJobReplay, projectsChatStreamAssistant } from './lib/chatStreamEvents.js';
 import { globalDefaultModelChoice, providerChoiceID, providerLabel, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
 import { useSettingsData } from './hooks/useSettingsData.js';
 import { useSettingsActions } from './hooks/useSettingsActions.js';
@@ -339,16 +339,25 @@ export default function App() {
 
   const loadSessionFromRoute = useCallback(async (id) => {
     if (!id) return false;
+    const seq = sessionOpenSeqRef.current + 1;
+    sessionOpenSeqRef.current = seq;
+    if (busy) detachActiveStream();
+    setCurrent(null);
+    setCurrentTitle('正在加载会话…');
+    setMessages([{ role: 'loading', content: '正在加载会话' }]);
+    clearAttachments();
+    resetMessageAutoFollow();
+
     const s = await fetchSession(api, id);
+    if (sessionOpenSeqRef.current !== seq) return false;
     setCurrent(s.id);
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
-    clearAttachments();
     applySessionModel(s);
     upsertSession(s);
     setProjectFilter(s.project_id || 'plain');
     return true;
-  }, [api, applySessionModel, clearAttachments, setProjectFilter, upsertSession]);
+  }, [api, applySessionModel, busy, clearAttachments, detachActiveStream, resetMessageAutoFollow, setProjectFilter, upsertSession]);
 
   const refreshAfterLogin = useCallback(async () => {
     await Promise.allSettled([refreshProductState(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions({reset: true})]);
@@ -561,11 +570,11 @@ export default function App() {
     if (busy) detachActiveStream();
     setSessionMenuID('');
     setManagementPage('');
-    setCurrent(id);
+    setCurrent(null);
     setCurrentTitle(summary?.title || '正在加载会话…');
     clearAttachments();
     resetMessageAutoFollow();
-    if (!messages.length) setMessages([{ role: 'loading', content: '正在加载会话' }]);
+    setMessages([{ role: 'loading', content: '正在加载会话' }]);
     if (window.location.pathname !== sessionPath(id)) window.history.pushState({ chatdock: true }, '', sessionPath(id));
     closeSidebarOnMobile();
     try {
@@ -587,7 +596,7 @@ export default function App() {
       setMessages([{ role: 'empty', content: e.message }]);
       showToast(e.message, 'error');
     }
-  }, [api, applySessionModel, busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, goHome, messages.length, resetMessageAutoFollow, setProjectFilter, showToast, upsertSession]);
+  }, [api, applySessionModel, busy, clearAttachments, closeSidebarOnMobile, detachActiveStream, goHome, resetMessageAutoFollow, setProjectFilter, showToast, upsertSession]);
 
   const newSession = useCallback(async () => { await createSession(); }, [createSession]);
 

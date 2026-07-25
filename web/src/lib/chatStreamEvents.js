@@ -15,6 +15,33 @@ const assistantEventNames = new Set([
   'error',
 ]);
 
+export function messagesForRunningJobReplay(messages, job = {}) {
+  const next = Array.isArray(messages) ? [...messages] : [];
+  const last = next.at(-1);
+  const createdAt = last?.role === 'assistant' || last?.role === 'assistant-stream'
+    ? (last.created_at || job.started_at || new Date().toISOString())
+    : (job.started_at || new Date().toISOString());
+  const streamMessage = {
+    role: 'assistant-stream',
+    job_id: job.id || '',
+    answer: '',
+    reasoning: '',
+    parts: [],
+    events: [{ kind: 'tool', text: '已恢复后台生成', details: { event: 'resume_running_job', job } }],
+    created_at: createdAt,
+  };
+
+  // 运行中的任务会把当前助手回复作为 checkpoint 持久化，同时保留完整 SSE 事件。
+  // 恢复时会从第 0 个事件重新构建时间线，因此必须替换 checkpoint，而不是再追加一条助手消息。
+  if (last?.role === 'assistant' || last?.role === 'assistant-stream') {
+    next[next.length - 1] = streamMessage;
+    return next;
+  }
+
+  next.push(streamMessage);
+  return next;
+}
+
 export function chatStreamStatsAfterEvent(stats, event, data = {}, paused = false) {
   switch (event) {
     case 'delta': {

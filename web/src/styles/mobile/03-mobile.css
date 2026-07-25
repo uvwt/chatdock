@@ -158,7 +158,7 @@
     height: 34px !important;
     border: 0 !important;
     border-radius: 999px !important;
-    background: #f3f4f6 !important;
+    background: var(--mobile-panel-raised) !important;
     color: var(--mobile-text) !important;
     box-shadow: none !important;
     font-size: 18px !important;
