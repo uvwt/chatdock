@@ -13,9 +13,13 @@ function sameLocalDay(left, right) {
 }
 
 export function shouldShowMessageTimeDivider(previousMessage, message, gapMS = MESSAGE_TIME_GAP_MS) {
-  const previous = parseMessageTime(previousMessage?.created_at);
   const current = parseMessageTime(message?.created_at);
-  if (!previous || !current || current < previous) return false;
+  if (!current) return false;
+
+  const previous = parseMessageTime(previousMessage?.created_at);
+  // 首条消息提供整段会话的起始时间；后续消息再按时间间隔决定是否重复显示。
+  if (!previous) return true;
+  if (current < previous) return false;
 
   // 跨日期时即使间隔不足半小时也显示，避免午夜附近的消息失去日期上下文。
   return !sameLocalDay(previous, current) || current.getTime() - previous.getTime() >= gapMS;

@@ -6,16 +6,17 @@ function localTime(year, month, day, hour, minute) {
   return new Date(year, month - 1, day, hour, minute, 0, 0);
 }
 
-test('message time divider appears after a long pause or across a date boundary', () => {
+test('message time divider appears for the first message, long pauses, and date boundaries', () => {
   const first = {created_at: localTime(2026, 7, 25, 10, 0)};
 
+  assert.equal(shouldShowMessageTimeDivider(null, first), true);
   assert.equal(shouldShowMessageTimeDivider(first, {created_at: localTime(2026, 7, 25, 10, 29)}), false);
   assert.equal(shouldShowMessageTimeDivider(first, {created_at: localTime(2026, 7, 25, 10, 30)}), true);
   assert.equal(shouldShowMessageTimeDivider(
     {created_at: localTime(2026, 7, 25, 23, 55)},
     {created_at: localTime(2026, 7, 26, 0, 5)},
   ), true);
-  assert.equal(shouldShowMessageTimeDivider(null, first), false);
+  assert.equal(shouldShowMessageTimeDivider(null, {created_at: 'invalid'}), false);
   assert.equal(shouldShowMessageTimeDivider(first, {created_at: 'invalid'}), false);
 });
 
