@@ -87,6 +87,23 @@
   box-shadow: none !important;
 }
 
+/* 模型页曾被旧版“去边框”规则单独处理，这里恢复与其他配置模块一致的容器契约。 */
+body .settings-page [data-module-view="model"] .model-quick-panel,
+body .settings-page [data-module-view="model"] .model-inline-card,
+body .settings-page [data-module-view="model"] .settings-section {
+  padding: 18px !important;
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 16px !important;
+  background: var(--gpt-surface) !important;
+  box-shadow: none !important;
+}
+
+/* 工具页主目录与其他模块使用同一内容宽度，不保留旧版 920px 特例。 */
+body .settings-page .mcp-directory-section {
+  width: 100% !important;
+  max-width: none !important;
+}
+
 .settings-page .stat-card,
 .settings-page .project-summary-card,
 .settings-page .model-summary-card {
@@ -355,6 +372,13 @@ body .settings-page .backup-health.ok b {
   .settings-page .backup-health,
   .settings-page .backup-item,
   .settings-page .empty.compact {
+    padding: 15px !important;
+    border-radius: 14px !important;
+  }
+
+  body .settings-page [data-module-view="model"] .model-quick-panel,
+  body .settings-page [data-module-view="model"] .model-inline-card,
+  body .settings-page [data-module-view="model"] .settings-section {
     padding: 15px !important;
     border-radius: 14px !important;
   }
