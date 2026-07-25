@@ -254,23 +254,8 @@ export function MessageView({ message, previousMessage, messageIndex = -1, onCop
 
 export const MemoizedMessageView = React.memo(MessageView);
 
-export function EmptyState({ createSession, openSettings, busy, modelReady }) {
-  return <div className="empty-state product-empty-state">
-    <section className="product-hero">
-      <div className="hero-ambient" aria-hidden="true">
-        <span className="hero-orbit hero-orbit-a" />
-        <span className="hero-orbit hero-orbit-b" />
-        <span className="hero-core"><i /></span>
-      </div>
-      <div className="hero-copy">
-        <div className="empty-state-kicker">ChatDock · AI Console</div>
-        <h1>把想法，<span>推进到完成。</span></h1>
-        <p>在一个会话里串起模型、工具与任务。过程清晰，结果可追踪。</p>
-        <div className="empty-state-actions hero-actions">
-          <button disabled={busy || !modelReady} onClick={createSession}>{modelReady ? '开始对话' : '先配置模型'}</button>
-          <button className="secondary" onClick={() => openSettings('model')}>{modelReady ? '配置模型' : '打开配置'}</button>
-        </div>
-      </div>
-    </section>
+export function EmptyState() {
+  return <div className="conversation-start">
+    <h1>有什么可以帮忙的？</h1>
   </div>;
 }

@@ -131,46 +131,61 @@
   cursor: default;
 }
 
-.table-wrap {
+.table-wrap,
+.msg.assistant.markdown .table-wrap,
+.msg.assistant .markdown .table-wrap,
+.msg.assistant .answer .table-wrap {
   width: 100%;
-  margin: 16px 0;
-  overflow: auto;
-  border: 1px solid var(--gpt-border) !important;
-  border-radius: 14px !important;
-  background: var(--gpt-surface) !important;
+  margin: 16px 0 !important;
+  overflow-x: auto;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
   box-shadow: none !important;
 }
 
-.table-wrap table {
+.table-wrap table,
+.msg.assistant.markdown .table-wrap table,
+.msg.assistant .markdown .table-wrap table,
+.msg.assistant .answer .table-wrap table {
   width: 100%;
   min-width: 520px;
-  border-collapse: separate !important;
+  border-collapse: collapse !important;
   border-spacing: 0 !important;
   background: transparent !important;
 }
 
 .table-wrap th,
-.table-wrap td {
-  padding: 11px 14px !important;
+.table-wrap td,
+.msg.assistant.markdown .table-wrap th,
+.msg.assistant.markdown .table-wrap td,
+.msg.assistant .markdown .table-wrap th,
+.msg.assistant .markdown .table-wrap td,
+.msg.assistant .answer .table-wrap th,
+.msg.assistant .answer .table-wrap td {
+  padding: 12px 14px !important;
   border: 0 !important;
   border-bottom: 1px solid var(--gpt-border) !important;
+  background: transparent !important;
+  color: var(--gpt-text) !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
   text-align: left;
   vertical-align: top;
 }
 
-.table-wrap th {
-  background: var(--gpt-surface-2) !important;
-  color: var(--gpt-muted) !important;
-  font-size: 12px !important;
+.table-wrap th,
+.msg.assistant.markdown .table-wrap th,
+.msg.assistant .markdown .table-wrap th,
+.msg.assistant .answer .table-wrap th {
+  color: var(--gpt-text) !important;
   font-weight: 650 !important;
 }
 
-.table-wrap td {
-  color: var(--gpt-text) !important;
-  font-size: 13px !important;
-}
-
-.table-wrap tr:last-child td {
+.table-wrap tbody tr:last-child td,
+.msg.assistant.markdown .table-wrap tbody tr:last-child td,
+.msg.assistant .markdown .table-wrap tbody tr:last-child td,
+.msg.assistant .answer .table-wrap tbody tr:last-child td {
   border-bottom: 0 !important;
 }
 
@@ -192,5 +207,79 @@
   .table-wrap {
     margin-inline: 0;
     border-radius: 12px !important;
+  }
+}
+
+/* 空会话首页复用现有输入区，不再渲染独立 Hero 面板。 */
+.conversation-start {
+  width: 100%;
+  text-align: center;
+}
+
+.conversation-start h1 {
+  margin: 0;
+  color: var(--gpt-text);
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 560;
+  line-height: 1.25;
+  letter-spacing: -.035em;
+}
+
+html:not(.chatdock-keyboard-open) #app.app.chat-empty main {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+html:not(.chatdock-keyboard-open) #app.app.chat-empty .topbar {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+html:not(.chatdock-keyboard-open) #app.app.chat-empty .messages {
+  grid-row: 2;
+  grid-column: 1;
+  display: flex;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 24px 116px !important;
+}
+
+html:not(.chatdock-keyboard-open) #app.app.chat-empty .composer-shell {
+  position: relative;
+  bottom: auto;
+  grid-row: 2;
+  grid-column: 1;
+  align-self: center;
+  width: 100%;
+  padding: 0 18px;
+  border-top: 0 !important;
+  background: transparent !important;
+  transform: translateY(48px);
+}
+
+#app.app.chat-empty .composer {
+  max-width: 780px;
+  box-shadow: 0 10px 34px color-mix(in srgb, var(--gpt-text) 10%, transparent);
+}
+
+@media (max-width: 720px) {
+  .conversation-start h1 {
+    font-size: 26px;
+  }
+
+  html:not(.chatdock-keyboard-open) #app.app.chat-empty .messages {
+    padding: 0 18px 124px !important;
+  }
+
+  html:not(.chatdock-keyboard-open) #app.app.chat-empty .composer-shell {
+    padding: 0 12px;
+    transform: translateY(50px);
+  }
+
+  #app.app.chat-empty .composer {
+    max-width: 100%;
   }
 }

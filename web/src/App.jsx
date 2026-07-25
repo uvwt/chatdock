@@ -1176,7 +1176,7 @@ export default function App() {
 
   const currentSummary = useMemo(() => sessions.find(s => s.id === current) || null, [current, sessions]);
   const currentPinned = !!currentSummary?.pinned;
-  const appClass = 'app ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (managementPage ? 'manage-page-open ' : '') + (taskPanelOpen ? 'task-panel-open' : '');
+  const appClass = 'app ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (managementPage ? 'manage-page-open ' : '') + (!managementPage && !messages.length ? 'chat-empty ' : '') + (taskPanelOpen ? 'task-panel-open' : '');
   const productReady = setupStatus && !setupStatus.needs_setup;
   const modelReady = !!String(selectedModelBaseURL || '').trim() && !!String(selectedChatModel || '').trim();
   const productStatusText = setupStatus == null ? '加载中' : (productReady ? '就绪' : '待配置');
@@ -1242,7 +1242,7 @@ export default function App() {
             sidebarCollapsed={sidebarCollapsed} taskPanelAvailable={taskDataEnabled} taskPanelOpen={taskPanelOpen}
             taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
           />
-          <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} previousMessage={messages[i - 1]} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState createSession={createSession} openSettings={openSettings} busy={busy} modelReady={modelReady} />}</div>
+          <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} previousMessage={messages[i - 1]} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState />}</div>
           {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息"><ArrowDown className="jump-latest-icon" size={17} aria-hidden="true" /></button> : null}
           <CurrentSessionTask
             error={currentSessionTask.error} loading={currentSessionTask.loading} onRefresh={currentSessionTask.refresh}
