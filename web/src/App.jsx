@@ -811,7 +811,7 @@ export default function App() {
         pendingReasoningRef.current = '';
         abortRef.current = abort;
         setStreamStats({ state: 'streaming', started_at: Date.now(), chars: 0, events: 0, tools: 0, error: '' });
-        setMessages(prev => prev.some(m => m.role === 'assistant-stream') ? prev : [...prev, { role: 'assistant-stream', answer: '', reasoning: '', created_at: job.created_at || new Date().toISOString(), events: [{ kind: 'tool', text: '已恢复后台生成', details: { event: 'resume_running_job', job } }] }]);
+        setMessages(prev => messagesForRunningJobReplay(prev, job));
         let finalSession = null;
         await streamChatJobEvents({ jobID: job.id, authHeaders, signal: abort.signal, onEvent: (event, data) => handleChatStreamEvent(event, data, s => { finalSession = s; }) });
         if (finalSession && !stopped) {
@@ -820,7 +820,7 @@ export default function App() {
           pendingDeltaRef.current = '';
           pendingReasoningRef.current = '';
           finishActiveAssistant(finalSession);
-          setCurrentTitle(finalSession.title || currentTitle || '新会话');
+          setCurrentTitle(finalSession.title || '新会话');
           upsertSession(finalSession);
         }
       } catch (e) {
@@ -843,7 +843,7 @@ export default function App() {
     }
     resumeRunningJob();
     return () => { stopped = true; resetStreamText(); abort.abort(); };
-  }, [current, api, authHeaders, handleChatStreamEvent, appendToActiveAssistant, currentTitle, finishActiveAssistant, flushStreamText, resetStreamText, upsertSession, waitForStreamText]);
+  }, [current, api, authHeaders, handleChatStreamEvent, appendToActiveAssistant, finishActiveAssistant, flushStreamText, resetStreamText, upsertSession, waitForStreamText]);
 
   const selectedProject = useMemo(() => projects.find(project => project.id === projectFilter) || null, [projectFilter, projects]);
   const draftKey = useMemo(() => 'chatdock.draft.project-filter.' + encodeURIComponent(projectFilter || 'plain') + '.' + encodeURIComponent(current || 'new'), [projectFilter, current]);
