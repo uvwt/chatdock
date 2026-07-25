@@ -190,6 +190,22 @@
 }
 
 @media (max-width: 720px) {
+  #app.app #send,
+  #app.app .stream-control {
+    border-color: var(--gpt-border-strong) !important;
+    background: var(--gpt-text) !important;
+    background-image: none !important;
+    color: var(--gpt-main) !important;
+    box-shadow: none !important;
+  }
+
+  #app.app #send:disabled {
+    border-color: var(--gpt-border) !important;
+    background: var(--gpt-surface-2) !important;
+    color: var(--gpt-muted-2) !important;
+    opacity: 1 !important;
+  }
+
   .conversation-loading {
     min-height: calc(100dvh - 152px);
   }

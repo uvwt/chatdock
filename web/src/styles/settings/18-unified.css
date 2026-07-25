@@ -184,6 +184,42 @@
   border-radius: 999px !important;
 }
 
+/* 配置中心最终使用黑白中性色，覆盖历史文件里遗留的青绿色状态样式。 */
+body .settings-page .model-option,
+body .settings-page [data-module-view="model"] .compact-model-options .model-option,
+body .settings-page .candidate-model-options .model-option {
+  border-color: var(--gpt-border) !important;
+  background: var(--gpt-surface) !important;
+  color: var(--gpt-text) !important;
+  box-shadow: none !important;
+}
+
+body .settings-page .model-option.active,
+body .settings-page [data-module-view="model"] .compact-model-options .model-option.active,
+body .settings-page .provider-chip.active {
+  border-color: var(--gpt-text) !important;
+  background: var(--gpt-text) !important;
+  color: var(--gpt-main) !important;
+  box-shadow: none !important;
+}
+
+body .settings-page .setup-banner.ok,
+body .settings-page .badge.ok,
+body .settings-page .settings-save-state.saved,
+body .settings-page .mcp-inline-warning.ok,
+body .settings-page .backup-health.ok {
+  border-color: var(--gpt-border-strong) !important;
+  background: var(--gpt-surface-2) !important;
+  color: var(--gpt-text) !important;
+  box-shadow: none !important;
+}
+
+body .settings-page .setup-banner.ok b,
+body .settings-page .setup-banner.ok .hint,
+body .settings-page .backup-health.ok b {
+  color: var(--gpt-text) !important;
+}
+
 .settings-page .settings-save-state {
   margin: 0 0 14px !important;
   padding: 12px 14px !important;
