@@ -341,7 +341,7 @@ export default function App() {
     if (!id) return false;
     const seq = sessionOpenSeqRef.current + 1;
     sessionOpenSeqRef.current = seq;
-    if (busy) detachActiveStream();
+    if (abortRef.current) detachActiveStream();
     setCurrent(null);
     setCurrentTitle('正在加载会话…');
     setMessages([{ role: 'loading', content: '正在加载会话' }]);
@@ -357,7 +357,7 @@ export default function App() {
     upsertSession(s);
     setProjectFilter(s.project_id || 'plain');
     return true;
-  }, [api, applySessionModel, busy, clearAttachments, detachActiveStream, resetMessageAutoFollow, setProjectFilter, upsertSession]);
+  }, [api, applySessionModel, clearAttachments, detachActiveStream, resetMessageAutoFollow, setProjectFilter, upsertSession]);
 
   const refreshAfterLogin = useCallback(async () => {
     await Promise.allSettled([refreshProductState(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions({reset: true})]);
