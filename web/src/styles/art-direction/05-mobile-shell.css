@@ -118,13 +118,16 @@
   }
 
   #app.app .topbar {
-    height: 68px !important;
-    min-height: 68px !important;
-    padding: 12px 14px !important;
+    position: absolute !important;
+    inset: calc(env(safe-area-inset-top, 0px) + 10px) 12px auto !important;
+    z-index: 12 !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 0 !important;
     border: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
-    backdrop-filter: none !important;
+    pointer-events: none !important;
   }
 
   #app.app .topbar .top-left {
@@ -146,10 +149,7 @@
   }
 
   #app.app .topbar.project-context-active .topbar-title-wrap {
-    display: grid !important;
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-    margin-left: 8px !important;
+    display: none !important;
   }
 
   #app.app .topbar.project-context-active .topbar-project-context {
@@ -164,34 +164,39 @@
 
   #app.app .mobile-menu {
     display: inline-grid !important;
-    width: 42px !important;
-    height: 42px !important;
-    min-height: 42px !important;
-    border: 1px solid var(--mobile-border) !important;
-    border-radius: 10px !important;
-    background: var(--mobile-panel-soft) !important;
+    width: 46px !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    border: 1px solid color-mix(in srgb, var(--mobile-border) 72%, transparent) !important;
+    border-radius: 15px !important;
+    background: color-mix(in srgb, var(--mobile-panel) 68%, transparent) !important;
     color: var(--mobile-muted) !important;
-    box-shadow: none !important;
+    box-shadow: 0 8px 24px color-mix(in srgb, #000 10%, transparent) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
+    backdrop-filter: blur(18px) saturate(140%) !important;
+    pointer-events: auto !important;
   }
 
   #app.app .top-actions {
     display: flex !important;
     align-items: center !important;
-    gap: 6px !important;
-    padding: 0 !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
+    gap: 4px !important;
+    padding: 4px 6px !important;
+    border: 1px solid color-mix(in srgb, var(--mobile-border) 70%, transparent) !important;
+    border-radius: 16px !important;
+    background: color-mix(in srgb, var(--mobile-panel) 66%, transparent) !important;
+    box-shadow: 0 8px 24px color-mix(in srgb, #000 10%, transparent) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
+    backdrop-filter: blur(18px) saturate(140%) !important;
+    pointer-events: auto !important;
   }
 
   #app.app .top-actions > button,
   #app.app .top-actions > .task-panel-toggle {
-    width: 38px !important;
-    min-width: 38px !important;
-    height: 38px !important;
-    min-height: 38px !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
     padding: 0 !important;
     border: 0 !important;
     border-radius: 10px !important;
@@ -211,6 +216,16 @@
     background: var(--mobile-text-strong) !important;
     color: var(--mobile-panel) !important;
     box-shadow: none !important;
+  }
+
+  /* 顶部导航脱离文档流后，为消息内容预留完整安全区，避免首行被悬浮按钮遮挡。 */
+  #app.app .messages {
+    padding-top: calc(92px + env(safe-area-inset-top, 0px)) !important;
+    scroll-padding-top: calc(92px + env(safe-area-inset-top, 0px));
+  }
+
+  html:not(.chatdock-keyboard-open) #app.app.chat-empty .messages {
+    padding-top: calc(92px + env(safe-area-inset-top, 0px)) !important;
   }
 
   #app.app .sidebar-tree-session-menu,
