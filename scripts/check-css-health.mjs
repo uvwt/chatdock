@@ -123,6 +123,15 @@ if (!/min-width:\s*0/.test(userMessageRule)
   failures.push('user and system messages must wrap unbroken long content inside the viewport');
 }
 
+// 默认输入区保持单行；只有聚焦、模型面板打开或会话显式覆盖默认模型时才展开工具栏。
+const composerLayout = read('web/src/styles/composer-layout.css');
+const focusedComposerSelector = '.composer:is(.composer-model-selected, .composer-model-picker-open, :focus-within):not(.composer-streaming)';
+const collapsedModelLabelRule = composerLayout.match(/#app\.app\s+\.composer:not\(\.composer-streaming\)\s+\.model-picker-label\s*\{([^}]*)\}/)?.[1] || '';
+if (!composerLayout.includes(focusedComposerSelector)
+  || !/display:\s*none\s*!important/.test(collapsedModelLabelRule)) {
+  failures.push('composer must stay compact by default and reveal its model toolbar on focus or picker open');
+}
+
 // “跳到最新”是悬浮控件。画布层级规则不能把它改回相对定位，否则按钮会占据主轴空间，
 // 再叠加 bottom 位移后会在消息和输入框之间留下明显空白。
 const shellLayout = read('web/src/styles/art-direction/01-shell.css');

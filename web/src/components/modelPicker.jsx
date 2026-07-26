@@ -59,7 +59,7 @@ export function ComposerModelPicker({ busy, providers, selectedProvider, selecte
       aria-expanded={open}
     >
       <Sparkles className="model-picker-icon" size={17} aria-hidden="true" />
-      {showSelection ? <span className="model-picker-label"><b>{compactModelName(selectedModel)}</b><ChevronDown size={14} aria-hidden="true" /></span> : null}
+      <span className="model-picker-label"><b>{showSelection ? compactModelName(selectedModel) : '选择模型'}</b><ChevronDown size={14} aria-hidden="true" /></span>
     </button>
     {open ? (mobileSheet ? createPortal(popover, document.body) : popover) : null}
   </div>;
