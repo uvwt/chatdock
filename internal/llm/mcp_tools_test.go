@@ -2,6 +2,7 @@ package llm
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"chatdock/internal/mcp"
@@ -18,7 +19,7 @@ func TestMCPToolsToOpenAIToolsDoesNotMutateSchema(t *testing.T) {
 	}
 }
 
-func TestMCPToolsToOpenAIToolsDeclaresRequiredFieldsInsideCompositionBranches(t *testing.T) {
+func TestMCPToolsToOpenAIToolsFlattensTopLevelCompositionWithoutMutatingOriginal(t *testing.T) {
 	schema := map[string]any{
 		"type": "object",
 		"properties": map[string]any{
@@ -34,16 +35,48 @@ func TestMCPToolsToOpenAIToolsDeclaresRequiredFieldsInsideCompositionBranches(t 
 	tools := MCPToolsToOpenAITools([]mcp.MCPTool{{Server: "agentdock", Name: "view_image", InputSchema: schema}})
 	function := tools[0]["function"].(map[string]any)
 	parameters := function["parameters"].(map[string]any)
-	branches := parameters["oneOf"].([]any)
-	for index, field := range []string{"artifact_id", "path"} {
-		branch := branches[index].(map[string]any)
-		properties := branch["properties"].(map[string]any)
+	if _, ok := parameters["oneOf"]; ok {
+		t.Fatalf("top-level oneOf must be removed for model API compatibility: %#v", parameters)
+	}
+	properties := parameters["properties"].(map[string]any)
+	for _, field := range []string{"artifact_id", "path"} {
 		if _, ok := properties[field]; !ok {
-			t.Fatalf("branch %d does not declare required field %q: %#v", index, field, branch)
+			t.Fatalf("flattened schema does not declare field %q: %#v", field, parameters)
 		}
+	}
+	description, _ := parameters["description"].(string)
+	if !strings.Contains(description, "exactly one") || !strings.Contains(description, "artifact_id") || !strings.Contains(description, "path") {
+		t.Fatalf("flattened schema lost composition guidance: %q", description)
 	}
 	if _, ok := schema["oneOf"].([]any)[0].(map[string]any)["properties"]; ok {
 		t.Fatalf("input schema was mutated: %#v", schema)
+	}
+}
+
+func TestAdaptToolSchemaForModelAPIFlattensAllTopLevelCompositionKeywords(t *testing.T) {
+	for _, keyword := range []string{"oneOf", "anyOf", "allOf"} {
+		t.Run(keyword, func(t *testing.T) {
+			schema := map[string]any{
+				"type": "object",
+				keyword: []any{
+					map[string]any{
+						"type":       "object",
+						"properties": map[string]any{"value": map[string]any{"type": "string"}},
+						"required":   []any{"value"},
+					},
+				},
+			}
+			adapted := adaptToolSchemaForModelAPI(schema)
+			if _, ok := adapted[keyword]; ok {
+				t.Fatalf("top-level %s was not removed: %#v", keyword, adapted)
+			}
+			if _, ok := adapted["properties"].(map[string]any)["value"]; !ok {
+				t.Fatalf("branch properties were not promoted: %#v", adapted)
+			}
+			if got := toolSchemaStringList(adapted["required"]); len(got) != 1 || got[0] != "value" {
+				t.Fatalf("required fields were not preserved: %#v", adapted)
+			}
+		})
 	}
 }
 
