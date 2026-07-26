@@ -255,6 +255,51 @@
   border-radius: 9px;
 }
 
+.settings-page .manage-page.embedded .manage-more-menu > div {
+  min-width: 168px;
+  padding: 5px;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--gpt-border-strong) 72%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--gpt-surface) 96%, transparent);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, .16), 0 2px 8px rgba(15, 23, 42, .06);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+.settings-page .manage-page.embedded .manage-more-menu > div button {
+  width: 100%;
+  min-height: 38px;
+  justify-content: flex-start;
+  padding: 0 11px;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  color: var(--gpt-text) !important;
+  box-shadow: none !important;
+  font-size: 12px;
+  font-weight: 620;
+  text-align: left;
+}
+
+.settings-page .manage-page.embedded .manage-more-menu > div button:hover,
+.settings-page .manage-page.embedded .manage-more-menu > div button:focus-visible {
+  background: var(--gpt-sidebar-hover) !important;
+}
+
+.settings-page .manage-page.embedded .manage-more-menu > div button.danger {
+  min-height: 42px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--gpt-danger) 16%, var(--gpt-border)) !important;
+  color: var(--gpt-danger) !important;
+}
+
+.settings-page .manage-page.embedded .manage-more-menu > div button.danger:hover,
+.settings-page .manage-page.embedded .manage-more-menu > div button.danger:focus-visible {
+  background: color-mix(in srgb, var(--gpt-danger) 8%, transparent) !important;
+}
+
 .settings-page .manage-page.embedded .manage-preview,
 .settings-page .manage-page.embedded .manage-empty,
 .settings-page .manage-page.embedded .scheduled-session-row {
@@ -429,6 +474,25 @@
     height: 34px;
     min-height: 34px;
     border-radius: 10px;
+  }
+
+  .settings-page .manage-page.embedded .manage-more-menu > div {
+    top: calc(100% + 7px);
+    right: -2px;
+    min-width: 164px;
+    padding: 5px;
+    border-radius: 14px;
+  }
+
+  .settings-page .manage-page.embedded .manage-more-menu > div button {
+    min-height: 37px;
+    padding: 0 10px;
+    border-radius: 9px !important;
+    font-size: 12px;
+  }
+
+  .settings-page .manage-page.embedded .manage-more-menu > div button.danger {
+    min-height: 41px;
   }
 
   .settings-page .manage-page.embedded .project-card-actions em,

@@ -64,9 +64,9 @@ export function ProjectsPage({ api, deleteProject, editProject, embedded = false
         <div className="manage-card-grid">
           {projects.length ? projects.map(project => <article key={project.id} className={'manage-card project-manage-card ' + (project.pinned ? 'pinned' : '')}>
             <header><div><span>项目</span><h2>{project.name}</h2></div><div className="project-card-actions"><em>{projectSessionCounts?.byProject?.[project.id] || 0} 会话</em><details className="manage-more-menu"><summary aria-label="更多项目操作" title="更多操作"><MoreHorizontal size={17} aria-hidden="true" /></summary><div>
-              <button type="button" onClick={event => closeDetailsAndRun(event, () => pinProject(project))}>{project.pinned ? '取消置顶' : '置顶项目'}</button>
-              <button type="button" onClick={event => closeDetailsAndRun(event, () => editProject(project))}>编辑项目</button>
-              <button type="button" onClick={event => closeDetailsAndRun(event, () => showProjectPromptPreview(project.id))}>预览提示词</button>
+              <button type="button" className="secondary" onClick={event => closeDetailsAndRun(event, () => pinProject(project))}>{project.pinned ? '取消置顶' : '置顶项目'}</button>
+              <button type="button" className="secondary" onClick={event => closeDetailsAndRun(event, () => editProject(project))}>编辑项目</button>
+              <button type="button" className="secondary" onClick={event => closeDetailsAndRun(event, () => showProjectPromptPreview(project.id))}>预览提示词</button>
               <button type="button" className="danger" onClick={event => closeDetailsAndRun(event, () => deleteProject(project))}>删除项目</button>
             </div></details></div></header>
             <p>{project.prompt || '未设置项目提示词'}</p>
@@ -96,9 +96,9 @@ function ScheduledTaskCard({ task, deleteScheduledTask, editScheduledTask, openS
       <div className="scheduled-task-card-actions">
         <em className={'badge ' + taskStatusClass(task)}>{taskStatusLabel(task)}</em>
         <details className="manage-more-menu"><summary aria-label="更多任务操作" title="更多操作"><MoreHorizontal size={17} aria-hidden="true" /></summary><div>
-          <button type="button" onClick={event => closeDetailsAndRun(event, () => pinScheduledTask(task))}>{task.pinned ? '取消置顶' : '置顶任务'}</button>
-          {task.session_id ? <button type="button" onClick={event => closeDetailsAndRun(event, () => openScheduledTaskSession(task.session_id))}>打开最近会话</button> : null}
-          <button type="button" onClick={event => closeDetailsAndRun(event, () => editScheduledTask(task.id))}>编辑任务</button>
+          <button type="button" className="secondary" onClick={event => closeDetailsAndRun(event, () => pinScheduledTask(task))}>{task.pinned ? '取消置顶' : '置顶任务'}</button>
+          {task.session_id ? <button type="button" className="secondary" onClick={event => closeDetailsAndRun(event, () => openScheduledTaskSession(task.session_id))}>打开最近会话</button> : null}
+          <button type="button" className="secondary" onClick={event => closeDetailsAndRun(event, () => editScheduledTask(task.id))}>编辑任务</button>
           <button type="button" className="danger" onClick={event => closeDetailsAndRun(event, () => deleteScheduledTask(task.id))}>删除任务</button>
         </div></details>
       </div>
