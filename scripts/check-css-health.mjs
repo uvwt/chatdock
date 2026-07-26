@@ -132,17 +132,21 @@ if (!composerLayout.includes(focusedComposerSelector)
   failures.push('composer must stay compact by default and reveal its model toolbar on focus or picker open');
 }
 
-// “跳到最新”是悬浮控件。画布层级规则不能把它改回相对定位，否则按钮会占据主轴空间，
-// 再叠加 bottom 位移后会在消息和输入框之间留下明显空白。
+// 悬浮控件不能被主画布的通用层级规则改回相对定位，否则会重新占据主轴高度。
 const shellLayout = read('web/src/styles/art-direction/01-shell.css');
-const mainContentLayerRule = shellLayout.match(/#app\.app\s+main\s*>\s*:not\(\.jump-latest\)\s*\{([^}]*)\}/)?.[1] || '';
-if (!/position:\s*relative/.test(mainContentLayerRule)
+const floatingSafeSelector = '#app.app main > :not(.jump-latest):not(.current-session-task):not(.composer-shell)';
+const mainContentLayerRule = shellLayout.match(/#app\.app\s+main\s*>\s*:not\(\.jump-latest\):not\(\.current-session-task\):not\(\.composer-shell\)\s*\{([^}]*)\}/)?.[1] || '';
+if (!shellLayout.includes(floatingSafeSelector)
+  || !/position:\s*relative/.test(mainContentLayerRule)
+  || /#app\.app\s+main\s*>\s*:not\(\.jump-latest\)\s*\{/.test(shellLayout)
   || /#app\.app\s+main\s*>\s*\*/.test(shellLayout)) {
-  failures.push('main content layering must exclude the absolute jump-to-latest control');
+  failures.push('main content layering must exclude jump, task, and composer floating controls');
 }
 const jumpLatestRule = read('web/src/styles/chat/02-chat.css').match(/\.jump-latest\s*\{([^}]*)\}/)?.[1] || '';
-if (!/position:\s*absolute/.test(jumpLatestRule)) {
-  failures.push('jump-to-latest control must remain absolutely positioned');
+const currentTaskRule = read('web/src/styles/current-task.css').match(/^\.current-session-task\s*\{([^}]*)\}/m)?.[1] || '';
+if (!/position:\s*absolute/.test(jumpLatestRule)
+  || !/position:\s*absolute/.test(currentTaskRule)) {
+  failures.push('jump-to-latest and current-session-task must remain absolutely positioned');
 }
 
 const exactBlocks = new Map();
