@@ -271,7 +271,8 @@
   }
 
   html:not(.chatdock-keyboard-open) #app.app:not(.chat-empty) .messages {
-    padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important;
+    /* 悬浮输入区只需要滚动定位避让，不能用实体内边距截断正文背景。 */
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
     scroll-padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px));
   }
 
