@@ -33,8 +33,8 @@ export function fetchContextPreview(api, id) {
   return api('/api/sessions/' + encodeURIComponent(id) + '/context-preview');
 }
 
-export function fetchSessionSystemPrompt(api, id) {
-  return api('/api/sessions/' + encodeURIComponent(id) + '/system-prompt');
+export function fetchProviderSystemPrompt(api, id) {
+  return api('/api/sessions/' + encodeURIComponent(id) + '/provider-system-prompt');
 }
 
 export function createSessionRecord(api, { projectID = '' } = {}) {

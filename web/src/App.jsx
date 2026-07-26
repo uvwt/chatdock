@@ -10,7 +10,7 @@ import { buildToolEventDetail } from './lib/toolEventDetails.js';
 import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js';
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, guideChatJob, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
-import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchSessionSystemPrompt, fetchSessionToolEvent, pinSession, renameSession, updateSessionModel } from './lib/sessionApi.js';
+import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchProviderSystemPrompt, fetchSessionToolEvent, pinSession, renameSession, updateSessionModel } from './lib/sessionApi.js';
 import { useAttachments } from './hooks/useAttachments.js';
 import { useAgentTasks } from './hooks/useAgentTasks.js';
 import { useCurrentSessionTask } from './hooks/useCurrentSessionTask.js';
@@ -1172,14 +1172,14 @@ export default function App() {
     }
   }, [api, current, showDialog, showToast]);
 
-  const showSystemPrompt = useCallback(async () => {
+  const showProviderSystemPrompt = useCallback(async () => {
     if (!current) return;
     try {
-      const data = await fetchSessionSystemPrompt(api, current);
+      const data = await fetchProviderSystemPrompt(api, current);
       const prompt = String(data?.system_prompt || '').trim();
-      await showDialog({ title: '当前会话系统提示词', confirmText: '关闭', hideCancel: true, fields: [{ name: 'prompt', label: prompt ? '全局提示词 + 项目提示词合并后的完整 System Prompt' : '当前未配置系统提示词', type: 'textarea', rows: 16, value: prompt || '(空)' }] });
+      await showDialog({ title: '供应商实际 System Prompt', confirmText: '关闭', hideCancel: true, fields: [{ name: 'prompt', label: prompt ? '按真实模型请求链路构造的完整 system 消息' : '当前请求不会发送 system 消息', type: 'textarea', rows: 16, value: prompt || '(空)' }] });
     } catch (e) {
-      showToast('系统提示词加载失败：' + e.message, 'error');
+      showToast('供应商 System Prompt 加载失败：' + e.message, 'error');
     }
   }, [api, current, showDialog, showToast]);
 
@@ -1206,8 +1206,8 @@ export default function App() {
 
   const quickActions = useMemo(() => buildQuickActions({
     busy, copyCurrentMarkdown, current, exportCurrent, sendMsg,
-    showContextPreview, showSystemPrompt, setThemeState, theme,
-  }), [busy, copyCurrentMarkdown, current, exportCurrent, sendMsg, showContextPreview, showSystemPrompt, theme]);
+    showContextPreview, showProviderSystemPrompt, setThemeState, theme,
+  }), [busy, copyCurrentMarkdown, current, exportCurrent, sendMsg, showContextPreview, showProviderSystemPrompt, theme]);
 
   const settingsPanel = (
     <SettingsPanel

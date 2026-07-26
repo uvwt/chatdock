@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createSessionRecord, fetchPinned, fetchSessions, searchSessions } from './sessionApi.js';
+import { createSessionRecord, fetchPinned, fetchProviderSystemPrompt, fetchSessions, searchSessions } from './sessionApi.js';
 
 function captureApi(calls) {
   return async (path, options = {}) => {
@@ -36,4 +36,11 @@ test('createSessionRecord only sends project_id for project sessions', async () 
 
   assert.equal(calls[0].options.body, '{}');
   assert.equal(calls[1].options.body, JSON.stringify({project_id: 'project-1'}));
+});
+
+test('fetchProviderSystemPrompt uses the provider prompt endpoint', async () => {
+  const calls = [];
+  await fetchProviderSystemPrompt(captureApi(calls), 'session/1');
+
+  assert.equal(calls[0].path, '/api/sessions/session%2F1/provider-system-prompt');
 });

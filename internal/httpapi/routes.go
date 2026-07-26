@@ -61,7 +61,7 @@ func (a *Server) routes() http.Handler {
 	mux.HandleFunc("GET /api/sessions/{id}/tool-event", a.handleGetSessionToolEvent)
 	mux.HandleFunc("GET /api/sessions/{id}/tool-events/{event_id}", a.handleGetSessionToolEventByID)
 	mux.HandleFunc("GET /api/sessions/{id}/context-preview", a.handleContextPreview)
-	mux.HandleFunc("GET /api/sessions/{id}/system-prompt", a.handleSessionSystemPrompt)
+	mux.HandleFunc("GET /api/sessions/{id}/provider-system-prompt", a.handleProviderSystemPrompt)
 	mux.HandleFunc("POST /api/files", a.handleUploadFile)
 	mux.HandleFunc("GET /api/files/{id}", a.handleDownloadFile)
 	mux.HandleFunc("GET /api/model-images/{id}/{name}", a.handleModelImageFile)

@@ -337,6 +337,17 @@ func appendMCPToolUseHint(messages []map[string]any, tools []mcp.MCPTool) []map[
 	return mergeLeadingSystemMessagesAny(out)
 }
 
+// BuildProviderSystemPrompt 复用真实供应商请求的消息构造链路，返回首条 system 消息。
+// 工具提示、自动摘要和运行时注入的 system 上下文都会按实际请求顺序合并。
+func BuildProviderSystemPrompt(cfg model.ModelConfig, history []model.Message, tools []mcp.MCPTool) string {
+	messages := appendMCPToolUseHint(BuildChatMessagesAny(cfg, history), tools)
+	if len(messages) == 0 || messages[0]["role"] != "system" {
+		return ""
+	}
+	prompt, _ := messages[0]["content"].(string)
+	return strings.TrimSpace(prompt)
+}
+
 func (c *ChatClient) streamChatWithRawMessages(ctx context.Context, cfg model.ModelConfig, messages []map[string]any, tools []map[string]any, emit func(string, any) error) (ModelChatResponse, error) {
 	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/chat/completions"
 	body := map[string]any{"model": cfg.Model, "messages": messages, "temperature": cfg.Temperature, "stream": true}
