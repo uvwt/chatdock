@@ -66,8 +66,7 @@ body.theme-light #app.app .msg.user .attachment-main span {
   #app.app select,
   #app.app .composer textarea,
   #app.app #input,
-  #app.app .session-search,
-  #app.app .quick-palette-head input {
+  #app.app .session-search {
     font-size: 16px !important;
   }
 

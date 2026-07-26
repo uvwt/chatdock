@@ -235,7 +235,6 @@
 }
 
 /* Shared overlays */
-.quick-palette,
 .app-modal-card {
   border-color: var(--gpt-border-strong);
   border-radius: var(--ui-radius-page);
@@ -243,22 +242,13 @@
   box-shadow: var(--ui-panel-shadow);
 }
 
-.quick-palette-head,
 .app-modal-form {
   gap: var(--ui-space-3);
 }
 
-.quick-palette-head input,
 .app-modal-field :is(input, select, textarea) {
   border-radius: var(--ui-radius-control);
 }
-
-.quick-palette-item {
-  min-height: 54px;
-  border-radius: var(--ui-radius-control);
-}
-
-.quick-palette-item b,
 .app-modal-title {
   font-weight: var(--ui-weight-semibold);
 }
@@ -357,7 +347,6 @@
     font-size: 27px;
   }
 
-  .quick-palette,
   .app-modal-card {
     border-radius: var(--ui-radius-panel);
   }

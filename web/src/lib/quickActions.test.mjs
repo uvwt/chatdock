@@ -5,7 +5,7 @@ import { buildQuickActions } from './quickActions.js';
 const noop = () => {};
 function actionsFor(overrides = {}) {
   return buildQuickActions({
-    busy: false, copyCurrentMarkdown: noop, current: 's1', exportCurrent: noop,
+    busy: false, current: 's1', exportCurrent: noop,
     sendMsg: noop, setThemeState: noop, showContextPreview: noop,
     showProviderSystemPrompt: noop, theme: 'day', ...overrides,
   });
@@ -15,12 +15,12 @@ test('buildQuickActions only exposes the retained compact action set', () => {
   const actions = actionsFor();
   assert.deepEqual(actions.map(item => item.id), [
     'continue',
-    'provider-system-prompt',
     'context-preview',
-    'copy-session',
+    'provider-system-prompt',
     'export-session',
     'theme',
   ]);
+  assert.deepEqual(actions.map(item => item.group), ['会话', '会话', '会话', '会话', '界面']);
 });
 
 test('buildQuickActions disables unavailable retained actions', () => {
@@ -28,7 +28,6 @@ test('buildQuickActions disables unavailable retained actions', () => {
   assert.equal(actions.find(item => item.id === 'continue').disabled, true);
   assert.equal(actions.find(item => item.id === 'provider-system-prompt').disabled, true);
   assert.equal(actions.find(item => item.id === 'context-preview').disabled, true);
-  assert.equal(actions.find(item => item.id === 'copy-session').disabled, true);
   assert.equal(actions.find(item => item.id === 'export-session').disabled, true);
   assert.equal(actions.find(item => item.id === 'theme').disabled, undefined);
 });

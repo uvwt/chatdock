@@ -298,7 +298,6 @@
 }
 
 /* Shared overlays */
-.quick-palette,
 .app-modal-card,
 .session-row-menu-portal,
 .model-picker-menu {
@@ -306,27 +305,6 @@
   background: color-mix(in srgb, var(--gpt-surface) 97%, transparent);
   box-shadow: 0 24px 72px rgba(0, 0, 0, .18);
   backdrop-filter: blur(20px) saturate(110%);
-}
-
-.quick-palette-head {
-  position: relative;
-}
-
-.quick-palette-search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  z-index: 1;
-  color: var(--gpt-muted-2);
-  transform: translateY(-50%);
-}
-
-.quick-palette-head input {
-  padding-left: 42px;
-}
-
-.quick-palette-item:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--gpt-text) 4.5%, transparent);
 }
 
 @keyframes canvasEnter {

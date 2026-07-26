@@ -283,56 +283,6 @@ body.theme-light .jump-latest {
 .tool-event.phase-running { color:var(--gpt-muted-2); }
 .tool-event.phase-error { color:#fca5a5; }
 
-/* 2026-07 快捷指令面板密度修复：减小字体，并给右侧执行按钮固定安全列。 */
-.quick-palette-head input {
-  font-size: 14px;
-  font-weight: 560;
-}
-
-.quick-palette-close,
-.quick-palette-head > button {
-  width: 40px;
-  min-width: 40px;
-  min-height: 40px;
-  padding: 0;
-  font-size: 18px;
-}
-
-.quick-palette-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 44px;
-  gap: 10px;
-  min-height: 54px;
-  padding: 9px 10px 9px 13px;
-}
-
-.quick-palette-item span {
-  max-width: 100%;
-}
-
-.quick-palette-item b {
-  font-size: 14px;
-  line-height: 1.18;
-}
-
-.quick-palette-item small {
-  font-size: 11px;
-  line-height: 1.24;
-}
-
-.quick-palette-item em {
-  width: 44px;
-  min-width: 44px;
-  padding: 0;
-  font-size: 11px;
-  text-align: center;
-  justify-self: end;
-}
-
-.quick-palette-foot {
-  font-size: 11px;
-}
-
 /* Assistant message prose: clean ChatGPT-like text, no card frame. */
 .msg.assistant,
 .msg.assistant.markdown {

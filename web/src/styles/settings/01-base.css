@@ -247,7 +247,6 @@ body.theme-light .model-option { background:#f8fafc; }
 .backup-item,
 .setup-banner,
 .session-actions-sheet,
-.quick-palette,
 .app-modal-card,
 .app-toast {
   border-color: var(--gpt-border);
@@ -267,8 +266,7 @@ body.theme-light .model-option { background:#f8fafc; }
 .task-meta,
 .hint,
 .stat-label,
-.empty,
-.quick-palette-foot {
+.empty {
   color: var(--gpt-muted);
 }
 
@@ -293,21 +291,10 @@ select {
   color: var(--gpt-text);
 }
 
-.quick-palette-backdrop.show,
 .session-actions-backdrop.show,
 .app-modal-backdrop {
   background: rgba(0,0,0,.52);
   backdrop-filter: blur(4px);
-}
-
-.quick-palette-item {
-  border-color: var(--gpt-border);
-  background: transparent;
-  color: var(--gpt-text);
-}
-
-.quick-palette-item:hover:not(:disabled) {
-  background: var(--gpt-sidebar-hover);
 }
 
 

@@ -1,9 +1,13 @@
 // Reusable shell components: product cards, modal, auth, and palette.
 import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
+  ArrowDown,
+  ArrowUp,
+  Bot,
+  Boxes,
   LoaderCircle,
   Orbit,
-  Search,
+  Sun,
   X,
 } from './icons.js';
 import { ScheduleBuilder } from './scheduleBuilder.jsx';
@@ -37,41 +41,124 @@ export function TextCard({ title, hint, badge, badgeClass = '', active, children
   </div>;
 }
 
+const quickActionIcons = {
+  continue: ArrowUp,
+  'provider-system-prompt': Bot,
+  'context-preview': Boxes,
+  'export-session': ArrowDown,
+  theme: Sun,
+};
+
 export function QuickPalette({ open, actions, onClose }) {
-  const [query, setQuery] = useState('');
-  const inputRef = useRef(null);
+  const paletteRef = useRef(null);
+  const firstActionRef = useRef(null);
+  const returnFocusRef = useRef(null);
+  const restoreFocusRef = useRef(true);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
-    if (!open) {
-      setQuery('');
-      return;
-    }
-    const id = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(id);
+    if (!open) return undefined;
+    returnFocusRef.current = document.activeElement;
+    restoreFocusRef.current = true;
+    const frame = requestAnimationFrame(() => firstActionRef.current?.focus());
+    const handlePaletteKeyDown = event => {
+      if (event.key === 'Tab') {
+        const focusable = Array.from(paletteRef.current?.querySelectorAll('button:not(:disabled)') || []);
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        restoreFocusRef.current = true;
+        onCloseRef.current();
+      }
+    };
+    document.addEventListener('keydown', handlePaletteKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', handlePaletteKeyDown);
+      if (!restoreFocusRef.current) return;
+      const target = returnFocusRef.current;
+      requestAnimationFrame(() => {
+        if (target && document.contains(target)) target.focus?.();
+      });
+    };
   }, [open]);
+
   if (!open) return null;
-  const q = query.trim().toLowerCase();
-  const filtered = actions.filter(action => !q || [action.title, action.hint, action.id].some(v => String(v || '').toLowerCase().includes(q)));
+
+  const firstEnabledActionID = actions.find(action => !action.disabled)?.id;
+  const groups = actions.reduce((result, action) => {
+    const label = action.group || '其他';
+    let group = result.find(item => item.label === label);
+    if (!group) {
+      group = {label, actions: []};
+      result.push(group);
+    }
+    group.actions.push(action);
+    return result;
+  }, []);
+
+  function closePalette() {
+    restoreFocusRef.current = true;
+    onClose();
+  }
+
   function runAction(action) {
     if (!action || action.disabled) return;
+    restoreFocusRef.current = false;
     onClose();
     action.run?.();
   }
-  return <div className="quick-palette-backdrop show" onClick={onClose}>
-    <div className="quick-palette" role="dialog" aria-modal="true" aria-label="快捷指令" onClick={e => e.stopPropagation()}>
+
+  return <div className="quick-palette-backdrop show" onClick={closePalette}>
+    <div ref={paletteRef} className="quick-palette" role="dialog" aria-modal="true" aria-labelledby="quickPaletteTitle" aria-describedby="quickPaletteDescription" onClick={event => event.stopPropagation()}>
       <div className="quick-palette-head">
-        <Search className="quick-palette-search-icon" size={17} aria-hidden="true" /><input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => {
-          if (e.key === 'Escape') onClose();
-          if (e.key === 'Enter') runAction(filtered.find(a => !a.disabled));
-        }} placeholder="搜索快捷指令，例如：模型、导出、项目" />
-        <button className="secondary small quick-palette-close icon-button" onClick={onClose} aria-label="关闭快捷指令"><X size={16} aria-hidden="true" /></button>
+        <div className="quick-palette-heading">
+          <span>QUICK ACTIONS</span>
+          <strong id="quickPaletteTitle">快捷操作</strong>
+          <p id="quickPaletteDescription">当前会话与界面的常用入口</p>
+        </div>
+        <button type="button" className="secondary small quick-palette-close icon-button" onClick={closePalette} aria-label="关闭快捷操作"><X size={17} aria-hidden="true" /></button>
       </div>
       <div className="quick-palette-list">
-        {filtered.length ? filtered.map(action => <button key={action.id} type="button" className="quick-palette-item" disabled={!!action.disabled} onClick={() => runAction(action)}>
-          <span><b>{action.title}</b><small>{action.hint}</small></span>
-          <em>{action.disabled ? '不可用' : '执行'}</em>
-        </button>) : <div className="empty compact">没有匹配的快捷指令。</div>}
+        {groups.map((group, groupIndex) => <section className="quick-palette-group" key={group.label} aria-labelledby={'quickPaletteGroup' + groupIndex}>
+          <div className="quick-palette-group-head">
+            <span id={'quickPaletteGroup' + groupIndex}>{group.label}</span>
+            <small>{group.actions.filter(action => !action.disabled).length} / {group.actions.length} 可用</small>
+          </div>
+          <div className="quick-palette-group-actions">
+            {group.actions.map(action => {
+              const ActionIcon = quickActionIcons[action.id] || Orbit;
+              return <button
+                key={action.id}
+                ref={action.id === firstEnabledActionID ? firstActionRef : null}
+                type="button"
+                className="quick-palette-item"
+                disabled={!!action.disabled}
+                onClick={() => runAction(action)}
+              >
+                <span className="quick-palette-item-icon" aria-hidden="true"><ActionIcon size={18} strokeWidth={1.8} /></span>
+                <span className="quick-palette-item-copy"><b>{action.title}</b><small>{action.hint}</small></span>
+                <em className={action.disabled ? 'disabled' : ''} aria-hidden="true">{action.disabled ? '不可用' : '→'}</em>
+              </button>;
+            })}
+          </div>
+        </section>)}
       </div>
-      <div className="quick-palette-foot">快捷键：⌘/Ctrl K 打开，/ 聚焦输入框，Esc 关闭弹层。</div>
+      <div className="quick-palette-foot">
+        <span>键盘快捷键</span>
+        <div className="quick-palette-shortcuts"><span><kbd>⌘ / Ctrl K</kbd> 打开</span><span><kbd>Esc</kbd> 关闭</span></div>
+      </div>
     </div>
   </div>;
 }

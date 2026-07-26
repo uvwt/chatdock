@@ -1,11 +1,10 @@
 export function buildQuickActions(opts) {
-  const { busy, copyCurrentMarkdown, current, exportCurrent, sendMsg, showContextPreview, showProviderSystemPrompt, setThemeState, theme } = opts;
+  const { busy, current, exportCurrent, sendMsg, showContextPreview, showProviderSystemPrompt, setThemeState, theme } = opts;
   return [
-    { id: 'continue', title: '发送"继续"', hint: '让当前会话继续上一轮内容', disabled: busy, run: () => sendMsg('继续') },
-    { id: 'provider-system-prompt', title: '查看供应商 System Prompt', hint: '查看实际发送给模型的完整 system 消息', disabled: !current, run: showProviderSystemPrompt },
-    { id: 'context-preview', title: '查看上下文 / Token 预览', hint: '查看实际发送给模型的消息构成', disabled: !current, run: showContextPreview },
-    { id: 'copy-session', title: '复制当前会话全文', hint: '复制为 Markdown', disabled: !current, run: copyCurrentMarkdown },
-    { id: 'export-session', title: '导出当前会话', hint: '下载 Markdown 文件', disabled: !current, run: exportCurrent },
-    { id: 'theme', title: '切换明暗主题', hint: '当前：' + (theme === 'day' ? '白天' : '夜晚'), run: () => setThemeState(theme === 'day' ? 'night' : 'day') },
+    { id: 'continue', group: '会话', title: '发送“继续”', hint: '延续当前对话的上一轮内容', disabled: busy, run: () => sendMsg('继续') },
+    { id: 'context-preview', group: '会话', title: '查看上下文 / Token 预览', hint: '检查实际消息构成与 Token 估算', disabled: !current, run: showContextPreview },
+    { id: 'provider-system-prompt', group: '会话', title: '查看供应商 System Prompt', hint: '查看模型实际收到的完整 system 消息', disabled: !current, run: showProviderSystemPrompt },
+    { id: 'export-session', group: '会话', title: '导出当前会话', hint: '下载 Markdown 文件', disabled: !current, run: exportCurrent },
+    { id: 'theme', group: '界面', title: '切换明暗主题', hint: '当前：' + (theme === 'day' ? '白天' : '夜晚'), run: () => setThemeState(theme === 'day' ? 'night' : 'day') },
   ];
 }

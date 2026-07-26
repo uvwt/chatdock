@@ -98,23 +98,23 @@ body.theme-light {
     box-shadow: var(--mobile-accent-shadow) !important;
   }
 
-  #app.app :is(.quick-palette, .quick-palette-head, .quick-palette-foot, .quick-palette-item, .model-picker-popover, .session-actions-sheet) {
+  #app.app :is(.model-picker-popover, .session-actions-sheet) {
     border-color: var(--mobile-border) !important;
     background: var(--mobile-panel-translucent) !important;
     color: var(--mobile-text) !important;
   }
 
-  #app.app :is(.quick-palette-head input, .quick-palette-item em, .quick-palette-close, .model-provider-item, .model-chip) {
+  #app.app :is(.model-provider-item, .model-chip) {
     border-color: var(--mobile-border) !important;
     background: var(--mobile-panel-soft) !important;
     color: var(--mobile-text) !important;
   }
 
-  #app.app :is(.quick-palette-item b, .model-picker-popover b, .session-actions-sheet b) {
+  #app.app :is(.model-picker-popover b, .session-actions-sheet b) {
     color: var(--mobile-text-strong) !important;
   }
 
-  #app.app :is(.quick-palette-item small, .quick-palette-foot, .model-picker-popover small) {
+  #app.app .model-picker-popover small {
     color: var(--mobile-muted) !important;
   }
 }

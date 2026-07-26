@@ -669,16 +669,6 @@ export default function App() {
     }
   }, [authHeaders, current, downloadBlob, showToast]);
 
-  const copyCurrentMarkdown = useCallback(async () => {
-    if (!current) return;
-    try {
-      const res = await fetchSessionMarkdown(current, authHeaders);
-      await copyText(await res.text());
-    } catch (e) {
-      showToast('复制全文失败：' + e.message, 'error');
-    }
-  }, [authHeaders, copyText, current, showToast]);
-
   const cloneCurrent = useCallback(async () => {
     if (!current || busy) return;
     try {
@@ -1205,9 +1195,9 @@ export default function App() {
   const hasVisibleChatMessages = messages.some(m => m.role !== 'empty');
 
   const quickActions = useMemo(() => buildQuickActions({
-    busy, copyCurrentMarkdown, current, exportCurrent, sendMsg,
+    busy, current, exportCurrent, sendMsg,
     showContextPreview, showProviderSystemPrompt, setThemeState, theme,
-  }), [busy, copyCurrentMarkdown, current, exportCurrent, sendMsg, showContextPreview, showProviderSystemPrompt, theme]);
+  }), [busy, current, exportCurrent, sendMsg, showContextPreview, showProviderSystemPrompt, theme]);
 
   const settingsPanel = (
     <SettingsPanel
