@@ -146,10 +146,7 @@
   }
 
   #app.app .topbar.project-context-active .topbar-title-wrap {
-    display: grid !important;
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-    margin-left: 8px !important;
+    display: none !important;
   }
 
   #app.app .topbar.project-context-active .topbar-project-context {
@@ -177,26 +174,42 @@
   #app.app .top-actions {
     display: flex !important;
     align-items: center !important;
-    gap: 2px !important;
-    padding: 0 !important;
+    gap: 0 !important;
+    padding: 2px !important;
     border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
+    border-radius: 16px !important;
+    background: var(--mobile-panel-soft) !important;
     box-shadow: none !important;
     backdrop-filter: none !important;
   }
 
-  #app.app .top-actions > button,
-  #app.app .top-actions > .task-panel-toggle {
-    width: 36px !important;
-    height: 36px !important;
-    min-height: 36px !important;
+  #app.app .top-actions > .mobile-new-toggle,
+  #app.app .top-actions > .quick-palette-toggle {
+    display: inline-grid !important;
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
     padding: 0 !important;
     border: 0 !important;
-    border-radius: 10px !important;
+    border-radius: 13px !important;
     background: transparent !important;
     color: var(--mobile-muted) !important;
     box-shadow: none !important;
+  }
+
+  #app.app .top-actions > .mobile-new-toggle {
+    order: 1;
+  }
+
+  #app.app .top-actions > .quick-palette-toggle {
+    order: 2;
+  }
+
+  #app.app .top-actions > .config-toggle,
+  #app.app .top-actions > .task-panel-toggle,
+  #app.app .top-actions > .theme-toggle {
+    display: none !important;
   }
 
   #app.app .top-actions > button:active,
