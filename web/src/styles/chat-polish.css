@@ -108,6 +108,9 @@ body.theme-light #app.app #sessions .session.active::before {
 
 /* 2026-07-04 用户消息悬浮操作：按钮独立成气泡下方一行，避免和气泡内容重叠。 */
 #app.app .user-message-wrap {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
   width: fit-content !important;
   max-width: min(620px, 72%) !important;
   margin: 0 max(18px, calc((100% - var(--gpt-msg-width)) / 2)) 24px auto !important;
@@ -128,7 +131,8 @@ body.theme-light #app.app #sessions .session.active::before {
   align-items: center !important;
   justify-content: flex-end !important;
   gap: 4px !important;
-  width: 100% !important;
+  width: max-content !important;
+  max-width: 100% !important;
   margin: 4px 0 0 auto !important;
   padding: 0 !important;
   opacity: 0 !important;
