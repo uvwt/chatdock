@@ -127,6 +127,8 @@
     border: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
     pointer-events: none !important;
   }
 
@@ -167,13 +169,13 @@
     width: 46px !important;
     height: 46px !important;
     min-height: 46px !important;
-    border: 1px solid color-mix(in srgb, var(--mobile-border) 72%, transparent) !important;
+    border: 1px solid color-mix(in srgb, var(--mobile-border) 46%, transparent) !important;
     border-radius: 15px !important;
-    background: color-mix(in srgb, var(--mobile-panel) 68%, transparent) !important;
-    color: var(--mobile-muted) !important;
-    box-shadow: 0 8px 24px color-mix(in srgb, #000 10%, transparent) !important;
-    -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
-    backdrop-filter: blur(18px) saturate(140%) !important;
+    background: color-mix(in srgb, var(--mobile-panel) 28%, transparent) !important;
+    color: var(--mobile-text-strong) !important;
+    box-shadow: 0 8px 24px color-mix(in srgb, #000 8%, transparent) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(165%) !important;
+    backdrop-filter: blur(22px) saturate(165%) !important;
     pointer-events: auto !important;
   }
 
@@ -182,12 +184,12 @@
     align-items: center !important;
     gap: 4px !important;
     padding: 4px 6px !important;
-    border: 1px solid color-mix(in srgb, var(--mobile-border) 70%, transparent) !important;
+    border: 1px solid color-mix(in srgb, var(--mobile-border) 44%, transparent) !important;
     border-radius: 16px !important;
-    background: color-mix(in srgb, var(--mobile-panel) 66%, transparent) !important;
-    box-shadow: 0 8px 24px color-mix(in srgb, #000 10%, transparent) !important;
-    -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
-    backdrop-filter: blur(18px) saturate(140%) !important;
+    background: color-mix(in srgb, var(--mobile-panel) 26%, transparent) !important;
+    box-shadow: 0 8px 24px color-mix(in srgb, #000 8%, transparent) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(165%) !important;
+    backdrop-filter: blur(22px) saturate(165%) !important;
     pointer-events: auto !important;
   }
 
@@ -201,7 +203,7 @@
     border: 0 !important;
     border-radius: 10px !important;
     background: transparent !important;
-    color: var(--mobile-muted) !important;
+    color: var(--mobile-text-strong) !important;
     box-shadow: none !important;
   }
 
