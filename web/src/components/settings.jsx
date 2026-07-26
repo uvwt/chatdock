@@ -19,12 +19,12 @@ import { mcpAuthDraft, mcpAuthPayload } from '../lib/mcpAuthDraft.js';
 import { ProjectsPage, ScheduledTasksPage } from './managementPages.jsx';
 
 const settingsModuleMeta = {
-  model: {label: '模型', desc: '默认供应商和默认模型。', icon: Bot},
-  providers: {label: '供应商', desc: '新增、编辑、测试模型供应商和候选模型。', icon: Boxes},
-  tools: {label: '工具', desc: '添加、检测和维护 MCP Server。', icon: Wrench},
-  projects: {label: '项目', desc: '管理项目名称、提示词和会话归属。', icon: Folder},
-  automation: {label: '定时任务', desc: '创建、运行和暂停自动执行任务。', icon: ListTodo},
-  security: {label: '系统', desc: '查看运行状态、数据库、备份、诊断信息和访问入口。', icon: ShieldCheck},
+  model: {label: '模型', desc: '默认供应商、模型与回复参数。', icon: Bot, persistence: 'manual'},
+  providers: {label: '供应商', desc: '新增、编辑、测试模型供应商和候选模型。', icon: Boxes, persistence: 'instant'},
+  tools: {label: '工具', desc: '添加、检测和维护 MCP Server。', icon: Wrench, persistence: 'manual'},
+  projects: {label: '项目', desc: '管理项目名称、提示词和会话归属。', icon: Folder, persistence: 'instant'},
+  automation: {label: '定时任务', desc: '创建、运行和暂停自动执行任务。', icon: ListTodo, persistence: 'instant'},
+  security: {label: '系统', desc: '查看运行状态、数据库、备份、诊断信息和访问入口。', icon: ShieldCheck, persistence: 'readonly'},
 };
 
 export function SettingsPanel(props) {
@@ -40,7 +40,7 @@ export function SettingsPanel(props) {
   const [saveState, setSaveState] = useState({scope: '', status: 'idle', message: ''});
   const unsavedCount = Number(!!configDirty) + Number(!!mcpConfigDirty);
   const moduleIsDirty = useCallback((name) => {
-    if (name === 'model' || name === 'providers') return !!configDirty;
+    if (name === 'model') return !!configDirty;
     if (name === 'tools') return !!mcpConfigDirty;
     return false;
   }, [configDirty, mcpConfigDirty]);
@@ -48,6 +48,8 @@ export function SettingsPanel(props) {
   useEffect(() => () => window.clearTimeout(saveTimerRef.current), []);
 
   const saveScope = useCallback(async (scope) => {
+    const dirty = scope === 'mcp' ? mcpConfigDirty : configDirty;
+    if (!dirty) return;
     const save = scope === 'mcp' ? saveMCPConfig : saveConfig;
     if (!save) return;
     window.clearTimeout(saveTimerRef.current);
@@ -59,7 +61,7 @@ export function SettingsPanel(props) {
     } catch (error) {
       setSaveState({scope, status: 'error', message: error?.message || '保存失败，请稍后重试。'});
     }
-  }, [saveConfig, saveMCPConfig]);
+  }, [configDirty, mcpConfigDirty, saveConfig, saveMCPConfig]);
 
   const configSaveState = saveState.scope === 'config' ? saveState : {scope: 'config', status: 'idle', message: ''};
   const mcpSaveState = saveState.scope === 'mcp' ? saveState : {scope: 'mcp', status: 'idle', message: ''};
@@ -72,7 +74,7 @@ export function SettingsPanel(props) {
       <div className="settings-header-main">
         <button className="secondary small settings-back-button icon-button" onClick={() => closeSettings()} aria-label="返回聊天" title="返回聊天"><ArrowLeft className="settings-header-icon settings-back-icon" size={17} aria-hidden="true" /></button>
         <div>
-          <div className="settings-title-row"><h2>配置中心</h2>{unsavedCount ? <span className="settings-global-save-state dirty"><span aria-hidden="true" />{unsavedCount} 处未保存</span> : saveState.status === 'saved' ? <span className="settings-global-save-state saved"><Check size={13} aria-hidden="true" />已保存</span> : null}</div>
+          <div className="settings-title-row"><h2>配置中心</h2>{unsavedCount ? <span className="settings-global-save-state dirty"><span aria-hidden="true" />{unsavedCount} 组待保存</span> : saveState.status === 'saved' ? <span className="settings-global-save-state saved"><Check size={13} aria-hidden="true" />已保存</span> : null}</div>
           <p>统一管理模型、供应商、工具、项目、定时任务与系统。</p>
         </div>
       </div>
@@ -92,9 +94,9 @@ export function SettingsPanel(props) {
       })}</nav>
     </div>
     <main className="settings-content">
-      <ModuleView name="model" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="保存后将用于新的对话和自动化任务。"><ModelModule config={config} configDirty={configDirty} saveState={configSaveState} setConfig={setConfig} saveConfig={() => saveScope('config')} showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>
-      <ModuleView name="providers" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="当前默认供应商需要保存后才会生效。"><ProvidersModule config={config} setConfig={setConfig} providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} /></ModuleView>
-      <ModuleView name="tools" activeModule={activeModule} dirty={mcpConfigDirty} saveState={mcpSaveState} onSave={() => saveScope('mcp')} saveHint="保存后工具加载方式和权限才会生效。"><ToolsModule builtinTools={builtinTools} mcpStatus={mcpStatus} mcpConfig={mcpConfig} mcpConfigDirty={mcpConfigDirty} saveState={mcpSaveState} setMcpConfig={setMcpConfig} saveMCPConfig={() => saveScope('mcp')} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} /></ModuleView>
+      <ModuleView name="model" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="保存后将用于新的对话和自动化任务。" savedHint="模型与回复配置已生效。"><ModelModule config={config} setConfig={setConfig} showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>
+      <ModuleView name="providers" activeModule={activeModule}><ProvidersModule providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} /></ModuleView>
+      <ModuleView name="tools" activeModule={activeModule} dirty={mcpConfigDirty} saveState={mcpSaveState} onSave={() => saveScope('mcp')} saveHint="保存后工具加载方式和权限才会生效。" savedHint="工具配置已写入并重新加载。"><ToolsModule builtinTools={builtinTools} mcpStatus={mcpStatus} mcpConfig={mcpConfig} mcpConfigDirty={mcpConfigDirty} setMcpConfig={setMcpConfig} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} /></ModuleView>
       <ModuleView name="projects" activeModule={activeModule} bare>
         <ProjectsPage
           api={api}
@@ -141,21 +143,32 @@ function moduleLabel(m) {
 function moduleDescription(m) {
   return settingsModuleMeta[m]?.desc || '';
 }
-function ModuleView({ name, activeModule, children, dirty = false, saveState, onSave, saveHint = '', bare = false }) {
+function ModuleView({ name, activeModule, children, dirty = false, saveState, onSave, saveHint = '', savedHint = '', bare = false }) {
+  const persistence = settingsModuleMeta[name]?.persistence || '';
   return <div className={'module-view ' + (activeModule === name ? 'active ' : '') + (dirty ? 'dirty ' : '') + (bare ? 'bare' : '')} data-module-view={name}>
-    {bare ? null : <div className="module-view-title"><div><span>{moduleLabel(name)}</span><p>{moduleDescription(name)}</p></div></div>}
-    {bare ? null : <SettingsSaveState dirty={dirty} state={saveState} onSave={onSave} hint={saveHint} />}
+    {bare ? null : <div className="module-view-title"><div><span>{moduleLabel(name)}</span><p>{moduleDescription(name)}</p></div><PersistenceBadge mode={persistence} dirty={dirty} /></div>}
+    {bare ? null : <SettingsSaveState dirty={dirty} state={saveState} onSave={onSave} hint={saveHint} savedHint={savedHint} />}
     {children}
   </div>;
 }
 
-function SettingsSaveState({ dirty, state = {}, onSave, hint }) {
+function PersistenceBadge({ mode, dirty }) {
+  const labels = {
+    manual: dirty ? '待保存' : '已保存',
+    instant: '即时保存',
+    readonly: '只读',
+  };
+  if (!labels[mode]) return null;
+  return <span className={'settings-persistence-badge ' + mode + (dirty ? ' dirty' : '')}>{labels[mode]}</span>;
+}
+
+function SettingsSaveState({ dirty, state = {}, onSave, hint, savedHint }) {
   const status = state.status === 'saving' ? 'saving' : state.status === 'error' ? 'error' : dirty ? 'dirty' : state.status === 'saved' ? 'saved' : 'idle';
   if (status === 'idle') return null;
   const content = {
     dirty: ['修改尚未保存', hint || '保存后配置才会生效。'],
     saving: ['正在保存', '完成前请保持当前页面。'],
-    saved: ['保存成功', '配置已写入全局配置。'],
+    saved: ['保存成功', savedHint || '配置已经生效。'],
     error: ['保存失败', state.message || '请检查配置后重试。'],
   }[status];
   return <div className={'settings-save-state ' + status} role={status === 'error' ? 'alert' : 'status'}>
@@ -179,7 +192,7 @@ function modelListText(config) {
   return normalizeModelNames(models).join('\n');
 }
 
-function ModelModule({ config, configDirty, saveState, setConfig, saveConfig, showProjectPromptPreview, projectPromptPreview, testModelProvider, providers }) {
+function ModelModule({ config, setConfig, showProjectPromptPreview, projectPromptPreview, testModelProvider, providers }) {
   const update = (key, value) => setConfig(c => ({...c, [key]: value}));
   const providerModels = (provider) => normalizeModelNames([...(provider?.models || []), provider?.default_model].filter(Boolean));
   const activeProvider = providers.find(p => p.id === config.provider_id) || providers[0] || null;
@@ -205,10 +218,9 @@ function ModelModule({ config, configDirty, saveState, setConfig, saveConfig, sh
   const selectedProviderModels = normalizeModelNames([...providerModels(activeProvider), config.model].filter(Boolean));
   const fallbackModels = normalizeModelNames([...providerModels(fallbackProvider), config.fallback_model].filter(Boolean));
   const contextMode = config.context_mode || 'auto';
-  const saving = saveState?.status === 'saving';
   return <>
     <section className="model-quick-panel model-page-single">
-      <div className="model-quick-head"><div><b>默认模型</b><span>{activeProvider?.name || '未选择供应商'} · {config.model || activeProvider?.default_model || '未选择模型'}</span></div><div className="model-quick-actions"><button className={configDirty ? 'settings-inline-save-button dirty' : 'settings-inline-save-button'} onClick={() => saveConfig?.()} disabled={!configDirty || saving}>{saving ? '保存中…' : configDirty ? '保存更改' : '已保存'}</button><button className="secondary" onClick={() => testModelProvider?.()}>测试</button><button className="secondary" onClick={() => showProjectPromptPreview?.('')}>全局 Prompt</button></div></div>
+      <div className="model-quick-head"><div><b>默认模型</b><span>{activeProvider?.name || '未选择供应商'} · {config.model || activeProvider?.default_model || '未选择模型'}</span></div><div className="model-quick-actions"><button className="secondary" onClick={() => testModelProvider?.()}>测试</button><button className="secondary" onClick={() => showProjectPromptPreview?.('')}>全局 Prompt</button></div></div>
       <div className="model-quick-grid">
         <label>供应商<select value={activeProvider?.id || ''} onChange={e => chooseProvider(e.target.value)}>{providers.length ? providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>) : <option value="">未配置供应商</option>}</select></label>
         <label>模型<select value={config.model || ''} onChange={e => chooseModel(e.target.value)} disabled={!activeProvider}><option value="">{activeProvider ? '选择模型' : '先选择供应商'}</option>{selectedProviderModels.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
@@ -238,24 +250,16 @@ function ModelModule({ config, configDirty, saveState, setConfig, saveConfig, sh
   </>;
 }
 
-function ProvidersModule({ config, setConfig, providers, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels, availableModels, candidateProviderID, addCandidateModelToProvider, loadingModels }) {
+function ProvidersModule({ providers, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels, availableModels, candidateProviderID, addCandidateModelToProvider, loadingModels }) {
   const providerModels = (provider) => normalizeModelNames([...(provider?.models || []), provider?.default_model].filter(Boolean));
-  const activeProvider = providers.find(p => p.id === config.provider_id) || providers[0] || null;
-  const candidateProvider = providers.find(p => p.id === candidateProviderID) || activeProvider;
+  const candidateProvider = providers.find(p => p.id === candidateProviderID) || providers[0] || null;
   const candidateProviderModels = providerModels(candidateProvider);
-  const chooseProvider = (id) => setConfig(c => {
-    const provider = providers.find(p => p.id === id) || providers[0] || null;
-    const models = providerModels(provider);
-    const model = models.includes(c.model) ? c.model : (provider?.default_model || models[0] || c.model || '');
-    return {...c, provider_id: provider?.id || '', base_url: provider?.base_url || '', has_api_key: !!provider?.has_api_key, model, models};
-  });
   return <>
     <section className="settings-section provider-section provider-primary-section">
-      <div className="settings-section-head"><div><b>供应商</b></div><button className="secondary small" onClick={() => editModelProvider(null)}>新增供应商</button></div>
-      <div className="settings-form-grid compact"><label>当前默认供应商<select value={activeProvider?.id || ''} onChange={e => chooseProvider(e.target.value)}>{providers.length ? providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>) : <option value="">未配置供应商</option>}</select></label><div className="provider-actions-inline"><button className="secondary small" onClick={() => activeProvider && testSavedModelProvider(activeProvider)} disabled={!activeProvider}>测试当前</button><button className="secondary small" onClick={() => activeProvider && fetchSavedProviderModels(activeProvider)} disabled={!activeProvider || loadingModels}>{loadingModels ? '获取中…' : '候选模型'}</button></div></div>
+      <div className="settings-section-head"><div><b>供应商列表</b><p>新增、编辑、删除和加入候选模型会立即保存；默认供应商请在“模型”页选择。</p></div><button className="secondary small" onClick={() => editModelProvider(null)}>新增供应商</button></div>
     </section>
-    {availableModels.length ? <section className="settings-section provider-section"><div className="settings-section-head"><div><b>候选模型</b></div><span className="hint">{candidateProvider?.name || '当前供应商'} · {availableModels.length} 个</span></div><div className="model-options candidate-model-options">{availableModels.map(name => { const alreadyAdded = candidateProviderModels.includes(name); return <button key={'candidate-' + name} type="button" className={'model-option candidate ' + (alreadyAdded ? 'added ' : '') + (name === config.model ? 'active' : '')} onClick={() => addCandidateModelToProvider?.(name)}>{alreadyAdded ? '已加入 · ' : '+ 加入 · '}{name}</button>; })}</div></section> : null}
-    <div className="provider-grid provider-page-grid">{providers.length ? providers.map(p => <TextCard key={p.id} title={p.name || p.id} hint={p.base_url || '-'} badge={p.enabled ? (p.type || 'openai') : '停用'} active={p.id === config.provider_id}><div className="product-meta">默认：{p.default_model || '-'} · 模型 {p.models?.length || 0} · Key {p.api_keys?.length || (p.has_api_key ? 1 : 0)}</div><div className="product-actions"><button className="secondary small" onClick={() => editModelProvider(p)}>编辑</button><button className="secondary small" onClick={() => testSavedModelProvider(p)}>测试</button><button className="secondary small" onClick={() => fetchSavedProviderModels(p)}>候选</button><button className="danger small" onClick={() => deleteModelProvider(p)}>删除</button></div></TextCard>) : <div className="empty compact">还没有模型供应商。</div>}</div>
+    {availableModels.length ? <section className="settings-section provider-section"><div className="settings-section-head"><div><b>候选模型</b><p>点击模型会立即加入该供应商的可用模型列表。</p></div><span className="hint">{candidateProvider?.name || '当前供应商'} · {availableModels.length} 个</span></div><div className="model-options candidate-model-options">{availableModels.map(name => { const alreadyAdded = candidateProviderModels.includes(name); return <button key={'candidate-' + name} type="button" className={'model-option candidate ' + (alreadyAdded ? 'added' : '')} onClick={() => addCandidateModelToProvider?.(name)} disabled={alreadyAdded}>{alreadyAdded ? '已加入 · ' : '+ 加入 · '}{name}</button>; })}</div></section> : null}
+    <div className="provider-grid provider-page-grid">{providers.length ? providers.map(p => <TextCard key={p.id} title={p.name || p.id} hint={p.base_url || '-'} badge={p.enabled ? (p.type || 'openai') : '停用'}><div className="product-meta">默认：{p.default_model || '-'} · 模型 {p.models?.length || 0} · Key {p.api_keys?.length || (p.has_api_key ? 1 : 0)}</div><div className="product-actions"><button className="secondary small" onClick={() => editModelProvider(p)}>编辑</button><button className="secondary small" onClick={() => testSavedModelProvider(p)}>测试</button><button className="secondary small" onClick={() => fetchSavedProviderModels(p)} disabled={loadingModels}>{loadingModels && candidateProviderID === p.id ? '获取中…' : '候选'}</button><button className="danger small" onClick={() => deleteModelProvider(p)}>删除</button></div></TextCard>) : <div className="empty compact">还没有模型供应商。</div>}</div>
   </>;
 }
 
@@ -470,7 +474,7 @@ function BuiltinToolExposurePicker({draft, tools, onChange}) {
   </details>;
 }
 
-function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveState, setMcpConfig, saveMCPConfig, loadMCPConfig, loadMCPStatus, testMCP, fetchMCPServerTools }) {
+function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, setMcpConfig, loadMCPConfig, loadMCPStatus, testMCP, fetchMCPServerTools }) {
   const [newServer, setNewServer] = useState(defaultMCPServerDraft);
   const [renameDrafts, setRenameDrafts] = useState({});
   const [formError, setFormError] = useState('');
@@ -480,7 +484,6 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
   const parsed = useMemo(() => parseMCPConfigDraft(mcpConfig), [mcpConfig]);
   const builtinDraft = builtinToolsToDraft(parsed.config.builtin_tools);
   const serverNames = Object.keys(parsed.config.servers || {}).sort();
-  const saving = saveState?.status === 'saving';
   const statusByName = useMemo(() => Object.fromEntries((mcpStatus || []).map(s => [s.name, s])), [mcpStatus]);
 
   async function refreshServerTools(name) {
@@ -541,7 +544,7 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
     });
     setRenameDrafts(drafts => { const next = {...drafts}; delete next[oldName]; return next; });
     setDetail(nextName);
-    setFormError('已改名为 ' + nextName + '，记得保存 MCP 配置。');
+    setFormError('已改名为 ' + nextName + '，更改已加入工具草稿。');
   }
 
   function addServer() {
@@ -553,7 +556,7 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
     replaceConfig(next => { next.servers[name] = cleanMCPServerDraft(newServer); });
     setNewServer(defaultMCPServerDraft());
     setDetail(name);
-    setFormError('已添加 ' + name + '，记得保存 MCP 配置。');
+    setFormError('已添加 ' + name + '，更改已加入工具草稿。');
   }
 
   const renderServerForm = (name, server, isNew = false) => {
@@ -644,7 +647,7 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, saveS
             {detailName ? <div className="mcp-form-list redesigned">{renderServerForm(detailName, parsed.config.servers[detailName])}</div> : null}
             {formError ? <div className="backup-health warn">{formError}</div> : null}
           </div>
-          <div className="app-modal-actions"><button type="button" className="secondary" onClick={() => setDetail('')}>关闭</button><button type="button" className={mcpConfigDirty ? 'settings-inline-save-button dirty' : 'settings-inline-save-button'} onClick={() => saveMCPConfig?.()} disabled={!mcpConfigDirty || saving}>{saving ? '保存中…' : mcpConfigDirty ? '保存更改' : '已保存'}</button></div>
+          <div className="app-modal-actions mcp-config-modal-actions"><span>{mcpConfigDirty ? '更改已加入草稿，关闭后在工具页统一保存。' : '当前没有未保存修改。'}</span><button type="button" onClick={() => setDetail('')}>完成</button></div>
         </div>
       </div>
     </div> : null}

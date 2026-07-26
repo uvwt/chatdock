@@ -1099,6 +1099,7 @@ export default function App() {
     busy,
     closeSidebarOnMobile,
     config,
+    configDirty,
     loadConfig,
     loadMCPConfig,
     loadMCPStatus,

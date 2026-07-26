@@ -30,6 +30,7 @@ export function useSettingsActions({
   busy,
   closeSidebarOnMobile,
   config,
+  configDirty,
   loadConfig,
   loadMCPConfig,
   loadMCPStatus,
@@ -55,6 +56,13 @@ export function useSettingsActions({
   const [availableModels, setAvailableModels] = useState([]);
   const [candidateProviderID, setCandidateProviderID] = useState('');
   const [loadingModels, setLoadingModels] = useState(false);
+
+  const refreshAfterProviderMutation = useCallback(async () => {
+    const refreshes = [loadModelProviders(), loadSetupStatus(), loadProjects()];
+    // 供应商接口是即时保存；存在全局配置草稿时不能重新加载配置，否则会静默覆盖用户尚未保存的模型设置。
+    if (!configDirty) refreshes.push(loadConfig());
+    await Promise.allSettled(refreshes);
+  }, [configDirty, loadConfig, loadModelProviders, loadProjects, loadSetupStatus]);
 
   const editProject = useCallback(async (project = null) => {
     if (busy) return;
@@ -185,18 +193,11 @@ export function useSettingsActions({
       showToast('请先选择供应商，再添加候选模型', 'error');
       return;
     }
+    const alreadyAdded = (provider.models || []).includes(name);
     const payload = providerPayloadForModelAppend(provider, name);
     await updateModelProviderRequest(api, provider.id, payload);
-    setConfig(c => ({
-      ...c,
-      provider_id: provider.id,
-      base_url: provider.base_url || c.base_url || '',
-      has_api_key: !!provider.has_api_key,
-      model: name,
-      models: payload.models,
-    }));
     await Promise.allSettled([loadModelProviders(), loadProjects()]);
-    showToast((provider.models || []).includes(name) ? '候选模型已在可用列表：' + name : '已加入可用模型列表：' + name, 'success');
+    showToast(alreadyAdded ? '候选模型已在可用列表：' + name : '已加入可用模型列表：' + name, 'success');
   }, [api, candidateProviderID, config.provider_id, loadModelProviders, loadProjects, providers, showToast]);
 
   const editModelProvider = useCallback(async (existing = null) => {
@@ -223,18 +224,18 @@ export function useSettingsActions({
     const payload = providerPayloadFromFormValues(values);
     if (existing) await updateModelProviderRequest(api, existing.id, payload);
     else await createModelProviderRequest(api, payload);
-    await Promise.allSettled([loadModelProviders(), loadConfig(), loadSetupStatus(), loadProjects()]);
+    await refreshAfterProviderMutation();
     showToast(existing ? '模型供应商已保存' : '模型供应商已新增', 'success');
-  }, [api, loadConfig, loadModelProviders, loadSetupStatus, loadProjects, showDialog, showToast]);
+  }, [api, refreshAfterProviderMutation, showDialog, showToast]);
 
   const deleteModelProvider = useCallback(async (provider) => {
     if (!provider?.id) return;
     const ok = await showDialog({ title: '删除模型供应商', message: '确定删除模型供应商「' + (provider.name || provider.id) + '」？正在被全局配置使用的供应商不会被删除。', confirmText: '删除', danger: true, type: 'confirm' });
     if (!ok) return;
     await deleteModelProviderRequest(api, provider.id);
-    await Promise.allSettled([loadModelProviders(), loadConfig(), loadSetupStatus(), loadProjects()]);
+    await refreshAfterProviderMutation();
     showToast('模型供应商已删除', 'success');
-  }, [api, loadConfig, loadModelProviders, loadSetupStatus, loadProjects, showDialog, showToast]);
+  }, [api, refreshAfterProviderMutation, showDialog, showToast]);
 
   const testSavedModelProvider = useCallback(async (provider) => {
     if (!provider?.id) return;

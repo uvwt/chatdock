@@ -14,6 +14,10 @@
 }
 
 .settings-page .module-view-title {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
   margin: 0 0 22px !important;
   padding: 0 !important;
   border: 0 !important;
@@ -31,6 +35,32 @@
   margin: 6px 0 0 !important;
   font-size: 13px !important;
   line-height: 1.55 !important;
+}
+
+.settings-page .settings-persistence-badge {
+  flex: 0 0 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  min-height: 26px !important;
+  padding: 0 9px !important;
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 999px !important;
+  background: var(--gpt-surface-2) !important;
+  color: var(--gpt-muted) !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+.settings-page .settings-persistence-badge.manual:not(.dirty) {
+  color: var(--gpt-text) !important;
+}
+
+.settings-page .settings-persistence-badge.dirty {
+  border-color: var(--gpt-text) !important;
+  background: var(--gpt-text) !important;
+  color: var(--gpt-main) !important;
 }
 
 .settings-page .module-tabs {
@@ -257,6 +287,24 @@ body .settings-page .backup-health.ok b {
   box-shadow: none !important;
 }
 
+.settings-page .settings-save-state > button {
+  min-width: 104px !important;
+}
+
+.settings-page .mcp-config-modal-actions {
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+}
+
+.settings-page .mcp-config-modal-actions > span {
+  min-width: 0 !important;
+  color: var(--gpt-muted) !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  text-align: left !important;
+}
+
 .settings-page .settings-save-state-icon:empty {
   display: none !important;
 }
@@ -375,6 +423,15 @@ body .settings-page .backup-health.ok b {
     width: 100% !important;
   }
 
+  .settings-page .module-view-title {
+    gap: 10px !important;
+    margin-bottom: 18px !important;
+  }
+
+  .settings-page .module-view-title > div > span {
+    font-size: 22px !important;
+  }
+
   .settings-page .settings-section,
   .settings-page .model-quick-panel,
   .settings-page .model-inline-card,
@@ -404,5 +461,14 @@ body .settings-page .backup-health.ok b {
 
   .settings-page .data-info-row:first-child {
     background: transparent !important;
+  }
+
+  .settings-page .mcp-config-modal-actions {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .settings-page .mcp-config-modal-actions > button {
+    width: 100% !important;
   }
 }
