@@ -220,7 +220,7 @@ body.theme-light .current-session-task-status.blocked {
 
 @media (max-width: 720px) {
   .current-session-task {
-    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
     width: calc(100% - 20px);
     border-radius: 14px;
   }
