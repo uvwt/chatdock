@@ -35,6 +35,20 @@ export function mcpConfigDraftChanged(current, saved) {
   return normalizeLineEndings(current) !== normalizeLineEndings(saved);
 }
 
+export function validateMCPConfigRaw(content) {
+  const raw = String(content ?? '');
+  if (!raw.trim()) return {ok: false, error: 'MCP 配置不能为空。'};
+  try {
+    const config = JSON.parse(raw);
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      return {ok: false, error: 'MCP 配置必须是 JSON 对象。'};
+    }
+    return {ok: true, content: raw, config, error: ''};
+  } catch (error) {
+    return {ok: false, error: 'MCP 配置不是合法 JSON：' + error.message};
+  }
+}
+
 export function unsavedSettingsPrompt(action, configDirty, mcpConfigDirty) {
   const scopes = [];
   if (configDirty) scopes.push('模型配置');

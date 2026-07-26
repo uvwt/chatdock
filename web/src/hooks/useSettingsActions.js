@@ -160,17 +160,23 @@ export function useSettingsActions({
 
   const addCandidateModelsToProvider = useCallback(async (providerID, modelNames) => {
     const names = uniqueModelNames(modelNames || []);
-    if (!names.length) return;
+    if (!names.length) return false;
     const provider = providers.find(item => item.id === providerID);
     if (!provider?.id) {
       showToast('找不到要更新的模型供应商', 'error');
-      return;
+      return false;
     }
-    const payload = providerPayloadForModelAppend(provider, names[0]);
-    payload.models = uniqueModelNames([...(payload.models || []), ...names]);
-    await updateModelProviderRequest(api, provider.id, payload);
-    await Promise.allSettled([loadModelProviders(), loadProjects()]);
-    showToast('已保存 ' + names.length + ' 个模型', 'success');
+    try {
+      const payload = providerPayloadForModelAppend(provider, names[0]);
+      payload.models = uniqueModelNames([...(payload.models || []), ...names]);
+      await updateModelProviderRequest(api, provider.id, payload);
+      await Promise.allSettled([loadModelProviders(), loadProjects()]);
+      showToast('已保存 ' + names.length + ' 个模型', 'success');
+      return true;
+    } catch (error) {
+      showToast('保存候选模型失败：' + (error.message || '未知错误'), 'error');
+      return false;
+    }
   }, [api, loadModelProviders, loadProjects, providers, showToast]);
 
   const editModelProvider = useCallback(async (existing = null) => {

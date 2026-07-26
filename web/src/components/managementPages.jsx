@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MessageSquarePlus, MoreHorizontal, Plus, RefreshCw } from './icons.js';
 import { fmtTime, runStatusClass, runStatusLabel, scheduleSummary, taskStatusClass, taskStatusLabel } from '../lib/appUtils.js';
 import { fetchScheduledTaskRuns } from '../lib/settingsApi.js';
@@ -83,8 +83,9 @@ function scheduledTaskContextLabel(mode) {
   return ({stateless: '每次独立执行', last_result: '带上次结果', session: '连续会话'})[mode] || '每次独立执行';
 }
 
-function ScheduledTaskCard({ task, deleteScheduledTask, editScheduledTask, openScheduledTaskSession, openTaskSessions, pinScheduledTask, runScheduledTaskNow, toggleScheduledTask }) {
+function ScheduledTaskCard({ task, deleteScheduledTask, editScheduledTask, openScheduledTaskSession, openTaskSessions, pinScheduledTask, runPending, runScheduledTaskNow, togglePending, toggleScheduledTask }) {
   const prompt = (task.prompt || '').trim().slice(0, 180) || '无提示内容';
+  const runDisabled = task.running || runPending;
   return <article className={'manage-card scheduled-task-manage-card ' + (task.pinned ? 'pinned' : '')}>
     <header>
       <div><span>定时任务</span><h2>{task.title || '未命名任务'}</h2></div>
@@ -106,8 +107,8 @@ function ScheduledTaskCard({ task, deleteScheduledTask, editScheduledTask, openS
       <div className="manage-card-meta">上下文：{scheduledTaskContextLabel(task.context_mode || 'stateless')}</div>
     </div>
     <footer>
-      <label className="manage-toggle"><input type="checkbox" checked={!!task.enabled} onChange={event => toggleScheduledTask(task.id, event.target.checked)} /><span>启用</span></label>
-      <button type="button" className="secondary" disabled={task.running} onClick={() => runScheduledTaskNow(task.id)}>立即运行</button>
+      <label className="manage-toggle"><input type="checkbox" checked={!!task.enabled} disabled={togglePending} aria-busy={togglePending} onChange={event => toggleScheduledTask(task.id, event.target.checked)} /><span>{togglePending ? '更新中…' : '启用'}</span></label>
+      <button type="button" className="secondary" disabled={runDisabled} aria-busy={runPending} onClick={() => runScheduledTaskNow(task.id)}>{runPending ? '处理中…' : '立即运行'}</button>
       <button type="button" className="secondary" onClick={() => openTaskSessions(task)}>会话记录</button>
     </footer>
   </article>;
@@ -131,13 +132,48 @@ function ScheduledSessionList({ onBack, onOpen, rows, task }) {
 export function ScheduledTasksPage({ api, deleteScheduledTask, editScheduledTask, embedded = false, loadScheduledTasks, onPinnedTaskChange, openScheduledTaskSession, runScheduledTaskNow, scheduledTasks, setScheduledTasks, setTaskSearch, showToast, taskSearch, toggleScheduledTask }) {
   const [sessionTask, setSessionTask] = useState(null);
   const [sessionRuns, setSessionRuns] = useState([]);
+  const [pendingActions, setPendingActions] = useState({});
   const requestRef = useRef(0);
-  const pinScheduledTask = task => togglePinned(api, 'scheduled-tasks', task, data => {
+  const mountedRef = useRef(true);
+  const pendingActionsRef = useRef({});
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestRef.current++;
+    };
+  }, []);
+  const setActionPending = (key, value) => {
+    const next = {...pendingActionsRef.current};
+    if (value) next[key] = true;
+    else delete next[key];
+    pendingActionsRef.current = next;
+    if (mountedRef.current) setPendingActions(next);
+  };
+  const withPending = async (key, action) => {
+    if (pendingActionsRef.current[key]) return;
+    setActionPending(key, true);
+    try {
+      await action();
+    } finally {
+      setActionPending(key, false);
+    }
+  };
+  const pinScheduledTask = task => withPending('pin:' + task.id, () => togglePinned(api, 'scheduled-tasks', task, data => {
     setScheduledTasks(data.tasks || []);
     const next = (data.tasks || []).find(item => item.id === task.id);
     if (next) onPinnedTaskChange?.(next);
     else onPinnedTaskChange?.({ ...task, pinned: !task.pinned });
-  }, showToast);
+  }, showToast));
+  const refreshTasks = () => withPending('refresh', async () => {
+    try {
+      await loadScheduledTasks();
+    } catch (error) {
+      showToast('刷新任务失败：' + (error.message || '未知错误'), 'error');
+    }
+  });
+  const runTaskNow = taskID => withPending('run:' + taskID, () => runScheduledTaskNow(taskID));
+  const toggleTask = (taskID, enabled) => withPending('toggle:' + taskID, () => toggleScheduledTask(taskID, enabled));
   const query = taskSearch.trim().toLowerCase();
   const filteredTasks = query ? scheduledTasks.filter(task => [task.title, task.prompt, task.last_status, task.last_error].some(value => String(value || '').toLowerCase().includes(query))) : scheduledTasks;
   const loadTaskSessions = async task => {
@@ -160,7 +196,7 @@ export function ScheduledTasksPage({ api, deleteScheduledTask, editScheduledTask
       title="定时任务"
       description="创建、运行和追踪自动执行任务。"
       embedded={embedded}
-      actions={<><button type="button" className="secondary icon-button manage-refresh" onClick={() => loadScheduledTasks()} aria-label="刷新任务" title="刷新任务"><RefreshCw size={17} aria-hidden="true" /></button><button type="button" onClick={() => editScheduledTask()}><Plus size={16} aria-hidden="true" /><span>新增任务</span></button></>}
+      actions={<><button type="button" className="secondary icon-button manage-refresh" onClick={refreshTasks} disabled={!!pendingActions.refresh} aria-busy={!!pendingActions.refresh} aria-label={pendingActions.refresh ? '正在刷新任务' : '刷新任务'} title="刷新任务"><RefreshCw size={17} aria-hidden="true" /></button><button type="button" onClick={() => editScheduledTask()}><Plus size={16} aria-hidden="true" /><span>新增任务</span></button></>}
     />
     <div className="manage-page-body">
       <div className="manage-summary-grid task-summary-grid">
@@ -175,7 +211,7 @@ export function ScheduledTasksPage({ api, deleteScheduledTask, editScheduledTask
       /> : <>
         <div className="manage-list-toolbar"><div><span>任务列表</span><p>搜索标题、提示词或运行状态。</p></div><input className="manage-search" placeholder="搜索定时任务" value={taskSearch} onChange={event => setTaskSearch(event.target.value)} /></div>
         <div className="manage-card-grid scheduled-task-grid">
-          {filteredTasks.length ? filteredTasks.map(task => <ScheduledTaskCard key={task.id} task={task} deleteScheduledTask={deleteScheduledTask} editScheduledTask={editScheduledTask} openScheduledTaskSession={openScheduledTaskSession} openTaskSessions={loadTaskSessions} pinScheduledTask={pinScheduledTask} runScheduledTaskNow={runScheduledTaskNow} toggleScheduledTask={toggleScheduledTask} />) : <div className="manage-empty"><b>{taskSearch.trim() ? '没有匹配任务' : '还没有定时任务'}</b><span>{taskSearch.trim() ? '换个关键词再试。' : '创建任务后可按一次、间隔或日历计划自动运行。'}</span></div>}
+          {filteredTasks.length ? filteredTasks.map(task => <ScheduledTaskCard key={task.id} task={task} deleteScheduledTask={deleteScheduledTask} editScheduledTask={editScheduledTask} openScheduledTaskSession={openScheduledTaskSession} openTaskSessions={loadTaskSessions} pinScheduledTask={pinScheduledTask} runPending={!!pendingActions['run:' + task.id]} runScheduledTaskNow={runTaskNow} togglePending={!!pendingActions['toggle:' + task.id]} toggleScheduledTask={toggleTask} />) : <div className="manage-empty"><b>{taskSearch.trim() ? '没有匹配任务' : '还没有定时任务'}</b><span>{taskSearch.trim() ? '换个关键词再试。' : '创建任务后可按一次、间隔或日历计划自动运行。'}</span></div>}
         </div>
       </>}
     </div>

@@ -15,7 +15,7 @@ import '../styles/settings-entry.css';
 import { TextCard } from './base.jsx';
 import { settingsModules, diagnosticsText, fmtBytes, fmtRelativeAge, fmtTime, runStatusClass, runStatusLabel, safePathName } from '../lib/appUtils.js';
 import { mcpAuthDraft, mcpAuthPayload } from '../lib/mcpAuthDraft.js';
-import { unsavedSettingsPrompt } from '../lib/settingsDraft.js';
+import { unsavedSettingsPrompt, validateMCPConfigRaw } from '../lib/settingsDraft.js';
 import { ProjectsPage, ScheduledTasksPage } from './managementPages.jsx';
 
 const settingsModuleMeta = {
@@ -25,6 +25,101 @@ const settingsModuleMeta = {
   automation: {label: '定时任务', desc: '创建、运行和暂停自动执行任务。', icon: ListTodo},
   security: {label: '系统', desc: '查看运行状态、数据库、备份、诊断信息和访问入口。', icon: ShieldCheck},
 };
+
+function restoreFocusTo(element) {
+  if (!element || !document.contains(element)) return;
+  window.requestAnimationFrame(() => element.focus?.());
+}
+
+function useMountedRef() {
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+  return mountedRef;
+}
+
+function modalFocusableElements(modal) {
+  if (!modal) return [];
+  const selector = 'button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])';
+  return Array.from(modal.querySelectorAll(selector)).filter(element => {
+    if (element.disabled || element.getAttribute('aria-disabled') === 'true') return false;
+    if (element.tabIndex < 0) return false;
+    return !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
+  });
+}
+
+function usePendingActions() {
+  const mountedRef = useMountedRef();
+  const pendingRef = useRef({});
+  const [pending, setPending] = useState({});
+
+  const setActionPending = useCallback((key, value) => {
+    const next = {...pendingRef.current};
+    if (value) next[key] = true;
+    else delete next[key];
+    pendingRef.current = next;
+    if (mountedRef.current) setPending(next);
+  }, [mountedRef]);
+
+  const runPending = useCallback(async (key, action) => {
+    if (pendingRef.current[key]) return {started: false, value: undefined};
+    setActionPending(key, true);
+    try {
+      return {started: true, value: await action()};
+    } finally {
+      setActionPending(key, false);
+    }
+  }, [setActionPending]);
+
+  const isPending = useCallback(key => !!pendingRef.current[key], []);
+  return {pending, isPending, runPending};
+}
+
+function useSettingsModalInteraction(open, modalRef, onClose, closeDisabled = false) {
+  useEffect(() => {
+    if (!open) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const modal = modalRef.current;
+      const firstFocusable = modalFocusableElements(modal)[0];
+      (firstFocusable || modal)?.focus?.();
+    });
+    function closeOnEscape(event) {
+      if (event.key === 'Tab') {
+        const modal = modalRef.current;
+        const focusable = modalFocusableElements(modal);
+        if (!focusable.length) {
+          event.preventDefault();
+          modal?.focus?.();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement;
+        if (event.shiftKey && (!modal?.contains(active) || active === first)) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && active === last) {
+          event.preventDefault();
+          first.focus();
+        }
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation?.();
+        if (!closeDisabled) onClose();
+      }
+    }
+    window.addEventListener('keydown', closeOnEscape, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('keydown', closeOnEscape, true);
+    };
+  }, [closeDisabled, modalRef, onClose, open]);
+}
 
 export function SettingsPanel(props) {
   const {
@@ -36,23 +131,31 @@ export function SettingsPanel(props) {
     scheduledTasks, taskSearch, setTaskSearch, editScheduledTask, deleteScheduledTask, setScheduledTasks, toggleScheduledTask, runScheduledTaskNow, openScheduledTaskSession, loadScheduledTasks, onPinnedTaskChange,
   } = props;
   const saveTimerRef = useRef(null);
+  const saveInFlightRef = useRef(false);
+  const mountedRef = useMountedRef();
+  const settingsPending = usePendingActions();
   const moduleTabsRef = useRef(null);
   const [saveState, setSaveState] = useState({scope: '', status: 'idle', message: ''});
-  const [refreshing, setRefreshing] = useState(false);
+  const refreshing = !!settingsPending.pending.refresh;
   useEffect(() => () => window.clearTimeout(saveTimerRef.current), []);
 
   const saveModelConfig = useCallback(async () => {
-    if (!configDirty || !saveConfig) return;
+    if (!configDirty || !saveConfig || saveInFlightRef.current) return;
+    saveInFlightRef.current = true;
     window.clearTimeout(saveTimerRef.current);
     setSaveState({scope: 'config', status: 'saving', message: ''});
     try {
       await saveConfig({silent: true});
-      setSaveState({scope: 'config', status: 'saved', message: ''});
-      saveTimerRef.current = window.setTimeout(() => setSaveState({scope: '', status: 'idle', message: ''}), 2200);
+      if (mountedRef.current) {
+        setSaveState({scope: 'config', status: 'saved', message: ''});
+        saveTimerRef.current = window.setTimeout(() => setSaveState({scope: '', status: 'idle', message: ''}), 2200);
+      }
     } catch (error) {
-      setSaveState({scope: 'config', status: 'error', message: error?.message || '保存失败，请稍后重试。'});
+      if (mountedRef.current) setSaveState({scope: 'config', status: 'error', message: error?.message || '保存失败，请稍后重试。'});
+    } finally {
+      saveInFlightRef.current = false;
     }
-  }, [configDirty, saveConfig]);
+  }, [configDirty, mountedRef, saveConfig]);
 
   useEffect(() => {
     function saveWithKeyboard(event) {
@@ -89,15 +192,11 @@ export function SettingsPanel(props) {
     document.getElementById('settings-tab-' + next)?.focus();
   };
   const refreshSettings = async () => {
-    if (refreshing) return;
-    const prompt = unsavedSettingsPrompt('refresh', configDirty, mcpConfigDirty);
-    if (prompt && !window.confirm(prompt)) return;
-    setRefreshing(true);
-    try {
+    await settingsPending.runPending('refresh', async () => {
+      const prompt = unsavedSettingsPrompt('refresh', configDirty, mcpConfigDirty);
+      if (prompt && !window.confirm(prompt)) return;
       await (refreshVisibleSettings || refreshProductState)?.();
-    } finally {
-      setRefreshing(false);
-    }
+    });
   };
   return <section className="settings">
     <header className="settings-header">
@@ -214,6 +313,7 @@ function modelListText(config) {
 }
 
 function ModelModule({ config, setConfig, projectPromptPreview, testModelProvider, providers }) {
+  const pendingActions = usePendingActions();
   const update = (key, value) => setConfig(c => ({...c, [key]: value}));
   const providerModels = (provider) => normalizeModelNames([...(provider?.models || []), provider?.default_model].filter(Boolean));
   const activeProvider = providers.find(p => p.id === config.provider_id) || providers[0] || null;
@@ -239,9 +339,16 @@ function ModelModule({ config, setConfig, projectPromptPreview, testModelProvide
   const selectedProviderModels = normalizeModelNames([...providerModels(activeProvider), config.model].filter(Boolean));
   const fallbackModels = normalizeModelNames([...providerModels(fallbackProvider), config.fallback_model].filter(Boolean));
   const contextMode = config.context_mode || 'auto';
+  const testingModel = !!pendingActions.pending.testModel;
+  const testDefaultModel = async () => {
+    if (!testModelProvider) return;
+    await pendingActions.runPending('testModel', async () => {
+      await testModelProvider();
+    });
+  };
   return <>
     <section className="model-quick-panel model-page-single">
-      <div className="model-quick-head"><div><b>默认模型</b><span>{activeProvider?.name || '未选择供应商'} · {config.model || activeProvider?.default_model || '未选择模型'}</span></div><div className="model-quick-actions"><button className="secondary" onClick={() => testModelProvider?.()}>测试连接</button></div></div>
+      <div className="model-quick-head"><div><b>默认模型</b><span>{activeProvider?.name || '未选择供应商'} · {config.model || activeProvider?.default_model || '未选择模型'}</span></div><div className="model-quick-actions"><button className="secondary" onClick={testDefaultModel} disabled={testingModel || !activeProvider} aria-busy={testingModel}>{testingModel ? '测试中…' : '测试连接'}</button></div></div>
       <div className="model-quick-grid">
         <label>供应商<select value={activeProvider?.id || ''} onChange={e => chooseProvider(e.target.value)}>{providers.length ? providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>) : <option value="">未配置供应商</option>}</select></label>
         <label>模型<select value={config.model || ''} onChange={e => chooseModel(e.target.value)} disabled={!activeProvider}><option value="">{activeProvider ? '选择模型' : '先选择供应商'}</option>{selectedProviderModels.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
@@ -278,11 +385,25 @@ function ModelModule({ config, setConfig, projectPromptPreview, testModelProvide
 
 function ProvidersModule({ providers, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels, addCandidateModelsToProvider, loadingModels }) {
   const [candidatePicker, setCandidatePicker] = useState(null);
+  const pendingActions = usePendingActions();
+  const candidateModalRef = useRef(null);
+  const candidateReturnFocusRef = useRef(null);
+  const candidateSaving = !!pendingActions.pending.candidateSave;
+  const discoveringModels = !!pendingActions.pending.discoverModels;
+  const providerTestPending = Object.keys(pendingActions.pending).some(key => key.startsWith('providerTest:'));
 
-  async function discoverModels(provider) {
-    const models = await fetchSavedProviderModels?.(provider);
-    if (!models) return;
-    setCandidatePicker({provider, models, selected: []});
+  const closeCandidatePicker = useCallback(() => {
+    setCandidatePicker(null);
+    restoreFocusTo(candidateReturnFocusRef.current);
+  }, []);
+
+  useSettingsModalInteraction(!!candidatePicker, candidateModalRef, closeCandidatePicker, candidateSaving);
+
+  async function discoverModels(provider, trigger) {
+    candidateReturnFocusRef.current = trigger || document.activeElement;
+    const result = await pendingActions.runPending('discoverModels', () => fetchSavedProviderModels?.(provider));
+    if (!result.started || !result.value) return;
+    setCandidatePicker({provider, models: result.value, selected: [], query: ''});
   }
 
   function toggleCandidate(name) {
@@ -295,27 +416,44 @@ function ProvidersModule({ providers, editModelProvider, deleteModelProvider, te
 
   async function saveCandidates() {
     if (!candidatePicker?.selected.length) return;
-    await addCandidateModelsToProvider?.(candidatePicker.provider.id, candidatePicker.selected);
-    setCandidatePicker(null);
+    const result = await pendingActions.runPending('candidateSave', () => addCandidateModelsToProvider?.(candidatePicker.provider.id, candidatePicker.selected));
+    if (result.started && result.value !== false) closeCandidatePicker();
+  }
+
+  async function testSavedProvider(provider) {
+    if (!provider?.id || providerTestPending) return;
+    await pendingActions.runPending('providerTest:' + provider.id, async () => {
+      await testSavedModelProvider?.(provider);
+    });
   }
 
   const existingModels = normalizeModelNames([...(candidatePicker?.provider?.models || []), candidatePicker?.provider?.default_model].filter(Boolean));
+  const candidateQuery = String(candidatePicker?.query || '').trim().toLowerCase();
+  const visibleCandidateModels = candidatePicker?.models.filter(name => !candidateQuery || String(name).toLowerCase().includes(candidateQuery)) || [];
   return <section className="settings-section provider-management-section">
     <div className="settings-section-head"><div><b>模型供应商</b><p>供应商在弹窗中保存；默认模型在上方选择。</p></div><button className="secondary small" onClick={() => editModelProvider(null)}>新增供应商</button></div>
-    <div className="provider-grid provider-page-grid">{providers.length ? providers.map(provider => <TextCard key={provider.id} title={provider.name || provider.id} hint={provider.base_url || '-'} badge={provider.enabled ? (provider.type || 'openai') : '停用'}><div className="product-meta">默认：{provider.default_model || '-'} · 模型 {provider.models?.length || 0} · Key {provider.api_keys?.length || (provider.has_api_key ? 1 : 0)}</div><div className="product-actions"><button className="secondary small" onClick={() => editModelProvider(provider)}>编辑</button><button className="secondary small" onClick={() => discoverModels(provider)} disabled={loadingModels}>{loadingModels ? '读取中…' : '发现模型'}</button><button className="secondary small" onClick={() => testSavedModelProvider(provider)}>测试</button><button className="danger small" onClick={() => deleteModelProvider(provider)}>删除</button></div></TextCard>) : <div className="empty compact">还没有模型供应商。</div>}</div>
-    {candidatePicker ? <div className="app-modal-backdrop show" onClick={event => { if (event.target === event.currentTarget) setCandidatePicker(null); }}>
-      <div className="app-modal-card candidate-model-modal" role="dialog" aria-modal="true" aria-labelledby="candidateModelTitle">
+    <div className="provider-grid provider-page-grid">{providers.length ? providers.map(provider => {
+      const testingThisProvider = !!pendingActions.pending['providerTest:' + provider.id];
+      return <TextCard key={provider.id} title={provider.name || provider.id} hint={provider.base_url || '-'} badge={provider.enabled ? (provider.type || 'openai') : '停用'}><div className="product-meta">默认：{provider.default_model || '-'} · 模型 {provider.models?.length || 0} · Key {provider.api_keys?.length || (provider.has_api_key ? 1 : 0)}</div><div className="product-actions"><button className="secondary small" onClick={() => editModelProvider(provider)}>编辑</button><button className="secondary small" onClick={event => discoverModels(provider, event.currentTarget)} disabled={loadingModels || discoveringModels}>{loadingModels || discoveringModels ? '读取中…' : '发现模型'}</button><button className="secondary small" onClick={() => testSavedProvider(provider)} disabled={providerTestPending} aria-busy={testingThisProvider}>{testingThisProvider ? '测试中…' : '测试'}</button><button className="danger small" onClick={() => deleteModelProvider(provider)}>删除</button></div></TextCard>;
+    }) : <div className="empty compact">还没有模型供应商。</div>}</div>
+    {candidatePicker ? <div className="app-modal-backdrop show" onClick={event => { if (event.target === event.currentTarget && !candidateSaving) closeCandidatePicker(); }}>
+      <div ref={candidateModalRef} className="app-modal-card candidate-model-modal" role="dialog" aria-modal="true" aria-labelledby="candidateModelTitle" tabIndex="-1">
         <div className="app-modal-form">
           <div id="candidateModelTitle" className="app-modal-title">发现模型 · {candidatePicker.provider.name || candidatePicker.provider.id}</div>
           <div className="candidate-model-modal-body">
             <p>选择要加入该供应商的模型，最后统一保存。</p>
-            <div className="model-options candidate-model-options">{candidatePicker.models.map(name => {
+            <div className="candidate-model-filter">
+              <input aria-label="搜索候选模型" autoComplete="off" placeholder="搜索模型名称" value={candidatePicker.query || ''} onChange={event => setCandidatePicker(current => current ? {...current, query: event.target.value} : current)} />
+              <span role="status" aria-live="polite">显示 {visibleCandidateModels.length} / {candidatePicker.models.length} 个{candidatePicker.selected.length ? ` · 已选 ${candidatePicker.selected.length} 个` : ''}</span>
+            </div>
+            <div className="model-options candidate-model-options">{visibleCandidateModels.map(name => {
               const existing = existingModels.includes(name);
               const selected = candidatePicker.selected.includes(name);
               return <button key={name} type="button" className={'model-option candidate ' + (existing ? 'added ' : '') + (selected ? 'active' : '')} onClick={() => toggleCandidate(name)} disabled={existing}>{existing ? '已存在 · ' : selected ? '已选择 · ' : ''}{name}</button>;
             })}</div>
+            {!visibleCandidateModels.length ? <div className="empty compact">没有匹配的模型。</div> : null}
           </div>
-          <div className="app-modal-actions"><button type="button" className="secondary" onClick={() => setCandidatePicker(null)}>取消</button><button type="button" onClick={saveCandidates} disabled={!candidatePicker.selected.length}>保存所选模型{candidatePicker.selected.length ? `（${candidatePicker.selected.length}）` : ''}</button></div>
+          <div className="app-modal-actions"><button type="button" className="secondary" onClick={closeCandidatePicker} disabled={candidateSaving}>取消</button><button type="button" onClick={saveCandidates} disabled={candidateSaving || !candidatePicker.selected.length} aria-busy={candidateSaving}>{candidateSaving ? '保存中…' : '保存所选模型'}{candidatePicker.selected.length ? `（${candidatePicker.selected.length}）` : ''}</button></div>
         </div>
       </div>
     </div> : null}
@@ -537,47 +675,123 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, saveMCPConfig, loadMC
   const [editor, setEditor] = useState(null);
   const [formError, setFormError] = useState('');
   const [serverTools, setServerTools] = useState({});
-  const [loadingTools, setLoadingTools] = useState({});
-  const [saving, setSaving] = useState(false);
+  const pendingActions = usePendingActions();
+  const mountedRef = useMountedRef();
+  const mcpModalRef = useRef(null);
+  const editorReturnFocusRef = useRef(null);
   const parsed = useMemo(() => parseMCPConfigDraft(mcpConfig), [mcpConfig]);
+  const configEditable = !parsed.error;
   const serverNames = Object.keys(parsed.config.servers || {}).sort();
   const statusByName = useMemo(() => Object.fromEntries((mcpStatus || []).map(status => [status.name, status])), [mcpStatus]);
+  const saving = !!pendingActions.pending.mcpSave || !!pendingActions.pending.mcpDelete;
+  const checkingStatus = !!pendingActions.pending.mcpStatus;
+  const testingServerName = Object.keys(pendingActions.pending).find(key => key.startsWith('mcpTest:'))?.slice('mcpTest:'.length) || '';
 
-  function openBuiltinEditor() {
+  const closeEditor = useCallback(() => {
+    setEditor(null);
+    restoreFocusTo(editorReturnFocusRef.current);
+  }, []);
+
+  useSettingsModalInteraction(!!editor, mcpModalRef, closeEditor, saving);
+
+  function rememberEditorTrigger(trigger) {
+    editorReturnFocusRef.current = trigger || document.activeElement;
+  }
+
+  function openBuiltinEditor(trigger) {
+    if (!configEditable) {
+      setFormError('当前 MCP 配置不是合法 JSON，请先修复配置后再编辑工具资源。');
+      return;
+    }
+    rememberEditorTrigger(trigger);
     setFormError('');
     setEditor({kind: 'builtin', name: 'chatdock', draft: builtinToolsToDraft(parsed.config.builtin_tools)});
   }
 
-  function openServerEditor(name) {
+  function openServerEditor(name, trigger) {
+    if (!configEditable) {
+      setFormError('当前 MCP 配置不是合法 JSON，请先修复配置后再编辑工具资源。');
+      return;
+    }
+    rememberEditorTrigger(trigger);
     setFormError('');
     setEditor({kind: 'server', name, draft: {name, ...mcpServerToDraft(parsed.config.servers[name])}});
   }
 
-  function openNewServerEditor() {
+  function openNewServerEditor(trigger) {
+    if (!configEditable) {
+      setFormError('当前 MCP 配置不是合法 JSON，请先修复配置后再新增 Server。');
+      return;
+    }
+    rememberEditorTrigger(trigger);
     setFormError('');
     setEditor({kind: 'new', name: '', draft: defaultMCPServerDraft()});
+  }
+
+  function openRawConfigEditor(trigger) {
+    rememberEditorTrigger(trigger);
+    setFormError('');
+    setEditor({kind: 'raw', name: 'mcp-json', draft: {content: mcpConfig || ''}});
   }
 
   function updateEditor(patch) {
     setEditor(current => current ? {...current, draft: {...current.draft, ...patch}} : current);
   }
 
+  async function checkMCPStatus() {
+    if (!loadMCPStatus) return;
+    await pendingActions.runPending('mcpStatus', async () => {
+      setFormError('');
+      try {
+        await loadMCPStatus();
+      } catch (error) {
+        if (mountedRef.current) setFormError('检查 MCP 连接失败：' + (error.message || '未知错误'));
+      }
+    });
+  }
+
+  async function testSavedMCPServer(name) {
+    if (!name || testingServerName) return;
+    await pendingActions.runPending('mcpTest:' + name, async () => {
+      await testMCP?.(name);
+    });
+  }
+
   async function refreshServerTools(name) {
     if (!name || !fetchMCPServerTools) return;
-    setLoadingTools(previous => ({...previous, [name]: true}));
-    try {
-      const tools = await fetchMCPServerTools(name);
-      setServerTools(previous => ({...previous, [name]: tools || []}));
-      setFormError('已读取 ' + name + ' 的 ' + ((tools || []).length) + ' 个工具。');
-    } catch (error) {
-      setFormError('读取工具列表失败：' + error.message);
-    } finally {
-      setLoadingTools(previous => ({...previous, [name]: false}));
-    }
+    await pendingActions.runPending('mcpTools:' + name, async () => {
+      try {
+        const tools = await fetchMCPServerTools(name);
+        if (mountedRef.current) {
+          setServerTools(previous => ({...previous, [name]: tools || []}));
+          setFormError('已读取 ' + name + ' 的 ' + ((tools || []).length) + ' 个工具。');
+        }
+      } catch (error) {
+        if (mountedRef.current) setFormError('读取工具列表失败：' + error.message);
+      }
+    });
   }
 
   async function saveEditor() {
     if (!editor || !saveMCPConfig) return;
+    if (editor.kind === 'raw') {
+      const validation = validateMCPConfigRaw(editor.draft.content);
+      if (!validation.ok) {
+        setFormError(validation.error);
+        return;
+      }
+      await pendingActions.runPending('mcpSave', async () => {
+        setFormError('');
+        try {
+          await saveMCPConfig({content: validation.content, silent: true});
+          if (mountedRef.current) closeEditor();
+        } catch (error) {
+          if (mountedRef.current) setFormError(error.message || '保存 MCP JSON 失败。');
+        }
+      });
+      return;
+    }
+    if (!configEditable) { setFormError('当前 MCP 配置不是合法 JSON，请先用原文修复后再保存。'); return; }
     const next = {...parsed.config, servers: {...(parsed.config.servers || {})}};
 
     if (editor.kind === 'builtin') {
@@ -592,35 +806,35 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, saveMCPConfig, loadMC
       next.servers[nextName] = cleanMCPServerDraft(editor.draft);
     }
 
-    setSaving(true);
-    setFormError('');
-    try {
-      await saveMCPConfig({content: stringifyMCPConfigDraft(next), silent: true});
-      setEditor(null);
-    } catch (error) {
-      setFormError(error.message || '保存工具配置失败。');
-    } finally {
-      setSaving(false);
-    }
+    await pendingActions.runPending('mcpSave', async () => {
+      setFormError('');
+      try {
+        await saveMCPConfig({content: stringifyMCPConfigDraft(next), silent: true});
+        if (mountedRef.current) closeEditor();
+      } catch (error) {
+        if (mountedRef.current) setFormError(error.message || '保存工具配置失败。');
+      }
+    });
   }
 
   async function deleteCurrentServer() {
-    if (editor?.kind !== 'server' || !window.confirm('确定删除 MCP Server「' + editor.name + '」？')) return;
-    const next = {...parsed.config, servers: {...(parsed.config.servers || {})}};
-    delete next.servers[editor.name];
-    setSaving(true);
-    try {
-      await saveMCPConfig({content: stringifyMCPConfigDraft(next), silent: true});
-      setEditor(null);
-    } catch (error) {
-      setFormError(error.message || '删除 MCP Server 失败。');
-    } finally {
-      setSaving(false);
-    }
+    if (editor?.kind !== 'server') return;
+    await pendingActions.runPending('mcpDelete', async () => {
+      if (!window.confirm('确定删除 MCP Server「' + editor.name + '」？')) return;
+      const next = {...parsed.config, servers: {...(parsed.config.servers || {})}};
+      delete next.servers[editor.name];
+      try {
+        await saveMCPConfig({content: stringifyMCPConfigDraft(next), silent: true});
+        if (mountedRef.current) closeEditor();
+      } catch (error) {
+        if (mountedRef.current) setFormError(error.message || '删除 MCP Server 失败。');
+      }
+    });
   }
 
   const isBuiltin = editor?.kind === 'builtin';
   const isNew = editor?.kind === 'new';
+  const isRaw = editor?.kind === 'raw';
   const serverDraft = !isBuiltin ? editor?.draft : null;
   const editorServerName = editor?.kind === 'server' ? editor.name : '';
   const urlHasLocalhost = serverDraft ? /^http:\/\/(127\.0\.0\.1|localhost)(?=[:/]|$)/i.test(normalizeMCPURLDraft(serverDraft.url)) : false;
@@ -634,19 +848,19 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, saveMCPConfig, loadMC
       <div className="settings-section-head">
         <div><b>工具资源</b><p>点击资源进入编辑，修改在弹窗中直接保存。</p></div>
         <div className="mcp-directory-actions">
-          <button className="secondary small" onClick={() => loadMCPStatus?.()}>检查连接</button>
-          <button className="small" onClick={openNewServerEditor}>新增 Server</button>
+          <button type="button" className="secondary small" onClick={checkMCPStatus} disabled={checkingStatus} aria-busy={checkingStatus}>{checkingStatus ? '检查中…' : '检查连接'}</button>
+          <button type="button" className="small" onClick={event => openNewServerEditor(event.currentTarget)} disabled={!configEditable}>新增 Server</button>
         </div>
       </div>
       <div className="mcp-config-directory">
-        <button type="button" className="secondary mcp-config-directory-row" onClick={openBuiltinEditor}>
+        <button type="button" className="secondary mcp-config-directory-row" onClick={event => openBuiltinEditor(event.currentTarget)} disabled={!configEditable}>
           <span><b>ChatDock 内置工具</b><small>定时任务、图片和供应商工具</small></span>
           <em>{(builtinTools || []).length} 个 · 编辑</em>
         </button>
         {serverNames.map(name => {
           const server = parsed.config.servers[name];
           const status = statusByName[name];
-          return <button type="button" className="secondary mcp-config-directory-row" key={name} onClick={() => openServerEditor(name)}>
+          return <button type="button" className="secondary mcp-config-directory-row" key={name} onClick={event => openServerEditor(name, event.currentTarget)} disabled={!configEditable}>
             <span><b>{name}</b><small>{server.url || '未填写 HTTP 地址'}</small></span>
             <em className={'badge ' + runStatusClass(status?.last_status || 'unknown')}>{status?.last_status ? runStatusLabel(status.last_status) : '未检测'}</em>
           </button>;
@@ -654,13 +868,17 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, saveMCPConfig, loadMC
         {!serverNames.length ? <div className="empty compact">暂无 MCP Server。</div> : null}
       </div>
     </section>
-    {parsed.error ? <div className="backup-health warn">当前配置 JSON 损坏：{parsed.error}</div> : null}
-    {editor ? <div className="app-modal-backdrop show" onClick={event => { if (event.target === event.currentTarget && !saving) setEditor(null); }}>
-      <div className="app-modal-card provider-modal provider-modal-simple mcp-config-modal" role="dialog" aria-modal="true" aria-labelledby="mcpConfigModalTitle">
+    {parsed.error ? <div className="backup-health warn">当前配置 JSON 损坏：{parsed.error}<button type="button" className="secondary small" onClick={event => openRawConfigEditor(event.currentTarget)}>修复 JSON 原文</button></div> : null}
+    {formError && !editor ? <div className="backup-health warn">{formError}</div> : null}
+    {editor ? <div className="app-modal-backdrop show" onClick={event => { if (event.target === event.currentTarget && !saving) closeEditor(); }}>
+      <div ref={mcpModalRef} className="app-modal-card provider-modal provider-modal-simple mcp-config-modal" role="dialog" aria-modal="true" aria-labelledby="mcpConfigModalTitle" tabIndex="-1">
         <div className="app-modal-form">
-          <div id="mcpConfigModalTitle" className="app-modal-title">{isBuiltin ? 'ChatDock 内置工具' : isNew ? '新增 MCP Server' : '编辑 ' + editor.name}</div>
+          <div id="mcpConfigModalTitle" className="app-modal-title">{isRaw ? '修复 MCP JSON' : isBuiltin ? 'ChatDock 内置工具' : isNew ? '新增 MCP Server' : '编辑 ' + editor.name}</div>
           <div className="mcp-config-modal-body">
-            {isBuiltin ? <section className="settings-section mcp-detail-section builtin-tools-section">
+            {isRaw ? <div className="mcp-form-card">
+              <label>MCP JSON 原文<textarea rows={16} value={editor.draft.content} onChange={event => updateEditor({content: event.target.value})} spellCheck="false" /></label>
+              <div className="hint">这里只校验并保存你编辑后的原文，不会自动重置为空配置。</div>
+            </div> : isBuiltin ? <section className="settings-section mcp-detail-section builtin-tools-section">
               <div className="builtin-default-exposure"><div><b>默认加载方式</b><span>未单独设置的工具继承此方式</span></div><select aria-label="内置工具默认加载方式" value={editor.draft.tool_exposure} onChange={event => updateEditor({tool_exposure: event.target.value})}><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select></div>
               <BuiltinToolExposurePicker draft={editor.draft} tools={builtinTools || []} onChange={updateEditor} />
             </section> : <div className="mcp-form-card">
@@ -688,15 +906,15 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, saveMCPConfig, loadMC
                   <label>超时 ms<input type="number" inputMode="numeric" value={serverDraft.timeout_ms} onChange={event => updateEditor({timeout_ms: event.target.value})} placeholder="30000" /></label>
                   <label>工具缓存 ms<input type="number" inputMode="numeric" value={serverDraft.cache_ttl_ms} onChange={event => updateEditor({cache_ttl_ms: event.target.value})} placeholder="可留空" /></label>
                 </div>
-                {!isNew ? <MCPToolPolicyPicker name={editorServerName} draft={serverDraft} tools={serverTools[editorServerName] || []} loading={!!loadingTools[editorServerName]} onRefresh={() => refreshServerTools(editorServerName)} onChange={updateEditor} /> : <div className="hint">保存 Server 后可读取并配置工具权限。</div>}
+                {!isNew ? <MCPToolPolicyPicker name={editorServerName} draft={serverDraft} tools={serverTools[editorServerName] || []} loading={!!pendingActions.pending['mcpTools:' + editorServerName]} onRefresh={() => refreshServerTools(editorServerName)} onChange={updateEditor} /> : <div className="hint">保存 Server 后可读取并配置工具权限。</div>}
                 <label>本地路径备注<input value={serverDraft.path} onChange={event => updateEditor({path: event.target.value})} placeholder="可选备注" /></label>
               </details>
             </div>}
             {formError ? <div className="backup-health warn">{formError}</div> : null}
           </div>
           <div className="app-modal-actions mcp-config-modal-actions">
-            <div className="mcp-modal-secondary-actions">{editor.kind === 'server' ? <><button type="button" className="danger" onClick={deleteCurrentServer} disabled={saving}>删除</button><button type="button" className="secondary" onClick={() => testMCP(editor.name)} disabled={saving}>测试已保存配置</button></> : null}</div>
-            <div className="mcp-modal-primary-actions"><button type="button" className="secondary" onClick={() => setEditor(null)} disabled={saving}>取消</button><button type="button" onClick={saveEditor} disabled={saving}>{saving ? '保存中…' : isBuiltin ? '保存工具设置' : isNew ? '保存 Server' : '保存修改'}</button></div>
+            <div className="mcp-modal-secondary-actions">{editor.kind === 'server' ? <><button type="button" className="danger" onClick={deleteCurrentServer} disabled={saving}>删除</button><button type="button" className="secondary" onClick={() => testSavedMCPServer(editor.name)} disabled={saving || !!testingServerName} aria-busy={testingServerName === editor.name}>{testingServerName === editor.name ? '测试中…' : '测试已保存配置'}</button></> : null}</div>
+            <div className="mcp-modal-primary-actions"><button type="button" className="secondary" onClick={closeEditor} disabled={saving}>取消</button><button type="button" onClick={saveEditor} disabled={saving}>{saving ? '保存中…' : isRaw ? '保存 JSON' : isBuiltin ? '保存工具设置' : isNew ? '保存 Server' : '保存修改'}</button></div>
           </div>
         </div>
       </div>
@@ -731,8 +949,14 @@ function DataStatus({ dataStatus, onCopy }) {
 }
 
 function SecurityModule({ systemStatus, setupStatus, dataStatus, mcpStatus, providers, loadSystemStatus, loadDataStatus, logout, onCopy }) {
+  const pendingActions = usePendingActions();
+  const refreshingStatus = !!pendingActions.pending.securityRefresh;
   const text = diagnosticsText({setupStatus, systemStatus, dataStatus, mcpStatus, providers});
-  const refreshStatus = () => Promise.allSettled([loadSystemStatus?.(), loadDataStatus?.()]);
+  const refreshStatus = async () => {
+    await pendingActions.runPending('securityRefresh', async () => {
+      await Promise.allSettled([loadSystemStatus?.(), loadDataStatus?.()]);
+    });
+  };
   const setup = setupStatus || systemStatus?.setup || {};
   const data = dataStatus || systemStatus?.data || {};
   const healthy = Boolean(systemStatus?.ok);
@@ -752,7 +976,7 @@ function SecurityModule({ systemStatus, setupStatus, dataStatus, mcpStatus, prov
   ];
 
   return <>
-    <div className="settings-block-head"><label>系统状态</label><button className="secondary small" onClick={refreshStatus}>刷新状态</button></div>
+    <div className="settings-block-head"><label>系统状态</label><button className="secondary small" onClick={refreshStatus} disabled={refreshingStatus} aria-busy={refreshingStatus}>{refreshingStatus ? '刷新中…' : '刷新状态'}</button></div>
     <div className={'setup-banner show ' + (healthy ? 'ok' : '')}>
       <div><b>{healthy ? 'ChatDock 运行正常' : 'ChatDock 状态待确认'}</b><div className="hint">{healthy ? '核心服务可用，配置和数据状态已加载。' : '刷新后仍异常时，可展开下方诊断信息排查。'}</div></div>
       <span className={'badge ' + (healthy ? 'ok' : 'warn')}>{healthy ? 'healthy' : 'unknown'}</span>
