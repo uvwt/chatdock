@@ -1167,7 +1167,20 @@ export default function App() {
     try {
       const data = await fetchProviderSystemPrompt(api, current);
       const prompt = String(data?.system_prompt || '').trim();
-      await showDialog({ title: '供应商实际 System Prompt', confirmText: '关闭', hideCancel: true, fields: [{ name: 'prompt', label: prompt ? '按真实模型请求链路构造的完整 system 消息' : '当前请求不会发送 system 消息', type: 'textarea', rows: 16, value: prompt || '(空)' }] });
+      await showDialog({
+        title: '供应商实际 System Prompt',
+        message: prompt ? `只读预览 · ${prompt.length.toLocaleString('zh-CN')} 字符` : '当前请求不会发送 system 消息',
+        variant: 'prompt-viewer-modal',
+        confirmText: '关闭',
+        hideCancel: true,
+        fields: [{
+          name: 'prompt',
+          label: '完整 system 消息',
+          type: 'readonly_text',
+          value: prompt,
+          emptyText: '（空）',
+        }],
+      });
     } catch (e) {
       showToast('供应商 System Prompt 加载失败：' + e.message, 'error');
     }

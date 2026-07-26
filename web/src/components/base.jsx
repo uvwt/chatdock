@@ -244,6 +244,7 @@ export function DialogHost({ dialog, closeDialog }) {
         const control = renderDialogField(field, value, setValue, values, setValues);
         if (field.type === 'hidden') return control;
         if (field.type === 'schedule_builder') return <div key={field.name} className="app-modal-field schedule-builder-field"><span>{field.label || field.name}</span>{control}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</div>;
+        if (field.type === 'readonly_text') return <section key={field.name} className="app-modal-field readonly-text-field"><span>{field.label || field.name}</span>{control}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</section>;
         return <label key={field.name} className={'app-modal-field ' + (field.type === 'provider_keys' ? 'provider-keys-field' : '')}><span>{field.label || field.name}</span>{control}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</label>;
       })}</div>
       <div className="app-modal-actions">{dialog.hideCancel ? null : <button type="button" className="secondary app-modal-cancel" onClick={() => closeDialog(null)}>{dialog.cancelText || '取消'}</button>}<button type="submit" className={dialog.danger ? 'danger' : ''}>{dialog.confirmText || '确定'}</button></div>
@@ -333,6 +334,7 @@ function renderDialogField(field, value, setValue, values = {}, setValues = null
   if (field.type === 'hidden') return <input key={field.name} type="hidden" value={value || ''} readOnly />;
   if (field.type === 'provider_keys') return <ProviderKeysEditor value={value} setValue={setValue} values={values} setValues={setValues} />;
   if (field.type === 'schedule_builder') return <ScheduleBuilder value={value} onChange={setValue} />;
+  if (field.type === 'readonly_text') return <div className="app-modal-readonly-text" role="document" tabIndex={0}><pre>{value || field.emptyText || '（空）'}</pre></div>;
   if (field.type === 'textarea') return <textarea rows={field.rows || 5} value={value} placeholder={field.placeholder || ''} required={!!field.required} onChange={e => setValue(e.target.value)} />;
   if (field.type === 'select') return <select value={value} required={!!field.required} onChange={e => { const next = e.target.value; setValue(next); if (field.fillByValue && setValues) { const fill = field.fillByValue[next] || {}; setValues(current => ({...current, ...Object.fromEntries(Object.entries(fill).filter(([, v]) => v))})); } }}>{(field.options || []).map(opt => typeof opt === 'string' ? <option key={opt} value={opt}>{opt}</option> : <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select>;
   return <input type={field.type || 'text'} min={field.min} max={field.max} step={field.step} value={value} placeholder={field.placeholder || ''} required={!!field.required} onChange={e => setValue(e.target.value)} />;

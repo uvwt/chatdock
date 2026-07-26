@@ -209,6 +209,89 @@ body.theme-light .session-actions-sheet { background: #ffffff; border-color: #e2
   margin-top: 20px;
 }
 
+.app-modal-card.prompt-viewer-modal {
+  width: min(860px, 100%);
+  max-height: min(90vh, 860px);
+  overflow: hidden;
+}
+
+.prompt-viewer-modal .app-modal-form {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  min-height: min(78vh, 760px);
+  padding: 0;
+}
+
+.prompt-viewer-modal .app-modal-title {
+  margin: 0;
+  padding: 22px 24px 0;
+  font-size: 20px;
+  letter-spacing: -.02em;
+}
+
+.prompt-viewer-modal .app-modal-message {
+  margin: 0;
+  padding: 6px 24px 18px;
+  border-bottom: 1px solid rgba(148, 163, 184, .16);
+  font-size: 12px;
+}
+
+.prompt-viewer-modal .app-modal-fields {
+  min-height: 0;
+  padding: 18px 24px;
+  background: rgba(2, 6, 23, .3);
+}
+
+.prompt-viewer-modal .readonly-text-field {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+}
+
+.prompt-viewer-modal .readonly-text-field > span {
+  margin-bottom: 10px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.app-modal-readonly-text {
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid rgba(148, 163, 184, .2);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, .82);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03);
+  overscroll-behavior: contain;
+}
+
+.app-modal-readonly-text:focus-visible {
+  outline: 2px solid rgba(148, 163, 184, .45);
+  outline-offset: 2px;
+}
+
+.app-modal-readonly-text pre {
+  margin: 0;
+  padding: 18px 20px 28px;
+  color: #dbe4f0;
+  font: 12.5px/1.72 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}
+
+.prompt-viewer-modal .app-modal-actions {
+  margin: 0;
+  padding: 14px 24px 18px;
+  border-top: 1px solid rgba(148, 163, 184, .16);
+}
+
+.prompt-viewer-modal .app-modal-actions button {
+  min-width: 96px;
+}
+
 .app-toast {
   position: fixed;
   right: 22px;
@@ -262,6 +345,20 @@ body.theme-light .session-actions-sheet { background: #ffffff; border-color: #e2
   color: #64748b;
 }
 
+.theme-light .prompt-viewer-modal .app-modal-fields {
+  background: #f8fafc;
+}
+
+.theme-light .app-modal-readonly-text {
+  border-color: #dbe4f0;
+  background: #ffffff;
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+
+.theme-light .app-modal-readonly-text pre {
+  color: #1e293b;
+}
+
 @media (max-width: 720px) {
   .app-modal-backdrop {
     align-items: flex-end;
@@ -280,6 +377,37 @@ body.theme-light .session-actions-sheet { background: #ffffff; border-color: #e2
 
   .app-modal-actions button {
     flex: 1 1 0;
+  }
+
+  .app-modal-card.prompt-viewer-modal {
+    max-height: 90dvh;
+  }
+
+  .prompt-viewer-modal .app-modal-form {
+    min-height: 84dvh;
+  }
+
+  .prompt-viewer-modal .app-modal-title {
+    padding: 18px 18px 0;
+    font-size: 18px;
+  }
+
+  .prompt-viewer-modal .app-modal-message {
+    padding: 6px 18px 14px;
+  }
+
+  .prompt-viewer-modal .app-modal-fields {
+    padding: 14px 18px;
+  }
+
+  .app-modal-readonly-text pre {
+    padding: 16px 16px 24px;
+    font-size: 12px;
+    line-height: 1.68;
+  }
+
+  .prompt-viewer-modal .app-modal-actions {
+    padding: 12px 18px 16px;
   }
 
   .app-toast {
