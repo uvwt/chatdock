@@ -110,6 +110,19 @@ if (!/min-width:\s*0/.test(userMessageRule)
   failures.push('user and system messages must wrap unbroken long content inside the viewport');
 }
 
+// “跳到最新”是悬浮控件。画布层级规则不能把它改回相对定位，否则按钮会占据主轴空间，
+// 再叠加 bottom 位移后会在消息和输入框之间留下明显空白。
+const shellLayout = read('web/src/styles/art-direction/01-shell.css');
+const mainContentLayerRule = shellLayout.match(/#app\.app\s+main\s*>\s*:not\(\.jump-latest\)\s*\{([^}]*)\}/)?.[1] || '';
+if (!/position:\s*relative/.test(mainContentLayerRule)
+  || /#app\.app\s+main\s*>\s*\*/.test(shellLayout)) {
+  failures.push('main content layering must exclude the absolute jump-to-latest control');
+}
+const jumpLatestRule = read('web/src/styles/chat/02-chat.css').match(/\.jump-latest\s*\{([^}]*)\}/)?.[1] || '';
+if (!/position:\s*absolute/.test(jumpLatestRule)) {
+  failures.push('jump-to-latest control must remain absolutely positioned');
+}
+
 const exactBlocks = new Map();
 const selectorFiles = new Map();
 for (const filename of listCSS(stylesDir)) {

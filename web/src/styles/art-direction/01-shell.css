@@ -193,8 +193,8 @@ body.theme-light #app.app main::before {
     radial-gradient(circle at 76% 4%, color-mix(in srgb, var(--gpt-accent) 3%, transparent), transparent 28%),
     radial-gradient(circle at 14% 90%, color-mix(in srgb, var(--gpt-accent-2) 2%, transparent), transparent 34%);
 }
-
-#app.app main > * {
+/* 普通内容需要压在画布装饰层之上；悬浮按钮必须保留自己的绝对定位，不能参与主轴布局。 */
+#app.app main > :not(.jump-latest) {
   position: relative;
   z-index: 1;
 }
