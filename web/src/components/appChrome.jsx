@@ -23,7 +23,7 @@ import { ComposerModelPicker } from './modelPicker.jsx';
 import { TaskPanelToggle } from './taskPanel.jsx';
 import { fetchSessions } from '../lib/sessionApi.js';
 import { fetchScheduledTaskRuns } from '../lib/settingsApi.js';
-import { scheduledTaskSessionRows, sessionRowID } from '../lib/sessionPresentation.js';
+import { scheduledTaskSessionRows, sessionRowID, unpinnedSessionRows } from '../lib/sessionPresentation.js';
 
 const iconProps = { size: 17, 'aria-hidden': true };
 
@@ -67,9 +67,10 @@ export function ComposerBar({ busy, createPersistedSession, current, downloadAtt
   </div>;
 }
 
-function SidebarTreeNode({ api, current, item, kind, openSession, openSessionMenu, startProjectConversation }) {
+function SidebarTreeNode({ api, current, item, kind, openSession, openSessionMenu, pinnedSessions, startProjectConversation }) {
   const [rows, setRows] = React.useState();
   const Icon = kind === 'project' ? Folder : ListTodo;
+  const visibleRows = Array.isArray(rows) ? unpinnedSessionRows(rows, pinnedSessions) : rows;
   const removeRow = id => setRows(currentRows => Array.isArray(currentRows) ? currentRows.filter(row => sessionRowID(row) !== id) : currentRows);
   const renderRow = row => {
     const id = sessionRowID(row);
@@ -84,7 +85,7 @@ function SidebarTreeNode({ api, current, item, kind, openSession, openSessionMen
     if (!event.currentTarget.open || rows === null || Array.isArray(rows)) return;
     setRows(null);
     try {
-      const data = kind === 'project' ? await fetchSessions(api, {projectFilter: item.id, limit: 30}) : await fetchScheduledTaskRuns(api, item.id);
+      const data = kind === 'project' ? await fetchSessions(api, {projectFilter: item.id, limit: 30, pinned: false}) : await fetchScheduledTaskRuns(api, item.id);
       setRows(kind === 'project' ? data.sessions || [] : scheduledTaskSessionRows(data.runs || []));
     } catch {
       setRows(false);
@@ -94,9 +95,9 @@ function SidebarTreeNode({ api, current, item, kind, openSession, openSessionMen
     <summary><Icon size={15} aria-hidden="true" /><span>{item.name || item.title}</span><ArrowDown size={14} aria-hidden="true" /></summary>
     <div className="sidebar-tree-children">
       {kind === 'project' ? <button type="button" className="sidebar-tree-new-chat" onClick={() => startProjectConversation(item.id)}><MessageSquarePlus size={14} aria-hidden="true" /><span>新建对话</span></button> : null}
-      {rows == null ? <span className="sidebar-tree-state">正在加载…</span> : rows === false ? <span className="sidebar-tree-state">加载失败</span> : rows.length ? <>
-        {rows.slice(0, 5).map(renderRow)}
-        {rows.length > 5 ? <details className="sidebar-tree-more"><summary>显示更多</summary>{rows.slice(5).map(renderRow)}</details> : null}
+      {visibleRows == null ? <span className="sidebar-tree-state">正在加载…</span> : visibleRows === false ? <span className="sidebar-tree-state">加载失败</span> : visibleRows.length ? <>
+        {visibleRows.slice(0, 5).map(renderRow)}
+        {visibleRows.length > 5 ? <details className="sidebar-tree-more"><summary>显示更多</summary>{visibleRows.slice(5).map(renderRow)}</details> : null}
       </> : <span className="sidebar-tree-state">暂无会话</span>}
     </div>
   </details>;
@@ -180,7 +181,7 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
   const pinnedTaskRows = searchingSessions ? [] : pinnedTasks;
   const pinnedProjectIDs = new Set(pinnedProjects.map(item => item.id));
   const pinnedTaskIDs = new Set(pinnedTasks.map(item => item.id));
-  const renderTreeNode = (kind, item) => <SidebarTreeNode key={kind + item.id} api={api} current={current} item={item} kind={kind} openSession={openSession} openSessionMenu={toggleSessionMenu} startProjectConversation={startProjectConversation} />;
+  const renderTreeNode = (kind, item) => <SidebarTreeNode key={kind + item.id} api={api} current={current} item={item} kind={kind} openSession={openSession} openSessionMenu={toggleSessionMenu} pinnedSessions={pinnedSessions} startProjectConversation={startProjectConversation} />;
   const managementProjects = (projects || []).filter(item => !item.pinned && !pinnedProjectIDs.has(item.id));
   const managementTasks = (scheduledTasks || []).filter(item => !item.pinned && !pinnedTaskIDs.has(item.id));
   const sessionRows = filteredSessions;

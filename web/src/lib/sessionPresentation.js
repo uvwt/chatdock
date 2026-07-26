@@ -12,6 +12,14 @@ export function scheduledTaskSessionRows(runs = []) {
   });
 }
 
+export function unpinnedSessionRows(rows = [], pinnedSessions = []) {
+  const pinnedIDs = new Set((Array.isArray(pinnedSessions) ? pinnedSessions : []).map(sessionRowID).filter(Boolean));
+  return (Array.isArray(rows) ? rows : []).filter(row => {
+    const id = sessionRowID(row);
+    return id && !row?.pinned && !pinnedIDs.has(id);
+  });
+}
+
 export function visibleSessionRows({ sessionSearch = '', sessionSearchResults = [], sessions = [] }) {
   return String(sessionSearch || '').trim() ? sessionSearchResults : sessions;
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scheduledTaskSessionRows, sessionRowID, visibleSessionRows } from './sessionPresentation.js';
+import { scheduledTaskSessionRows, sessionRowID, unpinnedSessionRows, visibleSessionRows } from './sessionPresentation.js';
 
 test('sessionRowID uses the generated conversation id for scheduled runs', () => {
   assert.equal(sessionRowID({id: 'run-1', session_id: 'session-1'}), 'session-1');
@@ -17,6 +17,18 @@ test('scheduledTaskSessionRows exposes unique generated conversations', () => {
   assert.deepEqual(rows.map(row => [row.session_id, row.session_title, row.started_at]), [
     ['s1', '生成标题', 'new'],
     ['s2', undefined, undefined],
+  ]);
+});
+
+test('unpinnedSessionRows keeps pinned conversations only in the pinned area', () => {
+  const rows = [
+    {id: 'plain', title: '普通会话'},
+    {id: 'server-pinned', pinned: true},
+    {session_id: 'feed-pinned', session_title: '刚刚置顶'},
+  ];
+
+  assert.deepEqual(unpinnedSessionRows(rows, [{id: 'feed-pinned', pinned: true}]), [
+    {id: 'plain', title: '普通会话'},
   ]);
 });
 
