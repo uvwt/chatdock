@@ -220,7 +220,8 @@ body.theme-light .current-session-task-status.blocked {
 
 @media (max-width: 720px) {
   .current-session-task {
-    bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+    /* 输入区本身已经占据 Flex 布局底部空间，这里不再重复叠加输入区和安全区高度。 */
+    bottom: 0;
     width: calc(100% - 20px);
     border-radius: 14px;
   }
