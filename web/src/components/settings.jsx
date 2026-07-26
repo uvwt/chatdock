@@ -15,6 +15,7 @@ import '../styles/settings-entry.css';
 import { TextCard } from './base.jsx';
 import { settingsModules, diagnosticsText, fmtBytes, fmtRelativeAge, fmtTime, runStatusClass, runStatusLabel, safePathName } from '../lib/appUtils.js';
 import { mcpAuthDraft, mcpAuthPayload } from '../lib/mcpAuthDraft.js';
+import { unsavedSettingsPrompt } from '../lib/settingsDraft.js';
 import { ProjectsPage, ScheduledTasksPage } from './managementPages.jsx';
 
 const settingsModuleMeta = {
@@ -35,7 +36,9 @@ export function SettingsPanel(props) {
     scheduledTasks, taskSearch, setTaskSearch, editScheduledTask, deleteScheduledTask, setScheduledTasks, toggleScheduledTask, runScheduledTaskNow, openScheduledTaskSession, loadScheduledTasks, onPinnedTaskChange,
   } = props;
   const saveTimerRef = useRef(null);
+  const moduleTabsRef = useRef(null);
   const [saveState, setSaveState] = useState({scope: '', status: 'idle', message: ''});
+  const [refreshing, setRefreshing] = useState(false);
   useEffect(() => () => window.clearTimeout(saveTimerRef.current), []);
 
   const saveModelConfig = useCallback(async () => {
@@ -51,10 +54,50 @@ export function SettingsPanel(props) {
     }
   }, [configDirty, saveConfig]);
 
+  useEffect(() => {
+    function saveWithKeyboard(event) {
+      if (activeModule !== 'model' || !(event.metaKey || event.ctrlKey) || event.altKey || event.key.toLowerCase() !== 's') return;
+      event.preventDefault();
+      if (configDirty) saveModelConfig();
+    }
+    window.addEventListener('keydown', saveWithKeyboard);
+    return () => window.removeEventListener('keydown', saveWithKeyboard);
+  }, [activeModule, configDirty, saveModelConfig]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({top: 0, left: 0, behavior: 'auto'});
+      const tabs = moduleTabsRef.current;
+      const activeTab = tabs?.querySelector('.module-tab.active');
+      if (!tabs || !activeTab) return;
+      const left = activeTab.offsetLeft - (tabs.clientWidth - activeTab.offsetWidth) / 2;
+      tabs.scrollTo({left: Math.max(0, left), behavior: 'smooth'});
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeModule]);
+
   const configSaveState = saveState.scope === 'config' ? saveState : {scope: 'config', status: 'idle', message: ''};
-  const refreshSettings = () => {
-    if ((configDirty || mcpConfigDirty) && !window.confirm('刷新会丢弃尚未保存的配置修改，确定继续吗？')) return;
-    (refreshVisibleSettings || refreshProductState)?.();
+  const moduleIsDirty = (name) => name === 'model' ? !!configDirty : name === 'tools' ? !!mcpConfigDirty : false;
+  const handleModuleTabsKeyDown = (event) => {
+    const direction = {ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1}[event.key];
+    if (direction == null && event.key !== 'Home' && event.key !== 'End') return;
+    event.preventDefault();
+    const current = Math.max(0, settingsModules.indexOf(event.target?.dataset?.module || activeModule));
+    const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? settingsModules.length - 1 : (current + direction + settingsModules.length) % settingsModules.length;
+    const next = settingsModules[nextIndex];
+    switchSettingsModule(next);
+    document.getElementById('settings-tab-' + next)?.focus();
+  };
+  const refreshSettings = async () => {
+    if (refreshing) return;
+    const prompt = unsavedSettingsPrompt('refresh', configDirty, mcpConfigDirty);
+    if (prompt && !window.confirm(prompt)) return;
+    setRefreshing(true);
+    try {
+      await (refreshVisibleSettings || refreshProductState)?.();
+    } finally {
+      setRefreshing(false);
+    }
   };
   return <section className="settings">
     <header className="settings-header">
@@ -65,16 +108,18 @@ export function SettingsPanel(props) {
           <p>统一管理模型、供应商、工具、项目、定时任务与系统。</p>
         </div>
       </div>
-      <div className="settings-header-actions"><button className="secondary small settings-refresh-button" onClick={refreshSettings} aria-label="刷新配置" title="刷新配置"><RefreshCw className="settings-header-icon settings-refresh-icon" size={16} aria-hidden="true" /><span className="settings-refresh-text">刷新</span></button></div>
+      <div className="settings-header-actions"><button className={'secondary small settings-refresh-button' + (refreshing ? ' refreshing' : '')} onClick={refreshSettings} disabled={refreshing} aria-busy={refreshing} aria-label={refreshing ? '正在刷新配置' : '刷新配置'} title="刷新配置"><RefreshCw className="settings-header-icon settings-refresh-icon" size={16} aria-hidden="true" /><span className="settings-refresh-text">{refreshing ? '刷新中…' : '刷新'}</span></button></div>
     </header>
     <div className="settings-sidebar">
       <select className="settings-mobile-module-select" value={activeModule} onChange={e => switchSettingsModule(e.target.value)} aria-label="选择配置模块">
-        {settingsModules.map(m => <option key={m} value={m}>{moduleLabel(m)}</option>)}
+        {settingsModules.map(m => <option key={m} value={m}>{moduleLabel(m)}{moduleIsDirty(m) ? ' · 未保存' : ''}</option>)}
       </select>
-      <nav className="module-tabs" aria-label="配置模块">{settingsModules.map(m => {
+      <nav ref={moduleTabsRef} className="module-tabs" aria-label="配置模块" role="tablist" onKeyDown={handleModuleTabsKeyDown}>{settingsModules.map(m => {
+        const dirty = moduleIsDirty(m);
         const ModuleIcon = settingsModuleMeta[m]?.icon;
-        return <button key={m} className={'module-tab ' + (activeModule === m ? 'active' : '')} onClick={() => switchSettingsModule(m)}>
+        return <button key={m} type="button" id={'settings-tab-' + m} data-module={m} role="tab" aria-selected={activeModule === m} aria-controls={'settings-panel-' + m} tabIndex={activeModule === m ? 0 : -1} className={'module-tab ' + (activeModule === m ? 'active ' : '') + (dirty ? 'dirty' : '')} onClick={() => switchSettingsModule(m)}>
           <span className="module-tab-main">{ModuleIcon ? <ModuleIcon className="module-tab-icon" size={17} aria-hidden="true" /> : null}<span className="module-tab-label">{moduleLabel(m)}</span></span>
+          {dirty ? <span className="module-tab-dirty" aria-label="有未保存修改">未保存</span> : null}
         </button>;
       })}</nav>
     </div>
@@ -131,7 +176,7 @@ function moduleDescription(m) {
   return settingsModuleMeta[m]?.desc || '';
 }
 function ModuleView({ name, activeModule, children, dirty = false, saveState, onSave, bare = false }) {
-  return <div className={'module-view ' + (activeModule === name ? 'active ' : '') + (dirty ? 'dirty ' : '') + (bare ? 'bare' : '')} data-module-view={name}>
+  return <div id={'settings-panel-' + name} role="tabpanel" aria-labelledby={'settings-tab-' + name} aria-hidden={activeModule !== name} className={'module-view ' + (activeModule === name ? 'active ' : '') + (dirty ? 'dirty ' : '') + (bare ? 'bare' : '')} data-module-view={name}>
     {bare ? null : <div className="module-view-title"><div><span>{moduleLabel(name)}</span><p>{moduleDescription(name)}</p></div></div>}
     {bare ? null : <SettingsSaveState dirty={dirty} state={saveState} onSave={onSave} />}
     {children}

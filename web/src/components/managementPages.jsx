@@ -9,7 +9,7 @@ import '../styles/manage-pages-coherence.css';
 
 function PageHeader({ eyebrow, title, description, actions, embedded = false }) {
   return <header className={'manage-page-header' + (embedded ? ' embedded' : '')}>
-    <div className="manage-page-heading"><span>{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>
+    <div className="manage-page-heading">{!embedded && eyebrow ? <span>{eyebrow}</span> : null}<h1>{title}</h1><p>{description}</p></div>
     <div className="manage-page-actions">{actions}</div>
   </header>;
 }
@@ -45,7 +45,7 @@ export function ProjectsPage({ api, deleteProject, editProject, embedded = false
   }, showToast);
   return <section className={'manage-page projects-page' + (embedded ? ' embedded' : '')}>
     <PageHeader
-      eyebrow="ChatDock / Projects"
+      eyebrow="项目管理"
       title="项目"
       description="为不同主题保留独立上下文，并直接开始项目对话。"
       embedded={embedded}
@@ -60,10 +60,10 @@ export function ProjectsPage({ api, deleteProject, editProject, embedded = false
       <div className="manage-section-head"><div><span>项目列表</span><p>选择项目进入对应会话，或在这里维护项目提示词。</p></div></div>
       <div className="manage-card-grid">
         {projects.length ? projects.map(project => <article key={project.id} className={'manage-card project-manage-card ' + (project.pinned ? 'pinned' : '')}>
-          <header><div><span>Project</span><h2>{project.name}</h2></div><div className="project-card-actions"><em>{projectSessionCounts?.byProject?.[project.id] || 0} 会话</em><details className="manage-more-menu"><summary aria-label="更多项目操作" title="更多操作"><MoreHorizontal size={17} aria-hidden="true" /></summary><div>
+          <header><div><span>项目</span><h2>{project.name}</h2></div><div className="project-card-actions"><em>{projectSessionCounts?.byProject?.[project.id] || 0} 会话</em><details className="manage-more-menu"><summary aria-label="更多项目操作" title="更多操作"><MoreHorizontal size={17} aria-hidden="true" /></summary><div>
             <button type="button" onClick={event => closeDetailsAndRun(event, () => pinProject(project))}>{project.pinned ? '取消置顶' : '置顶项目'}</button>
             <button type="button" onClick={event => closeDetailsAndRun(event, () => editProject(project))}>编辑项目</button>
-            <button type="button" onClick={event => closeDetailsAndRun(event, () => showProjectPromptPreview(project.id))}>预览 Prompt</button>
+            <button type="button" onClick={event => closeDetailsAndRun(event, () => showProjectPromptPreview(project.id))}>预览提示词</button>
             <button type="button" className="danger" onClick={event => closeDetailsAndRun(event, () => deleteProject(project))}>删除项目</button>
           </div></details></div></header>
           <p>{project.prompt || '未设置项目提示词'}</p>
@@ -74,7 +74,7 @@ export function ProjectsPage({ api, deleteProject, editProject, embedded = false
           </footer>
         </article>) : <div className="manage-empty"><b>还没有项目</b><span>普通会话不需要项目；需要固定上下文时再创建。</span></div>}
       </div>
-      {projectPromptPreview ? <section className="manage-preview"><div><span>Prompt Preview</span><b>最终 Prompt 预览</b></div><pre>{projectPromptPreview}</pre></section> : null}
+      {projectPromptPreview ? <section className="manage-preview"><div><span>提示词预览</span><b>最终提示词</b></div><pre>{projectPromptPreview}</pre></section> : null}
     </div>
   </section>;
 }
@@ -87,7 +87,7 @@ function ScheduledTaskCard({ task, deleteScheduledTask, editScheduledTask, openS
   const prompt = (task.prompt || '').trim().slice(0, 180) || '无提示内容';
   return <article className={'manage-card scheduled-task-manage-card ' + (task.pinned ? 'pinned' : '')}>
     <header>
-      <div><span>Scheduled Task</span><h2>{task.title || '未命名任务'}</h2></div>
+      <div><span>定时任务</span><h2>{task.title || '未命名任务'}</h2></div>
       <div className="scheduled-task-card-actions">
         <em className={'badge ' + taskStatusClass(task)}>{taskStatusLabel(task)}</em>
         <details className="manage-more-menu"><summary aria-label="更多任务操作" title="更多操作"><MoreHorizontal size={17} aria-hidden="true" /></summary><div>
@@ -156,7 +156,7 @@ export function ScheduledTasksPage({ api, deleteScheduledTask, editScheduledTask
   const failed = scheduledTasks.filter(task => task.last_status === 'failed').length;
   return <section className={'manage-page scheduled-tasks-page' + (embedded ? ' embedded' : '')}>
     <PageHeader
-      eyebrow="ChatDock / Scheduled Tasks"
+      eyebrow="任务管理"
       title="定时任务"
       description="创建、运行和追踪自动执行任务。"
       embedded={embedded}

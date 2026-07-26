@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mcpConfigDraftChanged, globalConfigDraftChanged } from './settingsDraft.js';
+import { mcpConfigDraftChanged, globalConfigDraftChanged, unsavedSettingsPrompt } from './settingsDraft.js';
 
 const savedGlobalConfig = {
   provider_id: 'provider-a',
@@ -44,4 +44,10 @@ test('drafts are clean until a server baseline has loaded', () => {
 test('MCP config draft normalizes line endings but preserves content changes', () => {
   assert.equal(mcpConfigDraftChanged('{\r\n  "servers": {}\r\n}\r\n', '{\n  "servers": {}\n}\n'), false);
   assert.equal(mcpConfigDraftChanged('{"servers":{"a":{}}}', '{"servers":{}}'), true);
+});
+
+test('unsaved settings prompt names only the dirty scopes', () => {
+  assert.equal(unsavedSettingsPrompt('leave', false, false), '');
+  assert.equal(unsavedSettingsPrompt('leave', true, false), '离开配置中心会丢弃尚未保存的模型配置，确定继续吗？');
+  assert.equal(unsavedSettingsPrompt('refresh', true, true), '刷新配置中心会丢弃尚未保存的模型配置和工具配置，确定继续吗？');
 });

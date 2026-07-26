@@ -117,6 +117,11 @@ export function useSettingsData(api) {
     setMcpStatus(data.servers || []);
   }, [api]);
 
+  const discardSettingsDrafts = useCallback(() => {
+    if (savedConfig) setConfig(savedConfig);
+    if (savedMCPConfig != null) setMcpConfig(savedMCPConfig);
+  }, [savedConfig, savedMCPConfig]);
+
   return {
     setupStatus,
     setSetupStatus,
@@ -142,6 +147,7 @@ export function useSettingsData(api) {
     setConfig,
     configDirty,
     mcpConfigDirty,
+    discardSettingsDrafts,
     loadConfig,
     loadMCPConfig,
     loadSetupStatus,

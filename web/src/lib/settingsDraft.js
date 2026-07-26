@@ -34,3 +34,12 @@ export function mcpConfigDraftChanged(current, saved) {
   if (saved == null) return false;
   return normalizeLineEndings(current) !== normalizeLineEndings(saved);
 }
+
+export function unsavedSettingsPrompt(action, configDirty, mcpConfigDirty) {
+  const scopes = [];
+  if (configDirty) scopes.push('模型配置');
+  if (mcpConfigDirty) scopes.push('工具配置');
+  if (!scopes.length) return '';
+  const prefix = action === 'refresh' ? '刷新配置中心' : '离开配置中心';
+  return `${prefix}会丢弃尚未保存的${scopes.join('和')}，确定继续吗？`;
+}

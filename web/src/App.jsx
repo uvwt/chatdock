@@ -24,6 +24,7 @@ import { useVisualViewportLayout } from './hooks/useVisualViewportLayout.js';
 import { useMessageAutoFollow } from './hooks/useMessageAutoFollow.js';
 import { buildQuickActions } from './lib/quickActions.js';
 import { visibleSessionRows } from './lib/sessionPresentation.js';
+import { unsavedSettingsPrompt } from './lib/settingsDraft.js';
 const SettingsPanel = lazy(() => import('./components/settings.jsx').then(module => ({default: module.SettingsPanel})));
 export default function App() {
   useVisualViewportLayout();
@@ -240,6 +241,7 @@ export default function App() {
     setConfig,
     configDirty,
     mcpConfigDirty,
+    discardSettingsDrafts,
     loadConfig,
     loadMCPConfig,
     loadSetupStatus,
@@ -259,6 +261,11 @@ export default function App() {
     };
     window.addEventListener('beforeunload', warnBeforeUnload);
     return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [configDirty, mcpConfigDirty]);
+
+  const confirmLeaveSettings = useCallback(() => {
+    const prompt = unsavedSettingsPrompt('leave', configDirty, mcpConfigDirty);
+    return !prompt || window.confirm(prompt);
   }, [configDirty, mcpConfigDirty]);
 
   const taskDataEnabled = agentTaskDataEnabled(setupStatus, systemStatus, !!authPage);
@@ -321,11 +328,12 @@ export default function App() {
   }, [loadSetupStatus, loadProjects, loadModelProviders, loadDataStatus, loadSystemStatus]);
 
   const refreshVisibleSettings = useCallback(async () => {
-    const jobs = [loadSetupStatus(), loadProjects(), loadModelProviders(), loadDataStatus(), loadSystemStatus()];
+    const jobs = [loadConfig(), loadMCPConfig(), loadSetupStatus(), loadProjects(), loadModelProviders(), loadDataStatus(), loadSystemStatus()];
     if (activeModule === 'tools') jobs.push(loadMCPStatus());
-    await Promise.allSettled(jobs);
-    showToast('配置中心已刷新', 'success');
-  }, [activeModule, loadDataStatus, loadMCPStatus, loadModelProviders, loadSetupStatus, loadSystemStatus, loadProjects, showToast]);
+    const results = await Promise.allSettled(jobs);
+    const failed = results.filter(result => result.status === 'rejected').length;
+    showToast(failed ? `配置刷新完成，${failed} 项加载失败` : '配置中心已刷新', failed ? 'error' : 'success');
+  }, [activeModule, loadConfig, loadDataStatus, loadMCPConfig, loadMCPStatus, loadModelProviders, loadSetupStatus, loadSystemStatus, loadProjects, showToast]);
 
   const setProjectFilter = useCallback((value) => {
     const next = String(value || '').trim() || 'plain';
@@ -402,6 +410,11 @@ export default function App() {
         setSettingsOpen(true);
         return;
       }
+      if (settingsOpen && !confirmLeaveSettings()) {
+        window.history.pushState({ chatdock: true }, '', '/settings/' + activeModule);
+        return;
+      }
+      if (settingsOpen) discardSettingsDrafts();
       setSettingsOpen(false);
       const routeSession = sessionIDFromPath();
       if (routeSession) loadSessionFromRoute(routeSession).catch(e => showToast('会话路由加载失败：' + e.message, 'error'));
@@ -414,7 +427,7 @@ export default function App() {
     }
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [loadSessionFromRoute, showToast]);
+  }, [activeModule, confirmLeaveSettings, discardSettingsDrafts, loadSessionFromRoute, settingsOpen, showToast]);
   useEffect(() => {
     if (!settingsOpen) return;
     if (activeModule === 'tools') loadMCPStatus().catch(e => showToast('MCP 状态加载失败：' + e.message, 'error'));
@@ -474,10 +487,13 @@ export default function App() {
   }, [openSettings]);
 
   const closeSettings = useCallback((syncRoute = true) => {
+    if (settingsOpen && !confirmLeaveSettings()) return false;
+    if (settingsOpen) discardSettingsDrafts();
     setSettingsOpen(false);
     const target = current ? sessionPath(current) : '/';
     if (syncRoute && window.location.pathname !== target) window.history.pushState({ chatdock: true }, '', target);
-  }, [current]);
+    return true;
+  }, [confirmLeaveSettings, current, discardSettingsDrafts, settingsOpen]);
 
   const switchSettingsModule = useCallback((moduleName) => openSettings(moduleName), [openSettings]);
 
