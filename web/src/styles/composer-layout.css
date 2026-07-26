@@ -9,9 +9,13 @@
   align-items: center !important;
   gap: 6px !important;
   overflow: visible !important;
-  border: 1px solid var(--gpt-border-strong) !important;
-  background: color-mix(in srgb, var(--gpt-main) 94%, transparent) !important;
-  box-shadow: 0 10px 34px color-mix(in srgb, var(--gpt-text) 10%, transparent) !important;
+  border: 1px solid var(--composer-glass-border) !important;
+  background: var(--composer-glass-bg) !important;
+  box-shadow:
+    inset 0 1px 0 var(--composer-glass-highlight),
+    0 14px 42px var(--composer-glass-shadow) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(145%) !important;
+  backdrop-filter: blur(26px) saturate(145%) !important;
 }
 
 #app.app .composer:not(.composer-streaming) .attach-control {
@@ -22,6 +26,18 @@
   grid-area: input !important;
   width: 100%;
   min-width: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+#app.app .composer:not(.composer-streaming) textarea:focus {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 #app.app .composer:not(.composer-streaming) .model-picker {

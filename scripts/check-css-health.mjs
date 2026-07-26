@@ -134,6 +134,17 @@ if (!composerLayout.includes(expandedComposerSelector)
   failures.push('composer must hide the model entry until focus, then keep it visible while the picker is open');
 }
 
+const composerGlassRule = composerLayout.match(/#app\.app\s+\.composer:not\(\.composer-streaming\)\s*\{([^}]*)\}/)?.[1] || '';
+const composerTextareaRule = composerLayout.match(/#app\.app\s+\.composer:not\(\.composer-streaming\)\s+textarea\s*\{([^}]*)\}/)?.[1] || '';
+if (!/-webkit-backdrop-filter:\s*blur\(/.test(composerGlassRule)
+  || !/backdrop-filter:\s*blur\(/.test(composerGlassRule)
+  || !/background:\s*var\(--composer-glass-bg\)\s*!important/.test(composerGlassRule)
+  || !/background:\s*transparent\s*!important/.test(composerTextareaRule)
+  || !/border:\s*0\s*!important/.test(composerTextareaRule)
+  || !/box-shadow:\s*none\s*!important/.test(composerTextareaRule)) {
+  failures.push('composer must use one frosted glass shell and keep the textarea fully transparent');
+}
+
 const composerActionRule = composerLayout.match(/#app\.app\s+\.composer:not\(\.composer-streaming\)\s+:is\(\.attach-control,\s*\.model-picker-trigger,\s*#send\)\s*\{([^}]*)\}/)?.[1] || '';
 if (!/border:\s*0\s*!important/.test(composerActionRule)
   || !/background:\s*transparent\s*!important/.test(composerActionRule)
