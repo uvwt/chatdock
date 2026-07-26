@@ -297,6 +297,9 @@
   .settings-page .settings-editor-preview {
     max-height: 360px !important;
     padding: 11px !important;
+    border-color: var(--gpt-border) !important;
+    background: var(--gpt-surface-2) !important;
+    color: var(--gpt-text) !important;
     font-size: 12px !important;
   }
 
