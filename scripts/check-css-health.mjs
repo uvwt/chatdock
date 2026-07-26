@@ -103,6 +103,19 @@ if (!/min-width:\s*0/.test(messagesRule)
   failures.push('conversation canvas must remain a vertical-only scroller');
 }
 
+// 悬浮输入框不能通过消息区底部 padding 预留空间，否则 iPhone 安全区会留下白底。
+const mobileShell = read('web/src/styles/art-direction/05-mobile-shell.css');
+const floatingMessagesRule = mobileShell.match(/html:not\(\.chatdock-keyboard-open\) #app\.app:not\(\.chat-empty\) \.messages\s*\{([^}]*)\}/)?.[1] || '';
+if (!/padding-bottom:\s*0\s*!important/.test(floatingMessagesRule)
+  || !/scroll-padding-bottom:\s*calc\(132px\s*\+\s*env\(safe-area-inset-bottom/.test(floatingMessagesRule)) {
+  failures.push('mobile floating composer must keep visual content edge-to-edge and reserve only scroll positioning space');
+}
+
+const finalMobileMessageRule = mobileShell.match(/html:not\(\.chatdock-keyboard-open\) #app\.app:not\(\.chat-empty\) \.messages > \.msg:last-child\s*\{([^}]*)\}/)?.[1] || '';
+if (!/margin-bottom:\s*0\s*!important/.test(finalMobileMessageRule)) {
+  failures.push('mobile final message must not leave a blank margin below the floating composer');
+}
+
 const conversationContent = read('web/src/styles/art-direction/03-conversation.css');
 const userMessageRule = conversationContent.match(/#app\.app\s+\.msg\.user,[^{]*\{([^}]*)\}/)?.[1] || '';
 if (!/min-width:\s*0/.test(userMessageRule)

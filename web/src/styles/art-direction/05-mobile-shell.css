@@ -250,9 +250,13 @@
   }
 
   html:not(.chatdock-keyboard-open) #app.app:not(.chat-empty) .messages {
-    /* 悬浮输入区只需要滚动定位避让，不能用实体内边距截断正文背景。 */
-    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    /* 正文必须铺到屏幕底部；安全区只由悬浮输入框自身避让。 */
+    padding-bottom: 0 !important;
     scroll-padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+  }
+
+  html:not(.chatdock-keyboard-open) #app.app:not(.chat-empty) .messages > .msg:last-child {
+    margin-bottom: 0 !important;
   }
 
   #app.app .sidebar-tree-session-menu,
