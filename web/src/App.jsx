@@ -68,6 +68,8 @@ export default function App() {
     handleMessagesTouchStart,
     handleMessagesTouchMove,
     handleMessagesTouchEnd,
+    handleMessagesPointerDown,
+    handleMessagesPointerEnd,
   } = useMessageAutoFollow({ messages, setShowJumpToLatest });
 
   const abortRef = useRef(null);
@@ -1250,7 +1252,7 @@ export default function App() {
           sidebarCollapsed={sidebarCollapsed} taskPanelAvailable={taskDataEnabled} taskPanelOpen={taskPanelOpen}
           taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
         />
-        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} previousMessage={messages[i - 1]} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState />}</div>
+        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onPointerDown={handleMessagesPointerDown} onPointerUp={handleMessagesPointerEnd} onPointerCancel={handleMessagesPointerEnd} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} previousMessage={messages[i - 1]} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState />}</div>
         {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息"><ArrowDown className="jump-latest-icon" size={17} aria-hidden="true" /></button> : null}
         <CurrentSessionTask
           error={currentSessionTask.error} loading={currentSessionTask.loading} onRefresh={currentSessionTask.refresh}

@@ -28,10 +28,31 @@ export function shouldUseComposerKeyboardLayout(activeElement, composerShell) {
   return composerShell?.contains?.(activeElement) === true && isTextEntryTarget(activeElement);
 }
 
+export function isLoadingMessageList(messages) {
+  return Array.isArray(messages)
+    && messages.length > 0
+    && messages.every(message => message?.role === 'loading');
+}
+
 export function shouldKeepMessagesAtBottom(messageBox, threshold = 120) {
   if (!messageBox) return false;
   const bottomGap = messageBox.scrollHeight - messageBox.scrollTop - messageBox.clientHeight;
   return bottomGap <= threshold;
+}
+
+export function messageBottomClearance(messageRect, overlayRects, gap = 12) {
+  const messageBottom = Number(messageRect?.bottom);
+  if (!Number.isFinite(messageBottom)) return 0;
+
+  const overlayTop = (Array.isArray(overlayRects) ? overlayRects : [])
+    .filter(rect => Number(rect?.height) > 0)
+    .map(rect => Number(rect?.top))
+    .filter(top => Number.isFinite(top) && top < messageBottom)
+    .reduce((minimum, top) => Math.min(minimum, top), messageBottom);
+
+  if (overlayTop >= messageBottom) return 0;
+  const safeGap = Number.isFinite(Number(gap)) ? Math.max(0, Number(gap)) : 0;
+  return Math.max(0, Math.ceil(messageBottom - overlayTop + safeGap));
 }
 
 export function nextMessageAutoFollowState(messageBox, previousScrollTop = 0, paused = false, threshold = 24) {

@@ -1,5 +1,10 @@
 import { useEffect } from 'react';
-import { normalizeViewportMetrics, shouldKeepMessagesAtBottom, shouldUseComposerKeyboardLayout } from '../lib/viewportLayout.js';
+import {
+  messageBottomClearance,
+  normalizeViewportMetrics,
+  shouldKeepMessagesAtBottom,
+  shouldUseComposerKeyboardLayout,
+} from '../lib/viewportLayout.js';
 
 const mobileViewportQuery = '(max-width: 720px)';
 
@@ -10,17 +15,68 @@ export function useVisualViewportLayout() {
     const visualViewport = window.visualViewport;
     let layoutFrame = 0;
     let scrollFrame = 0;
+    let clearanceFrame = 0;
+    let clearanceScrollFrame = 0;
+    let mainObserver = null;
+    const observedOverlays = new Set();
+
+    const overlayResizeObserver = typeof ResizeObserver === 'function'
+      ? new ResizeObserver(() => applyViewportState())
+      : null;
 
     const clearViewportState = () => {
       root.style.removeProperty('--chatdock-viewport-height');
       root.style.removeProperty('--chatdock-viewport-offset-top');
+      root.style.removeProperty('--chatdock-message-bottom-clearance');
       root.classList.remove('chatdock-keyboard-open');
+    };
+
+    const syncOverlayObservers = () => {
+      const overlays = [
+        document.querySelector('#app.app .composer-shell'),
+        document.querySelector('#app.app .current-session-task'),
+      ].filter(Boolean);
+
+      for (const element of observedOverlays) {
+        if (overlays.includes(element)) continue;
+        overlayResizeObserver?.unobserve(element);
+        observedOverlays.delete(element);
+      }
+      for (const element of overlays) {
+        if (observedOverlays.has(element)) continue;
+        observedOverlays.add(element);
+        overlayResizeObserver?.observe(element);
+      }
+    };
+
+    const updateMessageBottomClearance = (messageBox, preserveBottom) => {
+      window.cancelAnimationFrame(clearanceFrame);
+      clearanceFrame = window.requestAnimationFrame(() => {
+        if (!mobile.matches || !messageBox) {
+          root.style.removeProperty('--chatdock-message-bottom-clearance');
+          return;
+        }
+
+        const overlayRects = [
+          document.querySelector('#app.app .composer-shell'),
+          document.querySelector('#app.app .current-session-task'),
+        ].filter(Boolean).map(element => element.getBoundingClientRect());
+        const clearance = messageBottomClearance(messageBox.getBoundingClientRect(), overlayRects);
+        root.style.setProperty('--chatdock-message-bottom-clearance', `${clearance}px`);
+        if (!preserveBottom) return;
+        window.cancelAnimationFrame(clearanceScrollFrame);
+        clearanceScrollFrame = window.requestAnimationFrame(() => {
+          messageBox.scrollTop = messageBox.scrollHeight;
+        });
+      });
     };
 
     const applyViewportState = () => {
       const messageBox = document.querySelector('#app.app .messages');
       const composerShell = document.querySelector('#app.app .composer-shell');
       const keepMessagesAtBottom = shouldKeepMessagesAtBottom(messageBox);
+      const preserveBottomAfterClearance = shouldKeepMessagesAtBottom(messageBox, 24);
+      syncOverlayObservers();
 
       window.cancelAnimationFrame(layoutFrame);
       layoutFrame = window.requestAnimationFrame(() => {
@@ -38,6 +94,7 @@ export function useVisualViewportLayout() {
         root.style.setProperty('--chatdock-viewport-height', `${metrics.height}px`);
         root.style.setProperty('--chatdock-viewport-offset-top', `${metrics.offsetTop}px`);
         root.classList.toggle('chatdock-keyboard-open', keyboardOpen);
+        updateMessageBottomClearance(messageBox, preserveBottomAfterClearance);
 
         if (!keyboardOpen || !keepMessagesAtBottom || !messageBox) return;
         window.cancelAnimationFrame(scrollFrame);
@@ -46,6 +103,12 @@ export function useVisualViewportLayout() {
         });
       });
     };
+
+    const main = document.querySelector('#app.app main');
+    if (main && typeof MutationObserver === 'function') {
+      mainObserver = new MutationObserver(() => applyViewportState());
+      mainObserver.observe(main, { childList: true });
+    }
 
     applyViewportState();
     visualViewport?.addEventListener('resize', applyViewportState);
@@ -59,6 +122,10 @@ export function useVisualViewportLayout() {
     return () => {
       window.cancelAnimationFrame(layoutFrame);
       window.cancelAnimationFrame(scrollFrame);
+      window.cancelAnimationFrame(clearanceFrame);
+      window.cancelAnimationFrame(clearanceScrollFrame);
+      mainObserver?.disconnect();
+      overlayResizeObserver?.disconnect();
       visualViewport?.removeEventListener('resize', applyViewportState);
       visualViewport?.removeEventListener('scroll', applyViewportState);
       window.removeEventListener('resize', applyViewportState);

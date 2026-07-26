@@ -250,9 +250,16 @@
   }
 
   html:not(.chatdock-keyboard-open) #app.app:not(.chat-empty) .messages {
-    /* 正文必须铺到屏幕底部；安全区只由悬浮输入框自身避让。 */
+    /* 正文背景继续铺到底部，实际可滚动留白由末尾伪元素承担。 */
     padding-bottom: 0 !important;
-    scroll-padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: var(--chatdock-message-bottom-clearance, calc(132px + env(safe-area-inset-bottom, 0px)));
+  }
+
+  html:not(.chatdock-keyboard-open) #app.app:not(.chat-empty) .messages::after {
+    content: '';
+    display: block;
+    height: var(--chatdock-message-bottom-clearance, calc(132px + env(safe-area-inset-bottom, 0px)));
+    pointer-events: none;
   }
 
   html:not(.chatdock-keyboard-open) #app.app:not(.chat-empty) .messages > .msg:last-child {

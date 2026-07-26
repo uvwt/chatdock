@@ -3,6 +3,8 @@ import test from 'node:test';
 
 import {
   isTextEntryTarget,
+  isLoadingMessageList,
+  messageBottomClearance,
   nextMessageAutoFollowState,
   normalizeViewportMetrics,
   shouldKeepMessagesAtBottom,
@@ -39,10 +41,28 @@ test('composer keyboard layout ignores settings controls', () => {
   assert.equal(shouldUseComposerKeyboardLayout(composerInput, null), false);
 });
 
+test('loading message list only matches the transient route placeholder', () => {
+  assert.equal(isLoadingMessageList([{ role: 'loading' }]), true);
+  assert.equal(isLoadingMessageList([{ role: 'loading' }, { role: 'assistant' }]), false);
+  assert.equal(isLoadingMessageList([]), false);
+  assert.equal(isLoadingMessageList(null), false);
+});
+
 test('shouldKeepMessagesAtBottom only follows a conversation near its bottom edge', () => {
   assert.equal(shouldKeepMessagesAtBottom({ scrollHeight: 1000, scrollTop: 490, clientHeight: 400 }), true);
   assert.equal(shouldKeepMessagesAtBottom({ scrollHeight: 1000, scrollTop: 300, clientHeight: 400 }), false);
   assert.equal(shouldKeepMessagesAtBottom(null), false);
+});
+
+test('message bottom clearance follows the highest floating control', () => {
+  const messages = { bottom: 844 };
+  const composer = { top: 766, height: 78 };
+  const task = { top: 704, height: 48 };
+
+  assert.equal(messageBottomClearance(messages, [composer]), 90);
+  assert.equal(messageBottomClearance(messages, [composer, task]), 152);
+  assert.equal(messageBottomClearance(messages, [{ top: 0, height: 0 }]), 0);
+  assert.equal(messageBottomClearance(null, [composer]), 0);
 });
 
 test('message auto-follow pauses after upward scrolling and resumes near the bottom', () => {
