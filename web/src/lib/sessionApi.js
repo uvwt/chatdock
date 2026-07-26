@@ -29,10 +29,6 @@ export function searchSessions(api, query, { cursor = '', limit = 30, projectFil
   return api('/api/sessions/search?' + params.toString());
 }
 
-export function fetchContextPreview(api, id) {
-  return api('/api/sessions/' + encodeURIComponent(id) + '/context-preview');
-}
-
 export function fetchProviderSystemPrompt(api, id) {
   return api('/api/sessions/' + encodeURIComponent(id) + '/provider-system-prompt');
 }

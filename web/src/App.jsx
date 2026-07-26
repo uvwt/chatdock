@@ -5,12 +5,12 @@ import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
 import { CurrentSessionTask, TaskPanel } from './components/taskPanel.jsx';
 import { DialogHost, LoginPage, Markdown, PageLoadingState, QuickPalette } from './components/base.jsx';
 import { agentTaskDataEnabled, diagnosticsText, filenameFromResponse, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath } from './lib/appUtils.js';
-import { attachmentLooksLikeImage, chatErrorDetails, contextPreviewText, finalAssistantMessageFromSession, readableChatError, streamStatusText } from './lib/chatPresentation.js';
+import { attachmentLooksLikeImage, chatErrorDetails, finalAssistantMessageFromSession, readableChatError, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
 import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js';
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, guideChatJob, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
-import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchProviderSystemPrompt, fetchSessionToolEvent, pinSession, renameSession, updateSessionModel } from './lib/sessionApi.js';
+import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchSession, fetchSessionMarkdown, fetchProviderSystemPrompt, fetchSessionToolEvent, pinSession, renameSession, updateSessionModel } from './lib/sessionApi.js';
 import { useAttachments } from './hooks/useAttachments.js';
 import { useAgentTasks } from './hooks/useAgentTasks.js';
 import { useCurrentSessionTask } from './hooks/useCurrentSessionTask.js';
@@ -1152,16 +1152,6 @@ export default function App() {
     await showDialog({ title: '工具事件详情', confirmText: '关闭', hideCancel: true, variant: 'tool-event-modal', toolEventDetail: buildToolEventDetail(detailEvent) });
   }, [api, current, showDialog, showToast]);
 
-  const showContextPreview = useCallback(async () => {
-    if (!current) return;
-    try {
-      const preview = await fetchContextPreview(api, current);
-      await showDialog({ title: '上下文 / Token 预览', confirmText: '关闭', hideCancel: true, fields: [{ name: 'preview', label: '实际会发送给模型的上下文（token 为粗略估算）', type: 'textarea', rows: 16, value: contextPreviewText(preview) }] });
-    } catch (e) {
-      showToast('上下文预览失败：' + e.message, 'error');
-    }
-  }, [api, current, showDialog, showToast]);
-
   const showProviderSystemPrompt = useCallback(async () => {
     if (!current) return;
     try {
@@ -1209,8 +1199,8 @@ export default function App() {
 
   const quickActions = useMemo(() => buildQuickActions({
     busy, current, exportCurrent, sendMsg,
-    showContextPreview, showProviderSystemPrompt, setThemeState, theme,
-  }), [busy, current, exportCurrent, sendMsg, showContextPreview, showProviderSystemPrompt, theme]);
+    showProviderSystemPrompt, setThemeState, theme,
+  }), [busy, current, exportCurrent, sendMsg, showProviderSystemPrompt, theme]);
 
   const settingsPanel = (
     <SettingsPanel

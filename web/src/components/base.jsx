@@ -4,7 +4,6 @@ import {
   ArrowDown,
   ArrowUp,
   Bot,
-  Boxes,
   LoaderCircle,
   Orbit,
   Sun,
@@ -44,7 +43,6 @@ export function TextCard({ title, hint, badge, badgeClass = '', active, children
 const quickActionIcons = {
   continue: ArrowUp,
   'provider-system-prompt': Bot,
-  'context-preview': Boxes,
   'export-session': ArrowDown,
   theme: Sun,
 };
