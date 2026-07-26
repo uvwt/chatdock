@@ -48,13 +48,22 @@ export function ComposerModelPicker({ busy, providers, selectedProvider, selecte
   </div>;
 
   const togglePicker = () => setOpen(value => !value);
+  const dismissMobileInput = () => {
+    if (!mobileSheet) return;
+
+    const activeElement = document.activeElement;
+    if (!(activeElement instanceof HTMLElement) || !activeElement.matches('textarea, input, [contenteditable="true"]')) return;
+
+    // 先让 React 提交模型面板的 open 状态，再失焦输入框；这样软键盘收起时输入区仍由面板状态保持展开。
+    requestAnimationFrame(() => activeElement.blur());
+  };
   const handleTriggerPointerDown = event => {
     if (event.button !== 0) return;
 
-    // 手机端输入框聚焦后，按钮一旦抢走焦点会触发键盘收起和布局位移，Safari 可能因此取消 click。
-    // 在 pointerdown 阶段完成切换并保留输入焦点，保证一次轻触即可打开选择器。
+    // 在 pointerdown 阶段先打开选择器，避免 Safari 因软键盘收起和布局位移取消后续 click。
     event.preventDefault();
     togglePicker();
+    dismissMobileInput();
   };
   const handleTriggerClick = event => {
     // 键盘和辅助技术不会触发 pointerdown，仍通过原生 click 完成切换。

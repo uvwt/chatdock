@@ -43,8 +43,10 @@ const modelPickerSource = read('web/src/components/modelPicker.jsx');
 if (!modelPickerSource.includes('export function ComposerModelPicker')) failures.push('model picker component missing');
 if (!modelPickerSource.includes('onPointerDown={handleTriggerPointerDown}')
   || !modelPickerSource.includes('event.preventDefault()')
-  || !modelPickerSource.includes('event.detail === 0')) {
-  failures.push('model picker trigger must open on pointerdown without stealing composer focus, while preserving keyboard click support');
+  || !modelPickerSource.includes('event.detail === 0')
+  || !modelPickerSource.includes('if (!mobileSheet) return;')
+  || !modelPickerSource.includes('requestAnimationFrame(() => activeElement.blur())')) {
+  failures.push('model picker trigger must open on pointerdown, release mobile input focus after opening, and preserve accessible click support');
 }
 if (!read('web/src/lib/chatPresentation.js').includes('export function readableChatError')) failures.push('chat presentation helpers missing');
 if (!read('web/src/lib/toolEventDetails.js').includes('export function buildToolEventDetail')) failures.push('tool event detail helpers missing');
