@@ -213,7 +213,7 @@ function ModelModule({ config, setConfig, projectPromptPreview, testModelProvide
     </section>
     <div className="model-inline-grid model-advanced-grid">
       <details className="settings-section model-inline-card reply-inline-card" open>
-        <summary><div><b>回复设置</b><p>上下文、随机性和系统提示词</p></div><span>展开</span></summary>
+        <summary><div><b>回复设置</b><p>上下文、随机性和系统提示词</p></div></summary>
         <div className="settings-form-grid compact"><label>上下文<select value={contextMode} onChange={e => update('context_mode', e.target.value)}><option value="auto">自动</option><option value="compact">精简</option><option value="expanded">更多历史</option><option value="custom">自定义</option></select></label><label>Temperature<input type="number" step="0.1" min="0" max="2" value={config.temperature} onChange={e => update('temperature', e.target.value)} /></label></div>
         {contextMode === 'custom' ? <label>最近消息数<input type="number" min="1" max="200" value={config.max_context_messages} onChange={e => update('max_context_messages', e.target.value)} /></label> : null}
         <details className="model-mini-details"><summary>全局系统提示词</summary><textarea className="system-prompt-editor compact" value={config.system_prompt} onChange={e => update('system_prompt', e.target.value)} /></details>
@@ -221,7 +221,7 @@ function ModelModule({ config, setConfig, projectPromptPreview, testModelProvide
         {projectPromptPreview ? <pre className="code-preview compact">{projectPromptPreview}</pre> : null}
       </details>
       <details className="settings-section model-inline-card embedding-inline-card">
-        <summary><div><b>工具搜索</b><p>向量服务，可选</p></div><span>展开</span></summary>
+        <summary><div><b>工具搜索</b><p>向量服务，可选</p></div></summary>
         <label>Base URL<input value={config.embedding_base_url || ''} onChange={e => update('embedding_base_url', e.target.value)} placeholder="http://127.0.0.1:8000/v1" /></label>
         <label>模型<input value={config.embedding_model || 'BAAI/bge-m3'} onChange={e => update('embedding_model', e.target.value)} placeholder="BAAI/bge-m3" /></label>
         <details className="model-mini-details"><summary>API Key</summary><input type="password" value={config.embedding_api_key || ''} onChange={e => update('embedding_api_key', e.target.value)} placeholder={config.has_embedding_api_key ? '已保存，留空不修改' : '可留空'} /></details>
