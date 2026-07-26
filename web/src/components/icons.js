@@ -26,6 +26,7 @@ export { default as RefreshCw } from 'lucide-react/dist/esm/icons/refresh-cw.js'
 export { default as Search } from 'lucide-react/dist/esm/icons/search.js';
 export { default as Settings2 } from 'lucide-react/dist/esm/icons/settings-2.js';
 export { default as ShieldCheck } from 'lucide-react/dist/esm/icons/shield-check.js';
+export { default as Sparkles } from 'lucide-react/dist/esm/icons/sparkles.js';
 export { default as Square } from 'lucide-react/dist/esm/icons/square.js';
 export { default as Sun } from 'lucide-react/dist/esm/icons/sun.js';
 export { default as Trash2 } from 'lucide-react/dist/esm/icons/trash-2.js';

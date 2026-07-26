@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compactModelName, providerKeyInputsFromRows, providerKeyRows, providerPayloadForModelAppend, providerPayloadFromFormValues, uniqueModelNames, globalDefaultModelChoice } from './modelProviderForm.js';
+import { compactModelName, globalDefaultModelChoice, hasModelOverride, providerKeyInputsFromRows, providerKeyRows, providerPayloadForModelAppend, providerPayloadFromFormValues, uniqueModelNames } from './modelProviderForm.js';
 
 test('uniqueModelNames trims separators and deduplicates', () => {
   assert.deepEqual(uniqueModelNames('a\na，b,b'), ['a', 'b']);
@@ -78,4 +78,14 @@ test('globalDefaultModelChoice uses provider default outside the global provider
 test('globalDefaultModelChoice keeps the global model while providers are still loading', () => {
   const choice = globalDefaultModelChoice({provider_id: 'cpa', model: 'grok-4.5'}, null);
   assert.deepEqual(choice, {provider_id: '', model: 'grok-4.5'});
+});
+
+test('hasModelOverride only expands the composer for a real session override', () => {
+  const defaultChoice = {provider_id: 'cpa', model: 'grok-4.5'};
+
+  assert.equal(hasModelOverride({}, defaultChoice), false);
+  assert.equal(hasModelOverride({provider_id: '', model: 'grok-4.5'}, defaultChoice), false);
+  assert.equal(hasModelOverride({provider_id: 'cpa', model: 'grok-4.5'}, defaultChoice), false);
+  assert.equal(hasModelOverride({provider_id: 'cpa', model: 'claude-opus'}, defaultChoice), true);
+  assert.equal(hasModelOverride({provider_id: 'other', model: 'grok-4.5'}, defaultChoice), true);
 });

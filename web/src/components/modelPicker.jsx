@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { compactModelName, providerLabel } from '../lib/modelProviderForm.js';
+import { ChevronDown, Sparkles } from './icons.js';
 
-export function ComposerModelPicker({ busy, providers, selectedProvider, selectedModel, open, setOpen, selectModel, openSettings }) {
+export function ComposerModelPicker({ busy, providers, selectedProvider, selectedModel, showSelection, open, setOpen, selectModel, openSettings }) {
   const pickerRef = useRef(null);
   const popoverRef = useRef(null);
   const [mobileSheet, setMobileSheet] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches);
@@ -47,7 +48,19 @@ export function ComposerModelPicker({ busy, providers, selectedProvider, selecte
   </div>;
 
   return <div className="model-picker" ref={pickerRef}>
-    <button type="button" className="secondary model-picker-trigger" disabled={busy || !providers.length} onClick={() => setOpen(value => !value)} title="选择供应商 / 模型" aria-haspopup="dialog" aria-expanded={open}><span>{providerLabel(selectedProvider)}</span><b>{compactModelName(selectedModel) || '未选择模型'}</b></button>
+    <button
+      type="button"
+      className="secondary model-picker-trigger"
+      disabled={busy || !providers.length}
+      onClick={() => setOpen(value => !value)}
+      title={showSelection ? `切换模型：${providerLabel(selectedProvider)} · ${selectedModel}` : '选择模型'}
+      aria-label={showSelection ? `切换模型：${selectedModel}` : '选择模型'}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+    >
+      <Sparkles className="model-picker-icon" size={17} aria-hidden="true" />
+      {showSelection ? <span className="model-picker-label"><b>{compactModelName(selectedModel)}</b><ChevronDown size={14} aria-hidden="true" /></span> : null}
+    </button>
     {open ? (mobileSheet ? createPortal(popover, document.body) : popover) : null}
   </div>;
 }

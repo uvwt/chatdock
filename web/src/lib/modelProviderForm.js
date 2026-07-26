@@ -88,6 +88,17 @@ export function globalDefaultModelChoice(config = {}, provider = null) {
   };
 }
 
+export function hasModelOverride(selection = {}, defaultSelection = {}) {
+  const model = String(selection?.model || '').trim();
+  if (!model) return false;
+
+  // 会话没有显式 provider_id 时仍按全局默认供应商判断，避免默认模型被误认为覆盖选择。
+  const defaultProviderID = String(defaultSelection?.provider_id || '').trim();
+  const providerID = String(selection?.provider_id || '').trim() || defaultProviderID;
+  const defaultModel = String(defaultSelection?.model || '').trim();
+  return providerID !== defaultProviderID || model !== defaultModel;
+}
+
 export function compactModelName(name) {
   name = String(name || '').trim();
   return name.length > 22 ? name.slice(0, 21) + '…' : name;

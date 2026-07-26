@@ -58,6 +58,7 @@ export function useSettingsData(api) {
   const [savedMCPConfig, setSavedMCPConfig] = useState(null);
   const [builtinTools, setBuiltinTools] = useState([]);
   const [config, setConfig] = useState(defaultConfig);
+  const [configLoaded, setConfigLoaded] = useState(false);
   const [savedConfig, setSavedConfig] = useState(null);
 
   const configDirty = useMemo(() => globalConfigDraftChanged(config, savedConfig), [config, savedConfig]);
@@ -68,6 +69,7 @@ export function useSettingsData(api) {
     const next = configFromServer(c);
     setConfig(next);
     setSavedConfig(next);
+    setConfigLoaded(true);
   }, [api]);
 
   const loadMCPConfig = useCallback(async () => {
@@ -144,6 +146,7 @@ export function useSettingsData(api) {
     setMcpConfig,
     builtinTools,
     config,
+    configLoaded,
     setConfig,
     configDirty,
     mcpConfigDirty,

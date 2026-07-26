@@ -16,7 +16,7 @@ import { useAgentTasks } from './hooks/useAgentTasks.js';
 import { useCurrentSessionTask } from './hooks/useCurrentSessionTask.js';
 import { useActiveAssistantStream } from './hooks/useActiveAssistantStream.js';
 import { chatStreamAssistantAfterEvent, chatStreamStatsAfterEvent, messagesForRunningJobReplay, projectsChatStreamAssistant } from './lib/chatStreamEvents.js';
-import { globalDefaultModelChoice, providerChoiceID, providerLabel, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
+import { globalDefaultModelChoice, hasModelOverride, providerChoiceID, providerLabel, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
 import { useSettingsData } from './hooks/useSettingsData.js';
 import { useSettingsActions } from './hooks/useSettingsActions.js';
 import { useSessionList } from './hooks/useSessionList.js';
@@ -238,6 +238,7 @@ export default function App() {
     setMcpConfig,
     builtinTools,
     config,
+    configLoaded,
     setConfig,
     configDirty,
     mcpConfigDirty,
@@ -845,23 +846,26 @@ export default function App() {
     const models = uniqueModelNames([...(provider.models || []), provider.default_model].filter(Boolean));
     return { ...provider, choice_id: id, models };
   }).filter(provider => provider.choice_id && (provider.enabled || provider.models.length)), [providers]);
-  const selectedModelProvider = useMemo(() => {
+  const defaultModelProvider = useMemo(() => {
     const activeID = config.provider_id || '';
-    return providerChoices.find(provider => provider.choice_id === chatModel.provider_id)
-      || providerChoices.find(provider => provider.choice_id === activeID)
+    return providerChoices.find(provider => provider.choice_id === activeID)
       || providerChoices[0]
       || null;
-  }, [chatModel.provider_id, config.provider_id, providerChoices]);
+  }, [config.provider_id, providerChoices]);
+  const defaultChatModel = useMemo(() => globalDefaultModelChoice(config, defaultModelProvider), [config, defaultModelProvider]);
+  const selectedModelProvider = useMemo(() => providerChoices.find(provider => provider.choice_id === chatModel.provider_id)
+    || defaultModelProvider, [chatModel.provider_id, defaultModelProvider, providerChoices]);
   const selectedChatModel = chatModel.model || globalDefaultModelChoice(config, selectedModelProvider).model;
   const selectedModelBaseURL = selectedModelProvider?.base_url || config.base_url || '';
+  const showSelectedChatModel = hasModelOverride(chatModel, defaultChatModel);
 
   useEffect(() => {
-    if (!providerChoices.length) return;
+    if (!configLoaded || !providerChoices.length) return;
     const stillValid = providerChoices.some(provider => provider.choice_id === chatModel.provider_id && (!chatModel.model || provider.models.includes(chatModel.model)));
     if (stillValid) return;
     const provider = providerChoices.find(item => item.choice_id === (config.provider_id || '')) || providerChoices[0];
     setChatModel(globalDefaultModelChoice(config, provider));
-  }, [chatModel.model, chatModel.provider_id, config.model, config.provider_id, providerChoices]);
+  }, [chatModel.model, chatModel.provider_id, config.model, config.provider_id, configLoaded, providerChoices]);
 
   const selectChatModel = useCallback((provider, modelName) => {
     const next = { provider_id: provider.choice_id, model: modelName };
@@ -1260,6 +1264,7 @@ export default function App() {
           openSettings={openSettings} pendingAttachmentIDs={pendingAttachmentIDs} pendingAttachments={pendingAttachments}
           providerChoices={providerChoices} removePendingAttachment={removePendingAttachment} selectChatModel={selectChatModel}
           selectedChatModel={selectedChatModel} selectedModelProvider={selectedModelProvider} sendMsg={sendMsg}
+          showSelectedChatModel={showSelectedChatModel}
           setInput={setInput} setModelPickerOpen={setModelPickerOpen} stopStreaming={stopStreaming} uploadingFiles={uploadingFiles}
         />
       </main>
