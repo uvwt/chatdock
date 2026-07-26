@@ -1198,10 +1198,9 @@ export default function App() {
   const hasVisibleChatMessages = messages.some(m => m.role !== 'empty');
 
   const quickActions = useMemo(() => buildQuickActions({
-    busy, current, exportCurrent, openSettings, sendMsg,
-    showProviderSystemPrompt, taskPanelAvailable: taskDataEnabled,
-    toggleTaskPanel, setThemeState, theme,
-  }), [busy, current, exportCurrent, openSettings, sendMsg, showProviderSystemPrompt, taskDataEnabled, theme, toggleTaskPanel]);
+    busy, current, exportCurrent, sendMsg,
+    showProviderSystemPrompt, setThemeState, theme,
+  }), [busy, current, exportCurrent, sendMsg, showProviderSystemPrompt, theme]);
 
   const settingsPanel = (
     <SettingsPanel
