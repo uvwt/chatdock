@@ -3,6 +3,7 @@
 #app.app .msg.assistant.markdown {
   position: relative;
   width: min(var(--gpt-msg-width), calc(100% - 36px));
+  min-width: 0;
   margin: 0 auto 30px;
   padding: 0 0 0 48px;
   border: 0;
@@ -29,12 +30,14 @@
 
 #app.app .user-message-wrap {
   width: min(var(--gpt-msg-width), calc(100% - 36px));
+  min-width: 0;
   margin: 0 auto 28px;
 }
 
 #app.app .msg.user,
 #app.app .msg.system {
   width: fit-content;
+  min-width: 0;
   max-width: min(78%, 720px);
   margin-left: auto;
   padding: 13px 16px;
@@ -43,6 +46,7 @@
   background: var(--gpt-surface);
   color: var(--gpt-text);
   box-shadow: 0 10px 34px rgba(0, 0, 0, .10);
+  overflow-wrap: anywhere;
 }
 
 #app.app .markdown {

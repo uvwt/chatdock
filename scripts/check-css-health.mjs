@@ -93,6 +93,23 @@ if (!/height:\s*auto\s*!important/.test(mobileActiveModuleRule)
   failures.push('mobile active settings module must not clip long content');
 }
 
+// 会话列表只允许纵向滚动。连续 URL、Token 或 API Key 必须在消息自身换行，
+// 不能把整张消息画布撑成横向滚动容器，否则 iOS 会出现整页偏移和左侧裁切。
+const conversationCanvas = read('web/src/styles/art-direction/02-canvas.css');
+const messagesRule = conversationCanvas.match(/#app\.app\s+\.messages\s*\{([^}]*)\}/)?.[1] || '';
+if (!/min-width:\s*0/.test(messagesRule)
+  || !/overflow-x:\s*hidden/.test(messagesRule)
+  || !/overflow-y:\s*auto/.test(messagesRule)) {
+  failures.push('conversation canvas must remain a vertical-only scroller');
+}
+
+const conversationContent = read('web/src/styles/art-direction/03-conversation.css');
+const userMessageRule = conversationContent.match(/#app\.app\s+\.msg\.user,[^{]*\{([^}]*)\}/)?.[1] || '';
+if (!/min-width:\s*0/.test(userMessageRule)
+  || !/overflow-wrap:\s*anywhere/.test(userMessageRule)) {
+  failures.push('user and system messages must wrap unbroken long content inside the viewport');
+}
+
 const exactBlocks = new Map();
 const selectorFiles = new Map();
 for (const filename of listCSS(stylesDir)) {
