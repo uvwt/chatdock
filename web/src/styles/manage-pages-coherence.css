@@ -83,10 +83,6 @@
     box-shadow: none;
   }
 
-  .manage-card.pinned {
-    box-shadow: inset 2px 0 0 var(--gpt-text);
-  }
-
   .manage-card h2 {
     margin-top: var(--ui-space-1);
     font-size: 20px;
@@ -214,11 +210,6 @@
   border-radius: 14px;
   background: var(--gpt-surface-2);
   box-shadow: none;
-}
-
-.settings-page .manage-page.embedded .manage-card.pinned {
-  border-color: var(--gpt-border-strong);
-  box-shadow: inset 2px 0 0 var(--gpt-text);
 }
 
 .settings-page .manage-page.embedded .manage-card header > div > span {
