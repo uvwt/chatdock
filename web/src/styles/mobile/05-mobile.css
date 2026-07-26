@@ -7,9 +7,11 @@
     min-width: 40px !important;
     min-height: 40px !important;
     border-color: var(--mobile-border) !important;
-    background: var(--mobile-panel-translucent) !important;
+    background: color-mix(in srgb, var(--mobile-panel) 62%, transparent) !important;
     color: var(--mobile-text-strong) !important;
     box-shadow: var(--mobile-shadow-raised) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
+    backdrop-filter: blur(18px) saturate(145%) !important;
   }
 }
 
