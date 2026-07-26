@@ -1193,11 +1193,6 @@ export default function App() {
   const visibleSessionsLoadingMore = searchingSessions ? sessionSearchLoadingMore : sessionsLoadingMore;
   const loadMoreVisibleSessions = searchingSessions ? loadMoreSearchSessions : loadMoreSessions;
 
-  const currentSummary = useMemo(
-    () => pinnedSessions.find(s => s.id === current) || sessions.find(s => s.id === current) || null,
-    [current, pinnedSessions, sessions],
-  );
-  const currentPinned = !!currentSummary?.pinned;
   const appClass = 'app ' + (sidebarCollapsed ? 'sidebar-collapsed ' : '') + (!messages.length ? 'chat-empty ' : '') + (taskPanelOpen ? 'task-panel-open' : '');
   const productReady = setupStatus && !setupStatus.needs_setup;
   const modelReady = !!String(selectedModelBaseURL || '').trim() && !!String(selectedChatModel || '').trim();
@@ -1210,10 +1205,9 @@ export default function App() {
   const hasVisibleChatMessages = messages.some(m => m.role !== 'empty');
 
   const quickActions = useMemo(() => buildQuickActions({
-    branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned,
-    deleteCurrent, exportCurrent, inputRef, messagesLength: messages.length, openSettings, pinCurrent,
-    renameCurrent, sendMsg, showContextPreview, showSystemPrompt, setThemeState, theme,
-  }), [branchCurrent, busy, cloneCurrent, copyCurrentMarkdown, copyText, createSession, current, currentPinned, deleteCurrent, exportCurrent, messages.length, openSettings, pinCurrent, renameCurrent, sendMsg, showContextPreview, showSystemPrompt, theme]);
+    busy, copyCurrentMarkdown, current, exportCurrent, sendMsg,
+    showContextPreview, showSystemPrompt, setThemeState, theme,
+  }), [busy, copyCurrentMarkdown, current, exportCurrent, sendMsg, showContextPreview, showSystemPrompt, theme]);
 
   const settingsPanel = (
     <SettingsPanel
