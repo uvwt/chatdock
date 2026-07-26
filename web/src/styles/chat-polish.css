@@ -311,3 +311,15 @@ body.theme-light #app.app #sessions .session.active::before {
     color: var(--mobile-muted);
   }
 }
+
+
+/* 2026-07-26 mobile floating composer: keep canvas continuous behind overlays. */
+@media (max-width: 720px) {
+  #app.app .messages {
+    padding-bottom: 0 !important;
+  }
+
+  #app.app .messages > .msg:last-child {
+    margin-bottom: 0 !important;
+  }
+}
