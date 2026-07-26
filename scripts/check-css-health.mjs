@@ -123,13 +123,15 @@ if (!/min-width:\s*0/.test(userMessageRule)
   failures.push('user and system messages must wrap unbroken long content inside the viewport');
 }
 
-// 默认输入区保持单行；只有聚焦、模型面板打开或会话显式覆盖默认模型时才展开工具栏。
+// 有有效模型时工具栏必须稳定展开，不能用 focus 触发布局变化，否则按下模型按钮会丢失 click。
 const composerLayout = read('web/src/styles/composer-layout.css');
-const focusedComposerSelector = '.composer:is(.composer-model-selected, .composer-model-picker-open, :focus-within):not(.composer-streaming)';
+const selectedComposerSelector = '.composer.composer-model-selected:not(.composer-streaming)';
 const collapsedModelLabelRule = composerLayout.match(/#app\.app\s+\.composer:not\(\.composer-streaming\)\s+\.model-picker-label\s*\{([^}]*)\}/)?.[1] || '';
-if (!composerLayout.includes(focusedComposerSelector)
+if (!composerLayout.includes(selectedComposerSelector)
+  || composerLayout.includes('.composer-model-picker-open')
+  || composerLayout.includes(':focus-within')
   || !/display:\s*none\s*!important/.test(collapsedModelLabelRule)) {
-  failures.push('composer must stay compact by default and reveal its model toolbar on focus or picker open');
+  failures.push('composer model toolbar must remain stable and must not shift on focus or picker open');
 }
 
 // 悬浮控件不能被主画布的通用层级规则改回相对定位，否则会重新占据主轴高度。

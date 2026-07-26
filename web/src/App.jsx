@@ -16,7 +16,7 @@ import { useAgentTasks } from './hooks/useAgentTasks.js';
 import { useCurrentSessionTask } from './hooks/useCurrentSessionTask.js';
 import { useActiveAssistantStream } from './hooks/useActiveAssistantStream.js';
 import { chatStreamAssistantAfterEvent, chatStreamStatsAfterEvent, messagesForRunningJobReplay, projectsChatStreamAssistant } from './lib/chatStreamEvents.js';
-import { globalDefaultModelChoice, hasModelOverride, providerChoiceID, providerLabel, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
+import { globalDefaultModelChoice, providerChoiceID, providerLabel, sessionModelChoice, uniqueModelNames } from './lib/modelProviderForm.js';
 import { useSettingsData } from './hooks/useSettingsData.js';
 import { useSettingsActions } from './hooks/useSettingsActions.js';
 import { useSessionList } from './hooks/useSessionList.js';
@@ -852,12 +852,11 @@ export default function App() {
       || providerChoices[0]
       || null;
   }, [config.provider_id, providerChoices]);
-  const defaultChatModel = useMemo(() => globalDefaultModelChoice(config, defaultModelProvider), [config, defaultModelProvider]);
   const selectedModelProvider = useMemo(() => providerChoices.find(provider => provider.choice_id === chatModel.provider_id)
     || defaultModelProvider, [chatModel.provider_id, defaultModelProvider, providerChoices]);
   const selectedChatModel = chatModel.model || globalDefaultModelChoice(config, selectedModelProvider).model;
   const selectedModelBaseURL = selectedModelProvider?.base_url || config.base_url || '';
-  const showSelectedChatModel = hasModelOverride(chatModel, defaultChatModel);
+  const showSelectedChatModel = configLoaded && Boolean(String(selectedChatModel || '').trim());
 
   useEffect(() => {
     if (!configLoaded || !providerChoices.length) return;

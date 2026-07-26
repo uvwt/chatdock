@@ -54,7 +54,7 @@ export function Topbar({ currentTitle, newSession, openSettings, selectedProject
 export function ComposerBar({ busy, createPersistedSession, current, downloadAttachment, fileInputRef, guideActiveJob, handleFileSelect, input, inputRef, inputStats, modelPickerOpen, modelReady, openSettings, pendingAttachmentIDs, pendingAttachments, providerChoices, removePendingAttachment, selectChatModel, selectedChatModel, selectedModelProvider, sendMsg, setInput, setModelPickerOpen, showSelectedChatModel, stopStreaming, uploadingFiles }) {
   return <div className="composer-shell">
     {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} onDownload={downloadAttachment} /> : null}
-    <div className={'composer' + (busy ? ' composer-streaming' : '') + (showSelectedChatModel ? ' composer-model-selected' : '') + (modelPickerOpen ? ' composer-model-picker-open' : '')}>
+    <div className={'composer' + (busy ? ' composer-streaming' : '') + (showSelectedChatModel ? ' composer-model-selected' : '')}>
       <input ref={fileInputRef} type="file" multiple className="file-input" onChange={event => handleFileSelect(event, { current, createPersistedSession })} />
       <button className="secondary attach-control icon-button" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} aria-label="上传文件"><Paperclip {...iconProps} /></button>
       <ComposerModelPicker busy={busy} providers={providerChoices} selectedProvider={selectedModelProvider} selectedModel={selectedChatModel} showSelection={showSelectedChatModel} open={modelPickerOpen} setOpen={setModelPickerOpen} selectModel={selectChatModel} openSettings={openSettings} />

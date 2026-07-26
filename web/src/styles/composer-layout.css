@@ -1,4 +1,4 @@
-/* 默认保持单行；输入区获得焦点、模型面板打开或会话覆盖默认模型时才展开工具栏。 */
+/* 只要存在有效模型就稳定展示模型工具栏，避免按下按钮时因 focus 触发布局跳变而丢失 click。 */
 #app.app .composer:not(.composer-streaming) {
   display: grid !important;
   grid-template-areas: "attach input model send";
@@ -56,7 +56,7 @@
   grid-area: send !important;
 }
 
-#app.app .composer:is(.composer-model-selected, .composer-model-picker-open, :focus-within):not(.composer-streaming) {
+#app.app .composer.composer-model-selected:not(.composer-streaming) {
   grid-template-areas:
     "input input input"
     "attach model send";
@@ -69,14 +69,14 @@
   border-radius: 22px;
 }
 
-#app.app .composer:is(.composer-model-selected, .composer-model-picker-open, :focus-within):not(.composer-streaming) .model-picker {
+#app.app .composer.composer-model-selected:not(.composer-streaming) .model-picker {
   width: min(240px, 100%) !important;
   min-width: 0 !important;
   max-width: 100% !important;
   justify-self: start;
 }
 
-#app.app .composer:is(.composer-model-selected, .composer-model-picker-open, :focus-within):not(.composer-streaming) .model-picker-trigger {
+#app.app .composer.composer-model-selected:not(.composer-streaming) .model-picker-trigger {
   width: auto !important;
   min-width: 0 !important;
   max-width: 100% !important;
@@ -88,7 +88,7 @@
   border-radius: 10px !important;
 }
 
-#app.app .composer:is(.composer-model-selected, .composer-model-picker-open, :focus-within) .model-picker-label {
+#app.app .composer.composer-model-selected .model-picker-label {
   display: inline-flex !important;
   min-width: 0;
   align-items: center;
@@ -96,7 +96,7 @@
   color: var(--gpt-text);
 }
 
-#app.app .composer:is(.composer-model-selected, .composer-model-picker-open, :focus-within) .model-picker-label b {
+#app.app .composer.composer-model-selected .model-picker-label b {
   min-width: 0;
   overflow: hidden;
   color: inherit;
@@ -116,7 +116,7 @@
     padding: 6px !important;
   }
 
-  #app.app .composer:is(.composer-model-selected, .composer-model-picker-open, :focus-within):not(.composer-streaming) {
+  #app.app .composer.composer-model-selected:not(.composer-streaming) {
     grid-template-columns: 42px minmax(0, 1fr) 42px !important;
     grid-template-rows: minmax(42px, auto) 42px;
     height: auto !important;
@@ -125,7 +125,7 @@
     padding: 8px !important;
   }
 
-  #app.app .composer:is(.composer-model-selected, .composer-model-picker-open, :focus-within):not(.composer-streaming) textarea {
+  #app.app .composer.composer-model-selected:not(.composer-streaming) textarea {
     padding-inline: 6px !important;
   }
 }
