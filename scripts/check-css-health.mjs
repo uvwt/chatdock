@@ -134,6 +134,13 @@ if (!composerLayout.includes(expandedComposerSelector)
   failures.push('composer must hide the model entry until focus, then keep it visible while the picker is open');
 }
 
+const composerActionRule = composerLayout.match(/#app\.app\s+\.composer:not\(\.composer-streaming\)\s+:is\(\.attach-control,\s*\.model-picker-trigger,\s*#send\)\s*\{([^}]*)\}/)?.[1] || '';
+if (!/border:\s*0\s*!important/.test(composerActionRule)
+  || !/background:\s*transparent\s*!important/.test(composerActionRule)
+  || !/box-shadow:\s*none\s*!important/.test(composerActionRule)) {
+  failures.push('composer inner actions must remain frameless so the outer composer is the only visible container');
+}
+
 // 悬浮控件不能被主画布的通用层级规则改回相对定位，否则会重新占据主轴高度。
 const shellLayout = read('web/src/styles/art-direction/01-shell.css');
 const floatingSafeSelector = '#app.app main > :not(.jump-latest):not(.current-session-task):not(.composer-shell)';

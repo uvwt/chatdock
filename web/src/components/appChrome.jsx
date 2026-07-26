@@ -12,7 +12,7 @@ import {
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
-  Paperclip,
+  Plus,
   Search,
   Settings2,
   Square,
@@ -56,7 +56,7 @@ export function ComposerBar({ busy, createPersistedSession, current, downloadAtt
     {pendingAttachments.length ? <AttachmentList attachments={pendingAttachments} removable={!busy} onRemove={removePendingAttachment} onDownload={downloadAttachment} /> : null}
     <div className={'composer' + (busy ? ' composer-streaming' : '') + (modelPickerOpen ? ' composer-model-picker-open' : '')}>
       <input ref={fileInputRef} type="file" multiple className="file-input" onChange={event => handleFileSelect(event, { current, createPersistedSession })} />
-      <button className="secondary attach-control icon-button" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} aria-label="上传文件"><Paperclip {...iconProps} /></button>
+      <button className="secondary attach-control icon-button" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} aria-label="添加附件"><Plus size={20} aria-hidden="true" /></button>
       <ComposerModelPicker busy={busy} providers={providerChoices} selectedProvider={selectedModelProvider} selectedModel={selectedChatModel} showSelection={showSelectedChatModel} open={modelPickerOpen} setOpen={setModelPickerOpen} selectModel={selectChatModel} openSettings={openSettings} />
       {busy ? <button className="secondary stream-control guide-control" onClick={guideActiveJob} disabled={!input.trim()} aria-label="追加引导"><span>引导</span></button> : null}
       {busy ? <button className="danger stream-control stop-control" onClick={stopStreaming} aria-label="中断生成"><Square size={13} aria-hidden="true" /><span>中断</span></button> : null}

@@ -9,6 +9,9 @@
   align-items: center !important;
   gap: 6px !important;
   overflow: visible !important;
+  border: 1px solid var(--gpt-border-strong) !important;
+  background: color-mix(in srgb, var(--gpt-main) 94%, transparent) !important;
+  box-shadow: 0 10px 34px color-mix(in srgb, var(--gpt-text) 10%, transparent) !important;
 }
 
 #app.app .composer:not(.composer-streaming) .attach-control {
@@ -34,8 +37,7 @@
   padding: 0 !important;
   justify-content: center !important;
   gap: 0 !important;
-  border-radius: 13px !important;
-  background: transparent !important;
+  border-radius: 0 !important;
 }
 
 #app.app .composer:not(.composer-streaming) .model-picker-icon {
@@ -49,6 +51,45 @@
 
 #app.app .composer:not(.composer-streaming) #send {
   grid-area: send !important;
+}
+
+/* 外层 composer 是输入区唯一的可见容器，内部操作只保留图标和文字。 */
+#app.app .composer:not(.composer-streaming) :is(.attach-control, .model-picker-trigger, #send) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+#app.app .composer:not(.composer-streaming) :is(.attach-control, .model-picker-trigger) {
+  color: var(--gpt-muted) !important;
+}
+
+#app.app .composer:not(.composer-streaming) :is(.attach-control, .model-picker-trigger):hover:not(:disabled) {
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--gpt-text) !important;
+  transform: none !important;
+}
+
+#app.app .composer:not(.composer-streaming) #send {
+  color: var(--gpt-text) !important;
+  opacity: 1 !important;
+}
+
+#app.app .composer:not(.composer-streaming) #send:hover:not(:disabled) {
+  background: transparent !important;
+  color: var(--gpt-accent-strong) !important;
+  transform: none !important;
+}
+
+#app.app .composer:not(.composer-streaming) #send:disabled {
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--gpt-muted-2) !important;
+  box-shadow: none !important;
+  opacity: .42 !important;
 }
 
 #app.app .composer:is(.composer-model-picker-open, :focus-within):not(.composer-streaming) {
@@ -82,7 +123,7 @@
   padding: 0 8px !important;
   justify-content: flex-start !important;
   gap: 6px !important;
-  border-radius: 10px !important;
+  border-radius: 0 !important;
 }
 
 #app.app .composer:is(.composer-model-picker-open, :focus-within) .model-picker-label {
