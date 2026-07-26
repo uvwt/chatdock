@@ -2,6 +2,7 @@ package chatoutput
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"chatdock/internal/llm"
@@ -21,9 +22,34 @@ func (r *timelineRecorder) Record(event string, value any) {
 		r.recordToolStart(value)
 	case "tool_call_result":
 		r.recordToolResult(value)
+	case "model_retry":
+		r.recordModelRetry(value)
 	case "model_fallback":
 		r.recordModelFallback(value)
 	}
+}
+
+func (r *timelineRecorder) recordModelRetry(value any) {
+	data := mapValue(value)
+	provider := stringValue(data["provider_id"])
+	modelName := stringValue(data["model"])
+	attempt, _ := data["attempt"].(int)
+	maxRetries, _ := data["max_retries"].(int)
+	progress := ""
+	if attempt > 0 && maxRetries > 0 {
+		progress = fmt.Sprintf("%d/%d", attempt, maxRetries)
+	}
+	meta := strings.Trim(strings.Join([]string{provider, modelName, progress}, " · "), " ·")
+	event := model.MessageEvent{
+		Kind:    "tool",
+		Phase:   "done",
+		CallKey: "model_retry::" + provider + "::" + modelName + "::" + progress,
+		Text:    "重新连接模型",
+		Meta:    meta,
+		Details: map[string]any{"event": "model_retry", "data": data},
+	}
+	r.events = append(r.events, event)
+	r.parts = append(r.parts, model.MessagePart{Kind: "tool", CallKey: event.CallKey, Event: cloneEventPointer(event)})
 }
 
 func (r *timelineRecorder) recordModelFallback(value any) {

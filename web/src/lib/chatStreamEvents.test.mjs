@@ -65,6 +65,25 @@ test('tool setup success stays out of the visible assistant timeline', () => {
   assert.equal(chatStreamAssistantAfterEvent(message, 'tool_setup_ready', { tool_count: 4 }), message);
 });
 
+test('model retry is projected as a visible execution event', () => {
+  assert.equal(projectsChatStreamAssistant('model_retry', {}), true);
+  const stats = chatStreamStatsAfterEvent(idleStats(), 'model_retry', {});
+  assert.equal(stats.events, 1);
+
+  const message = chatStreamAssistantAfterEvent({ role: 'assistant-stream', events: [] }, 'model_retry', {
+    provider_id: 'primary',
+    model: 'primary-model',
+    attempt: 1,
+    max_retries: 2,
+    delay_ms: 500,
+    reason: 'unexpected EOF',
+  });
+  assert.equal(message.events.length, 1);
+  assert.equal(message.events[0].text, '重新连接模型');
+  assert.equal(message.events[0].meta, 'primary · primary-model · 1/2');
+  assert.equal(message.events[0].details.data.reason, 'unexpected EOF');
+});
+
 test('model fallback is projected as a visible execution event', () => {
   assert.equal(projectsChatStreamAssistant('model_fallback', {}), true);
   const stats = chatStreamStatsAfterEvent(idleStats(), 'model_fallback', {});

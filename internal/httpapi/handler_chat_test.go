@@ -156,7 +156,7 @@ func TestChatAPIFallsBackBeforeAnyPrimaryOutput(t *testing.T) {
 	if result.Session.ProviderID != primaryCfg.ProviderID || result.Session.Model != primaryCfg.Model {
 		t.Fatalf("fallback must not permanently overwrite the session model: %#v", result.Session)
 	}
-	if primaryRequests != 1 || backupRequests == 0 {
+	if primaryRequests != 3 || backupRequests != 2 {
 		t.Fatalf("unexpected provider attempts: primary=%d backup=%d", primaryRequests, backupRequests)
 	}
 }

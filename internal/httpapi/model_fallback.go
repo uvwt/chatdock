@@ -3,10 +3,13 @@ package httpapi
 import (
 	"context"
 	"strings"
+	"time"
 
 	"chatdock/internal/llm"
 	"chatdock/internal/model"
 )
+
+var defaultModelRetryDelays = [...]time.Duration{500 * time.Millisecond, time.Second}
 
 type modelAttemptTracker struct {
 	emit    func(string, any) error
@@ -62,9 +65,20 @@ func completeModelWithFallback(
 	emit func(string, any) error,
 	complete func(model.ModelConfig, func(string, any) error, func()) (string, error),
 ) (string, model.ModelConfig, error) {
-	primaryAttempt := &modelAttemptTracker{emit: emit}
-	answer, err := complete(primary, primaryAttempt.callback(), primaryAttempt.markStarted)
-	if err == nil || fallback == nil || primaryAttempt.started || isClientCanceled(ctx, err) {
+	return completeModelWithFallbackRetryDelays(ctx, primary, fallback, emit, defaultModelRetryDelays[:], complete)
+}
+
+func completeModelWithFallbackRetryDelays(
+	ctx context.Context,
+	primary model.ModelConfig,
+	fallback *model.ModelConfig,
+	emit func(string, any) error,
+	retryDelays []time.Duration,
+	complete func(model.ModelConfig, func(string, any) error, func()) (string, error),
+) (string, model.ModelConfig, error) {
+	answer, primaryAttempt, err := completeModelAttempt(ctx, primary, emit, retryDelays, complete)
+	retryable := llm.IsRetryableModelError(err)
+	if err == nil || fallback == nil || primaryAttempt.started || ctx.Err() != nil || isClientCanceled(ctx, err) || !retryable {
 		return answer, primary, err
 	}
 
@@ -89,7 +103,76 @@ func completeModelWithFallback(
 		"reason":           strings.TrimSpace(err.Error()),
 	})
 
-	fallbackAttempt := &modelAttemptTracker{emit: emit}
-	answer, err = complete(*fallback, fallbackAttempt.callback(), fallbackAttempt.markStarted)
+	answer, _, err = completeModelAttempt(ctx, *fallback, emit, retryDelays, complete)
 	return answer, *fallback, err
+}
+
+func completeModelAttempt(
+	ctx context.Context,
+	cfg model.ModelConfig,
+	emit func(string, any) error,
+	retryDelays []time.Duration,
+	complete func(model.ModelConfig, func(string, any) error, func()) (string, error),
+) (string, *modelAttemptTracker, error) {
+	attempt := &modelAttemptTracker{emit: emit}
+	answer, err := complete(cfg, attempt.callback(), attempt.markStarted)
+	for retryIndex, fallbackDelay := range retryDelays {
+		if err == nil || attempt.started || ctx.Err() != nil || isClientCanceled(ctx, err) {
+			return answer, attempt, err
+		}
+
+		delay, retryable := llm.ModelRetryDelay(err, fallbackDelay)
+		if !retryable {
+			return answer, attempt, err
+		}
+
+		payload := map[string]any{
+			"provider_id": cfg.ProviderID,
+			"model":       cfg.Model,
+			"attempt":     retryIndex + 1,
+			"max_retries": len(retryDelays),
+			"delay_ms":    delay.Milliseconds(),
+			"reason":      publicChatErrorMessage(err.Error()),
+		}
+		if emit != nil {
+			if emitErr := emit("model_retry", payload); emitErr != nil {
+				return answer, attempt, emitErr
+			}
+		}
+		logInfo("chat_model_retry_scheduled", logFields{
+			"request_id":  requestIDFromContext(ctx),
+			"provider_id": cfg.ProviderID,
+			"model":       cfg.Model,
+			"attempt":     retryIndex + 1,
+			"max_retries": len(retryDelays),
+			"delay_ms":    delay.Milliseconds(),
+			"reason":      strings.TrimSpace(err.Error()),
+		})
+
+		if waitErr := waitForModelRetry(ctx, delay); waitErr != nil {
+			return answer, attempt, waitErr
+		}
+		answer, err = complete(cfg, attempt.callback(), attempt.markStarted)
+	}
+	return answer, attempt, err
+}
+
+func waitForModelRetry(ctx context.Context, delay time.Duration) error {
+	if delay <= 0 {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			return nil
+		}
+	}
+
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }

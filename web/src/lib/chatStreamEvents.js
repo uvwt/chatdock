@@ -8,6 +8,7 @@ const assistantEventNames = new Set([
   'tool_call_result',
   'tool_confirmation_required',
   'tool_confirmation_resolved',
+  'model_retry',
   'model_fallback',
   'job_cancelled',
   'guidance_queued',
@@ -49,6 +50,7 @@ export function chatStreamStatsAfterEvent(stats, event, data = {}, paused = fals
       return { ...stats, state: paused ? 'paused' : 'streaming', chars: stats.chars + chars };
     }
     case 'tool_setup_ready':
+    case 'model_retry':
     case 'model_fallback':
     case 'tool_call_result':
     case 'guidance_queued':
@@ -91,6 +93,18 @@ export function chatStreamAssistantAfterEvent(message, event, data = {}) {
       return appendToolStartEvent(message, event, data);
     case 'tool_call_result':
       return mergeToolResultEvent(message, event, data);
+    case 'model_retry':
+      return appendEvent(message, {
+        kind: 'tool',
+        phase: 'done',
+        text: '重新连接模型',
+        meta: [
+          data.provider_id,
+          data.model,
+          data.attempt && data.max_retries ? `${data.attempt}/${data.max_retries}` : '',
+        ].filter(Boolean).join(' · '),
+        details: { event, data },
+      });
     case 'model_fallback':
       return appendEvent(message, {
         kind: 'tool',

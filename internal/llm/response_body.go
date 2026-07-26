@@ -4,9 +4,22 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 const maxModelErrorResponseBytes int64 = 256 << 10
+
+type modelAPIResponseError struct {
+	prefix     string
+	status     string
+	statusCode int
+	summary    string
+	retryAfter time.Duration
+}
+
+func (e *modelAPIResponseError) Error() string {
+	return fmt.Sprintf("%s: %s: %s", e.prefix, e.status, e.summary)
+}
 
 func modelResponseBodyLimit(resp *http.Response, successLimit int64) int64 {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -33,5 +46,11 @@ func readModelResponseBody(resp *http.Response, maxBytes int64) ([]byte, error) 
 }
 
 func modelAPIError(prefix string, resp *http.Response, body []byte) error {
-	return fmt.Errorf("%s: %s: %s", prefix, resp.Status, summarizeModelProviderBody(resp.Header.Get("Content-Type"), body))
+	return &modelAPIResponseError{
+		prefix:     prefix,
+		status:     resp.Status,
+		statusCode: resp.StatusCode,
+		summary:    summarizeModelProviderBody(resp.Header.Get("Content-Type"), body),
+		retryAfter: parseModelRetryAfter(resp.Header.Get("Retry-After"), time.Now()),
+	}
 }
