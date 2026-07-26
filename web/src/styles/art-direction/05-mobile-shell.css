@@ -244,6 +244,30 @@
     padding-top: calc(92px + env(safe-area-inset-top, 0px)) !important;
   }
 
+  html:not(.chatdock-keyboard-open) #app.app:not(.chat-empty) .composer-shell {
+    position: absolute !important;
+    inset: auto 0 0 !important;
+    z-index: 11 !important;
+    padding: 0 10px calc(env(safe-area-inset-bottom, 0px) + 10px) !important;
+    border: 0 !important;
+    background: transparent !important;
+    pointer-events: none !important;
+  }
+
+  html:not(.chatdock-keyboard-open) #app.app:not(.chat-empty) .composer {
+    pointer-events: auto !important;
+    border-color: var(--mobile-border) !important;
+    background: color-mix(in srgb, var(--mobile-panel) 62%, transparent) !important;
+    box-shadow: var(--mobile-shadow-raised) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
+    backdrop-filter: blur(18px) saturate(145%) !important;
+  }
+
+  html:not(.chatdock-keyboard-open) #app.app:not(.chat-empty) .messages {
+    padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+  }
+
   #app.app .sidebar-tree-session-menu,
   #app.app .session-menu-trigger {
     opacity: 1 !important;
