@@ -34,20 +34,6 @@
     filter: none !important;
   }
 
-  /* iOS 独立网页让消息层贯穿状态栏；首屏仍由消息顶部内边距避让，滚动后文字可进入状态栏后方。 */
-  #app.app main::after {
-    content: "";
-    position: absolute;
-    inset: 0 0 auto;
-    z-index: 2;
-    height: calc(env(safe-area-inset-top, 0px) + 58px);
-    pointer-events: none;
-    background: linear-gradient(180deg,
-      color-mix(in srgb, var(--mobile-panel) 40%, transparent) 0,
-      color-mix(in srgb, var(--mobile-panel) 18%, transparent) calc(env(safe-area-inset-top, 0px) + 8px),
-      transparent 100%);
-  }
-
   #app.app aside {
     position: fixed !important;
     inset: 0 auto 0 0 !important;
@@ -234,17 +220,10 @@
     box-shadow: none !important;
   }
 
-  /* 首屏用可滚动占位避开状态栏和悬浮导航；上滑后占位随消息滚走，正文才能进入状态栏后方。 */
-  #app.app:not(.chat-empty) .messages {
-    padding-top: 0 !important;
+  /* 顶部导航脱离文档流后，为消息内容预留完整安全区，避免首行被悬浮按钮遮挡。 */
+  #app.app .messages {
+    padding-top: calc(92px + env(safe-area-inset-top, 0px)) !important;
     scroll-padding-top: calc(92px + env(safe-area-inset-top, 0px));
-  }
-
-  #app.app:not(.chat-empty) .messages::before {
-    content: "";
-    display: block;
-    height: calc(92px + env(safe-area-inset-top, 0px));
-    pointer-events: none;
   }
 
   html:not(.chatdock-keyboard-open) #app.app.chat-empty .messages {
