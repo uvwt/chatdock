@@ -47,12 +47,27 @@ export function ComposerModelPicker({ busy, providers, selectedProvider, selecte
     </div>
   </div>;
 
+  const togglePicker = () => setOpen(value => !value);
+  const handleTriggerPointerDown = event => {
+    if (event.button !== 0) return;
+
+    // 手机端输入框聚焦后，按钮一旦抢走焦点会触发键盘收起和布局位移，Safari 可能因此取消 click。
+    // 在 pointerdown 阶段完成切换并保留输入焦点，保证一次轻触即可打开选择器。
+    event.preventDefault();
+    togglePicker();
+  };
+  const handleTriggerClick = event => {
+    // 键盘和辅助技术不会触发 pointerdown，仍通过原生 click 完成切换。
+    if (event.detail === 0) togglePicker();
+  };
+
   return <div className="model-picker" ref={pickerRef}>
     <button
       type="button"
       className="secondary model-picker-trigger"
       disabled={busy || !providers.length}
-      onClick={() => setOpen(value => !value)}
+      onPointerDown={handleTriggerPointerDown}
+      onClick={handleTriggerClick}
       title={showSelection ? `切换模型：${providerLabel(selectedProvider)} · ${selectedModel}` : '选择模型'}
       aria-label={showSelection ? `切换模型：${selectedModel}` : '选择模型'}
       aria-haspopup="dialog"
