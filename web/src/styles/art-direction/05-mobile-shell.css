@@ -275,11 +275,6 @@
     scroll-padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px));
   }
 
-  html:not(.chatdock-keyboard-open) #app.app:not(.chat-empty):has(.current-session-task) .messages {
-    padding-bottom: calc(190px + env(safe-area-inset-bottom, 0px)) !important;
-    scroll-padding-bottom: calc(190px + env(safe-area-inset-bottom, 0px));
-  }
-
   #app.app .sidebar-tree-session-menu,
   #app.app .session-menu-trigger {
     opacity: 1 !important;
