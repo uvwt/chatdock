@@ -53,8 +53,6 @@ export function useSettingsActions({
   showDialog,
   showToast,
 }) {
-  const [availableModels, setAvailableModels] = useState([]);
-  const [candidateProviderID, setCandidateProviderID] = useState('');
   const [loadingModels, setLoadingModels] = useState(false);
 
   const refreshAfterProviderMutation = useCallback(async () => {
@@ -160,45 +158,20 @@ export function useSettingsActions({
     } catch (e) { showToast('模型连接失败：' + e.message, 'error'); }
   }, [api, config, showToast]);
 
-  const fetchProviderModels = useCallback(async () => {
-    setLoadingModels(true);
-    try {
-      const data = await fetchProviderModelsRequest(api, {
-        provider_id: config.provider_id,
-        model: config.model,
-        system_prompt: config.system_prompt,
-        context_mode: config.context_mode || 'auto',
-        max_context_messages: Number(config.max_context_messages || 12),
-        temperature: Number(config.temperature || 0.7),
-        hide_thinking: !!config.hide_thinking,
-      });
-      const models = data.candidate_models || data.models || [];
-      setCandidateProviderID(config.provider_id || data.provider_id || '');
-      setAvailableModels(models);
-      showToast(models.length ? '已获取 ' + models.length + ' 个候选模型，仅用于查看，需手动保存为可用模型' : '接口可用，但没有返回候选模型名称', models.length ? 'success' : 'warn');
-    } catch (e) {
-      setAvailableModels([]);
-      showToast('获取候选模型失败：' + e.message, 'error');
-    } finally {
-      setLoadingModels(false);
-    }
-  }, [api, config, showToast]);
-
-  const addCandidateModelToProvider = useCallback(async (modelName) => {
-    const name = String(modelName || '').trim();
-    if (!name) return;
-    const providerID = candidateProviderID || config.provider_id;
-    const provider = providers.find(p => p.id === providerID) || providers.find(p => p.id === config.provider_id);
+  const addCandidateModelsToProvider = useCallback(async (providerID, modelNames) => {
+    const names = uniqueModelNames(modelNames || []);
+    if (!names.length) return;
+    const provider = providers.find(item => item.id === providerID);
     if (!provider?.id) {
-      showToast('请先选择供应商，再添加候选模型', 'error');
+      showToast('找不到要更新的模型供应商', 'error');
       return;
     }
-    const alreadyAdded = (provider.models || []).includes(name);
-    const payload = providerPayloadForModelAppend(provider, name);
+    const payload = providerPayloadForModelAppend(provider, names[0]);
+    payload.models = uniqueModelNames([...(payload.models || []), ...names]);
     await updateModelProviderRequest(api, provider.id, payload);
     await Promise.allSettled([loadModelProviders(), loadProjects()]);
-    showToast(alreadyAdded ? '候选模型已在可用列表：' + name : '已加入可用模型列表：' + name, 'success');
-  }, [api, candidateProviderID, config.provider_id, loadModelProviders, loadProjects, providers, showToast]);
+    showToast('已保存 ' + names.length + ' 个模型', 'success');
+  }, [api, loadModelProviders, loadProjects, providers, showToast]);
 
   const editModelProvider = useCallback(async (existing = null) => {
     const modelText = uniqueModelNames([...(existing?.models || []), existing?.default_model].filter(Boolean)).join('\n');
@@ -247,24 +220,29 @@ export function useSettingsActions({
 
   const fetchSavedProviderModels = useCallback(async (provider) => {
     if (!provider?.id) return;
+    setLoadingModels(true);
     try {
       const data = await fetchProviderModelsRequest(api, { provider_id: provider.id, model: provider.default_model });
       const models = data.candidate_models || data.models || [];
-      setCandidateProviderID(provider.id || data.provider_id || '');
-      setAvailableModels(models);
-      showToast(models.length ? '已获取 ' + models.length + ' 个候选模型，点击单个模型可加入可用模型列表' : '接口可用，但没有返回候选模型名称', models.length ? 'success' : 'warn');
-    } catch (e) { showToast('获取候选模型失败：' + e.message, 'error'); }
+      showToast(models.length ? '已读取 ' + models.length + ' 个模型' : '接口可用，但没有返回模型名称', models.length ? 'success' : 'warn');
+      return models;
+    } catch (e) {
+      showToast('获取候选模型失败：' + e.message, 'error');
+      return null;
+    } finally {
+      setLoadingModels(false);
+    }
   }, [api, showToast]);
 
-  const saveMCPConfig = useCallback(async ({silent = false} = {}) => {
+  const saveMCPConfig = useCallback(async ({silent = false, content = mcpConfig} = {}) => {
     try {
-      JSON.parse(mcpConfig || '{}');
+      JSON.parse(content || '{}');
     } catch (e) {
       const error = new Error('MCP 配置不是合法 JSON：' + e.message);
       if (!silent) showToast(error.message, 'error');
       throw error;
     }
-    await saveMCPConfigRequest(api, mcpConfig);
+    await saveMCPConfigRequest(api, content);
     // 保存后重新读取服务端规范化结果，同时更新未保存基线。
     await loadMCPConfig();
     await loadMCPStatus().catch(() => { });
@@ -362,9 +340,7 @@ export function useSettingsActions({
   }, [api, loadScheduledTasks, loadSessions, openScheduledTaskSession, refreshProductState, scheduledTasks, showDialog, showToast]);
 
   return {
-    addCandidateModelToProvider,
-    availableModels,
-    candidateProviderID,
+    addCandidateModelsToProvider,
     deleteModelProvider,
     deleteProject,
     deleteScheduledTask,
@@ -372,7 +348,6 @@ export function useSettingsActions({
     editProject,
     editScheduledTask,
     fetchMCPServerTools,
-    fetchProviderModels,
     fetchSavedProviderModels,
     loadingModels,
     openScheduledTaskSession,

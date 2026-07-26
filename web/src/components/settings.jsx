@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   Bot,
-  Boxes,
   Check,
   CircleX,
   Folder,
@@ -19,54 +18,42 @@ import { mcpAuthDraft, mcpAuthPayload } from '../lib/mcpAuthDraft.js';
 import { ProjectsPage, ScheduledTasksPage } from './managementPages.jsx';
 
 const settingsModuleMeta = {
-  model: {label: '模型', desc: '默认供应商、模型与回复参数。', icon: Bot, persistence: 'manual'},
-  providers: {label: '供应商', desc: '新增、编辑、测试模型供应商和候选模型。', icon: Boxes, persistence: 'instant'},
-  tools: {label: '工具', desc: '添加、检测和维护 MCP Server。', icon: Wrench, persistence: 'manual'},
-  projects: {label: '项目', desc: '管理项目名称、提示词和会话归属。', icon: Folder, persistence: 'instant'},
-  automation: {label: '定时任务', desc: '创建、运行和暂停自动执行任务。', icon: ListTodo, persistence: 'instant'},
-  security: {label: '系统', desc: '查看运行状态、数据库、备份、诊断信息和访问入口。', icon: ShieldCheck, persistence: 'readonly'},
+  model: {label: '模型', desc: '选择默认模型并管理模型供应商。', icon: Bot},
+  tools: {label: '工具', desc: '管理 ChatDock 内置工具和 MCP Server。', icon: Wrench},
+  projects: {label: '项目', desc: '管理项目名称、提示词和会话归属。', icon: Folder},
+  automation: {label: '定时任务', desc: '创建、运行和暂停自动执行任务。', icon: ListTodo},
+  security: {label: '系统', desc: '查看运行状态、数据库、备份、诊断信息和访问入口。', icon: ShieldCheck},
 };
 
 export function SettingsPanel(props) {
   const {
     activeModule, api, closeSettings, config, configDirty, mcpConfigDirty, dataStatus, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
-    loadDataStatus, loadMCPConfig, loadMCPStatus, loadSystemStatus, logout, builtinTools, mcpConfig, mcpStatus, onCopy, providers, projectPromptPreview, refreshProductState, refreshVisibleSettings,
-    saveConfig, saveMCPConfig, setConfig, setMcpConfig, setupStatus, showProjectPromptPreview, switchSettingsModule, systemStatus,
-    testMCP, fetchMCPServerTools, testModelProvider, fetchProviderModels, availableModels, candidateProviderID, addCandidateModelToProvider, loadingModels,
+    loadDataStatus, loadMCPStatus, loadSystemStatus, logout, builtinTools, mcpConfig, mcpStatus, onCopy, providers, projectPromptPreview, refreshProductState, refreshVisibleSettings,
+    saveConfig, saveMCPConfig, setConfig, setupStatus, switchSettingsModule, systemStatus,
+    testMCP, fetchMCPServerTools, testModelProvider, addCandidateModelsToProvider, loadingModels,
     projects, projectSessionCounts, editProject, deleteProject, openProjectSessions, loadProjects, onPinnedProjectChange, startProjectConversation, showToast,
     scheduledTasks, taskSearch, setTaskSearch, editScheduledTask, deleteScheduledTask, setScheduledTasks, toggleScheduledTask, runScheduledTaskNow, openScheduledTaskSession, loadScheduledTasks, onPinnedTaskChange,
   } = props;
   const saveTimerRef = useRef(null);
   const [saveState, setSaveState] = useState({scope: '', status: 'idle', message: ''});
-  const unsavedCount = Number(!!configDirty) + Number(!!mcpConfigDirty);
-  const moduleIsDirty = useCallback((name) => {
-    if (name === 'model') return !!configDirty;
-    if (name === 'tools') return !!mcpConfigDirty;
-    return false;
-  }, [configDirty, mcpConfigDirty]);
-
   useEffect(() => () => window.clearTimeout(saveTimerRef.current), []);
 
-  const saveScope = useCallback(async (scope) => {
-    const dirty = scope === 'mcp' ? mcpConfigDirty : configDirty;
-    if (!dirty) return;
-    const save = scope === 'mcp' ? saveMCPConfig : saveConfig;
-    if (!save) return;
+  const saveModelConfig = useCallback(async () => {
+    if (!configDirty || !saveConfig) return;
     window.clearTimeout(saveTimerRef.current);
-    setSaveState({scope, status: 'saving', message: ''});
+    setSaveState({scope: 'config', status: 'saving', message: ''});
     try {
-      await save({silent: true});
-      setSaveState({scope, status: 'saved', message: ''});
-      saveTimerRef.current = window.setTimeout(() => setSaveState(current => current.scope === scope ? {scope: '', status: 'idle', message: ''} : current), 2800);
+      await saveConfig({silent: true});
+      setSaveState({scope: 'config', status: 'saved', message: ''});
+      saveTimerRef.current = window.setTimeout(() => setSaveState({scope: '', status: 'idle', message: ''}), 2200);
     } catch (error) {
-      setSaveState({scope, status: 'error', message: error?.message || '保存失败，请稍后重试。'});
+      setSaveState({scope: 'config', status: 'error', message: error?.message || '保存失败，请稍后重试。'});
     }
-  }, [configDirty, mcpConfigDirty, saveConfig, saveMCPConfig]);
+  }, [configDirty, saveConfig]);
 
   const configSaveState = saveState.scope === 'config' ? saveState : {scope: 'config', status: 'idle', message: ''};
-  const mcpSaveState = saveState.scope === 'mcp' ? saveState : {scope: 'mcp', status: 'idle', message: ''};
   const refreshSettings = () => {
-    if (unsavedCount && !window.confirm('刷新会丢弃尚未保存的配置修改，确定继续吗？')) return;
+    if ((configDirty || mcpConfigDirty) && !window.confirm('刷新会丢弃尚未保存的配置修改，确定继续吗？')) return;
     (refreshVisibleSettings || refreshProductState)?.();
   };
   return <section className="settings">
@@ -74,7 +61,7 @@ export function SettingsPanel(props) {
       <div className="settings-header-main">
         <button className="secondary small settings-back-button icon-button" onClick={() => closeSettings()} aria-label="返回聊天" title="返回聊天"><ArrowLeft className="settings-header-icon settings-back-icon" size={17} aria-hidden="true" /></button>
         <div>
-          <div className="settings-title-row"><h2>配置中心</h2>{unsavedCount ? <span className="settings-global-save-state dirty"><span aria-hidden="true" />{unsavedCount} 组待保存</span> : saveState.status === 'saved' ? <span className="settings-global-save-state saved"><Check size={13} aria-hidden="true" />已保存</span> : null}</div>
+          <div className="settings-title-row"><h2>配置中心</h2></div>
           <p>统一管理模型、供应商、工具、项目、定时任务与系统。</p>
         </div>
       </div>
@@ -82,21 +69,21 @@ export function SettingsPanel(props) {
     </header>
     <div className="settings-sidebar">
       <select className="settings-mobile-module-select" value={activeModule} onChange={e => switchSettingsModule(e.target.value)} aria-label="选择配置模块">
-        {settingsModules.map(m => <option key={m} value={m}>{moduleLabel(m)}{moduleIsDirty(m) ? ' · 未保存' : ''}</option>)}
+        {settingsModules.map(m => <option key={m} value={m}>{moduleLabel(m)}</option>)}
       </select>
       <nav className="module-tabs" aria-label="配置模块">{settingsModules.map(m => {
-        const dirty = moduleIsDirty(m);
         const ModuleIcon = settingsModuleMeta[m]?.icon;
-        return <button key={m} className={'module-tab ' + (activeModule === m ? 'active ' : '') + (dirty ? 'dirty' : '')} onClick={() => switchSettingsModule(m)}>
+        return <button key={m} className={'module-tab ' + (activeModule === m ? 'active' : '')} onClick={() => switchSettingsModule(m)}>
           <span className="module-tab-main">{ModuleIcon ? <ModuleIcon className="module-tab-icon" size={17} aria-hidden="true" /> : null}<span className="module-tab-label">{moduleLabel(m)}</span></span>
-          {dirty ? <span className="module-tab-dirty" aria-label="有未保存修改">未保存</span> : null}
         </button>;
       })}</nav>
     </div>
     <main className="settings-content">
-      <ModuleView name="model" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={() => saveScope('config')} saveHint="保存后将用于新的对话和自动化任务。" savedHint="模型与回复配置已生效。"><ModelModule config={config} setConfig={setConfig} showProjectPromptPreview={showProjectPromptPreview} projectPromptPreview={projectPromptPreview} testModelProvider={testModelProvider} providers={providers} /></ModuleView>
-      <ModuleView name="providers" activeModule={activeModule}><ProvidersModule providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} availableModels={availableModels} candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels} /></ModuleView>
-      <ModuleView name="tools" activeModule={activeModule} dirty={mcpConfigDirty} saveState={mcpSaveState} onSave={() => saveScope('mcp')} saveHint="保存后工具加载方式和权限才会生效。" savedHint="工具配置已写入并重新加载。"><ToolsModule builtinTools={builtinTools} mcpStatus={mcpStatus} mcpConfig={mcpConfig} mcpConfigDirty={mcpConfigDirty} setMcpConfig={setMcpConfig} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} /></ModuleView>
+      <ModuleView name="model" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={saveModelConfig}>
+        <ModelModule config={config} setConfig={setConfig} projectPromptPreview={projectPromptPreview} testModelProvider={testModelProvider} providers={providers} />
+        <ProvidersModule providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} addCandidateModelsToProvider={addCandidateModelsToProvider} loadingModels={loadingModels} />
+      </ModuleView>
+      <ModuleView name="tools" activeModule={activeModule}><ToolsModule builtinTools={builtinTools} mcpStatus={mcpStatus} mcpConfig={mcpConfig} saveMCPConfig={saveMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} /></ModuleView>
       <ModuleView name="projects" activeModule={activeModule} bare>
         <ProjectsPage
           api={api}
@@ -143,33 +130,22 @@ function moduleLabel(m) {
 function moduleDescription(m) {
   return settingsModuleMeta[m]?.desc || '';
 }
-function ModuleView({ name, activeModule, children, dirty = false, saveState, onSave, saveHint = '', savedHint = '', bare = false }) {
-  const persistence = settingsModuleMeta[name]?.persistence || '';
+function ModuleView({ name, activeModule, children, dirty = false, saveState, onSave, bare = false }) {
   return <div className={'module-view ' + (activeModule === name ? 'active ' : '') + (dirty ? 'dirty ' : '') + (bare ? 'bare' : '')} data-module-view={name}>
-    {bare ? null : <div className="module-view-title"><div><span>{moduleLabel(name)}</span><p>{moduleDescription(name)}</p></div><PersistenceBadge mode={persistence} dirty={dirty} /></div>}
-    {bare ? null : <SettingsSaveState dirty={dirty} state={saveState} onSave={onSave} hint={saveHint} savedHint={savedHint} />}
+    {bare ? null : <div className="module-view-title"><div><span>{moduleLabel(name)}</span><p>{moduleDescription(name)}</p></div></div>}
+    {bare ? null : <SettingsSaveState dirty={dirty} state={saveState} onSave={onSave} />}
     {children}
   </div>;
 }
 
-function PersistenceBadge({ mode, dirty }) {
-  const labels = {
-    manual: dirty ? '待保存' : '已保存',
-    instant: '即时保存',
-    readonly: '只读',
-  };
-  if (!labels[mode]) return null;
-  return <span className={'settings-persistence-badge ' + mode + (dirty ? ' dirty' : '')}>{labels[mode]}</span>;
-}
-
-function SettingsSaveState({ dirty, state = {}, onSave, hint, savedHint }) {
+function SettingsSaveState({ dirty, state = {}, onSave }) {
   const status = state.status === 'saving' ? 'saving' : state.status === 'error' ? 'error' : dirty ? 'dirty' : state.status === 'saved' ? 'saved' : 'idle';
   if (status === 'idle') return null;
   const content = {
-    dirty: ['修改尚未保存', hint || '保存后配置才会生效。'],
-    saving: ['正在保存', '完成前请保持当前页面。'],
-    saved: ['保存成功', savedHint || '配置已经生效。'],
-    error: ['保存失败', state.message || '请检查配置后重试。'],
+    dirty: ['有未保存修改', '保存后用于新对话和定时任务。'],
+    saving: ['正在保存', '请稍候。'],
+    saved: ['已保存', '模型设置已经生效。'],
+    error: ['保存失败', state.message || '请检查设置后重试。'],
   }[status];
   return <div className={'settings-save-state ' + status} role={status === 'error' ? 'alert' : 'status'}>
     <div className="settings-save-state-copy"><span className="settings-save-state-icon" aria-hidden="true">{status === 'saved' ? <Check size={15} /> : status === 'error' ? <CircleX size={15} /> : null}</span><div><b>{content[0]}</b><span>{content[1]}</span></div></div>
@@ -192,7 +168,7 @@ function modelListText(config) {
   return normalizeModelNames(models).join('\n');
 }
 
-function ModelModule({ config, setConfig, showProjectPromptPreview, projectPromptPreview, testModelProvider, providers }) {
+function ModelModule({ config, setConfig, projectPromptPreview, testModelProvider, providers }) {
   const update = (key, value) => setConfig(c => ({...c, [key]: value}));
   const providerModels = (provider) => normalizeModelNames([...(provider?.models || []), provider?.default_model].filter(Boolean));
   const activeProvider = providers.find(p => p.id === config.provider_id) || providers[0] || null;
@@ -220,47 +196,85 @@ function ModelModule({ config, setConfig, showProjectPromptPreview, projectPromp
   const contextMode = config.context_mode || 'auto';
   return <>
     <section className="model-quick-panel model-page-single">
-      <div className="model-quick-head"><div><b>默认模型</b><span>{activeProvider?.name || '未选择供应商'} · {config.model || activeProvider?.default_model || '未选择模型'}</span></div><div className="model-quick-actions"><button className="secondary" onClick={() => testModelProvider?.()}>测试</button><button className="secondary" onClick={() => showProjectPromptPreview?.('')}>全局 Prompt</button></div></div>
+      <div className="model-quick-head"><div><b>默认模型</b><span>{activeProvider?.name || '未选择供应商'} · {config.model || activeProvider?.default_model || '未选择模型'}</span></div><div className="model-quick-actions"><button className="secondary" onClick={() => testModelProvider?.()}>测试连接</button></div></div>
       <div className="model-quick-grid">
         <label>供应商<select value={activeProvider?.id || ''} onChange={e => chooseProvider(e.target.value)}>{providers.length ? providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>) : <option value="">未配置供应商</option>}</select></label>
         <label>模型<select value={config.model || ''} onChange={e => chooseModel(e.target.value)} disabled={!activeProvider}><option value="">{activeProvider ? '选择模型' : '先选择供应商'}</option>{selectedProviderModels.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
-        <label>备用供应商<select value={fallbackProvider?.id || ''} onChange={e => chooseFallbackProvider(e.target.value)}><option value="">不使用备用模型</option>{providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>)}</select></label>
-        <label>备用模型<select value={config.fallback_model || ''} onChange={e => chooseFallbackModel(e.target.value)} disabled={!fallbackProvider}><option value="">{fallbackProvider ? '使用供应商默认模型' : '先选择备用供应商'}</option>{fallbackModels.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
       </div>
-      {selectedProviderModels.length ? <div className="model-options compact-model-options">{selectedProviderModels.map(name => <button key={name} type="button" className={'model-option ' + (name === config.model ? 'active' : '')} onClick={() => chooseModel(name)}>{name}</button>)}</div> : <div className="hint">没有可用模型。去“供应商”页添加模型或候选模型。</div>}
-      <div className="hint model-fallback-hint">主模型在尚未输出内容或执行工具前失败时自动切换；备用模型不会永久覆盖当前会话选择。</div>
+      {!selectedProviderModels.length ? <div className="hint">当前供应商没有可用模型，请在下方编辑供应商。</div> : null}
+      <details className="model-option-group">
+        <summary><span><b>备用模型</b><small>{fallbackProvider ? (fallbackProvider.name || fallbackProvider.id) + ' · ' + (config.fallback_model || fallbackProvider.default_model || '默认模型') : '未启用'}</small></span><em>配置</em></summary>
+        <div className="model-quick-grid fallback-model-grid">
+          <label>备用供应商<select value={fallbackProvider?.id || ''} onChange={e => chooseFallbackProvider(e.target.value)}><option value="">不使用备用模型</option>{providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>)}</select></label>
+          <label>备用模型<select value={config.fallback_model || ''} onChange={e => chooseFallbackModel(e.target.value)} disabled={!fallbackProvider}><option value="">{fallbackProvider ? '使用供应商默认模型' : '先选择备用供应商'}</option>{fallbackModels.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
+        </div>
+        <div className="hint model-fallback-hint">仅在主模型尚未输出内容或执行工具前失败时切换。</div>
+      </details>
     </section>
-    <div className="model-inline-grid">
-      <section className="settings-section model-inline-card reply-inline-card">
-        <div className="settings-section-head"><div><b>回复</b></div></div>
+    <div className="model-inline-grid model-advanced-grid">
+      <details className="settings-section model-inline-card reply-inline-card" open>
+        <summary><div><b>回复设置</b><p>上下文、随机性和系统提示词</p></div><span>展开</span></summary>
         <div className="settings-form-grid compact"><label>上下文<select value={contextMode} onChange={e => update('context_mode', e.target.value)}><option value="auto">自动</option><option value="compact">精简</option><option value="expanded">更多历史</option><option value="custom">自定义</option></select></label><label>Temperature<input type="number" step="0.1" min="0" max="2" value={config.temperature} onChange={e => update('temperature', e.target.value)} /></label></div>
         {contextMode === 'custom' ? <label>最近消息数<input type="number" min="1" max="200" value={config.max_context_messages} onChange={e => update('max_context_messages', e.target.value)} /></label> : null}
         <details className="model-mini-details"><summary>全局系统提示词</summary><textarea className="system-prompt-editor compact" value={config.system_prompt} onChange={e => update('system_prompt', e.target.value)} /></details>
         <div className="thinking-options compact"><label className="check-row"><input type="checkbox" checked={!!config.hide_thinking} onChange={e => update('hide_thinking', e.target.checked)} /> 隐藏模型思考内容</label></div>
         {projectPromptPreview ? <pre className="code-preview compact">{projectPromptPreview}</pre> : null}
-      </section>
-      <section className="settings-section model-inline-card embedding-inline-card">
-        <div className="settings-section-head"><div><b>向量</b></div></div>
+      </details>
+      <details className="settings-section model-inline-card embedding-inline-card">
+        <summary><div><b>工具搜索</b><p>向量服务，可选</p></div><span>展开</span></summary>
         <label>Base URL<input value={config.embedding_base_url || ''} onChange={e => update('embedding_base_url', e.target.value)} placeholder="http://127.0.0.1:8000/v1" /></label>
         <label>模型<input value={config.embedding_model || 'BAAI/bge-m3'} onChange={e => update('embedding_model', e.target.value)} placeholder="BAAI/bge-m3" /></label>
         <details className="model-mini-details"><summary>API Key</summary><input type="password" value={config.embedding_api_key || ''} onChange={e => update('embedding_api_key', e.target.value)} placeholder={config.has_embedding_api_key ? '已保存，留空不修改' : '可留空'} /></details>
         <div className="hint">用于工具搜索；不配置则使用关键词搜索。</div>
-      </section>
+      </details>
     </div>
   </>;
 }
 
-function ProvidersModule({ providers, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels, availableModels, candidateProviderID, addCandidateModelToProvider, loadingModels }) {
-  const providerModels = (provider) => normalizeModelNames([...(provider?.models || []), provider?.default_model].filter(Boolean));
-  const candidateProvider = providers.find(p => p.id === candidateProviderID) || providers[0] || null;
-  const candidateProviderModels = providerModels(candidateProvider);
-  return <>
-    <section className="settings-section provider-section provider-primary-section">
-      <div className="settings-section-head"><div><b>供应商列表</b><p>新增、编辑、删除和加入候选模型会立即保存；默认供应商请在“模型”页选择。</p></div><button className="secondary small" onClick={() => editModelProvider(null)}>新增供应商</button></div>
-    </section>
-    {availableModels.length ? <section className="settings-section provider-section"><div className="settings-section-head"><div><b>候选模型</b><p>点击模型会立即加入该供应商的可用模型列表。</p></div><span className="hint">{candidateProvider?.name || '当前供应商'} · {availableModels.length} 个</span></div><div className="model-options candidate-model-options">{availableModels.map(name => { const alreadyAdded = candidateProviderModels.includes(name); return <button key={'candidate-' + name} type="button" className={'model-option candidate ' + (alreadyAdded ? 'added' : '')} onClick={() => addCandidateModelToProvider?.(name)} disabled={alreadyAdded}>{alreadyAdded ? '已加入 · ' : '+ 加入 · '}{name}</button>; })}</div></section> : null}
-    <div className="provider-grid provider-page-grid">{providers.length ? providers.map(p => <TextCard key={p.id} title={p.name || p.id} hint={p.base_url || '-'} badge={p.enabled ? (p.type || 'openai') : '停用'}><div className="product-meta">默认：{p.default_model || '-'} · 模型 {p.models?.length || 0} · Key {p.api_keys?.length || (p.has_api_key ? 1 : 0)}</div><div className="product-actions"><button className="secondary small" onClick={() => editModelProvider(p)}>编辑</button><button className="secondary small" onClick={() => testSavedModelProvider(p)}>测试</button><button className="secondary small" onClick={() => fetchSavedProviderModels(p)} disabled={loadingModels}>{loadingModels && candidateProviderID === p.id ? '获取中…' : '候选'}</button><button className="danger small" onClick={() => deleteModelProvider(p)}>删除</button></div></TextCard>) : <div className="empty compact">还没有模型供应商。</div>}</div>
-  </>;
+function ProvidersModule({ providers, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels, addCandidateModelsToProvider, loadingModels }) {
+  const [candidatePicker, setCandidatePicker] = useState(null);
+
+  async function discoverModels(provider) {
+    const models = await fetchSavedProviderModels?.(provider);
+    if (!models) return;
+    setCandidatePicker({provider, models, selected: []});
+  }
+
+  function toggleCandidate(name) {
+    setCandidatePicker(current => {
+      if (!current) return current;
+      const selected = current.selected.includes(name) ? current.selected.filter(item => item !== name) : [...current.selected, name];
+      return {...current, selected};
+    });
+  }
+
+  async function saveCandidates() {
+    if (!candidatePicker?.selected.length) return;
+    await addCandidateModelsToProvider?.(candidatePicker.provider.id, candidatePicker.selected);
+    setCandidatePicker(null);
+  }
+
+  const existingModels = normalizeModelNames([...(candidatePicker?.provider?.models || []), candidatePicker?.provider?.default_model].filter(Boolean));
+  return <section className="settings-section provider-management-section">
+    <div className="settings-section-head"><div><b>模型供应商</b><p>供应商在弹窗中保存；默认模型在上方选择。</p></div><button className="secondary small" onClick={() => editModelProvider(null)}>新增供应商</button></div>
+    <div className="provider-grid provider-page-grid">{providers.length ? providers.map(provider => <TextCard key={provider.id} title={provider.name || provider.id} hint={provider.base_url || '-'} badge={provider.enabled ? (provider.type || 'openai') : '停用'}><div className="product-meta">默认：{provider.default_model || '-'} · 模型 {provider.models?.length || 0} · Key {provider.api_keys?.length || (provider.has_api_key ? 1 : 0)}</div><div className="product-actions"><button className="secondary small" onClick={() => editModelProvider(provider)}>编辑</button><button className="secondary small" onClick={() => discoverModels(provider)} disabled={loadingModels}>{loadingModels ? '读取中…' : '发现模型'}</button><button className="secondary small" onClick={() => testSavedModelProvider(provider)}>测试</button><button className="danger small" onClick={() => deleteModelProvider(provider)}>删除</button></div></TextCard>) : <div className="empty compact">还没有模型供应商。</div>}</div>
+    {candidatePicker ? <div className="app-modal-backdrop show" onClick={event => { if (event.target === event.currentTarget) setCandidatePicker(null); }}>
+      <div className="app-modal-card candidate-model-modal" role="dialog" aria-modal="true" aria-labelledby="candidateModelTitle">
+        <div className="app-modal-form">
+          <div id="candidateModelTitle" className="app-modal-title">发现模型 · {candidatePicker.provider.name || candidatePicker.provider.id}</div>
+          <div className="candidate-model-modal-body">
+            <p>选择要加入该供应商的模型，最后统一保存。</p>
+            <div className="model-options candidate-model-options">{candidatePicker.models.map(name => {
+              const existing = existingModels.includes(name);
+              const selected = candidatePicker.selected.includes(name);
+              return <button key={name} type="button" className={'model-option candidate ' + (existing ? 'added ' : '') + (selected ? 'active' : '')} onClick={() => toggleCandidate(name)} disabled={existing}>{existing ? '已存在 · ' : selected ? '已选择 · ' : ''}{name}</button>;
+            })}</div>
+          </div>
+          <div className="app-modal-actions"><button type="button" className="secondary" onClick={() => setCandidatePicker(null)}>取消</button><button type="button" onClick={saveCandidates} disabled={!candidatePicker.selected.length}>保存所选模型{candidatePicker.selected.length ? `（${candidatePicker.selected.length}）` : ''}</button></div>
+        </div>
+      </div>
+    </div> : null}
+  </section>;
 }
 
 
@@ -474,161 +488,120 @@ function BuiltinToolExposurePicker({draft, tools, onChange}) {
   </details>;
 }
 
-function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, setMcpConfig, loadMCPConfig, loadMCPStatus, testMCP, fetchMCPServerTools }) {
-  const [newServer, setNewServer] = useState(defaultMCPServerDraft);
-  const [renameDrafts, setRenameDrafts] = useState({});
+function ToolsModule({ builtinTools, mcpStatus, mcpConfig, saveMCPConfig, loadMCPStatus, testMCP, fetchMCPServerTools }) {
+  const [editor, setEditor] = useState(null);
   const [formError, setFormError] = useState('');
   const [serverTools, setServerTools] = useState({});
   const [loadingTools, setLoadingTools] = useState({});
-  const [detail, setDetail] = useState('');
+  const [saving, setSaving] = useState(false);
   const parsed = useMemo(() => parseMCPConfigDraft(mcpConfig), [mcpConfig]);
-  const builtinDraft = builtinToolsToDraft(parsed.config.builtin_tools);
   const serverNames = Object.keys(parsed.config.servers || {}).sort();
-  const statusByName = useMemo(() => Object.fromEntries((mcpStatus || []).map(s => [s.name, s])), [mcpStatus]);
+  const statusByName = useMemo(() => Object.fromEntries((mcpStatus || []).map(status => [status.name, status])), [mcpStatus]);
+
+  function openBuiltinEditor() {
+    setFormError('');
+    setEditor({kind: 'builtin', name: 'chatdock', draft: builtinToolsToDraft(parsed.config.builtin_tools)});
+  }
+
+  function openServerEditor(name) {
+    setFormError('');
+    setEditor({kind: 'server', name, draft: {name, ...mcpServerToDraft(parsed.config.servers[name])}});
+  }
+
+  function openNewServerEditor() {
+    setFormError('');
+    setEditor({kind: 'new', name: '', draft: defaultMCPServerDraft()});
+  }
+
+  function updateEditor(patch) {
+    setEditor(current => current ? {...current, draft: {...current.draft, ...patch}} : current);
+  }
 
   async function refreshServerTools(name) {
     if (!name || !fetchMCPServerTools) return;
-    setLoadingTools(prev => ({...prev, [name]: true}));
+    setLoadingTools(previous => ({...previous, [name]: true}));
     try {
       const tools = await fetchMCPServerTools(name);
-      setServerTools(prev => ({...prev, [name]: tools || []}));
+      setServerTools(previous => ({...previous, [name]: tools || []}));
       setFormError('已读取 ' + name + ' 的 ' + ((tools || []).length) + ' 个工具。');
-    } catch (e) {
-      setFormError('读取工具列表失败：' + e.message);
+    } catch (error) {
+      setFormError('读取工具列表失败：' + error.message);
     } finally {
-      setLoadingTools(prev => ({...prev, [name]: false}));
+      setLoadingTools(previous => ({...previous, [name]: false}));
     }
   }
 
-  function replaceConfig(mutator) {
-    setMcpConfig(prev => {
-      const parsedPrev = parseMCPConfigDraft(prev);
-      if (parsedPrev.error) return prev;
-      const next = {...parsedPrev.config, servers: {...(parsedPrev.config.servers || {})}};
-      mutator(next);
-      return stringifyMCPConfigDraft(next);
-    });
+  async function saveEditor() {
+    if (!editor || !saveMCPConfig) return;
+    const next = {...parsed.config, servers: {...(parsed.config.servers || {})}};
+
+    if (editor.kind === 'builtin') {
+      next.builtin_tools = cleanBuiltinToolsDraft(editor.draft);
+    } else {
+      const nextName = cleanMCPServerName(editor.draft.name);
+      if (!nextName) { setFormError('Server 名称不能为空。'); return; }
+      if (nextName.toLowerCase() === 'chatdock') { setFormError('ChatDock 是内置资源名，请换一个 Server 名称。'); return; }
+      if (!String(editor.draft.url || '').trim() && !String(editor.draft.path || '').trim()) { setFormError('请填写 MCP HTTP 地址。'); return; }
+      if (nextName !== editor.name && next.servers[nextName]) { setFormError('Server 名称已存在，请换一个名称。'); return; }
+      if (editor.kind === 'server' && editor.name !== nextName) delete next.servers[editor.name];
+      next.servers[nextName] = cleanMCPServerDraft(editor.draft);
+    }
+
+    setSaving(true);
+    setFormError('');
+    try {
+      await saveMCPConfig({content: stringifyMCPConfigDraft(next), silent: true});
+      setEditor(null);
+    } catch (error) {
+      setFormError(error.message || '保存工具配置失败。');
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function patchServer(name, patch) {
-    replaceConfig(next => {
-      const draft = {...mcpServerToDraft(next.servers[name]), ...patch};
-      next.servers[name] = cleanMCPServerDraft(draft);
-    });
+  async function deleteCurrentServer() {
+    if (editor?.kind !== 'server' || !window.confirm('确定删除 MCP Server「' + editor.name + '」？')) return;
+    const next = {...parsed.config, servers: {...(parsed.config.servers || {})}};
+    delete next.servers[editor.name];
+    setSaving(true);
+    try {
+      await saveMCPConfig({content: stringifyMCPConfigDraft(next), silent: true});
+      setEditor(null);
+    } catch (error) {
+      setFormError(error.message || '删除 MCP Server 失败。');
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function patchBuiltinTools(patch) {
-    replaceConfig(next => {
-      const draft = {...builtinToolsToDraft(next.builtin_tools), ...patch};
-      next.builtin_tools = cleanBuiltinToolsDraft(draft);
-    });
-  }
+  const isBuiltin = editor?.kind === 'builtin';
+  const isNew = editor?.kind === 'new';
+  const serverDraft = !isBuiltin ? editor?.draft : null;
+  const editorServerName = editor?.kind === 'server' ? editor.name : '';
+  const urlHasLocalhost = serverDraft ? /^http:\/\/(127\.0\.0\.1|localhost)(?=[:/]|$)/i.test(normalizeMCPURLDraft(serverDraft.url)) : false;
+  const urlHasSpace = serverDraft ? /\s/.test(String(serverDraft.url || '')) : false;
+  const tokenEnvLooksLikeHeader = serverDraft ? String(serverDraft.token_env || '').trim().toLowerCase() === 'authorization' : false;
+  const hasSavedToken = serverDraft ? !!String(serverDraft.saved_token_ref || '').trim() : false;
+  const tokenExpiry = serverDraft ? mcpTokenExpiryState(serverDraft.token) : null;
 
-  function removeServer(name) {
-    replaceConfig(next => { delete next.servers[name]; });
-    setDetail('');
-  }
-
-  function renameServer(oldName) {
-    const nextName = cleanMCPServerName(renameDrafts[oldName] ?? oldName);
-    if (!nextName) { setFormError('Server 名称不能为空。'); return; }
-    if (nextName.toLowerCase() === 'chatdock') { setFormError('ChatDock 是内置资源名，请换一个 Server 名称。'); return; }
-    if (nextName === oldName) { setRenameDrafts(drafts => { const next = {...drafts}; delete next[oldName]; return next; }); setFormError(''); return; }
-    if ((parsed.config.servers || {})[nextName]) { setFormError('Server 名称已存在，请换一个名称。'); return; }
-    replaceConfig(next => {
-      const servers = next.servers || {};
-      const renamed = {};
-      // MCP 配置的 key 就是模型看到的 server 名称；改名时只迁移 key，保留 URL、Token、权限和确认规则。
-      Object.entries(servers).forEach(([name, server]) => { renamed[name === oldName ? nextName : name] = server; });
-      next.servers = renamed;
-    });
-    setRenameDrafts(drafts => { const next = {...drafts}; delete next[oldName]; return next; });
-    setDetail(nextName);
-    setFormError('已改名为 ' + nextName + '，更改已加入工具草稿。');
-  }
-
-  function addServer() {
-    const name = cleanMCPServerName(newServer.name);
-    if (!name) { setFormError('请先填写 Server 名称。'); return; }
-    if (name.toLowerCase() === 'chatdock') { setFormError('ChatDock 是内置资源名，请换一个 Server 名称。'); return; }
-    if ((parsed.config.servers || {})[name]) { setFormError('Server 名称已存在，请换一个名称。'); return; }
-    if (!String(newServer.url || '').trim() && !String(newServer.path || '').trim()) { setFormError('请填写 MCP HTTP 地址；Docker 部署访问本机服务通常用 http://host.docker.internal:18766/mcp。'); return; }
-    replaceConfig(next => { next.servers[name] = cleanMCPServerDraft(newServer); });
-    setNewServer(defaultMCPServerDraft());
-    setDetail(name);
-    setFormError('已添加 ' + name + '，更改已加入工具草稿。');
-  }
-
-  const renderServerForm = (name, server, isNew = false) => {
-    const draft = isNew ? newServer : mcpServerToDraft(server);
-    const status = !isNew ? statusByName[name] : null;
-    const update = patch => isNew ? setNewServer(s => ({...s, ...patch})) : patchServer(name, patch);
-    const serverNameDraft = !isNew ? (renameDrafts[name] ?? name) : '';
-    const urlHasLocalhost = /^http:\/\/(127\.0\.0\.1|localhost)(?=[:/]|$)/i.test(normalizeMCPURLDraft(draft.url));
-    const urlHasSpace = /\s/.test(String(draft.url || ''));
-    const tokenEnvLooksLikeHeader = String(draft.token_env || '').trim().toLowerCase() === 'authorization';
-    const hasSavedToken = !!String(draft.saved_token_ref || '').trim();
-    const tokenExpiry = mcpTokenExpiryState(draft.token);
-    return <div className={'mcp-form-card ' + (isNew ? 'new-server' : '')} key={isNew ? 'new' : name}>
-      {!isNew ? <div className="mcp-form-head"><div className="mcp-form-head-actions"><button className="secondary small" onClick={() => patchServer(name, {disabled: !draft.disabled})}>{draft.disabled ? '启用' : '禁用'}</button><button className="danger small" onClick={() => removeServer(name)}>删除</button></div></div> : null}
-      {isNew ? <label>Server 名称<input value={draft.name} onChange={e => setNewServer(s => ({...s, name: e.target.value}))} placeholder="例如 agentdock" /></label> : <label>Server 名称<div className="mcp-rename-row"><input value={serverNameDraft} onChange={e => setRenameDrafts(drafts => ({...drafts, [name]: e.target.value}))} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); renameServer(name); } }} placeholder="例如 agentdock" /><button type="button" className="secondary small" onClick={() => renameServer(name)} disabled={cleanMCPServerName(serverNameDraft) === name}>改名</button></div></label>}
-      <label>资源说明<input maxLength="240" value={draft.description} onChange={e => update({description: e.target.value})} placeholder="例如 Mac mini 本机开发、文件、命令和 Git 能力" /></label>
-      <div className="hint">这段说明会进入模型看到的轻量资源索引；按需资源尚未加载工具时，模型会据此选择目标资源。</div>
-      <div className="mcp-form-grid">
-        <label>连接类型<select value={draft.type} onChange={e => update({type: e.target.value})}><option value="streamable-http">HTTP / Streamable HTTP</option></select></label>
-        <label>状态<select value={draft.disabled ? 'disabled' : 'enabled'} onChange={e => update({disabled: e.target.value === 'disabled'})}><option value="enabled">启用</option><option value="disabled">禁用</option></select></label>
-        <label>工具默认加载<select value={draft.tool_exposure} onChange={e => update({tool_exposure: e.target.value})}><option value="on_demand">按需加载</option><option value="direct">直接加载</option></select></label>
-      </div>
-      <div className="hint">按需加载只在搜索命中后向模型加入真实工具；单个工具可以在下方工具列表覆盖默认方式。</div>
-      <label>MCP HTTP 地址<input value={draft.url} onChange={e => update({url: e.target.value})} placeholder="http://host.docker.internal:18766/mcp" /></label>
-      <div className="hint">ChatDock 生产环境跑在 Docker 里，127.0.0.1 会连到容器自己；访问电脑上的 AgentDock 应填 http://host.docker.internal:18766/mcp，且 URL 里不能有空格。</div>
-      {urlHasLocalhost || urlHasSpace ? <div className="mcp-inline-warning"><b>当前地址可能连不上</b><span>{urlHasSpace ? 'URL 里有空格；' : ''}{urlHasLocalhost ? 'Docker 内不能用 127.0.0.1 访问宿主机。' : ''}</span><button className="secondary small" onClick={() => update({url: dockerHostMCPURL(draft.url)})}>改成 Docker 宿主机地址</button></div> : null}
-      <details className="mcp-advanced-fields">
-        <summary>高级权限、Token 和缓存</summary>
-        <div className="mcp-form-grid">
-          <label>认证方式<select value={draft.auth_type} onChange={e => update({auth_type: e.target.value})}><option value="none">无</option><option value="bearer">Bearer Token</option></select></label>
-          <label>Token 环境变量名（可选）<input value={draft.token_env} onChange={e => update({token_env: e.target.value})} placeholder="例如 AGENTDOCK_MCP_TOKEN，不是 Authorization" /></label>
-        </div>
-        {tokenEnvLooksLikeHeader ? <div className="mcp-inline-warning"><b>这里不要填 Authorization</b><span>这是环境变量名，不是 HTTP Header 名。已经在下方 Token 粘贴值时可以留空。</span><button className="secondary small" onClick={() => update({token_env: ''})}>清空此项</button></div> : null}
-        {hasSavedToken ? <div className="mcp-inline-warning ok mcp-token-state"><b>已保存 Token</b><span>{draft.auth_type === 'none' ? '当前认证方式为“无”，Token 会保留但不会发送。' : '留空不会修改；输入新值才会替换。'}</span><button type="button" className="secondary small" onClick={() => update({token: '', saved_token_ref: ''})}>清除已保存 Token</button></div> : null}
-        {draft.auth_type !== 'none' ? <label>{hasSavedToken ? '替换 Token（可选）' : 'Token'}<input type="password" autoComplete="new-password" value={draft.token} onChange={e => update({token: e.target.value})} placeholder={hasSavedToken ? '留空保持已保存 Token' : '粘贴 AgentDock Bearer Token；可带 Bearer 前缀'} /></label> : null}
-        {draft.auth_type !== 'none' && tokenExpiry ? <div className={'mcp-inline-warning ' + (tokenExpiry.expired ? 'danger' : 'ok')}><b>{tokenExpiry.expired ? 'Token 已过期，需要重新生成' : '新 Token 有效期'}</b><span>{tokenExpiry.text}</span></div> : null}
-        <div className="mcp-form-grid">
-          <label>超时 ms<input type="number" inputMode="numeric" value={draft.timeout_ms} onChange={e => update({timeout_ms: e.target.value})} placeholder="30000" /></label>
-          <label>工具缓存 ms<input type="number" inputMode="numeric" value={draft.cache_ttl_ms} onChange={e => update({cache_ttl_ms: e.target.value})} placeholder="可留空" /></label>
-        </div>
-        {!isNew ? <MCPToolPolicyPicker name={name} draft={draft} tools={serverTools[name] || []} loading={!!loadingTools[name]} onRefresh={() => refreshServerTools(name)} onChange={patch => update(patch)} /> : <div className="hint">添加 Server 后再选择允许、禁止和调用前确认的工具。</div>}
-        <label>本地路径备注<input value={draft.path} onChange={e => update({path: e.target.value})} placeholder="仅作为备注保留；当前 MCP 调用使用 HTTP 地址" /></label>
-      </details>
-      <div className="mcp-form-actions">
-        {isNew ? <button onClick={addServer}>添加 Server</button> : <button className="secondary" onClick={() => testMCP(name)} disabled={draft.disabled || !draft.url}>测试此 Server</button>}
-        {!isNew && status?.last_error ? <button className="secondary" onClick={() => patchServer(name, {disabled: true})}>禁用异常 Server</button> : null}
-      </div>
-    </div>;
-  };
-
-  const detailName = detail[0] !== '@' && parsed.config.servers?.[detail] ? detail : '';
-  const detailKind = detail === '@builtin' ? 'builtin' : detail === '@new' ? 'new' : detailName ? 'server' : '';
-  const detailTitle = detailKind === 'builtin' ? 'ChatDock 内置工具' : detailKind === 'new' ? '新增 MCP Server' : detailName;
   return <>
     <section className="settings-section mcp-overview-section mcp-directory-section">
       <div className="settings-section-head">
-        <div><b>工具资源</b></div>
+        <div><b>工具资源</b><p>点击资源进入编辑，修改在弹窗中直接保存。</p></div>
         <div className="mcp-directory-actions">
-          <button className="secondary small" onClick={() => loadMCPStatus?.()}>检测</button>
-          <button className="secondary small" onClick={() => { if (!mcpConfigDirty || window.confirm('重新加载会丢弃尚未保存的 MCP 修改，确定继续吗？')) loadMCPConfig?.(); }}>重新加载</button>
-          <button className="small" onClick={() => setDetail('@new')}>新增 Server</button>
+          <button className="secondary small" onClick={() => loadMCPStatus?.()}>检查连接</button>
+          <button className="small" onClick={openNewServerEditor}>新增 Server</button>
         </div>
       </div>
       <div className="mcp-config-directory">
-        <button type="button" className="secondary mcp-config-directory-row" onClick={() => setDetail('@builtin')}>
+        <button type="button" className="secondary mcp-config-directory-row" onClick={openBuiltinEditor}>
           <span><b>ChatDock 内置工具</b><small>定时任务、图片和供应商工具</small></span>
-          <em>{(builtinTools || []).length} 个 · 配置</em>
+          <em>{(builtinTools || []).length} 个 · 编辑</em>
         </button>
         {serverNames.map(name => {
           const server = parsed.config.servers[name];
           const status = statusByName[name];
-          return <button type="button" className="secondary mcp-config-directory-row" key={name} onClick={() => setDetail(name)}>
+          return <button type="button" className="secondary mcp-config-directory-row" key={name} onClick={() => openServerEditor(name)}>
             <span><b>{name}</b><small>{server.url || '未填写 HTTP 地址'}</small></span>
             <em className={'badge ' + runStatusClass(status?.last_status || 'unknown')}>{status?.last_status ? runStatusLabel(status.last_status) : '未检测'}</em>
           </button>;
@@ -637,17 +610,49 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, mcpConfigDirty, setMc
       </div>
     </section>
     {parsed.error ? <div className="backup-health warn">当前配置 JSON 损坏：{parsed.error}</div> : null}
-    {detailKind ? <div className="app-modal-backdrop show" onClick={e => { if (e.target === e.currentTarget) setDetail(''); }}>
+    {editor ? <div className="app-modal-backdrop show" onClick={event => { if (event.target === event.currentTarget && !saving) setEditor(null); }}>
       <div className="app-modal-card provider-modal provider-modal-simple mcp-config-modal" role="dialog" aria-modal="true" aria-labelledby="mcpConfigModalTitle">
         <div className="app-modal-form">
-          <div id="mcpConfigModalTitle" className="app-modal-title">{detailTitle}</div>
+          <div id="mcpConfigModalTitle" className="app-modal-title">{isBuiltin ? 'ChatDock 内置工具' : isNew ? '新增 MCP Server' : '编辑 ' + editor.name}</div>
           <div className="mcp-config-modal-body">
-            {detailKind === 'builtin' ? <section className="settings-section mcp-detail-section builtin-tools-section"><div className="builtin-default-exposure"><div><b>默认加载方式</b><span>未单独设置的工具继承此方式</span></div><select aria-label="内置工具默认加载方式" value={builtinDraft.tool_exposure} onChange={e => patchBuiltinTools({tool_exposure: e.target.value})}><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select></div><BuiltinToolExposurePicker draft={builtinDraft} tools={builtinTools || []} onChange={patchBuiltinTools} /></section> : null}
-            {detailKind === 'new' && !parsed.error ? <div className="mcp-form-list redesigned">{renderServerForm('', {}, true)}</div> : null}
-            {detailName ? <div className="mcp-form-list redesigned">{renderServerForm(detailName, parsed.config.servers[detailName])}</div> : null}
+            {isBuiltin ? <section className="settings-section mcp-detail-section builtin-tools-section">
+              <div className="builtin-default-exposure"><div><b>默认加载方式</b><span>未单独设置的工具继承此方式</span></div><select aria-label="内置工具默认加载方式" value={editor.draft.tool_exposure} onChange={event => updateEditor({tool_exposure: event.target.value})}><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select></div>
+              <BuiltinToolExposurePicker draft={editor.draft} tools={builtinTools || []} onChange={updateEditor} />
+            </section> : <div className="mcp-form-card">
+              <label>Server 名称<input value={serverDraft.name} onChange={event => updateEditor({name: event.target.value})} placeholder="例如 DockMini" /></label>
+              <label>资源说明<input maxLength="240" value={serverDraft.description} onChange={event => updateEditor({description: event.target.value})} placeholder="例如 Mac mini 本机开发、文件、命令和 Git 能力" /></label>
+              <div className="hint">说明会进入模型看到的轻量资源索引。</div>
+              <div className="mcp-form-grid">
+                <label>连接类型<select value={serverDraft.type} onChange={event => updateEditor({type: event.target.value})}><option value="streamable-http">HTTP / Streamable HTTP</option></select></label>
+                <label>状态<select value={serverDraft.disabled ? 'disabled' : 'enabled'} onChange={event => updateEditor({disabled: event.target.value === 'disabled'})}><option value="enabled">启用</option><option value="disabled">禁用</option></select></label>
+                <label>工具默认加载<select value={serverDraft.tool_exposure} onChange={event => updateEditor({tool_exposure: event.target.value})}><option value="on_demand">按需加载</option><option value="direct">直接加载</option></select></label>
+              </div>
+              <label>MCP HTTP 地址<input value={serverDraft.url} onChange={event => updateEditor({url: event.target.value})} placeholder="http://host.docker.internal:18766/mcp" /></label>
+              {urlHasLocalhost || urlHasSpace ? <div className="mcp-inline-warning"><b>当前地址可能连不上</b><span>{urlHasSpace ? 'URL 里有空格；' : ''}{urlHasLocalhost ? 'Docker 内不能用 127.0.0.1 访问宿主机。' : ''}</span><button className="secondary small" onClick={() => updateEditor({url: dockerHostMCPURL(serverDraft.url)})}>改成 Docker 宿主机地址</button></div> : null}
+              <details className="mcp-advanced-fields">
+                <summary>高级权限、Token 和缓存</summary>
+                <div className="mcp-form-grid">
+                  <label>认证方式<select value={serverDraft.auth_type} onChange={event => updateEditor({auth_type: event.target.value})}><option value="none">无</option><option value="bearer">Bearer Token</option></select></label>
+                  <label>Token 环境变量名（可选）<input value={serverDraft.token_env} onChange={event => updateEditor({token_env: event.target.value})} placeholder="例如 AGENTDOCK_MCP_TOKEN" /></label>
+                </div>
+                {tokenEnvLooksLikeHeader ? <div className="mcp-inline-warning"><b>这里不要填 Authorization</b><span>这里需要环境变量名，不是 HTTP Header 名。</span><button className="secondary small" onClick={() => updateEditor({token_env: ''})}>清空</button></div> : null}
+                {hasSavedToken ? <div className="mcp-inline-warning ok mcp-token-state"><b>已保存 Token</b><span>留空不会修改；输入新值才会替换。</span><button type="button" className="secondary small" onClick={() => updateEditor({token: '', saved_token_ref: ''})}>清除 Token</button></div> : null}
+                {serverDraft.auth_type !== 'none' ? <label>{hasSavedToken ? '替换 Token（可选）' : 'Token'}<input type="password" autoComplete="new-password" value={serverDraft.token} onChange={event => updateEditor({token: event.target.value})} placeholder={hasSavedToken ? '留空保持已保存 Token' : '粘贴 Bearer Token'} /></label> : null}
+                {serverDraft.auth_type !== 'none' && tokenExpiry ? <div className={'mcp-inline-warning ' + (tokenExpiry.expired ? 'danger' : 'ok')}><b>{tokenExpiry.expired ? 'Token 已过期' : '新 Token 有效期'}</b><span>{tokenExpiry.text}</span></div> : null}
+                <div className="mcp-form-grid">
+                  <label>超时 ms<input type="number" inputMode="numeric" value={serverDraft.timeout_ms} onChange={event => updateEditor({timeout_ms: event.target.value})} placeholder="30000" /></label>
+                  <label>工具缓存 ms<input type="number" inputMode="numeric" value={serverDraft.cache_ttl_ms} onChange={event => updateEditor({cache_ttl_ms: event.target.value})} placeholder="可留空" /></label>
+                </div>
+                {!isNew ? <MCPToolPolicyPicker name={editorServerName} draft={serverDraft} tools={serverTools[editorServerName] || []} loading={!!loadingTools[editorServerName]} onRefresh={() => refreshServerTools(editorServerName)} onChange={updateEditor} /> : <div className="hint">保存 Server 后可读取并配置工具权限。</div>}
+                <label>本地路径备注<input value={serverDraft.path} onChange={event => updateEditor({path: event.target.value})} placeholder="可选备注" /></label>
+              </details>
+            </div>}
             {formError ? <div className="backup-health warn">{formError}</div> : null}
           </div>
-          <div className="app-modal-actions mcp-config-modal-actions"><span>{mcpConfigDirty ? '更改已加入草稿，关闭后在工具页统一保存。' : '当前没有未保存修改。'}</span><button type="button" onClick={() => setDetail('')}>完成</button></div>
+          <div className="app-modal-actions mcp-config-modal-actions">
+            <div className="mcp-modal-secondary-actions">{editor.kind === 'server' ? <><button type="button" className="danger" onClick={deleteCurrentServer} disabled={saving}>删除</button><button type="button" className="secondary" onClick={() => testMCP(editor.name)} disabled={saving}>测试已保存配置</button></> : null}</div>
+            <div className="mcp-modal-primary-actions"><button type="button" className="secondary" onClick={() => setEditor(null)} disabled={saving}>取消</button><button type="button" onClick={saveEditor} disabled={saving}>{saving ? '保存中…' : isBuiltin ? '保存工具设置' : isNew ? '保存 Server' : '保存修改'}</button></div>
+          </div>
         </div>
       </div>
     </div> : null}

@@ -1071,9 +1071,7 @@ export default function App() {
   }, [api, appendToActiveAssistant, showToast]);
 
   const {
-    addCandidateModelToProvider,
-    availableModels,
-    candidateProviderID,
+    addCandidateModelsToProvider,
     deleteModelProvider,
     deleteProject,
     deleteScheduledTask,
@@ -1081,7 +1079,6 @@ export default function App() {
     editProject,
     editScheduledTask,
     fetchMCPServerTools,
-    fetchProviderModels,
     fetchSavedProviderModels,
     loadingModels,
     openScheduledTaskSession,
@@ -1214,8 +1211,7 @@ export default function App() {
       saveConfig={saveConfig} saveMCPConfig={saveMCPConfig} setConfig={setConfig} setMcpConfig={setMcpConfig}
       setupStatus={setupStatus} showProjectPromptPreview={showProjectPromptPreview} switchSettingsModule={switchSettingsModule}
       systemStatus={systemStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools}
-      testModelProvider={testModelProvider} fetchProviderModels={fetchProviderModels} availableModels={availableModels}
-      candidateProviderID={candidateProviderID} addCandidateModelToProvider={addCandidateModelToProvider} loadingModels={loadingModels}
+      testModelProvider={testModelProvider} addCandidateModelsToProvider={addCandidateModelsToProvider} loadingModels={loadingModels}
       logout={logout}
       projects={projects} projectSessionCounts={projectSessionCounts} editProject={editProject} deleteProject={deleteProject}
       openProjectSessions={openProjectSessions} loadProjects={loadProjects} startProjectConversation={startProjectConversation} showToast={showToast}

@@ -12,6 +12,7 @@ test('format helpers keep compact Chinese UI labels', () => {
 test('settings module and task status normalize defaults', () => {
   assert.equal(normalizeSettingsModule('missing'), 'model');
   assert.equal(normalizeSettingsModule('data'), 'security');
+  assert.equal(normalizeSettingsModule('providers'), 'model');
   assert.equal(normalizeSettingsModule('projects'), 'projects');
   assert.equal(normalizeSettingsModule('automation'), 'automation');
   assert.equal(taskStatusLabel({running: true}), '运行中');
