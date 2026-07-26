@@ -177,8 +177,18 @@
   margin-top: 14px !important;
 }
 
+.settings-page .manage-page.embedded.projects-page .manage-embedded-list {
+  margin-top: 0 !important;
+}
+
 .settings-page .manage-page.embedded .manage-list-heading {
   align-items: flex-start !important;
+}
+
+.settings-page .manage-page.embedded .manage-list-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
 }
 
 .settings-page .manage-page.embedded .manage-create-button {
@@ -253,54 +263,137 @@
 }
 
 @media (max-width: 560px) {
-  .settings-page .manage-page.embedded .manage-summary-grid,
-  .settings-page .manage-page.embedded .task-summary-grid {
+  .settings-page .manage-page.embedded .manage-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    margin-bottom: 14px;
+    gap: 8px;
+    margin-bottom: 10px;
   }
 
-  .settings-page .manage-page.embedded.projects-page .manage-summary-card:last-child {
-    grid-column: 1 / -1;
+  .settings-page .manage-page.embedded .task-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 10px;
   }
 
   .settings-page .manage-page.embedded .manage-summary-card {
-    min-height: 88px;
-    padding: 14px;
-    border-radius: 14px;
+    min-height: 72px;
+    padding: 11px;
+    border-radius: 12px;
+  }
+
+  .settings-page .manage-page.embedded .task-summary-grid .manage-summary-card {
+    min-height: 58px;
+    padding: 8px 7px;
+    gap: 4px;
+    border-radius: 10px;
   }
 
   .settings-page .manage-page.embedded .manage-summary-card b {
     font-size: 20px;
   }
 
+  .settings-page .manage-page.embedded .task-summary-grid .manage-summary-card span {
+    font-size: 9px;
+  }
+
+  .settings-page .manage-page.embedded .task-summary-grid .manage-summary-card b {
+    font-size: 18px;
+  }
+
   .settings-page .manage-page.embedded .manage-embedded-list {
-    padding: 14px !important;
+    padding: 12px !important;
   }
 
   .settings-page .manage-page.embedded .manage-list-heading {
-    display: block !important;
-    margin-bottom: 12px !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    margin-bottom: 10px !important;
   }
 
   .settings-page .manage-page.embedded .manage-list-heading > button {
-    width: 100% !important;
-    margin-top: 12px !important;
+    width: auto !important;
+    min-height: 34px !important;
+    margin: 0 0 0 auto !important;
+    padding: 0 10px !important;
+    white-space: nowrap;
+  }
+
+  .settings-page .manage-page.embedded .manage-list-actions {
+    gap: 6px;
+    margin-left: auto;
+  }
+
+  .settings-page .manage-page.embedded .manage-list-actions > button {
+    width: auto !important;
+    min-height: 34px !important;
+    padding: 0 9px !important;
+    font-size: 11px !important;
+    white-space: nowrap;
+  }
+
+  .settings-page .manage-page.embedded .manage-search {
+    min-height: 36px;
+    margin-bottom: 10px;
+    padding: 0 11px;
+    font-size: 12px;
   }
 
   .settings-page .manage-page.embedded .manage-card-grid {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 8px;
   }
 
   .settings-page .manage-page.embedded .manage-card {
-    padding: 14px;
-    border-radius: 14px;
+    padding: 12px;
+    border-radius: 12px;
     background: var(--mobile-panel) !important;
   }
 
+  .settings-page .manage-page.embedded .manage-card header {
+    gap: 8px;
+  }
+
+  .settings-page .manage-page.embedded .manage-card header > div > span {
+    display: none;
+  }
+
   .settings-page .manage-page.embedded .manage-card h2 {
-    font-size: 16px;
+    margin-top: 0;
+    font-size: 15px;
+  }
+
+  .settings-page .manage-page.embedded .manage-card > p {
+    display: -webkit-box;
+    min-height: 0;
+    margin: 7px 0 6px;
+    overflow: hidden;
+    font-size: 11.5px;
+    line-height: 1.5;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .settings-page .manage-page.embedded .project-manage-card > p {
+    -webkit-line-clamp: 1;
+  }
+
+  .settings-page .manage-page.embedded .project-manage-card .manage-card-meta {
+    display: none;
+  }
+
+  .settings-page .manage-page.embedded .manage-card-facts {
+    gap: 2px;
+    margin-top: 4px;
+    padding-top: 7px;
+  }
+
+  .settings-page .manage-page.embedded .manage-card-meta {
+    overflow: hidden;
+    font-size: 10px;
+    line-height: 1.4;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .settings-page .manage-page.embedded .project-manage-card > footer {
@@ -308,13 +401,40 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .settings-page .manage-page.embedded .manage-card > footer {
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+
   .settings-page .manage-page.embedded .project-manage-card > footer > button,
   .settings-page .manage-page.embedded .scheduled-task-manage-card > footer > button {
     width: 100% !important;
-    min-height: 38px !important;
+    min-height: 36px !important;
+    padding: 0 8px !important;
+    font-size: 11px !important;
   }
 
   .settings-page .manage-page.embedded .scheduled-task-manage-card > footer {
     grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .settings-page .manage-page.embedded .manage-toggle {
+    min-height: 36px;
+    font-size: 11px;
+  }
+
+  .settings-page .manage-page.embedded .manage-more-menu summary {
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    border-radius: 10px;
+  }
+
+  .settings-page .manage-page.embedded .project-card-actions em,
+  .settings-page .manage-page.embedded .scheduled-task-card-actions em {
+    min-height: 22px;
+    padding: 2px 7px;
+    font-size: 10px;
   }
 }

@@ -51,12 +51,11 @@ export function ProjectsPage({ api, deleteProject, editProject, embedded = false
       actions={<button type="button" onClick={() => editProject()}><Plus size={16} aria-hidden="true" /><span>新增项目</span></button>}
     /> : null}
     <div className="manage-page-body">
-      {embedded ? <div className="settings-block-head manage-overview-head"><label>项目概览</label></div> : null}
-      <div className="manage-summary-grid">
+      {!embedded ? <div className="manage-summary-grid">
         <SummaryCard label="项目" value={projects.length} />
         <SummaryCard label="全部会话" value={projectSessionCounts?.all ?? 0} onClick={() => openProjectSessions('all')} />
         <SummaryCard label="普通会话" value={projectSessionCounts?.plain ?? 0} onClick={() => openProjectSessions('plain')} />
-      </div>
+      </div> : null}
       <section className={embedded ? 'settings-section manage-embedded-list' : ''}>
         <div className={embedded ? 'settings-section-head manage-list-heading' : 'manage-section-head'}>
           <div>{embedded ? <><b>项目列表</b><div className="hint">选择项目进入对应会话，或维护项目提示词。</div></> : <><span>项目列表</span><p>选择项目进入对应会话，或在这里维护项目提示词。</p></>}</div>
@@ -206,7 +205,6 @@ export function ScheduledTasksPage({ api, deleteScheduledTask, editScheduledTask
       actions={<><button type="button" className="secondary icon-button manage-refresh" onClick={refreshTasks} disabled={!!pendingActions.refresh} aria-busy={!!pendingActions.refresh} aria-label={pendingActions.refresh ? '正在刷新任务' : '刷新任务'} title="刷新任务"><RefreshCw size={17} aria-hidden="true" /></button><button type="button" onClick={() => editScheduledTask()}><Plus size={16} aria-hidden="true" /><span>新增任务</span></button></>}
     /> : null}
     <div className="manage-page-body">
-      {embedded ? <div className="settings-block-head manage-overview-head"><label>任务概览</label><button type="button" className="secondary small" onClick={refreshTasks} disabled={!!pendingActions.refresh} aria-busy={!!pendingActions.refresh}>{pendingActions.refresh ? '刷新中…' : '刷新任务'}</button></div> : null}
       <div className="manage-summary-grid task-summary-grid">
         <SummaryCard label="全部任务" value={scheduledTasks.length} />
         <SummaryCard label="已启用" value={enabled} />
@@ -219,7 +217,7 @@ export function ScheduledTasksPage({ api, deleteScheduledTask, editScheduledTask
       /> : <section className={embedded ? 'settings-section manage-embedded-list' : ''}>
         <div className={embedded ? 'settings-section-head manage-list-heading' : 'manage-list-toolbar'}>
           <div>{embedded ? <><b>任务列表</b><div className="hint">搜索标题、提示词或运行状态。</div></> : <><span>任务列表</span><p>搜索标题、提示词或运行状态。</p></>}</div>
-          {embedded ? <button type="button" className="secondary manage-create-button" onClick={() => editScheduledTask()}>新增任务</button> : <input className="manage-search" placeholder="搜索定时任务" value={taskSearch} onChange={event => setTaskSearch(event.target.value)} />}
+          {embedded ? <div className="manage-list-actions"><button type="button" className="secondary" onClick={refreshTasks} disabled={!!pendingActions.refresh} aria-busy={!!pendingActions.refresh}>{pendingActions.refresh ? '刷新中…' : '刷新'}</button><button type="button" className="secondary manage-create-button" onClick={() => editScheduledTask()}>新增任务</button></div> : <input className="manage-search" placeholder="搜索定时任务" value={taskSearch} onChange={event => setTaskSearch(event.target.value)} />}
         </div>
         {embedded ? <input className="manage-search" placeholder="搜索定时任务" value={taskSearch} onChange={event => setTaskSearch(event.target.value)} /> : null}
         {taskCards}
