@@ -29,7 +29,7 @@ export function SettingsPanel(props) {
   const {
     activeModule, api, closeSettings, config, configDirty, mcpConfigDirty, dataStatus, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
     loadDataStatus, loadMCPStatus, loadSystemStatus, logout, builtinTools, mcpConfig, mcpStatus, onCopy, providers, projectPromptPreview, refreshProductState, refreshVisibleSettings,
-    saveConfig, saveMCPConfig, setConfig, setupStatus, switchSettingsModule, systemStatus,
+    saveConfig, saveMCPConfig, setConfig, setupStatus, showProjectPromptPreview, switchSettingsModule, systemStatus,
     testMCP, fetchMCPServerTools, testModelProvider, addCandidateModelsToProvider, loadingModels,
     projects, projectSessionCounts, editProject, deleteProject, openProjectSessions, loadProjects, onPinnedProjectChange, startProjectConversation, showToast,
     scheduledTasks, taskSearch, setTaskSearch, editScheduledTask, deleteScheduledTask, setScheduledTasks, toggleScheduledTask, runScheduledTaskNow, openScheduledTaskSession, loadScheduledTasks, onPinnedTaskChange,
