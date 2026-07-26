@@ -297,7 +297,7 @@ function formatDialogValue(value, emptyText = '无') {
 }
 
 
-function ProviderKeysEditor({ value, setValue, values, setValues }) {
+export function ProviderKeysEditor({ value, setValue, values, setValues }) {
   const rows = Array.isArray(value) && value.length ? value : [{id: 'main', name: '主 key', api_key: '', enabled: true, priority: 1}];
   const selectedID = String(values?.selected_key_id || rows[0]?.id || '').trim();
   const updateRow = (index, patch) => setValue(rows.map((row, i) => i === index ? {...row, ...patch} : row));

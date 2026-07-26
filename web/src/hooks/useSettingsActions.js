@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { cronScheduleFormValue, cronSchedulePayload, defaultRunAtValue, fmtTime } from '../lib/appUtils.js';
+import { cronSchedulePayload, fmtTime } from '../lib/appUtils.js';
 import {
   createModelProvider as createModelProviderRequest,
   createProject as createProjectRequest,
@@ -19,7 +19,6 @@ import {
   updateProject as updateProjectRequest,
 } from '../lib/settingsApi.js';
 import {
-  providerKeyRows,
   providerPayloadForModelAppend,
   providerPayloadFromFormValues,
   uniqueModelNames,
@@ -62,26 +61,23 @@ export function useSettingsActions({
     await Promise.allSettled(refreshes);
   }, [configDirty, loadConfig, loadModelProviders, loadProjects, loadSetupStatus]);
 
-  const editProject = useCallback(async (project = null) => {
-    if (busy) return;
-    const values = await showDialog({
-      title: project ? '编辑项目' : '新增项目', confirmText: project ? '保存项目' : '创建项目', fields: [
-        { name: 'name', label: '项目名称', value: project?.name || '', required: true },
-        { name: 'prompt', label: '项目提示词', type: 'textarea', rows: 5, value: project?.prompt || '' },
-      ]
-    });
-    if (!values || !values.name.trim()) return;
-    const payload = { name: values.name.trim(), prompt: values.prompt || '' };
+  const saveProject = useCallback(async (project = null, values = {}) => {
+    if (busy) return false;
+    const name = String(values.name || '').trim();
+    if (!name) throw new Error('项目名称不能为空');
+    const payload = {name, prompt: values.prompt || ''};
     try {
       const savedProject = project?.id ? await updateProjectRequest(api, project.id, payload) : await createProjectRequest(api, payload);
       await Promise.allSettled([loadProjects(), loadSetupStatus()]);
       if (savedProject?.id) setProjectFilter(savedProject.id);
       closeSidebarOnMobile();
-      showToast(project ? '项目已保存' : '项目已创建', 'success');
+      showToast(project?.id ? '项目已保存' : '项目已创建', 'success');
+      return savedProject || true;
     } catch (error) {
-      showToast((project ? '保存项目失败：' : '创建项目失败：') + error.message, 'error');
+      showToast((project?.id ? '保存项目失败：' : '创建项目失败：') + error.message, 'error');
+      throw error;
     }
-  }, [api, busy, closeSidebarOnMobile, loadProjects, loadSetupStatus, setProjectFilter, showDialog, showToast]);
+  }, [api, busy, closeSidebarOnMobile, loadProjects, loadSetupStatus, setProjectFilter, showToast]);
 
   const deleteProject = useCallback(async (project) => {
     if (!project?.id) return;
@@ -179,33 +175,20 @@ export function useSettingsActions({
     }
   }, [api, loadModelProviders, loadProjects, providers, showToast]);
 
-  const editModelProvider = useCallback(async (existing = null) => {
-    const modelText = uniqueModelNames([...(existing?.models || []), existing?.default_model].filter(Boolean)).join('\n');
-    const keyRows = providerKeyRows(existing);
-    const selectedKeyID = existing?.selected_key_id || keyRows[0]?.id || 'main';
-    const values = await showDialog({
-      variant: 'provider-modal provider-modal-simple',
-      title: existing ? '编辑模型供应商' : '新增模型供应商',
-      message: '统一按 OpenAI 兼容接口配置：名称、Base URL、模型和 Key。Key ID、优先级自动处理。',
-      confirmText: existing ? '保存供应商' : '新增供应商',
-      fields: [
-        { name: 'name', label: '名称', value: existing?.name || '', required: true, placeholder: '例如：火山 / OpenAI / Claude Proxy' },
-        { name: 'base_url', label: 'Base URL', value: existing?.base_url || '', required: true, placeholder: 'https://example.com/v1' },
-        { name: 'default_model', label: '默认模型', value: existing?.default_model || '', required: true, placeholder: '例如：gpt-4o-mini / deepseek-v4-pro' },
-        { name: 'selected_key_id', label: '当前 Key', type: 'hidden', value: selectedKeyID },
-        { name: 'key_strategy', label: 'Key 策略', type: 'hidden', value: existing?.key_strategy || 'auto' },
-        { name: 'api_keys', label: 'Key 列表', type: 'provider_keys', value: keyRows, hint: '只需要填 Key 名称和 Key。ID 与优先级自动生成；当前 Key 用单选按钮切换；已保存 Key 只隐藏中间字段。' },
-        { name: 'models', label: '可用模型（每行一个）', type: 'textarea', rows: 4, value: modelText || (existing?.default_model || ''), hint: '这里是真正会出现在聊天模型选择器里的模型。候选模型需要逐个加入。' },
-        { name: 'enabled', label: '状态', type: 'select', value: existing && existing.enabled === false ? 'false' : 'true', options: [{ value: 'true', label: '启用' }, { value: 'false', label: '停用' }] },
-      ]
-    });
-    if (!values) return;
+  const saveModelProvider = useCallback(async (existing = null, values = {}) => {
     const payload = providerPayloadFromFormValues(values);
-    if (existing) await updateModelProviderRequest(api, existing.id, payload);
-    else await createModelProviderRequest(api, payload);
-    await refreshAfterProviderMutation();
-    showToast(existing ? '模型供应商已保存' : '模型供应商已新增', 'success');
-  }, [api, refreshAfterProviderMutation, showDialog, showToast]);
+    if (!payload.name || !payload.base_url || !payload.default_model) throw new Error('名称、Base URL 和默认模型不能为空');
+    try {
+      if (existing?.id) await updateModelProviderRequest(api, existing.id, payload);
+      else await createModelProviderRequest(api, payload);
+      await refreshAfterProviderMutation();
+      showToast(existing?.id ? '模型供应商已保存' : '模型供应商已新增', 'success');
+      return true;
+    } catch (error) {
+      showToast((existing?.id ? '保存供应商失败：' : '新增供应商失败：') + (error.message || '未知错误'), 'error');
+      throw error;
+    }
+  }, [api, refreshAfterProviderMutation, showToast]);
 
   const deleteModelProvider = useCallback(async (provider) => {
     if (!provider?.id) return;
@@ -270,38 +253,30 @@ export function useSettingsActions({
     return data.tools || [];
   }, [api]);
 
-  const editScheduledTask = useCallback(async (id) => {
-    if (busy) return;
-    const existing = id ? scheduledTasks.find(t => t.id === id) : null;
-    const values = await showDialog({
-      title: existing ? '编辑自动化任务' : '新增自动化任务', message: existing ? '普通保存会保留下一次运行时间；需要从现在重新计算时勾选“保存后重新计时”。' : '选择调度类型后，只需要填写对应的时间字段。', confirmText: existing ? '保存任务' : '新增任务', fields: [
-        { name: 'title', label: '任务标题', value: existing ? existing.title : '', required: true },
-        { name: 'prompt', label: '任务提示词', type: 'textarea', rows: 6, value: existing ? (existing.prompt || '') : '', required: true },
-        { name: 'schedule_type', label: '调度类型', type: 'select', value: existing ? existing.schedule_type : 'once', options: [{ value: 'once', label: '一次性' }, { value: 'interval', label: '按分钟间隔' }, { value: 'cron', label: '重复计划' }] },
-        { name: 'run_at', label: '一次性运行时间', type: 'datetime-local', value: existing && existing.run_at ? existing.run_at.slice(0, 16) : defaultRunAtValue(), showWhen: { schedule_type: 'once' } },
-        { name: 'interval_minutes', label: '间隔分钟数', type: 'number', min: 1, step: 1, value: existing && existing.interval_minutes ? String(existing.interval_minutes) : '60', showWhen: { schedule_type: 'interval' }, hint: '当前本地调度器最低按分钟执行；过短间隔会更频繁占用模型额度。' },
-        { name: 'cron_schedule', label: '重复计划', type: 'schedule_builder', value: cronScheduleFormValue(existing || {}, Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai'), showWhen: { schedule_type: 'cron' }, hint: '可添加多个执行时间，保存时会自动生成底层调度规则。' },
-        { name: 'context_mode', label: '上下文模式', type: 'select', value: existing ? (existing.context_mode || 'stateless') : 'stateless', options: [{ value: 'stateless', label: '每次独立执行，最省 token' }, { value: 'last_result', label: '带上次运行结果' }, { value: 'session', label: '连续会话，保留完整上下文' }], hint: '默认独立执行：只使用本次任务提示词；需要长期上下文时再选择连续会话。' },
-        ...(existing ? [{ name: 'reschedule', label: '保存后重新计时', type: 'checkbox', value: false, hint: '关闭时仅保存内容；开启后会按当前时间重新计算间隔或重复计划的下一次运行。' }] : []),
-      ]
-    });
-    if (!values) return;
-    const titleValue = (values.title || '').trim();
-    const promptValue = (values.prompt || '').trim();
-    const typeValue = (values.schedule_type || '').trim().toLowerCase();
-    if (!titleValue || !promptValue) { showToast('任务标题和提示词不能为空', 'error'); return; }
-    if (!['once', 'interval', 'cron'].includes(typeValue)) { showToast('调度类型只能是 once、interval 或 cron', 'error'); return; }
+  const saveScheduledTask = useCallback(async (existing = null, values = {}) => {
+    if (busy) return false;
+    const titleValue = String(values.title || '').trim();
+    const promptValue = String(values.prompt || '').trim();
+    const typeValue = String(values.schedule_type || '').trim().toLowerCase();
+    if (!titleValue || !promptValue) throw new Error('任务标题和提示词不能为空');
+    if (!['once', 'interval', 'cron'].includes(typeValue)) throw new Error('调度类型无效');
     const contextMode = ['stateless', 'last_result', 'session'].includes(values.context_mode) ? values.context_mode : 'stateless';
-    const payload = { title: titleValue, prompt: promptValue, enabled: existing ? !!existing.enabled : true, schedule_type: typeValue, context_mode: contextMode, reschedule: !!values.reschedule };
+    const payload = {title: titleValue, prompt: promptValue, enabled: existing ? !!existing.enabled : true, schedule_type: typeValue, context_mode: contextMode, reschedule: !!values.reschedule};
     if (typeValue === 'once') payload.run_at = values.run_at || '';
     if (typeValue === 'interval') payload.interval_minutes = Math.floor(Number(values.interval_minutes || 0));
     if (typeValue === 'cron') Object.assign(payload, cronSchedulePayload(values));
-    const data = await saveScheduledTaskRecord(api, existing, payload);
-    setScheduledTasks(data.tasks || []);
-    const savedTask = (data.tasks || []).find(task => task.id === (existing?.id || '')) || (data.tasks || [])[0];
-    const nextRunText = savedTask?.next_run_at ? '，下次运行：' + fmtTime(savedTask.next_run_at) : '';
-    showToast((existing ? '任务已保存' : '任务已新增') + nextRunText, 'success');
-  }, [api, busy, scheduledTasks, showDialog, showToast]);
+    try {
+      const data = await saveScheduledTaskRecord(api, existing, payload);
+      setScheduledTasks(data.tasks || []);
+      const savedTask = existing?.id ? (data.tasks || []).find(task => task.id === existing.id) : (data.tasks || [])[0];
+      const nextRunText = savedTask?.next_run_at ? '，下次运行：' + fmtTime(savedTask.next_run_at) : '';
+      showToast((existing?.id ? '任务已保存' : '任务已新增') + nextRunText, 'success');
+      return savedTask || true;
+    } catch (error) {
+      showToast((existing?.id ? '保存任务失败：' : '新增任务失败：') + (error.message || '未知错误'), 'error');
+      throw error;
+    }
+  }, [api, busy, setScheduledTasks, showToast]);
 
   const toggleScheduledTask = useCallback(async (id, enabled) => {
     const existing = scheduledTasks.find(t => t.id === id);
@@ -350,9 +325,9 @@ export function useSettingsActions({
     deleteModelProvider,
     deleteProject,
     deleteScheduledTask,
-    editModelProvider,
-    editProject,
-    editScheduledTask,
+    saveModelProvider,
+    saveProject,
+    saveScheduledTask,
     fetchMCPServerTools,
     fetchSavedProviderModels,
     loadingModels,

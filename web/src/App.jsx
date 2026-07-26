@@ -1084,9 +1084,9 @@ export default function App() {
     deleteModelProvider,
     deleteProject,
     deleteScheduledTask,
-    editModelProvider,
-    editProject,
-    editScheduledTask,
+    saveModelProvider,
+    saveProject,
+    saveScheduledTask,
     fetchMCPServerTools,
     fetchSavedProviderModels,
     loadingModels,
@@ -1209,21 +1209,21 @@ export default function App() {
     <SettingsPanel
       activeModule={activeModule} api={api} closeSettings={closeSettings} config={config}
       configDirty={configDirty} mcpConfigDirty={mcpConfigDirty} dataStatus={dataStatus}
-      editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider}
+      saveModelProvider={saveModelProvider} deleteModelProvider={deleteModelProvider}
       testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels}
       loadDataStatus={loadDataStatus} loadMCPConfig={loadMCPConfig} loadMCPStatus={loadMCPStatus} loadSystemStatus={loadSystemStatus}
       builtinTools={builtinTools} mcpConfig={mcpConfig} mcpStatus={mcpStatus} onCopy={copyText} providers={providers}
       projectPromptPreview={projectPromptPreview} refreshProductState={refreshProductState} refreshVisibleSettings={refreshVisibleSettings}
       saveConfig={saveConfig} saveMCPConfig={saveMCPConfig} setConfig={setConfig} setMcpConfig={setMcpConfig}
-      setupStatus={setupStatus} showProjectPromptPreview={showProjectPromptPreview} switchSettingsModule={switchSettingsModule}
+      setupStatus={setupStatus} showDialog={showDialog} showProjectPromptPreview={showProjectPromptPreview} switchSettingsModule={switchSettingsModule}
       systemStatus={systemStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools}
       testModelProvider={testModelProvider} addCandidateModelsToProvider={addCandidateModelsToProvider} loadingModels={loadingModels}
       logout={logout}
-      projects={projects} projectSessionCounts={projectSessionCounts} editProject={editProject} deleteProject={deleteProject}
+      projects={projects} projectSessionCounts={projectSessionCounts} saveProject={saveProject} deleteProject={deleteProject}
       openProjectSessions={openProjectSessions} loadProjects={loadProjects} startProjectConversation={startProjectConversation} showToast={showToast}
       onPinnedProjectChange={upsertPinnedProject} onPinnedTaskChange={upsertPinnedTask}
       scheduledTasks={scheduledTasks} taskSearch={taskSearch} setTaskSearch={setTaskSearch}
-      editScheduledTask={editScheduledTask} deleteScheduledTask={deleteScheduledTask} setScheduledTasks={setScheduledTasks}
+      saveScheduledTask={saveScheduledTask} deleteScheduledTask={deleteScheduledTask} setScheduledTasks={setScheduledTasks}
       toggleScheduledTask={toggleScheduledTask} runScheduledTaskNow={runScheduledTaskNow} openScheduledTaskSession={openScheduledTaskSession}
       loadScheduledTasks={loadScheduledTasks}
     />

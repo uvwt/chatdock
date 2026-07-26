@@ -17,6 +17,7 @@ import { settingsModules, diagnosticsText, fmtBytes, fmtRelativeAge, fmtTime, ru
 import { mcpAuthDraft, mcpAuthPayload } from '../lib/mcpAuthDraft.js';
 import { unsavedSettingsPrompt, validateMCPConfigRaw } from '../lib/settingsDraft.js';
 import { ProjectsPage, ScheduledTasksPage } from './managementPages.jsx';
+import { ProviderEditor, SettingsEditorPage } from './settingsEditors.jsx';
 
 const settingsModuleMeta = {
   model: {label: '模型', desc: '选择默认模型并管理模型供应商。', icon: Bot},
@@ -123,12 +124,12 @@ function useSettingsModalInteraction(open, modalRef, onClose, closeDisabled = fa
 
 export function SettingsPanel(props) {
   const {
-    activeModule, api, closeSettings, config, configDirty, mcpConfigDirty, dataStatus, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
+    activeModule, api, closeSettings, config, configDirty, mcpConfigDirty, dataStatus, saveModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
     loadDataStatus, loadMCPStatus, loadSystemStatus, logout, builtinTools, mcpConfig, mcpStatus, onCopy, providers, projectPromptPreview, refreshProductState, refreshVisibleSettings,
-    saveConfig, saveMCPConfig, setConfig, setupStatus, showProjectPromptPreview, switchSettingsModule, systemStatus,
+    saveConfig, saveMCPConfig, setConfig, setupStatus, showDialog, showProjectPromptPreview, switchSettingsModule, systemStatus,
     testMCP, fetchMCPServerTools, testModelProvider, addCandidateModelsToProvider, loadingModels,
-    projects, projectSessionCounts, editProject, deleteProject, openProjectSessions, loadProjects, onPinnedProjectChange, startProjectConversation, showToast,
-    scheduledTasks, taskSearch, setTaskSearch, editScheduledTask, deleteScheduledTask, setScheduledTasks, toggleScheduledTask, runScheduledTaskNow, openScheduledTaskSession, loadScheduledTasks, onPinnedTaskChange,
+    projects, projectSessionCounts, saveProject, deleteProject, openProjectSessions, loadProjects, onPinnedProjectChange, startProjectConversation, showToast,
+    scheduledTasks, taskSearch, setTaskSearch, saveScheduledTask, deleteScheduledTask, setScheduledTasks, toggleScheduledTask, runScheduledTaskNow, openScheduledTaskSession, loadScheduledTasks, onPinnedTaskChange,
   } = props;
   const saveTimerRef = useRef(null);
   const saveInFlightRef = useRef(false);
@@ -225,16 +226,16 @@ export function SettingsPanel(props) {
     <main className="settings-content">
       <ModuleView name="model" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={saveModelConfig}>
         <ModelModule config={config} setConfig={setConfig} projectPromptPreview={projectPromptPreview} testModelProvider={testModelProvider} providers={providers} />
-        <ProvidersModule providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} addCandidateModelsToProvider={addCandidateModelsToProvider} loadingModels={loadingModels} />
+        <ProvidersModule providers={providers} saveModelProvider={saveModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} addCandidateModelsToProvider={addCandidateModelsToProvider} loadingModels={loadingModels} />
       </ModuleView>
-      <ModuleView name="tools" activeModule={activeModule}><ToolsModule builtinTools={builtinTools} mcpStatus={mcpStatus} mcpConfig={mcpConfig} saveMCPConfig={saveMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} /></ModuleView>
+      <ModuleView name="tools" activeModule={activeModule}><ToolsModule builtinTools={builtinTools} mcpStatus={mcpStatus} mcpConfig={mcpConfig} saveMCPConfig={saveMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} showDialog={showDialog} /></ModuleView>
       <ModuleView name="projects" activeModule={activeModule}>
         <ProjectsPage
           api={api}
           embedded
           projects={projects}
           projectSessionCounts={projectSessionCounts}
-          editProject={editProject}
+          saveProject={saveProject}
           deleteProject={deleteProject}
           showProjectPromptPreview={showProjectPromptPreview}
           projectPromptPreview={projectPromptPreview}
@@ -252,7 +253,7 @@ export function SettingsPanel(props) {
           scheduledTasks={scheduledTasks}
           taskSearch={taskSearch}
           setTaskSearch={setTaskSearch}
-          editScheduledTask={editScheduledTask}
+          saveScheduledTask={saveScheduledTask}
           deleteScheduledTask={deleteScheduledTask}
           setScheduledTasks={setScheduledTasks}
           showToast={showToast}
@@ -314,76 +315,70 @@ function modelListText(config) {
 
 function ModelModule({ config, setConfig, projectPromptPreview, testModelProvider, providers }) {
   const pendingActions = usePendingActions();
-  const update = (key, value) => setConfig(c => ({...c, [key]: value}));
-  const providerModels = (provider) => normalizeModelNames([...(provider?.models || []), provider?.default_model].filter(Boolean));
-  const activeProvider = providers.find(p => p.id === config.provider_id) || providers[0] || null;
-  const fallbackProvider = providers.find(p => p.id === config.fallback_provider_id) || null;
-  const chooseProvider = (id) => setConfig(c => {
-    const provider = providers.find(p => p.id === id) || providers[0] || null;
+  const update = (key, value) => setConfig(current => ({...current, [key]: value}));
+  const providerModels = provider => normalizeModelNames([...(provider?.models || []), provider?.default_model].filter(Boolean));
+  const activeProvider = providers.find(provider => provider.id === config.provider_id) || providers[0] || null;
+  const fallbackProvider = providers.find(provider => provider.id === config.fallback_provider_id) || null;
+  const fallbackEnabled = !!fallbackProvider;
+  const chooseProvider = id => setConfig(current => {
+    const provider = providers.find(item => item.id === id) || providers[0] || null;
     const models = providerModels(provider);
-    const model = models.includes(c.model) ? c.model : (provider?.default_model || models[0] || c.model || '');
-    return {...c, provider_id: provider?.id || '', base_url: provider?.base_url || '', has_api_key: !!provider?.has_api_key, model, models};
+    const model = models.includes(current.model) ? current.model : (provider?.default_model || models[0] || current.model || '');
+    return {...current, provider_id: provider?.id || '', base_url: provider?.base_url || '', has_api_key: !!provider?.has_api_key, model, models};
   });
-  const chooseModel = (name) => setConfig(c => {
-    const models = normalizeModelNames([...(c.models || []), name]);
-    return {...c, model: name, models};
-  });
-  const chooseFallbackProvider = (id) => setConfig(c => {
-    const provider = providers.find(p => p.id === id) || null;
-    if (!provider) return {...c, fallback_provider_id: '', fallback_model: ''};
+  const chooseModel = name => setConfig(current => ({...current, model: name, models: normalizeModelNames([...(current.models || []), name])}));
+  const chooseFallbackProvider = id => setConfig(current => {
+    const provider = providers.find(item => item.id === id) || null;
+    if (!provider) return {...current, fallback_provider_id: '', fallback_model: ''};
     const models = providerModels(provider);
-    const model = models.includes(c.fallback_model) ? c.fallback_model : (provider.default_model || models[0] || '');
-    return {...c, fallback_provider_id: provider.id, fallback_model: model};
+    return {...current, fallback_provider_id: provider.id, fallback_model: models.includes(current.fallback_model) ? current.fallback_model : (provider.default_model || models[0] || '')};
   });
-  const chooseFallbackModel = (name) => setConfig(c => ({...c, fallback_model: name}));
   const selectedProviderModels = normalizeModelNames([...providerModels(activeProvider), config.model].filter(Boolean));
   const fallbackModels = normalizeModelNames([...providerModels(fallbackProvider), config.fallback_model].filter(Boolean));
   const contextMode = config.context_mode || 'auto';
   const testingModel = !!pendingActions.pending.testModel;
   const testDefaultModel = async () => {
     if (!testModelProvider) return;
-    await pendingActions.runPending('testModel', async () => {
-      await testModelProvider();
-    });
+    await pendingActions.runPending('testModel', testModelProvider);
   };
   return <>
-    <section className="model-quick-panel model-page-single">
-      <div className="model-quick-head"><div><b>默认模型</b><span>{activeProvider?.name || '未选择供应商'} · {config.model || activeProvider?.default_model || '未选择模型'}</span></div><div className="model-quick-actions"><button className="secondary" onClick={testDefaultModel} disabled={testingModel || !activeProvider} aria-busy={testingModel}>{testingModel ? '测试中…' : '测试连接'}</button></div></div>
-      <div className="model-quick-grid">
-        <label>供应商<select value={activeProvider?.id || ''} onChange={e => chooseProvider(e.target.value)}>{providers.length ? providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>) : <option value="">未配置供应商</option>}</select></label>
-        <label>模型<select value={config.model || ''} onChange={e => chooseModel(e.target.value)} disabled={!activeProvider}><option value="">{activeProvider ? '选择模型' : '先选择供应商'}</option>{selectedProviderModels.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
+    <section className="settings-section model-routing-section">
+      <div className="settings-section-head"><div><b>模型路由</b><p>默认模型和备用模型属于同一条调用链。</p></div><button className="secondary small" onClick={testDefaultModel} disabled={testingModel || !activeProvider} aria-busy={testingModel}>{testingModel ? '测试中…' : '测试连接'}</button></div>
+      <div className="settings-editor-grid model-route-grid">
+        <label>默认供应商<select value={activeProvider?.id || ''} onChange={event => chooseProvider(event.target.value)}>{providers.length ? providers.map(provider => <option key={provider.id} value={provider.id}>{provider.name || provider.id}</option>) : <option value="">未配置供应商</option>}</select></label>
+        <label>默认模型<select value={config.model || ''} onChange={event => chooseModel(event.target.value)} disabled={!activeProvider}><option value="">{activeProvider ? '选择模型' : '先选择供应商'}</option>{selectedProviderModels.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
       </div>
+      <label className="settings-editor-check model-fallback-toggle"><input type="checkbox" checked={fallbackEnabled} onChange={event => event.target.checked ? chooseFallbackProvider(providers.find(provider => provider.id !== activeProvider?.id)?.id || providers[0]?.id || '') : chooseFallbackProvider('')} /><span><b>启用备用模型</b><small>仅在主模型尚未输出内容或执行工具前失败时切换。</small></span></label>
+      {fallbackEnabled ? <div className="settings-editor-grid model-route-grid fallback-model-grid">
+        <label>备用供应商<select value={fallbackProvider?.id || ''} onChange={event => chooseFallbackProvider(event.target.value)}>{providers.map(provider => <option key={provider.id} value={provider.id}>{provider.name || provider.id}</option>)}</select></label>
+        <label>备用模型<select value={config.fallback_model || ''} onChange={event => update('fallback_model', event.target.value)}><option value="">使用供应商默认模型</option>{fallbackModels.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
+      </div> : null}
       {!selectedProviderModels.length ? <div className="hint">当前供应商没有可用模型，请在下方编辑供应商。</div> : null}
-      <details className="model-option-group">
-        <summary><span><b>备用模型</b><small>{fallbackProvider ? (fallbackProvider.name || fallbackProvider.id) + ' · ' + (config.fallback_model || fallbackProvider.default_model || '默认模型') : '未启用'}</small></span><em>配置</em></summary>
-        <div className="model-quick-grid fallback-model-grid">
-          <label>备用供应商<select value={fallbackProvider?.id || ''} onChange={e => chooseFallbackProvider(e.target.value)}><option value="">不使用备用模型</option>{providers.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>)}</select></label>
-          <label>备用模型<select value={config.fallback_model || ''} onChange={e => chooseFallbackModel(e.target.value)} disabled={!fallbackProvider}><option value="">{fallbackProvider ? '使用供应商默认模型' : '先选择备用供应商'}</option>{fallbackModels.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
-        </div>
-        <div className="hint model-fallback-hint">仅在主模型尚未输出内容或执行工具前失败时切换。</div>
-      </details>
     </section>
-    <div className="model-inline-grid model-advanced-grid">
-      <details className="settings-section model-inline-card reply-inline-card" open>
-        <summary><div><b>回复设置</b><p>上下文、随机性和系统提示词</p></div></summary>
-        <div className="settings-form-grid compact"><label>上下文<select value={contextMode} onChange={e => update('context_mode', e.target.value)}><option value="auto">自动</option><option value="compact">精简</option><option value="expanded">更多历史</option><option value="custom">自定义</option></select></label><label>Temperature<input type="number" step="0.1" min="0" max="2" value={config.temperature} onChange={e => update('temperature', e.target.value)} /></label></div>
-        {contextMode === 'custom' ? <label>最近消息数<input type="number" min="1" max="200" value={config.max_context_messages} onChange={e => update('max_context_messages', e.target.value)} /></label> : null}
-        <details className="model-mini-details"><summary>全局系统提示词</summary><textarea className="system-prompt-editor compact" value={config.system_prompt} onChange={e => update('system_prompt', e.target.value)} /></details>
-        <div className="thinking-options compact"><label className="check-row"><input type="checkbox" checked={!!config.hide_thinking} onChange={e => update('hide_thinking', e.target.checked)} /> 隐藏模型思考内容</label></div>
-        {projectPromptPreview ? <pre className="code-preview compact">{projectPromptPreview}</pre> : null}
-      </details>
-      <details className="settings-section model-inline-card embedding-inline-card">
-        <summary><div><b>工具搜索</b><p>向量服务，可选</p></div></summary>
-        <label>Base URL<input value={config.embedding_base_url || ''} onChange={e => update('embedding_base_url', e.target.value)} placeholder="http://127.0.0.1:8000/v1" /></label>
-        <label>模型<input value={config.embedding_model || 'BAAI/bge-m3'} onChange={e => update('embedding_model', e.target.value)} placeholder="BAAI/bge-m3" /></label>
-        <details className="model-mini-details"><summary>API Key</summary><input type="password" value={config.embedding_api_key || ''} onChange={e => update('embedding_api_key', e.target.value)} placeholder={config.has_embedding_api_key ? '已保存，留空不修改' : '可留空'} /></details>
-        <div className="hint">用于工具搜索；不配置则使用关键词搜索。</div>
-      </details>
-    </div>
+    <section className="settings-section model-response-section">
+      <div className="settings-section-head"><div><b>回复设置</b><p>高频参数直接展示，不再嵌套展开。</p></div></div>
+      <div className="settings-editor-grid">
+        <label>上下文<select value={contextMode} onChange={event => update('context_mode', event.target.value)}><option value="auto">自动</option><option value="compact">精简</option><option value="expanded">更多历史</option><option value="custom">自定义</option></select></label>
+        <label>Temperature<input type="number" step="0.1" min="0" max="2" value={config.temperature} onChange={event => update('temperature', event.target.value)} /></label>
+      </div>
+      {contextMode === 'custom' ? <label>最近消息数<input type="number" min="1" max="200" value={config.max_context_messages} onChange={event => update('max_context_messages', event.target.value)} /></label> : null}
+      <label>全局系统提示词<textarea className="system-prompt-editor" rows="9" value={config.system_prompt} onChange={event => update('system_prompt', event.target.value)} /></label>
+      <label className="settings-editor-check"><input type="checkbox" checked={!!config.hide_thinking} onChange={event => update('hide_thinking', event.target.checked)} /><span><b>隐藏模型思考内容</b><small>只影响界面显示，不改变模型推理能力。</small></span></label>
+      {projectPromptPreview ? <pre className="settings-editor-preview">{projectPromptPreview}</pre> : null}
+    </section>
+    <section className="settings-section model-search-section">
+      <div className="settings-section-head"><div><b>工具搜索</b><p>可选向量服务；留空时自动使用关键词搜索。</p></div></div>
+      <div className="settings-editor-grid">
+        <label>Base URL<input value={config.embedding_base_url || ''} onChange={event => update('embedding_base_url', event.target.value)} placeholder="http://127.0.0.1:8000/v1" /></label>
+        <label>模型<input value={config.embedding_model || 'BAAI/bge-m3'} onChange={event => update('embedding_model', event.target.value)} placeholder="BAAI/bge-m3" /></label>
+      </div>
+      <label>API Key<input type="password" value={config.embedding_api_key || ''} onChange={event => update('embedding_api_key', event.target.value)} placeholder={config.has_embedding_api_key ? '已保存，留空不修改' : '可留空'} /></label>
+    </section>
   </>;
 }
 
-function ProvidersModule({ providers, editModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels, addCandidateModelsToProvider, loadingModels }) {
+function ProvidersModule({ providers, saveModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels, addCandidateModelsToProvider, loadingModels }) {
+  const [editingProvider, setEditingProvider] = useState(undefined);
   const [candidatePicker, setCandidatePicker] = useState(null);
   const pendingActions = usePendingActions();
   const candidateModalRef = useRef(null);
@@ -396,7 +391,6 @@ function ProvidersModule({ providers, editModelProvider, deleteModelProvider, te
     setCandidatePicker(null);
     restoreFocusTo(candidateReturnFocusRef.current);
   }, []);
-
   useSettingsModalInteraction(!!candidatePicker, candidateModalRef, closeCandidatePicker, candidateSaving);
 
   async function discoverModels(provider, trigger) {
@@ -405,7 +399,6 @@ function ProvidersModule({ providers, editModelProvider, deleteModelProvider, te
     if (!result.started || !result.value) return;
     setCandidatePicker({provider, models: result.value, selected: [], query: ''});
   }
-
   function toggleCandidate(name) {
     setCandidatePicker(current => {
       if (!current) return current;
@@ -413,28 +406,32 @@ function ProvidersModule({ providers, editModelProvider, deleteModelProvider, te
       return {...current, selected};
     });
   }
-
   async function saveCandidates() {
     if (!candidatePicker?.selected.length) return;
     const result = await pendingActions.runPending('candidateSave', () => addCandidateModelsToProvider?.(candidatePicker.provider.id, candidatePicker.selected));
     if (result.started && result.value !== false) closeCandidatePicker();
   }
-
   async function testSavedProvider(provider) {
     if (!provider?.id || providerTestPending) return;
-    await pendingActions.runPending('providerTest:' + provider.id, async () => {
-      await testSavedModelProvider?.(provider);
-    });
+    await pendingActions.runPending('providerTest:' + provider.id, () => testSavedModelProvider?.(provider));
   }
+
+  if (editingProvider !== undefined) return <ProviderEditor
+    provider={editingProvider}
+    onBack={() => setEditingProvider(undefined)}
+    onSave={saveModelProvider}
+    onDelete={async provider => { await deleteModelProvider(provider); setEditingProvider(undefined); }}
+    onTest={testSavedProvider}
+  />;
 
   const existingModels = normalizeModelNames([...(candidatePicker?.provider?.models || []), candidatePicker?.provider?.default_model].filter(Boolean));
   const candidateQuery = String(candidatePicker?.query || '').trim().toLowerCase();
   const visibleCandidateModels = candidatePicker?.models.filter(name => !candidateQuery || String(name).toLowerCase().includes(candidateQuery)) || [];
   return <section className="settings-section provider-management-section">
-    <div className="settings-section-head"><div><b>模型供应商</b><p>供应商在弹窗中保存；默认模型在上方选择。</p></div><button className="secondary small" onClick={() => editModelProvider(null)}>新增供应商</button></div>
+    <div className="settings-section-head"><div><b>模型供应商</b><p>独立资源进入二级编辑页；发现模型保留临时选择弹窗。</p></div><button className="secondary small" onClick={() => setEditingProvider(null)}>新增供应商</button></div>
     <div className="provider-grid provider-page-grid">{providers.length ? providers.map(provider => {
       const testingThisProvider = !!pendingActions.pending['providerTest:' + provider.id];
-      return <TextCard key={provider.id} title={provider.name || provider.id} hint={provider.base_url || '-'} badge={provider.enabled ? (provider.type || 'openai') : '停用'}><div className="product-meta">默认：{provider.default_model || '-'} · 模型 {provider.models?.length || 0} · Key {provider.api_keys?.length || (provider.has_api_key ? 1 : 0)}</div><div className="product-actions"><button className="secondary small" onClick={() => editModelProvider(provider)}>编辑</button><button className="secondary small" onClick={event => discoverModels(provider, event.currentTarget)} disabled={loadingModels || discoveringModels}>{loadingModels || discoveringModels ? '读取中…' : '发现模型'}</button><button className="secondary small" onClick={() => testSavedProvider(provider)} disabled={providerTestPending} aria-busy={testingThisProvider}>{testingThisProvider ? '测试中…' : '测试'}</button><button className="danger small" onClick={() => deleteModelProvider(provider)}>删除</button></div></TextCard>;
+      return <TextCard key={provider.id} title={provider.name || provider.id} hint={provider.base_url || '-'} badge={provider.enabled ? (provider.type || 'openai') : '停用'}><div className="product-meta">默认：{provider.default_model || '-'} · 模型 {provider.models?.length || 0} · Key {provider.api_keys?.length || (provider.has_api_key ? 1 : 0)}</div><div className="product-actions"><button className="secondary small" onClick={() => setEditingProvider(provider)}>编辑</button><button className="secondary small" onClick={event => discoverModels(provider, event.currentTarget)} disabled={loadingModels || discoveringModels}>{loadingModels || discoveringModels ? '读取中…' : '发现模型'}</button><button className="secondary small" onClick={() => testSavedProvider(provider)} disabled={providerTestPending} aria-busy={testingThisProvider}>{testingThisProvider ? '测试中…' : '测试'}</button><button className="danger small" onClick={() => deleteModelProvider(provider)}>删除</button></div></TextCard>;
     }) : <div className="empty compact">还没有模型供应商。</div>}</div>
     {candidatePicker ? <div className="app-modal-backdrop show" onClick={event => { if (event.target === event.currentTarget && !candidateSaving) closeCandidatePicker(); }}>
       <div ref={candidateModalRef} className="app-modal-card candidate-model-modal" role="dialog" aria-modal="true" aria-labelledby="candidateModelTitle" tabIndex="-1">
@@ -442,10 +439,7 @@ function ProvidersModule({ providers, editModelProvider, deleteModelProvider, te
           <div id="candidateModelTitle" className="app-modal-title">发现模型 · {candidatePicker.provider.name || candidatePicker.provider.id}</div>
           <div className="candidate-model-modal-body">
             <p>选择要加入该供应商的模型，最后统一保存。</p>
-            <div className="candidate-model-filter">
-              <input aria-label="搜索候选模型" autoComplete="off" placeholder="搜索模型名称" value={candidatePicker.query || ''} onChange={event => setCandidatePicker(current => current ? {...current, query: event.target.value} : current)} />
-              <span role="status" aria-live="polite">显示 {visibleCandidateModels.length} / {candidatePicker.models.length} 个{candidatePicker.selected.length ? ` · 已选 ${candidatePicker.selected.length} 个` : ''}</span>
-            </div>
+            <div className="candidate-model-filter"><input aria-label="搜索候选模型" autoComplete="off" placeholder="搜索模型名称" value={candidatePicker.query || ''} onChange={event => setCandidatePicker(current => current ? {...current, query: event.target.value} : current)} /><span role="status" aria-live="polite">显示 {visibleCandidateModels.length} / {candidatePicker.models.length} 个{candidatePicker.selected.length ? ` · 已选 ${candidatePicker.selected.length} 个` : ''}</span></div>
             <div className="model-options candidate-model-options">{visibleCandidateModels.map(name => {
               const existing = existingModels.includes(name);
               const selected = candidatePicker.selected.includes(name);
@@ -662,22 +656,22 @@ function MCPToolPolicyPicker({name, draft, tools, loading, onRefresh, onChange})
 
 function BuiltinToolExposurePicker({draft, tools, onChange}) {
   const options = normalizeMCPToolOptions('chatdock', tools, draft);
-  return <details className="mcp-tool-picker builtin-tool-picker">
-    <summary className="builtin-tool-picker-summary"><span><b>单工具覆盖</b><small>仅调整例外工具</small></span><em>{options.length} 个</em></summary>
+  return <div className="mcp-tool-picker builtin-tool-picker">
+    <div className="builtin-tool-picker-summary"><span><b>单工具覆盖</b><small>只调整例外工具，其他工具继承默认加载方式。</small></span><em>{options.length} 个</em></div>
     <div className="mcp-tool-policy-list">{options.map(tool => <div className="mcp-tool-policy-row builtin-tool-exposure-row" key={tool.value}>
       <div className="mcp-tool-policy-name"><b>{tool.title || tool.name}</b><span>{tool.value}</span></div>
-      <select className="mcp-tool-exposure-select" aria-label={(tool.title || tool.name) + ' 加载方式'} value={toolExposureForValue(tool.value, draft)} onChange={e => onChange(setToolExposureDraft(draft, tool.value, e.target.value))}><option value="inherit">跟随默认</option><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select>
+      <select className="mcp-tool-exposure-select" aria-label={(tool.title || tool.name) + ' 加载方式'} value={toolExposureForValue(tool.value, draft)} onChange={event => onChange(setToolExposureDraft(draft, tool.value, event.target.value))}><option value="inherit">跟随默认</option><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select>
     </div>)}</div>
-  </details>;
+  </div>;
 }
 
-function ToolsModule({ builtinTools, mcpStatus, mcpConfig, saveMCPConfig, loadMCPStatus, testMCP, fetchMCPServerTools }) {
+
+function ToolsModule({ builtinTools, mcpStatus, mcpConfig, saveMCPConfig, loadMCPStatus, testMCP, fetchMCPServerTools, showDialog }) {
   const [editor, setEditor] = useState(null);
   const [formError, setFormError] = useState('');
   const [serverTools, setServerTools] = useState({});
   const pendingActions = usePendingActions();
   const mountedRef = useMountedRef();
-  const mcpModalRef = useRef(null);
   const editorReturnFocusRef = useRef(null);
   const parsed = useMemo(() => parseMCPConfigDraft(mcpConfig), [mcpConfig]);
   const configEditable = !parsed.error;
@@ -689,74 +683,42 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, saveMCPConfig, loadMC
 
   const closeEditor = useCallback(() => {
     setEditor(null);
+    setFormError('');
     restoreFocusTo(editorReturnFocusRef.current);
   }, []);
-
-  useSettingsModalInteraction(!!editor, mcpModalRef, closeEditor, saving);
-
-  function rememberEditorTrigger(trigger) {
-    editorReturnFocusRef.current = trigger || document.activeElement;
-  }
-
+  function rememberEditorTrigger(trigger) { editorReturnFocusRef.current = trigger || document.activeElement; }
   function openBuiltinEditor(trigger) {
-    if (!configEditable) {
-      setFormError('当前 MCP 配置不是合法 JSON，请先修复配置后再编辑工具资源。');
-      return;
-    }
-    rememberEditorTrigger(trigger);
-    setFormError('');
+    if (!configEditable) { setFormError('当前 MCP 配置不是合法 JSON，请先修复配置后再编辑工具资源。'); return; }
+    rememberEditorTrigger(trigger); setFormError('');
     setEditor({kind: 'builtin', name: 'chatdock', draft: builtinToolsToDraft(parsed.config.builtin_tools)});
   }
-
   function openServerEditor(name, trigger) {
-    if (!configEditable) {
-      setFormError('当前 MCP 配置不是合法 JSON，请先修复配置后再编辑工具资源。');
-      return;
-    }
-    rememberEditorTrigger(trigger);
-    setFormError('');
+    if (!configEditable) { setFormError('当前 MCP 配置不是合法 JSON，请先修复配置后再编辑工具资源。'); return; }
+    rememberEditorTrigger(trigger); setFormError('');
     setEditor({kind: 'server', name, draft: {name, ...mcpServerToDraft(parsed.config.servers[name])}});
   }
-
   function openNewServerEditor(trigger) {
-    if (!configEditable) {
-      setFormError('当前 MCP 配置不是合法 JSON，请先修复配置后再新增 Server。');
-      return;
-    }
-    rememberEditorTrigger(trigger);
-    setFormError('');
+    if (!configEditable) { setFormError('当前 MCP 配置不是合法 JSON，请先修复配置后再新增 Server。'); return; }
+    rememberEditorTrigger(trigger); setFormError('');
     setEditor({kind: 'new', name: '', draft: defaultMCPServerDraft()});
   }
-
   function openRawConfigEditor(trigger) {
-    rememberEditorTrigger(trigger);
-    setFormError('');
+    rememberEditorTrigger(trigger); setFormError('');
     setEditor({kind: 'raw', name: 'mcp-json', draft: {content: mcpConfig || ''}});
   }
-
-  function updateEditor(patch) {
-    setEditor(current => current ? {...current, draft: {...current.draft, ...patch}} : current);
-  }
-
+  function updateEditor(patch) { setEditor(current => current ? {...current, draft: {...current.draft, ...patch}} : current); }
   async function checkMCPStatus() {
     if (!loadMCPStatus) return;
     await pendingActions.runPending('mcpStatus', async () => {
       setFormError('');
-      try {
-        await loadMCPStatus();
-      } catch (error) {
-        if (mountedRef.current) setFormError('检查 MCP 连接失败：' + (error.message || '未知错误'));
-      }
+      try { await loadMCPStatus(); }
+      catch (error) { if (mountedRef.current) setFormError('检查 MCP 连接失败：' + (error.message || '未知错误')); }
     });
   }
-
   async function testSavedMCPServer(name) {
     if (!name || testingServerName) return;
-    await pendingActions.runPending('mcpTest:' + name, async () => {
-      await testMCP?.(name);
-    });
+    await pendingActions.runPending('mcpTest:' + name, () => testMCP?.(name));
   }
-
   async function refreshServerTools(name) {
     if (!name || !fetchMCPServerTools) return;
     await pendingActions.runPending('mcpTools:' + name, async () => {
@@ -771,29 +733,20 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, saveMCPConfig, loadMC
       }
     });
   }
-
   async function saveEditor() {
     if (!editor || !saveMCPConfig) return;
     if (editor.kind === 'raw') {
       const validation = validateMCPConfigRaw(editor.draft.content);
-      if (!validation.ok) {
-        setFormError(validation.error);
-        return;
-      }
+      if (!validation.ok) { setFormError(validation.error); return; }
       await pendingActions.runPending('mcpSave', async () => {
         setFormError('');
-        try {
-          await saveMCPConfig({content: validation.content, silent: true});
-          if (mountedRef.current) closeEditor();
-        } catch (error) {
-          if (mountedRef.current) setFormError(error.message || '保存 MCP JSON 失败。');
-        }
+        try { await saveMCPConfig({content: validation.content, silent: true}); if (mountedRef.current) closeEditor(); }
+        catch (error) { if (mountedRef.current) setFormError(error.message || '保存 MCP JSON 失败。'); }
       });
       return;
     }
     if (!configEditable) { setFormError('当前 MCP 配置不是合法 JSON，请先用原文修复后再保存。'); return; }
     const next = {...parsed.config, servers: {...(parsed.config.servers || {})}};
-
     if (editor.kind === 'builtin') {
       next.builtin_tools = cleanBuiltinToolsDraft(editor.draft);
     } else {
@@ -805,122 +758,61 @@ function ToolsModule({ builtinTools, mcpStatus, mcpConfig, saveMCPConfig, loadMC
       if (editor.kind === 'server' && editor.name !== nextName) delete next.servers[editor.name];
       next.servers[nextName] = cleanMCPServerDraft(editor.draft);
     }
-
     await pendingActions.runPending('mcpSave', async () => {
       setFormError('');
-      try {
-        await saveMCPConfig({content: stringifyMCPConfigDraft(next), silent: true});
-        if (mountedRef.current) closeEditor();
-      } catch (error) {
-        if (mountedRef.current) setFormError(error.message || '保存工具配置失败。');
-      }
+      try { await saveMCPConfig({content: stringifyMCPConfigDraft(next), silent: true}); if (mountedRef.current) closeEditor(); }
+      catch (error) { if (mountedRef.current) setFormError(error.message || '保存工具配置失败。'); }
     });
   }
-
   async function deleteCurrentServer() {
     if (editor?.kind !== 'server') return;
+    const confirmed = await showDialog?.({title: '删除 MCP Server', message: '确定删除 MCP Server「' + editor.name + '」？', confirmText: '删除 Server', danger: true, type: 'confirm'});
+    if (!confirmed) return;
     await pendingActions.runPending('mcpDelete', async () => {
-      if (!window.confirm('确定删除 MCP Server「' + editor.name + '」？')) return;
       const next = {...parsed.config, servers: {...(parsed.config.servers || {})}};
       delete next.servers[editor.name];
-      try {
-        await saveMCPConfig({content: stringifyMCPConfigDraft(next), silent: true});
-        if (mountedRef.current) closeEditor();
-      } catch (error) {
-        if (mountedRef.current) setFormError(error.message || '删除 MCP Server 失败。');
-      }
+      try { await saveMCPConfig({content: stringifyMCPConfigDraft(next), silent: true}); if (mountedRef.current) closeEditor(); }
+      catch (error) { if (mountedRef.current) setFormError(error.message || '删除 MCP Server 失败。'); }
     });
   }
 
-  const isBuiltin = editor?.kind === 'builtin';
-  const isNew = editor?.kind === 'new';
-  const isRaw = editor?.kind === 'raw';
-  const serverDraft = !isBuiltin ? editor?.draft : null;
-  const editorServerName = editor?.kind === 'server' ? editor.name : '';
-  const urlHasLocalhost = serverDraft ? /^http:\/\/(127\.0\.0\.1|localhost)(?=[:/]|$)/i.test(normalizeMCPURLDraft(serverDraft.url)) : false;
-  const urlHasSpace = serverDraft ? /\s/.test(String(serverDraft.url || '')) : false;
-  const tokenEnvLooksLikeHeader = serverDraft ? String(serverDraft.token_env || '').trim().toLowerCase() === 'authorization' : false;
-  const hasSavedToken = serverDraft ? !!String(serverDraft.saved_token_ref || '').trim() : false;
-  const tokenExpiry = serverDraft ? mcpTokenExpiryState(serverDraft.token) : null;
+  if (editor) {
+    const isBuiltin = editor.kind === 'builtin';
+    const isNew = editor.kind === 'new';
+    const isRaw = editor.kind === 'raw';
+    const serverDraft = !isBuiltin && !isRaw ? editor.draft : null;
+    const editorServerName = editor.kind === 'server' ? editor.name : '';
+    const urlHasLocalhost = serverDraft ? /^http:\/\/(127\.0\.0\.1|localhost)(?=[:/]|$)/i.test(normalizeMCPURLDraft(serverDraft.url)) : false;
+    const urlHasSpace = serverDraft ? /\s/.test(String(serverDraft.url || '')) : false;
+    const tokenEnvLooksLikeHeader = serverDraft ? String(serverDraft.token_env || '').trim().toLowerCase() === 'authorization' : false;
+    const hasSavedToken = serverDraft ? !!String(serverDraft.saved_token_ref || '').trim() : false;
+    const tokenExpiry = serverDraft ? mcpTokenExpiryState(serverDraft.token) : null;
+    const title = isRaw ? '修复 MCP JSON' : isBuiltin ? 'ChatDock 内置工具' : isNew ? '新增 MCP Server' : '编辑 ' + editor.name;
+    const actions = <><div className="settings-editor-secondary-actions">{editor.kind === 'server' ? <><button type="button" className="danger" onClick={deleteCurrentServer} disabled={saving}>删除 Server</button><button type="button" className="secondary" onClick={() => testSavedMCPServer(editor.name)} disabled={saving || !!testingServerName} aria-busy={testingServerName === editor.name}>{testingServerName === editor.name ? '测试中…' : '测试已保存配置'}</button></> : null}</div><div className="settings-editor-primary-actions"><button type="button" className="secondary" onClick={closeEditor} disabled={saving}>取消</button><button type="button" onClick={saveEditor} disabled={saving}>{saving ? '保存中…' : isRaw ? '保存 JSON' : isBuiltin ? '保存工具设置' : isNew ? '保存 Server' : '保存修改'}</button></div></>;
+    return <SettingsEditorPage eyebrow="工具资源" title={title} description={isBuiltin ? '设置内置工具默认加载方式和单工具例外。' : isRaw ? '仅用于修复损坏配置，保存前会校验 JSON。' : '连接、认证、加载策略和工具权限在同一页维护。'} onBack={closeEditor} actions={actions}>
+      <div className="settings-editor-form mcp-settings-editor">
+        {isRaw ? <section className="settings-editor-section"><label>MCP JSON 原文<textarea rows="22" value={editor.draft.content} onChange={event => updateEditor({content: event.target.value})} spellCheck="false" /></label><div className="hint">这里只保存你编辑后的原文，不会自动重置为空配置。</div></section> : null}
+        {isBuiltin ? <section className="settings-editor-section builtin-tools-section"><div className="settings-editor-section-head"><div><b>加载策略</b><p>未单独设置的工具继承默认方式。</p></div></div><div className="builtin-default-exposure"><div><b>默认加载方式</b><span>直接加载适合高频工具，按需加载减少上下文体积。</span></div><select aria-label="内置工具默认加载方式" value={editor.draft.tool_exposure} onChange={event => updateEditor({tool_exposure: event.target.value})}><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select></div><BuiltinToolExposurePicker draft={editor.draft} tools={builtinTools || []} onChange={updateEditor} /></section> : null}
+        {serverDraft ? <>
+          <section className="settings-editor-section"><div className="settings-editor-section-head"><div><b>基本信息</b><p>资源说明会进入模型看到的轻量索引。</p></div></div><div className="settings-editor-grid"><label>Server 名称<input value={serverDraft.name} onChange={event => updateEditor({name: event.target.value})} placeholder="例如 DockMini" /></label><label>状态<select value={serverDraft.disabled ? 'disabled' : 'enabled'} onChange={event => updateEditor({disabled: event.target.value === 'disabled'})}><option value="enabled">启用</option><option value="disabled">禁用</option></select></label></div><label>资源说明<input maxLength="240" value={serverDraft.description} onChange={event => updateEditor({description: event.target.value})} placeholder="例如 Mac mini 本机开发、文件、命令和 Git 能力" /></label><label>MCP HTTP 地址<input value={serverDraft.url} onChange={event => updateEditor({url: event.target.value})} placeholder="http://host.docker.internal:18766/mcp" /></label>{urlHasLocalhost || urlHasSpace ? <div className="mcp-inline-warning"><b>当前地址可能连不上</b><span>{urlHasSpace ? 'URL 里有空格；' : ''}{urlHasLocalhost ? 'Docker 内不能用 127.0.0.1 访问宿主机。' : ''}</span><button className="secondary small" onClick={() => updateEditor({url: dockerHostMCPURL(serverDraft.url)})}>改成 Docker 宿主机地址</button></div> : null}</section>
+          <section className="settings-editor-section"><div className="settings-editor-section-head"><div><b>认证与连接</b><p>Token、超时和缓存属于连接设置，不再藏在嵌套展开中。</p></div></div><div className="settings-editor-grid"><label>连接类型<select value={serverDraft.type} onChange={event => updateEditor({type: event.target.value})}><option value="streamable-http">HTTP / Streamable HTTP</option></select></label><label>认证方式<select value={serverDraft.auth_type} onChange={event => updateEditor({auth_type: event.target.value})}><option value="none">无</option><option value="bearer">Bearer Token</option></select></label><label>Token 环境变量名（可选）<input value={serverDraft.token_env} onChange={event => updateEditor({token_env: event.target.value})} placeholder="例如 AGENTDOCK_MCP_TOKEN" /></label><label>本地路径备注<input value={serverDraft.path} onChange={event => updateEditor({path: event.target.value})} placeholder="可选备注" /></label></div>{tokenEnvLooksLikeHeader ? <div className="mcp-inline-warning"><b>这里不要填 Authorization</b><span>这里需要环境变量名，不是 HTTP Header 名。</span><button className="secondary small" onClick={() => updateEditor({token_env: ''})}>清空</button></div> : null}{hasSavedToken ? <div className="mcp-inline-warning ok mcp-token-state"><b>已保存 Token</b><span>留空不会修改；输入新值才会替换。</span><button type="button" className="secondary small" onClick={() => updateEditor({token: '', saved_token_ref: ''})}>清除 Token</button></div> : null}{serverDraft.auth_type !== 'none' ? <label>{hasSavedToken ? '替换 Token（可选）' : 'Token'}<input type="password" autoComplete="new-password" value={serverDraft.token} onChange={event => updateEditor({token: event.target.value})} placeholder={hasSavedToken ? '留空保持已保存 Token' : '粘贴 Bearer Token'} /></label> : null}{serverDraft.auth_type !== 'none' && tokenExpiry ? <div className={'mcp-inline-warning ' + (tokenExpiry.expired ? 'danger' : 'ok')}><b>{tokenExpiry.expired ? 'Token 已过期' : '新 Token 有效期'}</b><span>{tokenExpiry.text}</span></div> : null}<div className="settings-editor-grid"><label>超时 ms<input type="number" inputMode="numeric" value={serverDraft.timeout_ms} onChange={event => updateEditor({timeout_ms: event.target.value})} placeholder="30000" /></label><label>工具缓存 ms<input type="number" inputMode="numeric" value={serverDraft.cache_ttl_ms} onChange={event => updateEditor({cache_ttl_ms: event.target.value})} placeholder="可留空" /></label></div></section>
+          <section className="settings-editor-section"><div className="settings-editor-section-head"><div><b>工具加载与权限</b><p>默认加载方式和单工具权限在同一处设置。</p></div></div><label>工具默认加载<select value={serverDraft.tool_exposure} onChange={event => updateEditor({tool_exposure: event.target.value})}><option value="on_demand">按需加载</option><option value="direct">直接加载</option></select></label>{!isNew ? <MCPToolPolicyPicker name={editorServerName} draft={serverDraft} tools={serverTools[editorServerName] || []} loading={!!pendingActions.pending['mcpTools:' + editorServerName]} onRefresh={() => refreshServerTools(editorServerName)} onChange={updateEditor} /> : <div className="hint">保存 Server 后可读取并配置工具权限。</div>}</section>
+        </> : null}
+        {formError ? <div className="backup-health warn" role="alert">{formError}</div> : null}
+      </div>
+    </SettingsEditorPage>;
+  }
 
   return <>
     <section className="settings-section mcp-overview-section mcp-directory-section">
-      <div className="settings-section-head">
-        <div><b>工具资源</b><p>点击资源进入编辑，修改在弹窗中直接保存。</p></div>
-        <div className="mcp-directory-actions">
-          <button type="button" className="secondary small" onClick={checkMCPStatus} disabled={checkingStatus} aria-busy={checkingStatus}>{checkingStatus ? '检查中…' : '检查连接'}</button>
-          <button type="button" className="small" onClick={event => openNewServerEditor(event.currentTarget)} disabled={!configEditable}>新增 Server</button>
-        </div>
-      </div>
-      <div className="mcp-config-directory">
-        <button type="button" className="secondary mcp-config-directory-row" onClick={event => openBuiltinEditor(event.currentTarget)} disabled={!configEditable}>
-          <span><b>ChatDock 内置工具</b><small>定时任务、图片和供应商工具</small></span>
-          <em>{(builtinTools || []).length} 个 · 编辑</em>
-        </button>
-        {serverNames.map(name => {
-          const server = parsed.config.servers[name];
-          const status = statusByName[name];
-          return <button type="button" className="secondary mcp-config-directory-row" key={name} onClick={event => openServerEditor(name, event.currentTarget)} disabled={!configEditable}>
-            <span><b>{name}</b><small>{server.url || '未填写 HTTP 地址'}</small></span>
-            <em className={'badge ' + runStatusClass(status?.last_status || 'unknown')}>{status?.last_status ? runStatusLabel(status.last_status) : '未检测'}</em>
-          </button>;
-        })}
-        {!serverNames.length ? <div className="empty compact">暂无 MCP Server。</div> : null}
-      </div>
+      <div className="settings-section-head"><div><b>工具资源</b><p>独立资源进入二级编辑页；连接检查在列表页完成。</p></div><div className="mcp-directory-actions"><button type="button" className="secondary small" onClick={checkMCPStatus} disabled={checkingStatus} aria-busy={checkingStatus}>{checkingStatus ? '检查中…' : '检查连接'}</button><button type="button" className="small" onClick={event => openNewServerEditor(event.currentTarget)} disabled={!configEditable}>新增 Server</button></div></div>
+      <div className="mcp-config-directory"><button type="button" className="secondary mcp-config-directory-row" onClick={event => openBuiltinEditor(event.currentTarget)} disabled={!configEditable}><span><b>ChatDock 内置工具</b><small>定时任务、图片和供应商工具</small></span><em>{(builtinTools || []).length} 个 · 编辑</em></button>{serverNames.map(name => { const server = parsed.config.servers[name]; const status = statusByName[name]; return <button type="button" className="secondary mcp-config-directory-row" key={name} onClick={event => openServerEditor(name, event.currentTarget)} disabled={!configEditable}><span><b>{name}</b><small>{server.url || '未填写 HTTP 地址'}</small></span><em className={'badge ' + runStatusClass(status?.last_status || 'unknown')}>{status?.last_status ? runStatusLabel(status.last_status) : '未检测'}</em></button>; })}{!serverNames.length ? <div className="empty compact">暂无 MCP Server。</div> : null}</div>
     </section>
     {parsed.error ? <div className="backup-health warn">当前配置 JSON 损坏：{parsed.error}<button type="button" className="secondary small" onClick={event => openRawConfigEditor(event.currentTarget)}>修复 JSON 原文</button></div> : null}
-    {formError && !editor ? <div className="backup-health warn">{formError}</div> : null}
-    {editor ? <div className="app-modal-backdrop show" onClick={event => { if (event.target === event.currentTarget && !saving) closeEditor(); }}>
-      <div ref={mcpModalRef} className="app-modal-card provider-modal provider-modal-simple mcp-config-modal" role="dialog" aria-modal="true" aria-labelledby="mcpConfigModalTitle" tabIndex="-1">
-        <div className="app-modal-form">
-          <div id="mcpConfigModalTitle" className="app-modal-title">{isRaw ? '修复 MCP JSON' : isBuiltin ? 'ChatDock 内置工具' : isNew ? '新增 MCP Server' : '编辑 ' + editor.name}</div>
-          <div className="mcp-config-modal-body">
-            {isRaw ? <div className="mcp-form-card">
-              <label>MCP JSON 原文<textarea rows={16} value={editor.draft.content} onChange={event => updateEditor({content: event.target.value})} spellCheck="false" /></label>
-              <div className="hint">这里只校验并保存你编辑后的原文，不会自动重置为空配置。</div>
-            </div> : isBuiltin ? <section className="settings-section mcp-detail-section builtin-tools-section">
-              <div className="builtin-default-exposure"><div><b>默认加载方式</b><span>未单独设置的工具继承此方式</span></div><select aria-label="内置工具默认加载方式" value={editor.draft.tool_exposure} onChange={event => updateEditor({tool_exposure: event.target.value})}><option value="direct">直接加载</option><option value="on_demand">按需加载</option></select></div>
-              <BuiltinToolExposurePicker draft={editor.draft} tools={builtinTools || []} onChange={updateEditor} />
-            </section> : <div className="mcp-form-card">
-              <label>Server 名称<input value={serverDraft.name} onChange={event => updateEditor({name: event.target.value})} placeholder="例如 DockMini" /></label>
-              <label>资源说明<input maxLength="240" value={serverDraft.description} onChange={event => updateEditor({description: event.target.value})} placeholder="例如 Mac mini 本机开发、文件、命令和 Git 能力" /></label>
-              <div className="hint">说明会进入模型看到的轻量资源索引。</div>
-              <div className="mcp-form-grid">
-                <label>连接类型<select value={serverDraft.type} onChange={event => updateEditor({type: event.target.value})}><option value="streamable-http">HTTP / Streamable HTTP</option></select></label>
-                <label>状态<select value={serverDraft.disabled ? 'disabled' : 'enabled'} onChange={event => updateEditor({disabled: event.target.value === 'disabled'})}><option value="enabled">启用</option><option value="disabled">禁用</option></select></label>
-                <label>工具默认加载<select value={serverDraft.tool_exposure} onChange={event => updateEditor({tool_exposure: event.target.value})}><option value="on_demand">按需加载</option><option value="direct">直接加载</option></select></label>
-              </div>
-              <label>MCP HTTP 地址<input value={serverDraft.url} onChange={event => updateEditor({url: event.target.value})} placeholder="http://host.docker.internal:18766/mcp" /></label>
-              {urlHasLocalhost || urlHasSpace ? <div className="mcp-inline-warning"><b>当前地址可能连不上</b><span>{urlHasSpace ? 'URL 里有空格；' : ''}{urlHasLocalhost ? 'Docker 内不能用 127.0.0.1 访问宿主机。' : ''}</span><button className="secondary small" onClick={() => updateEditor({url: dockerHostMCPURL(serverDraft.url)})}>改成 Docker 宿主机地址</button></div> : null}
-              <details className="mcp-advanced-fields">
-                <summary>高级权限、Token 和缓存</summary>
-                <div className="mcp-form-grid">
-                  <label>认证方式<select value={serverDraft.auth_type} onChange={event => updateEditor({auth_type: event.target.value})}><option value="none">无</option><option value="bearer">Bearer Token</option></select></label>
-                  <label>Token 环境变量名（可选）<input value={serverDraft.token_env} onChange={event => updateEditor({token_env: event.target.value})} placeholder="例如 AGENTDOCK_MCP_TOKEN" /></label>
-                </div>
-                {tokenEnvLooksLikeHeader ? <div className="mcp-inline-warning"><b>这里不要填 Authorization</b><span>这里需要环境变量名，不是 HTTP Header 名。</span><button className="secondary small" onClick={() => updateEditor({token_env: ''})}>清空</button></div> : null}
-                {hasSavedToken ? <div className="mcp-inline-warning ok mcp-token-state"><b>已保存 Token</b><span>留空不会修改；输入新值才会替换。</span><button type="button" className="secondary small" onClick={() => updateEditor({token: '', saved_token_ref: ''})}>清除 Token</button></div> : null}
-                {serverDraft.auth_type !== 'none' ? <label>{hasSavedToken ? '替换 Token（可选）' : 'Token'}<input type="password" autoComplete="new-password" value={serverDraft.token} onChange={event => updateEditor({token: event.target.value})} placeholder={hasSavedToken ? '留空保持已保存 Token' : '粘贴 Bearer Token'} /></label> : null}
-                {serverDraft.auth_type !== 'none' && tokenExpiry ? <div className={'mcp-inline-warning ' + (tokenExpiry.expired ? 'danger' : 'ok')}><b>{tokenExpiry.expired ? 'Token 已过期' : '新 Token 有效期'}</b><span>{tokenExpiry.text}</span></div> : null}
-                <div className="mcp-form-grid">
-                  <label>超时 ms<input type="number" inputMode="numeric" value={serverDraft.timeout_ms} onChange={event => updateEditor({timeout_ms: event.target.value})} placeholder="30000" /></label>
-                  <label>工具缓存 ms<input type="number" inputMode="numeric" value={serverDraft.cache_ttl_ms} onChange={event => updateEditor({cache_ttl_ms: event.target.value})} placeholder="可留空" /></label>
-                </div>
-                {!isNew ? <MCPToolPolicyPicker name={editorServerName} draft={serverDraft} tools={serverTools[editorServerName] || []} loading={!!pendingActions.pending['mcpTools:' + editorServerName]} onRefresh={() => refreshServerTools(editorServerName)} onChange={updateEditor} /> : <div className="hint">保存 Server 后可读取并配置工具权限。</div>}
-                <label>本地路径备注<input value={serverDraft.path} onChange={event => updateEditor({path: event.target.value})} placeholder="可选备注" /></label>
-              </details>
-            </div>}
-            {formError ? <div className="backup-health warn">{formError}</div> : null}
-          </div>
-          <div className="app-modal-actions mcp-config-modal-actions">
-            <div className="mcp-modal-secondary-actions">{editor.kind === 'server' ? <><button type="button" className="danger" onClick={deleteCurrentServer} disabled={saving}>删除</button><button type="button" className="secondary" onClick={() => testSavedMCPServer(editor.name)} disabled={saving || !!testingServerName} aria-busy={testingServerName === editor.name}>{testingServerName === editor.name ? '测试中…' : '测试已保存配置'}</button></> : null}</div>
-            <div className="mcp-modal-primary-actions"><button type="button" className="secondary" onClick={closeEditor} disabled={saving}>取消</button><button type="button" onClick={saveEditor} disabled={saving}>{saving ? '保存中…' : isRaw ? '保存 JSON' : isBuiltin ? '保存工具设置' : isNew ? '保存 Server' : '保存修改'}</button></div>
-          </div>
-        </div>
-      </div>
-    </div> : null}
+    {formError ? <div className="backup-health warn">{formError}</div> : null}
   </>;
 }
+
 
 function DataStatus({ dataStatus, onCopy }) {
   if (!dataStatus) return <div className="hint">尚未加载数据状态。</div>;
@@ -943,8 +835,8 @@ function DataStatus({ dataStatus, onCopy }) {
     <div id="dataStatus" className="data-info-table">{databaseItems.map(item => <div className="data-info-row" key={item[0]}><span>{item[0]}</span><b>{item[1]}</b></div>)}</div>
     <div className="settings-block-head"><label>备份</label></div>
     <div className="data-info-table backup-info-table">{backupItems.map(item => <div className="data-info-row" key={item[0]}><span>{item[0]}</span><b>{item[1]}</b></div>)}</div>
-    {(dataStatus.backup_checked_dirs || []).length ? <details className="backup-path checked-dirs"><summary>查看已检查备份目录</summary>{dataStatus.backup_checked_dirs.map(dir => <code key={dir}>{dir}</code>)}</details> : null}
-    {backups.length ? <div className="backup-list"><div className="settings-block-head"><label>最近数据库备份</label></div>{backups.map(item => <div className="backup-item" key={item.path || item.name}><div className="backup-main"><div><b>{item.name || safePathName(item.path)}</b><div className="hint">{fmtTime(item.updated_at)} · {fmtRelativeAge(item.age_seconds)} · {fmtBytes(item.size_bytes)}</div></div>{item.path ? <button className="secondary mini" onClick={() => onCopy?.(item.path)}>复制路径</button> : null}</div>{item.path ? <details className="backup-path"><summary>查看完整路径</summary><code>{item.path}</code></details> : null}</div>)}</div> : null}
+    {(dataStatus.backup_checked_dirs || []).length ? <div className="backup-path-list"><div className="settings-block-head"><label>已检查备份目录</label></div>{dataStatus.backup_checked_dirs.map(dir => <div className="backup-path-row" key={dir}><code>{dir}</code><button className="secondary mini" onClick={() => onCopy?.(dir)}>复制</button></div>)}</div> : null}
+    {backups.length ? <div className="backup-list"><div className="settings-block-head"><label>最近数据库备份</label></div>{backups.map(item => <div className="backup-item" key={item.path || item.name}><div className="backup-main"><div><b>{item.name || safePathName(item.path)}</b><div className="hint">{fmtTime(item.updated_at)} · {fmtRelativeAge(item.age_seconds)} · {fmtBytes(item.size_bytes)}</div></div>{item.path ? <button className="secondary mini" onClick={() => onCopy?.(item.path)}>复制路径</button> : null}</div>{item.path ? <code className="backup-path-value">{item.path}</code> : null}</div>)}</div> : null}
   </>;
 }
 
