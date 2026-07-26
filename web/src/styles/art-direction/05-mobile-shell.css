@@ -234,10 +234,17 @@
     box-shadow: none !important;
   }
 
-  /* 顶部导航脱离文档流后，为消息内容预留完整安全区，避免首行被悬浮按钮遮挡。 */
-  #app.app .messages {
-    padding-top: calc(92px + env(safe-area-inset-top, 0px)) !important;
+  /* 首屏用可滚动占位避开状态栏和悬浮导航；上滑后占位随消息滚走，正文才能进入状态栏后方。 */
+  #app.app:not(.chat-empty) .messages {
+    padding-top: 0 !important;
     scroll-padding-top: calc(92px + env(safe-area-inset-top, 0px));
+  }
+
+  #app.app:not(.chat-empty) .messages::before {
+    content: "";
+    display: block;
+    height: calc(92px + env(safe-area-inset-top, 0px));
+    pointer-events: none;
   }
 
   html:not(.chatdock-keyboard-open) #app.app.chat-empty .messages {

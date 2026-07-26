@@ -64,6 +64,16 @@ if (!/height:\s*calc\(env\(safe-area-inset-top/.test(mobileStatusBarScrimRule)
   failures.push('mobile status bar must use a non-blocking translucent safe-area scrim');
 }
 
+// 顶部安全区必须是消息流里的可滚动占位，不能再写成滚动容器 padding；
+// iOS 会把 overflow 容器的顶部 padding 固定留在滚动视口内，正文因此永远到不了状态栏后方。
+const mobileConversationRule = mobileShell.match(/#app\.app:not\(\.chat-empty\)\s+\.messages\s*\{([^}]*)\}/)?.[1] || '';
+const mobileConversationSpacerRule = mobileShell.match(/#app\.app:not\(\.chat-empty\)\s+\.messages::before\s*\{([^}]*)\}/)?.[1] || '';
+if (!/padding-top:\s*0\s*!important/.test(mobileConversationRule)
+  || !/height:\s*calc\(92px\s*\+\s*env\(safe-area-inset-top/.test(mobileConversationSpacerRule)
+  || !/display:\s*block/.test(mobileConversationSpacerRule)) {
+  failures.push('mobile conversation must use a scrollable safe-area spacer instead of fixed top padding');
+}
+
 // 移动端聊天页会锁住 body；配置页必须解除锁并使用浏览器原生文档滚动。
 // 禁止配置页再次变成固定高度的嵌套滚动容器，iOS Safari 对这类结构容易吞掉触摸滚动。
 const settingsLayout = read('web/src/styles/settings/15-layout-system.css');
