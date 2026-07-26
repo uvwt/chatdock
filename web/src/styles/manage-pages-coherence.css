@@ -122,36 +122,10 @@
   }
 }
 
-/* 配置中心嵌入态沿用普通配置模块的标题、区块和卡片节奏。 */
-.settings-page .module-view.bare.active {
-  padding-top: 0;
-}
-
-.settings-page .manage-page.embedded .manage-page-header.embedded {
-  align-items: flex-start;
-  gap: 16px;
-  margin: 0 0 22px;
-  padding: 0;
-  border: 0;
-}
-
-.settings-page .manage-page.embedded .manage-page-heading {
-  min-width: 0;
-}
-
-.settings-page .manage-page.embedded .manage-page-heading h1 {
-  margin: 0;
-  font-family: inherit;
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1.18;
-  letter-spacing: -.025em;
-}
-
-.settings-page .manage-page.embedded .manage-page-heading p {
-  margin-top: 6px;
-  font-size: 13px;
-  line-height: 1.55;
+/* 配置中心嵌入态直接复用普通模块的标题、区块与卡片层级。 */
+.settings-page .manage-page.embedded {
+  height: auto;
+  overflow: visible;
 }
 
 .settings-page .manage-page.embedded .manage-page-body {
@@ -159,58 +133,76 @@
   padding: 0 0 12px;
 }
 
-.settings-page .manage-page.embedded .manage-summary-grid,
-.settings-page .manage-page.embedded .manage-card-grid {
+.settings-page .manage-page.embedded .manage-overview-head {
+  margin-top: 0 !important;
+}
+
+.settings-page .manage-page.embedded .manage-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
+  margin: 0 0 14px;
+}
+
+.settings-page .manage-page.embedded .task-summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .settings-page .manage-page.embedded .manage-summary-card {
   min-height: 92px;
   padding: 16px;
+  gap: 10px;
+  border: 1px solid var(--gpt-border);
   border-radius: 14px;
   background: var(--gpt-surface);
   box-shadow: none;
 }
 
 .settings-page .manage-page.embedded .manage-summary-card span {
+  color: var(--gpt-muted);
   font-size: 12px;
   font-weight: 600;
 }
 
 .settings-page .manage-page.embedded .manage-summary-card b {
+  align-self: end;
+  color: var(--gpt-text);
   font-size: 26px;
   font-weight: 680;
   line-height: 1;
   letter-spacing: -.035em;
 }
 
-.settings-page .manage-page.embedded :is(.manage-section-head, .manage-list-toolbar) {
-  align-items: flex-end;
-  margin: 24px 0 14px;
+.settings-page .manage-page.embedded .manage-embedded-list {
+  margin-top: 14px !important;
 }
 
-.settings-page .manage-page.embedded :is(.manage-section-head, .manage-list-toolbar) span {
-  margin-bottom: 4px;
-  font-size: 14px;
-  font-weight: 680;
+.settings-page .manage-page.embedded .manage-list-heading {
+  align-items: flex-start !important;
 }
 
-.settings-page .manage-page.embedded :is(.manage-section-head, .manage-list-toolbar) p {
-  font-size: 12px;
-  line-height: 1.5;
+.settings-page .manage-page.embedded .manage-create-button {
+  flex: 0 0 auto;
 }
 
 .settings-page .manage-page.embedded .manage-search {
+  width: 100%;
   min-height: 42px;
+  margin: 0 0 14px;
   border-radius: 10px;
   background: var(--gpt-surface-2);
 }
 
+.settings-page .manage-page.embedded .manage-card-grid {
+  gap: 12px;
+}
+
 .settings-page .manage-page.embedded .manage-card {
   min-height: 0;
-  padding: 18px;
-  border-radius: 16px;
-  background: var(--gpt-surface);
+  padding: 16px;
+  border: 1px solid var(--gpt-border);
+  border-radius: 14px;
+  background: var(--gpt-surface-2);
   box-shadow: none;
 }
 
@@ -223,88 +215,106 @@
   color: var(--gpt-muted-2);
   font-size: 10px;
   font-weight: 650;
-  letter-spacing: .06em;
+  letter-spacing: .05em;
 }
 
 .settings-page .manage-page.embedded .manage-card h2 {
   margin-top: 4px;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 680;
   line-height: 1.3;
   letter-spacing: -.02em;
 }
 
 .settings-page .manage-page.embedded .manage-card > p {
-  min-height: 42px;
-  margin: 16px 0 12px;
+  min-height: 38px;
+  margin: 14px 0 10px;
   font-size: 12px;
   line-height: 1.6;
 }
 
 .settings-page .manage-page.embedded .manage-card > footer {
   gap: 8px;
-  padding-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--gpt-border);
 }
 
 .settings-page .manage-page.embedded .manage-card > footer button,
 .settings-page .manage-page.embedded .manage-more-menu summary {
+  min-height: 34px;
   border-radius: 9px;
 }
 
 .settings-page .manage-page.embedded .manage-preview,
 .settings-page .manage-page.embedded .manage-empty,
 .settings-page .manage-page.embedded .scheduled-session-row {
-  border-radius: 16px;
+  border-radius: 14px;
   box-shadow: none;
 }
 
 @media (max-width: 560px) {
-  .settings-page .manage-page.embedded .manage-page-header.embedded {
-    grid-template-columns: minmax(0, 1fr) auto;
-    min-height: 0;
-    margin: 0 2px 18px;
+  .settings-page .manage-page.embedded .manage-summary-grid,
+  .settings-page .manage-page.embedded .task-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
   }
 
-  .settings-page .manage-page.embedded .manage-page-heading h1 {
-    font-size: 22px;
-  }
-
-  .settings-page .manage-page.embedded .manage-page-heading p {
-    margin-top: 5px;
-    font-size: 13px;
-    line-height: 1.5;
-  }
-
-  .settings-page .manage-page.embedded .manage-page-actions {
-    grid-column: auto;
-    align-self: start;
-    padding-left: 0;
-  }
-
-  .settings-page .manage-page.embedded .manage-page-body {
-    padding: 0 0 12px;
+  .settings-page .manage-page.embedded.projects-page .manage-summary-card:last-child {
+    grid-column: 1 / -1;
   }
 
   .settings-page .manage-page.embedded .manage-summary-card {
-    min-height: 72px;
-    padding: 11px;
+    min-height: 88px;
+    padding: 14px;
     border-radius: 14px;
   }
 
   .settings-page .manage-page.embedded .manage-summary-card b {
-    font-size: 22px;
+    font-size: 20px;
   }
 
-  .settings-page .manage-page.embedded :is(.manage-section-head, .manage-list-toolbar) {
-    margin: 22px 0 12px;
+  .settings-page .manage-page.embedded .manage-embedded-list {
+    padding: 14px !important;
+  }
+
+  .settings-page .manage-page.embedded .manage-list-heading {
+    display: block !important;
+    margin-bottom: 12px !important;
+  }
+
+  .settings-page .manage-page.embedded .manage-list-heading > button {
+    width: 100% !important;
+    margin-top: 12px !important;
+  }
+
+  .settings-page .manage-page.embedded .manage-card-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .settings-page .manage-page.embedded .manage-card {
-    padding: 16px;
-    border-radius: 16px;
+    padding: 14px;
+    border-radius: 14px;
+    background: var(--mobile-panel) !important;
   }
 
   .settings-page .manage-page.embedded .manage-card h2 {
-    font-size: 17px;
+    font-size: 16px;
+  }
+
+  .settings-page .manage-page.embedded .project-manage-card > footer {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-page .manage-page.embedded .project-manage-card > footer > button,
+  .settings-page .manage-page.embedded .scheduled-task-manage-card > footer > button {
+    width: 100% !important;
+    min-height: 38px !important;
+  }
+
+  .settings-page .manage-page.embedded .scheduled-task-manage-card > footer {
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
   }
 }

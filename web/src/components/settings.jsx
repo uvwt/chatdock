@@ -228,7 +228,7 @@ export function SettingsPanel(props) {
         <ProvidersModule providers={providers} editModelProvider={editModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} addCandidateModelsToProvider={addCandidateModelsToProvider} loadingModels={loadingModels} />
       </ModuleView>
       <ModuleView name="tools" activeModule={activeModule}><ToolsModule builtinTools={builtinTools} mcpStatus={mcpStatus} mcpConfig={mcpConfig} saveMCPConfig={saveMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} /></ModuleView>
-      <ModuleView name="projects" activeModule={activeModule} bare>
+      <ModuleView name="projects" activeModule={activeModule}>
         <ProjectsPage
           api={api}
           embedded
@@ -245,7 +245,7 @@ export function SettingsPanel(props) {
           showToast={showToast}
         />
       </ModuleView>
-      <ModuleView name="automation" activeModule={activeModule} bare>
+      <ModuleView name="automation" activeModule={activeModule}>
         <ScheduledTasksPage
           api={api}
           embedded

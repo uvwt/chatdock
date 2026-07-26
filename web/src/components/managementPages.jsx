@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MessageSquarePlus, MoreHorizontal, Plus, RefreshCw } from './icons.js';
+import { MoreHorizontal, Plus, RefreshCw } from './icons.js';
 import { fmtTime, runStatusClass, runStatusLabel, scheduleSummary, taskStatusClass, taskStatusLabel } from '../lib/appUtils.js';
 import { fetchScheduledTaskRuns } from '../lib/settingsApi.js';
 import { scheduledTaskSessionRows } from '../lib/sessionPresentation.js';
@@ -7,9 +7,9 @@ import '../styles/manage-pages.css';
 import '../styles/manage-pages-mobile.css';
 import '../styles/manage-pages-coherence.css';
 
-function PageHeader({ eyebrow, title, description, actions, embedded = false }) {
-  return <header className={'manage-page-header' + (embedded ? ' embedded' : '')}>
-    <div className="manage-page-heading">{!embedded && eyebrow ? <span>{eyebrow}</span> : null}<h1>{title}</h1><p>{description}</p></div>
+function PageHeader({ eyebrow, title, description, actions }) {
+  return <header className="manage-page-header">
+    <div className="manage-page-heading">{eyebrow ? <span>{eyebrow}</span> : null}<h1>{title}</h1><p>{description}</p></div>
     <div className="manage-page-actions">{actions}</div>
   </header>;
 }
@@ -44,36 +44,41 @@ export function ProjectsPage({ api, deleteProject, editProject, embedded = false
     await loadProjects?.();
   }, showToast);
   return <section className={'manage-page projects-page' + (embedded ? ' embedded' : '')}>
-    <PageHeader
+    {!embedded ? <PageHeader
       eyebrow="项目管理"
       title="项目"
       description="为不同主题保留独立上下文，并直接开始项目对话。"
-      embedded={embedded}
       actions={<button type="button" onClick={() => editProject()}><Plus size={16} aria-hidden="true" /><span>新增项目</span></button>}
-    />
+    /> : null}
     <div className="manage-page-body">
+      {embedded ? <div className="settings-block-head manage-overview-head"><label>项目概览</label></div> : null}
       <div className="manage-summary-grid">
         <SummaryCard label="项目" value={projects.length} />
         <SummaryCard label="全部会话" value={projectSessionCounts?.all ?? 0} onClick={() => openProjectSessions('all')} />
         <SummaryCard label="普通会话" value={projectSessionCounts?.plain ?? 0} onClick={() => openProjectSessions('plain')} />
       </div>
-      <div className="manage-section-head"><div><span>项目列表</span><p>选择项目进入对应会话，或在这里维护项目提示词。</p></div></div>
-      <div className="manage-card-grid">
-        {projects.length ? projects.map(project => <article key={project.id} className={'manage-card project-manage-card ' + (project.pinned ? 'pinned' : '')}>
-          <header><div><span>项目</span><h2>{project.name}</h2></div><div className="project-card-actions"><em>{projectSessionCounts?.byProject?.[project.id] || 0} 会话</em><details className="manage-more-menu"><summary aria-label="更多项目操作" title="更多操作"><MoreHorizontal size={17} aria-hidden="true" /></summary><div>
-            <button type="button" onClick={event => closeDetailsAndRun(event, () => pinProject(project))}>{project.pinned ? '取消置顶' : '置顶项目'}</button>
-            <button type="button" onClick={event => closeDetailsAndRun(event, () => editProject(project))}>编辑项目</button>
-            <button type="button" onClick={event => closeDetailsAndRun(event, () => showProjectPromptPreview(project.id))}>预览提示词</button>
-            <button type="button" className="danger" onClick={event => closeDetailsAndRun(event, () => deleteProject(project))}>删除项目</button>
-          </div></details></div></header>
-          <p>{project.prompt || '未设置项目提示词'}</p>
-          <div className="manage-card-meta">ID：{project.id}</div>
-          <footer>
-            <button type="button" onClick={() => startProjectConversation(project.id)}><MessageSquarePlus size={15} aria-hidden="true" /><span>新建对话</span></button>
-            <button type="button" className="secondary" onClick={() => openProjectSessions(project.id)}>查看会话</button>
-          </footer>
-        </article>) : <div className="manage-empty"><b>还没有项目</b><span>普通会话不需要项目；需要固定上下文时再创建。</span></div>}
-      </div>
+      <section className={embedded ? 'settings-section manage-embedded-list' : ''}>
+        <div className={embedded ? 'settings-section-head manage-list-heading' : 'manage-section-head'}>
+          <div>{embedded ? <><b>项目列表</b><div className="hint">选择项目进入对应会话，或维护项目提示词。</div></> : <><span>项目列表</span><p>选择项目进入对应会话，或在这里维护项目提示词。</p></>}</div>
+          {embedded ? <button type="button" className="secondary manage-create-button" onClick={() => editProject()}>新增项目</button> : null}
+        </div>
+        <div className="manage-card-grid">
+          {projects.length ? projects.map(project => <article key={project.id} className={'manage-card project-manage-card ' + (project.pinned ? 'pinned' : '')}>
+            <header><div><span>项目</span><h2>{project.name}</h2></div><div className="project-card-actions"><em>{projectSessionCounts?.byProject?.[project.id] || 0} 会话</em><details className="manage-more-menu"><summary aria-label="更多项目操作" title="更多操作"><MoreHorizontal size={17} aria-hidden="true" /></summary><div>
+              <button type="button" onClick={event => closeDetailsAndRun(event, () => pinProject(project))}>{project.pinned ? '取消置顶' : '置顶项目'}</button>
+              <button type="button" onClick={event => closeDetailsAndRun(event, () => editProject(project))}>编辑项目</button>
+              <button type="button" onClick={event => closeDetailsAndRun(event, () => showProjectPromptPreview(project.id))}>预览提示词</button>
+              <button type="button" className="danger" onClick={event => closeDetailsAndRun(event, () => deleteProject(project))}>删除项目</button>
+            </div></details></div></header>
+            <p>{project.prompt || '未设置项目提示词'}</p>
+            <div className="manage-card-meta">ID：{project.id}</div>
+            <footer>
+              <button type="button" className="secondary" onClick={() => startProjectConversation(project.id)}>新建对话</button>
+              <button type="button" className="secondary" onClick={() => openProjectSessions(project.id)}>查看会话</button>
+            </footer>
+          </article>) : <div className="manage-empty"><b>还没有项目</b><span>普通会话不需要项目；需要固定上下文时再创建。</span></div>}
+        </div>
+      </section>
       {projectPromptPreview ? <section className="manage-preview"><div><span>提示词预览</span><b>最终提示词</b></div><pre>{projectPromptPreview}</pre></section> : null}
     </div>
   </section>;
@@ -190,15 +195,18 @@ export function ScheduledTasksPage({ api, deleteScheduledTask, editScheduledTask
   const enabled = scheduledTasks.filter(task => task.enabled).length;
   const running = scheduledTasks.filter(task => task.running).length;
   const failed = scheduledTasks.filter(task => task.last_status === 'failed').length;
+  const taskCards = <div className="manage-card-grid scheduled-task-grid">
+    {filteredTasks.length ? filteredTasks.map(task => <ScheduledTaskCard key={task.id} task={task} deleteScheduledTask={deleteScheduledTask} editScheduledTask={editScheduledTask} openScheduledTaskSession={openScheduledTaskSession} openTaskSessions={loadTaskSessions} pinScheduledTask={pinScheduledTask} runPending={!!pendingActions['run:' + task.id]} runScheduledTaskNow={runTaskNow} togglePending={!!pendingActions['toggle:' + task.id]} toggleScheduledTask={toggleTask} />) : <div className="manage-empty"><b>{taskSearch.trim() ? '没有匹配任务' : '还没有定时任务'}</b><span>{taskSearch.trim() ? '换个关键词再试。' : '创建任务后可按一次、间隔或日历计划自动运行。'}</span></div>}
+  </div>;
   return <section className={'manage-page scheduled-tasks-page' + (embedded ? ' embedded' : '')}>
-    <PageHeader
+    {!embedded ? <PageHeader
       eyebrow="任务管理"
       title="定时任务"
       description="创建、运行和追踪自动执行任务。"
-      embedded={embedded}
       actions={<><button type="button" className="secondary icon-button manage-refresh" onClick={refreshTasks} disabled={!!pendingActions.refresh} aria-busy={!!pendingActions.refresh} aria-label={pendingActions.refresh ? '正在刷新任务' : '刷新任务'} title="刷新任务"><RefreshCw size={17} aria-hidden="true" /></button><button type="button" onClick={() => editScheduledTask()}><Plus size={16} aria-hidden="true" /><span>新增任务</span></button></>}
-    />
+    /> : null}
     <div className="manage-page-body">
+      {embedded ? <div className="settings-block-head manage-overview-head"><label>任务概览</label><button type="button" className="secondary small" onClick={refreshTasks} disabled={!!pendingActions.refresh} aria-busy={!!pendingActions.refresh}>{pendingActions.refresh ? '刷新中…' : '刷新任务'}</button></div> : null}
       <div className="manage-summary-grid task-summary-grid">
         <SummaryCard label="全部任务" value={scheduledTasks.length} />
         <SummaryCard label="已启用" value={enabled} />
@@ -208,12 +216,14 @@ export function ScheduledTasksPage({ api, deleteScheduledTask, editScheduledTask
       {sessionTask ? <ScheduledSessionList
         task={sessionTask} rows={sessionRuns} onBack={() => { requestRef.current++; setSessionTask(null); }}
         onOpen={openScheduledTaskSession}
-      /> : <>
-        <div className="manage-list-toolbar"><div><span>任务列表</span><p>搜索标题、提示词或运行状态。</p></div><input className="manage-search" placeholder="搜索定时任务" value={taskSearch} onChange={event => setTaskSearch(event.target.value)} /></div>
-        <div className="manage-card-grid scheduled-task-grid">
-          {filteredTasks.length ? filteredTasks.map(task => <ScheduledTaskCard key={task.id} task={task} deleteScheduledTask={deleteScheduledTask} editScheduledTask={editScheduledTask} openScheduledTaskSession={openScheduledTaskSession} openTaskSessions={loadTaskSessions} pinScheduledTask={pinScheduledTask} runPending={!!pendingActions['run:' + task.id]} runScheduledTaskNow={runTaskNow} togglePending={!!pendingActions['toggle:' + task.id]} toggleScheduledTask={toggleTask} />) : <div className="manage-empty"><b>{taskSearch.trim() ? '没有匹配任务' : '还没有定时任务'}</b><span>{taskSearch.trim() ? '换个关键词再试。' : '创建任务后可按一次、间隔或日历计划自动运行。'}</span></div>}
+      /> : <section className={embedded ? 'settings-section manage-embedded-list' : ''}>
+        <div className={embedded ? 'settings-section-head manage-list-heading' : 'manage-list-toolbar'}>
+          <div>{embedded ? <><b>任务列表</b><div className="hint">搜索标题、提示词或运行状态。</div></> : <><span>任务列表</span><p>搜索标题、提示词或运行状态。</p></>}</div>
+          {embedded ? <button type="button" className="secondary manage-create-button" onClick={() => editScheduledTask()}>新增任务</button> : <input className="manage-search" placeholder="搜索定时任务" value={taskSearch} onChange={event => setTaskSearch(event.target.value)} />}
         </div>
-      </>}
+        {embedded ? <input className="manage-search" placeholder="搜索定时任务" value={taskSearch} onChange={event => setTaskSearch(event.target.value)} /> : null}
+        {taskCards}
+      </section>}
     </div>
   </section>;
 }
