@@ -118,12 +118,14 @@
   }
 
   #app.app .topbar {
-    position: absolute !important;
-    inset: calc(env(safe-area-inset-top, 0px) + 10px) 12px auto !important;
+    /* 顶栏保留在 Flex 布局中，避免消息区变成完整视口滚动器后阻断 Safari 工具栏联动。 */
+    position: relative !important;
+    inset: auto !important;
     z-index: 12 !important;
-    height: 48px !important;
-    min-height: 48px !important;
-    padding: 0 !important;
+    flex: 0 0 auto !important;
+    height: calc(68px + env(safe-area-inset-top, 0px)) !important;
+    min-height: calc(68px + env(safe-area-inset-top, 0px)) !important;
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px !important;
     border: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
@@ -220,20 +222,22 @@
     box-shadow: none !important;
   }
 
-  /* 顶部导航脱离文档流后，为消息内容预留完整安全区，避免首行被悬浮按钮遮挡。 */
   #app.app .messages {
-    padding-top: calc(92px + env(safe-area-inset-top, 0px)) !important;
-    scroll-padding-top: calc(92px + env(safe-area-inset-top, 0px));
+    min-height: 0 !important;
+    padding-top: 18px !important;
+    scroll-padding-top: 18px;
   }
 
   html:not(.chatdock-keyboard-open) #app.app.chat-empty .messages {
-    padding-top: calc(92px + env(safe-area-inset-top, 0px)) !important;
+    padding-top: 18px !important;
   }
 
   html:not(.chatdock-keyboard-open) #app.app:not(.chat-empty) .composer-shell {
-    position: absolute !important;
-    inset: auto 0 0 !important;
+    /* 输入区参与主轴布局，消息滚动区因此小于视口，Safari 才能继续响应滚动手势。 */
+    position: relative !important;
+    inset: auto !important;
     z-index: 11 !important;
+    flex: 0 0 auto !important;
     padding: 0 10px calc(env(safe-area-inset-bottom, 0px) + 4px) !important;
     border: 0 !important;
     background: transparent !important;
@@ -250,9 +254,8 @@
   }
 
   html:not(.chatdock-keyboard-open) #app.app:not(.chat-empty) .messages {
-    /* 正文必须铺到屏幕底部；安全区只由悬浮输入框自身避让。 */
-    padding-bottom: 0 !important;
-    scroll-padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 12px !important;
+    scroll-padding-bottom: 12px;
   }
 
   html:not(.chatdock-keyboard-open) #app.app:not(.chat-empty) .messages > .msg:last-child {
