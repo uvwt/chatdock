@@ -127,7 +127,7 @@ if (!/min-width:\s*0/.test(userMessageRule)
   failures.push('user and system messages must wrap unbroken long content inside the viewport');
 }
 
-// 默认隐藏模型入口；聚焦输入区或模型面板打开后才展示，且收起态不能留下可点击的模型按钮。
+// 手机端默认隐藏模型入口；聚焦输入区或模型面板打开后才展示，且收起态不能留下可点击的模型按钮。
 const composerLayout = read('web/src/styles/composer-layout.css');
 const expandedComposerSelector = '.composer:is(.composer-model-picker-open, :focus-within):not(.composer-streaming)';
 const collapsedModelLabelRule = composerLayout.match(/#app\.app\s+\.composer:not\(\.composer-streaming\)\s+\.model-picker-label\s*\{([^}]*)\}/)?.[1] || '';
@@ -143,13 +143,21 @@ const desktopComposerEnd = composerLayout.indexOf('@media (max-width: 720px) {',
 const desktopComposerLayout = desktopComposerStart >= 0 && desktopComposerEnd > desktopComposerStart
   ? composerLayout.slice(desktopComposerStart, desktopComposerEnd)
   : '';
+const desktopStableComposerRule = desktopComposerLayout.match(/#app\.app \.composer:not\(\.composer-streaming\),\s*#app\.app \.composer:is\(\.composer-model-picker-open, :focus-within\):not\(\.composer-streaming\)\s*\{([^}]*)\}/)?.[1] || '';
+const desktopModelPickerRule = desktopComposerLayout.match(/#app\.app \.composer:not\(\.composer-streaming\) \.model-picker,\s*#app\.app \.composer:is\(\.composer-model-picker-open, :focus-within\):not\(\.composer-streaming\) \.model-picker\s*\{([^}]*)\}/)?.[1] || '';
+const desktopModelLabelRule = desktopComposerLayout.match(/#app\.app \.composer:not\(\.composer-streaming\) \.model-picker-label\s*\{([^}]*)\}/)?.[1] || '';
 const desktopComposerShellRule = desktopComposerLayout.match(/#app\.app:not\(\.chat-empty\) \.composer-shell\s*\{([^}]*)\}/)?.[1] || '';
 const desktopMessagesRule = desktopComposerLayout.match(/#app\.app:not\(\.chat-empty\) \.messages\s*\{([^}]*)\}/)?.[1] || '';
 const desktopMessagesEndRule = desktopComposerLayout.match(/#app\.app:not\(\.chat-empty\) \.messages::after\s*\{([^}]*)\}/)?.[1] || '';
 const emptyConversationLayout = read('web/src/styles/ui-consistency.css');
 const emptyComposerShellRule = emptyConversationLayout.match(/html:not\(\.chatdock-keyboard-open\) #app\.app\.chat-empty \.composer-shell\s*\{([^}]*)\}/)?.[1] || '';
-if (!/border-radius:\s*30px\s*!important/.test(desktopComposerLayout)
-  || !/border-radius:\s*28px\s*!important/.test(desktopComposerLayout)
+if (!/grid-template-areas:\s*"attach model input send"/.test(desktopStableComposerRule)
+  || !/height:\s*62px\s*!important/.test(desktopStableComposerRule)
+  || !/max-height:\s*62px\s*!important/.test(desktopStableComposerRule)
+  || !/border-radius:\s*30px\s*!important/.test(desktopStableComposerRule)
+  || !/display:\s*flex\s*!important/.test(desktopModelPickerRule)
+  || !/grid-area:\s*model\s*!important/.test(desktopModelPickerRule)
+  || !/display:\s*inline-flex\s*!important/.test(desktopModelLabelRule)
   || !/position:\s*absolute\s*!important/.test(desktopComposerShellRule)
   || !/background:\s*transparent\s*!important/.test(desktopComposerShellRule)
   || !/pointer-events:\s*none\s*!important/.test(desktopComposerShellRule)
@@ -161,7 +169,7 @@ if (!/border-radius:\s*30px\s*!important/.test(desktopComposerLayout)
   || !/grid-row:\s*2/.test(emptyComposerShellRule)
   || !/align-self:\s*center/.test(emptyComposerShellRule)
   || !/transform:\s*none/.test(emptyComposerShellRule)) {
-  failures.push('desktop composer must float above messages and remain centered in an empty conversation');
+  failures.push('desktop composer must stay single-line with an always-visible model and preserve floating or centered placement');
 }
 
 const composerGlassRule = composerLayout.match(/#app\.app\s+\.composer:not\(\.composer-streaming\)\s*\{([^}]*)\}/)?.[1] || '';
