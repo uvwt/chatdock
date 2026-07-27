@@ -169,6 +169,16 @@ if (!/border:\s*0\s*!important/.test(composerActionRule)
   failures.push('composer inner actions must remain frameless so the outer composer is the only visible container');
 }
 
+const visualCoherence = read('web/src/styles/visual-coherence.css');
+const transparentTopbarRule = visualCoherence.match(/#app\.app\s+\.topbar\s*\{([^}]*)\}/)?.[1] || '';
+if (!/border:\s*0/.test(transparentTopbarRule)
+  || !/background:\s*transparent/.test(transparentTopbarRule)
+  || !/box-shadow:\s*none/.test(transparentTopbarRule)
+  || !/-webkit-backdrop-filter:\s*none/.test(transparentTopbarRule)
+  || !/backdrop-filter:\s*none/.test(transparentTopbarRule)) {
+  failures.push('desktop topbar must remain borderless and fully transparent');
+}
+
 // 悬浮控件不能被主画布的通用层级规则改回相对定位，否则会重新占据主轴高度。
 const shellLayout = read('web/src/styles/art-direction/01-shell.css');
 const floatingSafeSelector = '#app.app main > :not(.jump-latest):not(.current-session-task):not(.composer-shell)';
