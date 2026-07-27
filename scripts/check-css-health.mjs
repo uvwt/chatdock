@@ -138,6 +138,19 @@ if (!composerLayout.includes(expandedComposerSelector)
   failures.push('composer must hide the model entry until focus, then keep it visible while the picker is open');
 }
 
+const desktopComposerShellRule = composerLayout.match(/@media \(min-width: 721px\) \{[\s\S]*?#app\.app \.composer-shell\s*\{([^}]*)\}/)?.[1] || '';
+const desktopMessagesRule = composerLayout.match(/@media \(min-width: 721px\) \{[\s\S]*?#app\.app:not\(\.chat-empty\) \.messages\s*\{([^}]*)\}/)?.[1] || '';
+const desktopMessagesEndRule = composerLayout.match(/@media \(min-width: 721px\) \{[\s\S]*?#app\.app:not\(\.chat-empty\) \.messages::after\s*\{([^}]*)\}/)?.[1] || '';
+if (!/position:\s*absolute\s*!important/.test(desktopComposerShellRule)
+  || !/background:\s*transparent\s*!important/.test(desktopComposerShellRule)
+  || !/pointer-events:\s*none\s*!important/.test(desktopComposerShellRule)
+  || !/padding-bottom:\s*0\s*!important/.test(desktopMessagesRule)
+  || !/scroll-padding-bottom:\s*168px/.test(desktopMessagesRule)
+  || !/display:\s*block/.test(desktopMessagesEndRule)
+  || !/height:\s*168px/.test(desktopMessagesEndRule)) {
+  failures.push('desktop composer must float over an edge-to-edge message canvas with end clearance');
+}
+
 const composerGlassRule = composerLayout.match(/#app\.app\s+\.composer:not\(\.composer-streaming\)\s*\{([^}]*)\}/)?.[1] || '';
 const composerTextareaRule = composerLayout.match(/#app\.app\s+\.composer:not\(\.composer-streaming\)\s+textarea\s*\{([^}]*)\}/)?.[1] || '';
 if (!/-webkit-backdrop-filter:\s*blur\(/.test(composerGlassRule)
