@@ -162,11 +162,11 @@
 }
 
 @media (min-width: 721px) {
-  /* 桌面端始终使用单行布局，模型入口常驻；聚焦和打开模型面板都不改变输入框高度。 */
+  /* 桌面端始终使用单行布局，模型入口靠右常驻；聚焦和打开模型面板都不改变输入框高度。 */
   #app.app .composer:not(.composer-streaming),
   #app.app .composer:is(.composer-model-picker-open, :focus-within):not(.composer-streaming) {
-    grid-template-areas: "attach model input send";
-    grid-template-columns: 42px minmax(120px, 220px) minmax(0, 1fr) 42px !important;
+    grid-template-areas: "attach input model send";
+    grid-template-columns: 42px minmax(0, 1fr) minmax(120px, 220px) 42px !important;
     grid-template-rows: 42px;
     height: 62px !important;
     min-height: 62px !important;
@@ -183,7 +183,7 @@
     width: 100% !important;
     min-width: 0 !important;
     max-width: 220px !important;
-    justify-self: start;
+    justify-self: end;
   }
 
   #app.app .composer:not(.composer-streaming) .model-picker-trigger,
@@ -194,8 +194,13 @@
     height: 42px !important;
     min-height: 42px !important;
     padding: 0 8px !important;
-    justify-content: flex-start !important;
+    justify-content: flex-end !important;
     gap: 6px !important;
+  }
+
+  #app.app .composer:not(.composer-streaming) .model-picker-popover {
+    right: 0;
+    left: auto;
   }
 
   #app.app .composer:not(.composer-streaming) .model-picker-label {

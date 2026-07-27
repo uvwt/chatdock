@@ -145,19 +145,25 @@ const desktopComposerLayout = desktopComposerStart >= 0 && desktopComposerEnd > 
   : '';
 const desktopStableComposerRule = desktopComposerLayout.match(/#app\.app \.composer:not\(\.composer-streaming\),\s*#app\.app \.composer:is\(\.composer-model-picker-open, :focus-within\):not\(\.composer-streaming\)\s*\{([^}]*)\}/)?.[1] || '';
 const desktopModelPickerRule = desktopComposerLayout.match(/#app\.app \.composer:not\(\.composer-streaming\) \.model-picker,\s*#app\.app \.composer:is\(\.composer-model-picker-open, :focus-within\):not\(\.composer-streaming\) \.model-picker\s*\{([^}]*)\}/)?.[1] || '';
+const desktopModelTriggerRule = desktopComposerLayout.match(/#app\.app \.composer:not\(\.composer-streaming\) \.model-picker-trigger,\s*#app\.app \.composer:is\(\.composer-model-picker-open, :focus-within\):not\(\.composer-streaming\) \.model-picker-trigger\s*\{([^}]*)\}/)?.[1] || '';
 const desktopModelLabelRule = desktopComposerLayout.match(/#app\.app \.composer:not\(\.composer-streaming\) \.model-picker-label\s*\{([^}]*)\}/)?.[1] || '';
+const desktopModelPopoverRule = desktopComposerLayout.match(/#app\.app \.composer:not\(\.composer-streaming\) \.model-picker-popover\s*\{([^}]*)\}/)?.[1] || '';
 const desktopComposerShellRule = desktopComposerLayout.match(/#app\.app:not\(\.chat-empty\) \.composer-shell\s*\{([^}]*)\}/)?.[1] || '';
 const desktopMessagesRule = desktopComposerLayout.match(/#app\.app:not\(\.chat-empty\) \.messages\s*\{([^}]*)\}/)?.[1] || '';
 const desktopMessagesEndRule = desktopComposerLayout.match(/#app\.app:not\(\.chat-empty\) \.messages::after\s*\{([^}]*)\}/)?.[1] || '';
 const emptyConversationLayout = read('web/src/styles/ui-consistency.css');
 const emptyComposerShellRule = emptyConversationLayout.match(/html:not\(\.chatdock-keyboard-open\) #app\.app\.chat-empty \.composer-shell\s*\{([^}]*)\}/)?.[1] || '';
-if (!/grid-template-areas:\s*"attach model input send"/.test(desktopStableComposerRule)
+if (!/grid-template-areas:\s*"attach input model send"/.test(desktopStableComposerRule)
   || !/height:\s*62px\s*!important/.test(desktopStableComposerRule)
   || !/max-height:\s*62px\s*!important/.test(desktopStableComposerRule)
   || !/border-radius:\s*30px\s*!important/.test(desktopStableComposerRule)
   || !/display:\s*flex\s*!important/.test(desktopModelPickerRule)
   || !/grid-area:\s*model\s*!important/.test(desktopModelPickerRule)
+  || !/justify-self:\s*end/.test(desktopModelPickerRule)
+  || !/justify-content:\s*flex-end\s*!important/.test(desktopModelTriggerRule)
   || !/display:\s*inline-flex\s*!important/.test(desktopModelLabelRule)
+  || !/right:\s*0/.test(desktopModelPopoverRule)
+  || !/left:\s*auto/.test(desktopModelPopoverRule)
   || !/position:\s*absolute\s*!important/.test(desktopComposerShellRule)
   || !/background:\s*transparent\s*!important/.test(desktopComposerShellRule)
   || !/pointer-events:\s*none\s*!important/.test(desktopComposerShellRule)
