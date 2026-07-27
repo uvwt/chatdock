@@ -261,7 +261,8 @@ html:not(.chatdock-keyboard-open) #app.app.chat-empty .messages {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 0 24px 116px !important;
+  padding: 0 24px !important;
+  transform: translateY(-72px);
 }
 
 html:not(.chatdock-keyboard-open) #app.app.chat-empty .composer-shell {
@@ -274,7 +275,7 @@ html:not(.chatdock-keyboard-open) #app.app.chat-empty .composer-shell {
   padding: 0 18px;
   border-top: 0 !important;
   background: transparent !important;
-  transform: translateY(48px);
+  transform: none;
 }
 
 #app.app.chat-empty .composer {
@@ -288,12 +289,13 @@ html:not(.chatdock-keyboard-open) #app.app.chat-empty .composer-shell {
   }
 
   html:not(.chatdock-keyboard-open) #app.app.chat-empty .messages {
-    padding: 0 18px 124px !important;
+    padding: 0 18px !important;
+    transform: translateY(-68px);
   }
 
   html:not(.chatdock-keyboard-open) #app.app.chat-empty .composer-shell {
     padding: 0 12px;
-    transform: translateY(50px);
+    transform: none;
   }
 
   #app.app.chat-empty .composer {

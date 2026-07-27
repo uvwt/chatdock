@@ -170,8 +170,8 @@
     border-radius: 28px !important;
   }
 
-  /* 桌面端也采用真正的悬浮输入区：外层只负责定位，玻璃效果全部由 composer 本体承担。 */
-  #app.app .composer-shell {
+  /* 已有消息时使用底部悬浮输入区；空会话由首页布局负责把输入框放在内容区中央。 */
+  #app.app:not(.chat-empty) .composer-shell {
     position: absolute !important;
     inset: auto 0 0 !important;
     z-index: 11 !important;
@@ -181,7 +181,7 @@
     pointer-events: none !important;
   }
 
-  #app.app .composer-shell > * {
+  #app.app:not(.chat-empty) .composer-shell > * {
     pointer-events: auto !important;
   }
 
