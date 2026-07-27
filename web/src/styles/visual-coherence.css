@@ -137,6 +137,11 @@
 }
 
 /* Top bar */
+#app.app main {
+  container-name: chat-canvas;
+  container-type: inline-size;
+}
+
 #app.app .topbar {
   height: 60px;
   min-height: 60px;
@@ -181,6 +186,51 @@
   height: 18px;
   padding: 0 5px;
   font-size: 10px;
+}
+
+/*
+ * 宽画布把标题与操作区放进正文两侧留白，中央内容不再为透明顶栏永久让出整行。
+ * 只有左右留白足够容纳两组控件时才启用；窄桌面继续使用正常文档流，避免覆盖正文。
+ */
+@container chat-canvas (min-width: 1340px) {
+  #app.app .topbar {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 12;
+    height: 52px;
+    min-height: 52px;
+    padding: 8px 12px;
+    pointer-events: none;
+  }
+
+  #app.app .topbar :is(.top-left, .top-actions) {
+    pointer-events: auto;
+  }
+
+  #app.app .topbar .top-left {
+    max-width: 172px;
+  }
+
+  #app.app .topbar .top-actions {
+    gap: 2px;
+  }
+
+  #app.app .topbar :is(.action-label, .task-panel-toggle-label) {
+    display: none;
+  }
+
+  #app.app .topbar .top-actions > button,
+  #app.app .topbar .top-actions > .task-panel-toggle {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
+  }
+
+  #app.app .messages {
+    padding-top: 16px;
+  }
 }
 
 /* Conversation and composer */

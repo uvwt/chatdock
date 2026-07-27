@@ -193,8 +193,8 @@ body.theme-light #app.app main::before {
     radial-gradient(circle at 76% 4%, color-mix(in srgb, var(--gpt-accent) 3%, transparent), transparent 28%),
     radial-gradient(circle at 14% 90%, color-mix(in srgb, var(--gpt-accent-2) 2%, transparent), transparent 34%);
 }
-/* 普通内容需要压在画布装饰层之上；悬浮控件必须保留自己的定位，不能参与主轴布局。 */
-#app.app main > :not(.jump-latest):not(.current-session-task):not(.composer-shell) {
+/* 普通内容需要压在画布装饰层之上；顶栏和其他悬浮控件必须保留自己的定位。 */
+#app.app main > :not(.topbar):not(.jump-latest):not(.current-session-task):not(.composer-shell) {
   position: relative;
   z-index: 1;
 }

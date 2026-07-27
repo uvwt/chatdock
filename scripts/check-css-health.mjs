@@ -179,10 +179,22 @@ if (!/border:\s*0/.test(transparentTopbarRule)
   failures.push('desktop topbar must remain borderless and fully transparent');
 }
 
+const wideCanvasTopbarStart = visualCoherence.indexOf('@container chat-canvas (min-width: 1340px) {');
+const wideCanvasTopbarEnd = visualCoherence.indexOf('/* Conversation and composer */', wideCanvasTopbarStart);
+const wideCanvasTopbar = wideCanvasTopbarStart >= 0 && wideCanvasTopbarEnd > wideCanvasTopbarStart
+  ? visualCoherence.slice(wideCanvasTopbarStart, wideCanvasTopbarEnd)
+  : '';
+if (!/position:\s*absolute/.test(wideCanvasTopbar)
+  || !/pointer-events:\s*none/.test(wideCanvasTopbar)
+  || !/padding-top:\s*16px/.test(wideCanvasTopbar)
+  || !/display:\s*none/.test(wideCanvasTopbar)) {
+  failures.push('wide desktop topbar must use the side gutters without reserving a full content row');
+}
+
 // 悬浮控件不能被主画布的通用层级规则改回相对定位，否则会重新占据主轴高度。
 const shellLayout = read('web/src/styles/art-direction/01-shell.css');
-const floatingSafeSelector = '#app.app main > :not(.jump-latest):not(.current-session-task):not(.composer-shell)';
-const mainContentLayerRule = shellLayout.match(/#app\.app\s+main\s*>\s*:not\(\.jump-latest\):not\(\.current-session-task\):not\(\.composer-shell\)\s*\{([^}]*)\}/)?.[1] || '';
+const floatingSafeSelector = '#app.app main > :not(.topbar):not(.jump-latest):not(.current-session-task):not(.composer-shell)';
+const mainContentLayerRule = shellLayout.match(/#app\.app\s+main\s*>\s*:not\(\.topbar\):not\(\.jump-latest\):not\(\.current-session-task\):not\(\.composer-shell\)\s*\{([^}]*)\}/)?.[1] || '';
 if (!shellLayout.includes(floatingSafeSelector)
   || !/position:\s*relative/.test(mainContentLayerRule)
   || /#app\.app\s+main\s*>\s*:not\(\.jump-latest\)\s*\{/.test(shellLayout)
