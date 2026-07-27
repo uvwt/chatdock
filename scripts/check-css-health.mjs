@@ -143,9 +143,11 @@ const desktopComposerEnd = composerLayout.indexOf('@media (max-width: 720px) {',
 const desktopComposerLayout = desktopComposerStart >= 0 && desktopComposerEnd > desktopComposerStart
   ? composerLayout.slice(desktopComposerStart, desktopComposerEnd)
   : '';
-const desktopComposerShellRule = desktopComposerLayout.match(/#app\.app \.composer-shell\s*\{([^}]*)\}/)?.[1] || '';
+const desktopComposerShellRule = desktopComposerLayout.match(/#app\.app:not\(\.chat-empty\) \.composer-shell\s*\{([^}]*)\}/)?.[1] || '';
 const desktopMessagesRule = desktopComposerLayout.match(/#app\.app:not\(\.chat-empty\) \.messages\s*\{([^}]*)\}/)?.[1] || '';
 const desktopMessagesEndRule = desktopComposerLayout.match(/#app\.app:not\(\.chat-empty\) \.messages::after\s*\{([^}]*)\}/)?.[1] || '';
+const emptyConversationLayout = read('web/src/styles/ui-consistency.css');
+const emptyComposerShellRule = emptyConversationLayout.match(/html:not\(\.chatdock-keyboard-open\) #app\.app\.chat-empty \.composer-shell\s*\{([^}]*)\}/)?.[1] || '';
 if (!/border-radius:\s*30px\s*!important/.test(desktopComposerLayout)
   || !/border-radius:\s*28px\s*!important/.test(desktopComposerLayout)
   || !/position:\s*absolute\s*!important/.test(desktopComposerShellRule)
@@ -154,8 +156,12 @@ if (!/border-radius:\s*30px\s*!important/.test(desktopComposerLayout)
   || !/padding-bottom:\s*0\s*!important/.test(desktopMessagesRule)
   || !/scroll-padding-bottom:\s*168px/.test(desktopMessagesRule)
   || !/display:\s*block/.test(desktopMessagesEndRule)
-  || !/height:\s*168px/.test(desktopMessagesEndRule)) {
-  failures.push('desktop composer must stay rounded and float over an edge-to-edge message canvas with end clearance');
+  || !/height:\s*168px/.test(desktopMessagesEndRule)
+  || !/position:\s*relative/.test(emptyComposerShellRule)
+  || !/grid-row:\s*2/.test(emptyComposerShellRule)
+  || !/align-self:\s*center/.test(emptyComposerShellRule)
+  || !/transform:\s*none/.test(emptyComposerShellRule)) {
+  failures.push('desktop composer must float above messages and remain centered in an empty conversation');
 }
 
 const composerGlassRule = composerLayout.match(/#app\.app\s+\.composer:not\(\.composer-streaming\)\s*\{([^}]*)\}/)?.[1] || '';
