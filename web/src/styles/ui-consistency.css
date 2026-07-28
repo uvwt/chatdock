@@ -262,7 +262,7 @@ html:not(.chatdock-keyboard-open) #app.app.chat-empty .messages {
   justify-content: center;
   overflow: hidden;
   padding: 0 24px !important;
-  transform: translateY(-72px);
+  transform: translateY(-96px);
 }
 
 html:not(.chatdock-keyboard-open) #app.app.chat-empty .composer-shell {

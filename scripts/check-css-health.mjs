@@ -152,6 +152,7 @@ const desktopComposerShellRule = desktopComposerLayout.match(/#app\.app:not\(\.c
 const desktopMessagesRule = desktopComposerLayout.match(/#app\.app:not\(\.chat-empty\) \.messages\s*\{([^}]*)\}/)?.[1] || '';
 const desktopMessagesEndRule = desktopComposerLayout.match(/#app\.app:not\(\.chat-empty\) \.messages::after\s*\{([^}]*)\}/)?.[1] || '';
 const emptyConversationLayout = read('web/src/styles/ui-consistency.css');
+const emptyMessagesRule = emptyConversationLayout.match(/html:not\(\.chatdock-keyboard-open\) #app\.app\.chat-empty \.messages\s*\{([^}]*)\}/)?.[1] || '';
 const emptyComposerShellRule = emptyConversationLayout.match(/html:not\(\.chatdock-keyboard-open\) #app\.app\.chat-empty \.composer-shell\s*\{([^}]*)\}/)?.[1] || '';
 if (!/grid-template-areas:\s*"attach input model send"/.test(desktopStableComposerRule)
   || !/height:\s*62px\s*!important/.test(desktopStableComposerRule)
@@ -171,6 +172,7 @@ if (!/grid-template-areas:\s*"attach input model send"/.test(desktopStableCompos
   || !/scroll-padding-bottom:\s*168px/.test(desktopMessagesRule)
   || !/display:\s*block/.test(desktopMessagesEndRule)
   || !/height:\s*168px/.test(desktopMessagesEndRule)
+  || !/transform:\s*translateY\(-96px\)/.test(emptyMessagesRule)
   || !/position:\s*relative/.test(emptyComposerShellRule)
   || !/grid-row:\s*2/.test(emptyComposerShellRule)
   || !/align-self:\s*center/.test(emptyComposerShellRule)
