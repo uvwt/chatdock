@@ -556,7 +556,10 @@ export default function App() {
     setChatModel({ provider_id: '', model: '' });
     if (window.location.pathname !== '/') window.history.pushState({ chatdock: true }, '', '/');
     closeSidebarOnMobile();
-    window.setTimeout(() => inputRef.current?.focus(), 0);
+    // 手机端先保留空会话的居中态；只有用户主动点输入框时才进入键盘布局。
+    if (!window.matchMedia('(max-width: 720px)').matches) {
+      window.setTimeout(() => inputRef.current?.focus(), 0);
+    }
     return { id: '', title: '新会话', messages: [], draft: true };
   }, [busy, clearAttachments, closeSidebarOnMobile, detachActiveStream]);
 

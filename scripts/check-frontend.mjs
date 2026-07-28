@@ -70,6 +70,10 @@ if (!messageAutoFollow.includes("box.scrollTo({ top, behavior: 'smooth' });")
   || !messageAutoFollow.includes('box.scrollTop = box.scrollHeight;')) {
   failures.push('only explicit jump-to-latest actions should animate; automatic history positioning must stay immediate');
 }
+if (!app.includes("if (!window.matchMedia('(max-width: 720px)').matches) {")
+  || !app.includes('window.setTimeout(() => inputRef.current?.focus(), 0);')) {
+  failures.push('mobile new conversations must stay centered until the user explicitly focuses the composer');
+}
 const appChrome = read('web/src/components/appChrome.jsx');
 for (const name of ['Sidebar', 'Topbar', 'ComposerBar']) {
   if (!appChrome.includes('export function ' + name)) failures.push(`app chrome component missing: ${name}`);
