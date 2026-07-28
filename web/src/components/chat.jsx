@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ChevronDown,
+  CircleX,
   Copy,
   GitBranch,
   MoreHorizontal,
@@ -126,14 +127,19 @@ function ErrorNotice({ error }) {
   const code = String(error?.code || '').trim();
   const requestID = String(error?.request_id || '').trim();
   return <div className="chat-error-card" role="alert">
-    <b>响应中断</b>
-    <span>{message}</span>
-    {requestID ? <small>请求 ID：{requestID}</small> : null}
-    {raw ? <details className="chat-error-details">
-      <summary>查看原始错误</summary>
-      {code ? <small>错误码：{code}{error?.retryable ? ' · 可重试' : ''}</small> : null}
-      <pre>{raw}</pre>
-    </details> : null}
+    <CircleX className="chat-error-icon" size={18} aria-hidden="true" />
+    <div className="chat-error-content">
+      <b>响应中断</b>
+      <p className="chat-error-message">{message}</p>
+      {(requestID || raw) ? <div className="chat-error-meta">
+        {requestID ? <small>请求 ID：{requestID}</small> : null}
+        {raw ? <details className="chat-error-details">
+          <summary>查看原始错误</summary>
+          {code ? <small>错误码：{code}{error?.retryable ? ' · 可重试' : ''}</small> : null}
+          <pre>{raw}</pre>
+        </details> : null}
+      </div> : null}
+    </div>
   </div>;
 }
 

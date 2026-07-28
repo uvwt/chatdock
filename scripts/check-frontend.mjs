@@ -61,6 +61,10 @@ for (const [stateName, setterName] of [['selectedScheduledTaskID', 'setSelectedS
 }
 const appLineCount = app.split(/\n/).length;
 if (appLineCount > 1300) failures.push(`App.jsx line count ${appLineCount} exceeds 1300; keep settings mutations in useSettingsActions.js and shell JSX in appChrome.jsx`);
+const chatComponent = read('web/src/components/chat.jsx');
+for (const token of ['chat-error-icon', 'chat-error-content', 'chat-error-message', 'chat-error-meta']) {
+  if (!chatComponent.includes(token)) failures.push(`chat error notice structure missing: ${token}`);
+}
 const appChrome = read('web/src/components/appChrome.jsx');
 for (const name of ['Sidebar', 'Topbar', 'ComposerBar']) {
   if (!appChrome.includes('export function ' + name)) failures.push(`app chrome component missing: ${name}`);

@@ -198,6 +198,22 @@ if (!/border:\s*0\s*!important/.test(composerActionRule)
   failures.push('composer inner actions must remain frameless so the outer composer is the only visible container');
 }
 
+const chatErrorStyles = read('web/src/styles/chat/03-chat.css');
+const chatErrorCardRule = chatErrorStyles.match(/\.chat-error-card\s*\{([^}]*)\}/)?.[1] || '';
+const chatErrorMessageRule = chatErrorStyles.match(/\.chat-error-message\s*\{([^}]*)\}/)?.[1] || '';
+const chatErrorMetaRule = chatErrorStyles.match(/\.chat-error-meta\s*\{([^}]*)\}/)?.[1] || '';
+const chatErrorMetaTextRule = chatErrorStyles.match(/\.chat-error-meta > small,\s*\.chat-error-details > small\s*\{([^}]*)\}/)?.[1] || '';
+if (!/width:\s*min\(720px,\s*100%\)/.test(chatErrorCardRule)
+  || !/color:\s*var\(--gpt-text\)/.test(chatErrorCardRule)
+  || !/grid-template-columns:\s*18px\s+minmax\(0,\s*1fr\)/.test(chatErrorCardRule)
+  || !/color:\s*var\(--gpt-text\)/.test(chatErrorMessageRule)
+  || !/line-height:\s*1\.5/.test(chatErrorMessageRule)
+  || !/display:\s*flex/.test(chatErrorMetaRule)
+  || !/flex-wrap:\s*wrap/.test(chatErrorMetaRule)
+  || !/color:\s*var\(--gpt-muted\)/.test(chatErrorMetaTextRule)) {
+  failures.push('chat error notice must stay compact and use theme-aware readable text colors');
+}
+
 const visualCoherence = read('web/src/styles/visual-coherence.css');
 const sidebarTitleRule = visualCoherence.match(/#app\.app \.sidebar-section-title,\s*#app\.app \.sidebar-section-head > button,\s*#app\.app \.sidebar-tree-node > summary span,\s*#app\.app \.sidebar-tree-session,\s*#app\.app #sessions \.session-title\s*\{([^}]*)\}/)?.[1] || '';
 const sidebarEmphasisRule = visualCoherence.match(/#app\.app \.sidebar-section-title-emphasis,\s*#app\.app \.sidebar-section-head > \.sidebar-section-title-emphasis\s*\{([^}]*)\}/)?.[1] || '';
