@@ -66,6 +66,16 @@ for (const name of ['Sidebar', 'Topbar', 'ComposerBar']) {
   if (!appChrome.includes('export function ' + name)) failures.push(`app chrome component missing: ${name}`);
   if (app.includes('function ' + name)) failures.push(`app chrome component should stay outside App.jsx: ${name}`);
 }
+const emphasizedSidebarTitleSnippets = [
+  'className="sidebar-section-title sidebar-section-title-emphasis">置顶</div>',
+  'className="sidebar-section-title sidebar-section-title-emphasis" onClick={() => openManagementPage(\'projects\')}>项目</button>',
+  'className="sidebar-section-title sidebar-section-title-emphasis">全部会话</div>',
+];
+if (emphasizedSidebarTitleSnippets.some(snippet => !appChrome.includes(snippet))
+  || (appChrome.match(/sidebar-section-title sidebar-section-title-emphasis/g) || []).length !== 3
+  || !appChrome.includes('className="sidebar-section-title" onClick={() => { setTaskSearch(\'\'); openManagementPage(\'automation\'); }}>定时任务</button>')) {
+  failures.push('only pinned, projects, and all conversations sidebar section titles should be emphasized');
+}
 if (!read('web/src/lib/quickActions.js').includes('export function buildQuickActions')) failures.push('quick action construction belongs in web/src/lib/quickActions.js');
 const componentExportChecks = [
   ['web/src/components/chat.jsx', 'export function MessageView'],

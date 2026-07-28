@@ -99,10 +99,15 @@
 #app.app #sessions .session-title {
   color: var(--gpt-text) !important;
   font-size: var(--ui-font-body) !important;
-  font-weight: var(--ui-weight-medium) !important;
+  font-weight: 400 !important;
   line-height: 1.35 !important;
   letter-spacing: 0 !important;
   text-transform: none !important;
+}
+
+#app.app .sidebar-section-title-emphasis,
+#app.app .sidebar-section-head > .sidebar-section-title-emphasis {
+  font-weight: 600 !important;
 }
 
 #app.app .sidebar-tree-node > summary,

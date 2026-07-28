@@ -211,14 +211,14 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
       </div>
       <div id="sessions" ref={sessionsRef} onScroll={handleSessionScroll}>
         {!searchingSessions ? <>
-          <div className="sidebar-section-head"><div className="sidebar-section-title">置顶</div></div>
+          <div className="sidebar-section-head"><div className="sidebar-section-title sidebar-section-title-emphasis">置顶</div></div>
           <div className="sidebar-pinned-list">{pinnedSessionRows.map(renderSession)}{pinnedProjectRows.map(item => renderTreeNode('project', item))}{pinnedTaskRows.map(item => renderTreeNode('task', item))}</div>
-          <div className="sidebar-section-head"><button className="sidebar-section-title" onClick={() => openManagementPage('projects')}>项目</button></div>
+          <div className="sidebar-section-head"><button className="sidebar-section-title sidebar-section-title-emphasis" onClick={() => openManagementPage('projects')}>项目</button></div>
           <div className="sidebar-manage-list">{managementProjects.map(item => renderTreeNode('project', item))}</div>
           <div className="sidebar-section-head"><button className="sidebar-section-title" onClick={() => { setTaskSearch(''); openManagementPage('automation'); }}>定时任务</button></div>
           <div className="sidebar-manage-list">{managementTasks.map(item => renderTreeNode('task', item))}</div>
         </> : null}
-        <div className="sidebar-section-head"><div className="sidebar-section-title">全部会话</div></div>
+        <div className="sidebar-section-head"><div className="sidebar-section-title sidebar-section-title-emphasis">全部会话</div></div>
         {searchingSessions ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : (hasMoreSessions ? '全文搜索 · 已加载 ' : '全文搜索 ') + filteredSessions.length + ' 条'}</div> : null}
         {sessionRows.length ? sessionRows.map(renderSession) : <div className="empty compact">{searchingSessions ? '没有匹配会话' : '暂无会话，开始新会话'}</div>}
         <div ref={loadMoreRef} style={{ minHeight: 1 }} aria-hidden="true" />

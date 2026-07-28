@@ -198,13 +198,17 @@ if (!/border:\s*0\s*!important/.test(composerActionRule)
 
 const visualCoherence = read('web/src/styles/visual-coherence.css');
 const sidebarTitleRule = visualCoherence.match(/#app\.app \.sidebar-section-title,\s*#app\.app \.sidebar-section-head > button,\s*#app\.app \.sidebar-tree-node > summary span,\s*#app\.app \.sidebar-tree-session,\s*#app\.app #sessions \.session-title\s*\{([^}]*)\}/)?.[1] || '';
+const sidebarEmphasisRule = visualCoherence.match(/#app\.app \.sidebar-section-title-emphasis,\s*#app\.app \.sidebar-section-head > \.sidebar-section-title-emphasis\s*\{([^}]*)\}/)?.[1] || '';
 if (!/color:\s*var\(--gpt-text\)\s*!important/.test(sidebarTitleRule)
   || !/font-size:\s*var\(--ui-font-body\)\s*!important/.test(sidebarTitleRule)
-  || !/font-weight:\s*var\(--ui-weight-medium\)\s*!important/.test(sidebarTitleRule)
+  || !/font-weight:\s*400\s*!important/.test(sidebarTitleRule)
   || !/line-height:\s*1\.35\s*!important/.test(sidebarTitleRule)
   || !/letter-spacing:\s*0\s*!important/.test(sidebarTitleRule)
   || !/text-transform:\s*none\s*!important/.test(sidebarTitleRule)) {
-  failures.push('sidebar section, project, task, and conversation titles must share one typography rule');
+  failures.push('sidebar project, task, and conversation titles must share the regular typography rule');
+}
+if (!/font-weight:\s*600\s*!important/.test(sidebarEmphasisRule)) {
+  failures.push('pinned, projects, and all conversations section titles must use the emphasized weight');
 }
 
 const transparentTopbarRule = visualCoherence.match(/#app\.app\s+\.topbar\s*\{([^}]*)\}/)?.[1] || '';
