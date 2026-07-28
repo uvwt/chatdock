@@ -197,6 +197,13 @@ if (!/border:\s*0\s*!important/.test(composerActionRule)
 }
 
 const visualCoherence = read('web/src/styles/visual-coherence.css');
+const sidebarSectionTitleRule = visualCoherence.match(/#app\.app \.sidebar-section-title,\s*#app\.app \.sidebar-section-head > button\s*\{([^}]*)\}/)?.[1] || '';
+const sidebarPrimaryTitleRule = visualCoherence.match(/#app\.app \.sidebar-tree-node > summary span,\s*#app\.app \.sidebar-tree-session,\s*#app\.app #sessions \.session-title\s*\{([^}]*)\}/)?.[1] || '';
+if (!/color:\s*var\(--gpt-text\)/.test(sidebarSectionTitleRule)
+  || !/color:\s*var\(--gpt-text\)\s*!important/.test(sidebarPrimaryTitleRule)) {
+  failures.push('sidebar section, project, task, and conversation titles must share the primary text color');
+}
+
 const transparentTopbarRule = visualCoherence.match(/#app\.app\s+\.topbar\s*\{([^}]*)\}/)?.[1] || '';
 if (!/border:\s*0/.test(transparentTopbarRule)
   || !/background:\s*transparent/.test(transparentTopbarRule)
