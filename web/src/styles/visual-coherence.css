@@ -91,13 +91,18 @@
   padding: var(--ui-space-2) var(--ui-space-2) var(--ui-space-1);
 }
 
+/* 分组、项目、任务和会话标题共用同一套排版，图标与辅助信息继续保留弱化层级。 */
 #app.app .sidebar-section-title,
-#app.app .sidebar-section-head > button {
-  color: var(--gpt-text);
-  font-size: var(--ui-font-caption);
-  font-weight: var(--ui-weight-semibold);
-  letter-spacing: .02em;
-  text-transform: none;
+#app.app .sidebar-section-head > button,
+#app.app .sidebar-tree-node > summary span,
+#app.app .sidebar-tree-session,
+#app.app #sessions .session-title {
+  color: var(--gpt-text) !important;
+  font-size: var(--ui-font-body) !important;
+  font-weight: var(--ui-weight-medium) !important;
+  line-height: 1.35 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
 }
 
 #app.app .sidebar-tree-node > summary,
@@ -105,20 +110,6 @@
   min-height: var(--ui-control);
   padding: var(--ui-space-2) var(--ui-space-3);
   border-radius: var(--ui-radius-control);
-}
-
-/* 分组、项目、任务和会话标题统一使用主文本色，图标与辅助信息继续保留弱化层级。 */
-#app.app .sidebar-tree-node > summary span,
-#app.app .sidebar-tree-session,
-#app.app #sessions .session-title {
-  color: var(--gpt-text) !important;
-}
-
-#app.app .sidebar-tree-node > summary span,
-#app.app .session-title {
-  font-size: var(--ui-font-label);
-  font-weight: var(--ui-weight-medium);
-  line-height: 1.35;
 }
 
 #app.app .sidebar-tree-children {
