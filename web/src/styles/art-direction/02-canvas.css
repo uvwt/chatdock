@@ -97,7 +97,8 @@
   overflow-y: auto;
   overscroll-behavior-x: none;
   background: transparent;
-  scroll-behavior: smooth;
+  /* 历史会话首次加载必须直接定位到底部；需要动画的“跳到最新”由调用方显式开启。 */
+  scroll-behavior: auto;
 }
 
 #app.app .product-empty-state {

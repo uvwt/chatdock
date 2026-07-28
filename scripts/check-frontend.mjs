@@ -65,6 +65,11 @@ const chatComponent = read('web/src/components/chat.jsx');
 for (const token of ['chat-error-icon', 'chat-error-content', 'chat-error-message', 'chat-error-meta']) {
   if (!chatComponent.includes(token)) failures.push(`chat error notice structure missing: ${token}`);
 }
+const messageAutoFollow = read('web/src/hooks/useMessageAutoFollow.js');
+if (!messageAutoFollow.includes("box.scrollTo({ top, behavior: 'smooth' });")
+  || !messageAutoFollow.includes('box.scrollTop = box.scrollHeight;')) {
+  failures.push('only explicit jump-to-latest actions should animate; automatic history positioning must stay immediate');
+}
 const appChrome = read('web/src/components/appChrome.jsx');
 for (const name of ['Sidebar', 'Topbar', 'ComposerBar']) {
   if (!appChrome.includes('export function ' + name)) failures.push(`app chrome component missing: ${name}`);

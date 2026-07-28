@@ -198,6 +198,13 @@ if (!/border:\s*0\s*!important/.test(composerActionRule)
   failures.push('composer inner actions must remain frameless so the outer composer is the only visible container');
 }
 
+const chatCanvasStyles = read('web/src/styles/art-direction/02-canvas.css');
+const messageCanvasRule = chatCanvasStyles.match(/#app\.app \.messages\s*\{([^}]*)\}/)?.[1] || '';
+if (!/scroll-behavior:\s*auto/.test(messageCanvasRule)
+  || /scroll-behavior:\s*smooth/.test(messageCanvasRule)) {
+  failures.push('message history must jump to its initial position without a page-length smooth scroll');
+}
+
 const chatErrorStyles = read('web/src/styles/chat/03-chat.css');
 const chatErrorCardRule = chatErrorStyles.match(/\.chat-error-card\s*\{([^}]*)\}/)?.[1] || '';
 const chatErrorMessageRule = chatErrorStyles.match(/\.chat-error-message\s*\{([^}]*)\}/)?.[1] || '';
