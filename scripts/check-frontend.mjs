@@ -87,9 +87,12 @@ const guideActionOrder = appChrome.indexOf('className="secondary stream-control 
 const stopActionOrder = appChrome.indexOf('className="danger stream-control stop-control"', guideActionOrder);
 if (streamActionStart < 0 || modelActionOrder < streamActionStart || guideActionOrder < modelActionOrder || stopActionOrder < guideActionOrder
   || appChrome.includes('<button id="send" className="icon-button" disabled={busy')
+  || !composerLayoutCSS.includes('flex: 0 1 auto !important;')
   || !composerLayoutCSS.includes('html:not(.chatdock-keyboard-open) #app.app .composer-stream-actions .model-picker')
-  || !composerLayoutCSS.includes('html.chatdock-keyboard-open #app.app .composer-stream-actions .model-picker')) {
-  failures.push('streaming composer actions must stay right-aligned in model-guide-stop order and hide the mobile model until focus');
+  || !composerLayoutCSS.includes('html.chatdock-keyboard-open #app.app .composer-stream-actions .model-picker')
+  || !composerLayoutCSS.includes('html.chatdock-keyboard-open #app.app .composer.composer-streaming')
+  || !composerLayoutCSS.includes('"input input"\n      "attach actions"')) {
+  failures.push('streaming composer actions must stay compact on the right and use a focused two-row mobile layout');
 }
 if (appChrome.includes('className="session-menu-trigger icon-button" disabled={busy}')
   || !appChrome.includes('disabled={deletingCurrentStream}')

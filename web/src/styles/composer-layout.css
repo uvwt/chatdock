@@ -153,6 +153,7 @@
 
 #app.app .composer-stream-actions .model-picker {
   display: flex !important;
+  flex: 0 1 auto !important;
   width: auto !important;
   min-width: 0 !important;
   max-width: 200px !important;
@@ -383,6 +384,30 @@
   html.chatdock-keyboard-open #app.app .composer-stream-actions .model-picker {
     display: flex !important;
     max-width: 96px !important;
+  }
+
+  /* 聚焦后沿用普通输入区的两层结构：输入在上，附件与流式操作在下。 */
+  html.chatdock-keyboard-open #app.app .composer.composer-streaming {
+    grid-template-areas:
+      "input input"
+      "attach actions";
+    grid-template-columns: 42px minmax(0, 1fr) !important;
+    grid-template-rows: minmax(42px, auto) 42px;
+    height: auto !important;
+    min-height: 104px !important;
+    max-height: none !important;
+    padding: 8px !important;
+    row-gap: 2px !important;
+  }
+
+  html.chatdock-keyboard-open #app.app .composer.composer-streaming textarea {
+    padding-inline: 6px !important;
+  }
+
+  html.chatdock-keyboard-open #app.app .composer-stream-actions {
+    width: auto;
+    max-width: 100%;
+    justify-self: end;
   }
 
   #app.app .composer-stream-actions .model-picker-trigger {
