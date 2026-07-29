@@ -377,46 +377,4 @@
     background: var(--mobile-panel) !important;
   }
 
-  /* 生成中只保留真正可用的控件，避免发送、引导和中断在窄屏上重叠。 */
-  .composer.composer-streaming {
-    grid-template-columns: minmax(0, 1fr) 58px 42px !important;
-  }
-
-  .composer-streaming .attach-control,
-  .composer-streaming .model-picker,
-  .composer-streaming #send {
-    display: none !important;
-  }
-
-  .composer-streaming textarea {
-    grid-column: 1 !important;
-  }
-
-  .composer-streaming .guide-control {
-    grid-column: 2 !important;
-    width: 58px !important;
-    min-width: 58px !important;
-    padding: 0 10px !important;
-    border-radius: 14px !important;
-    background: var(--mobile-panel-raised) !important;
-    color: var(--mobile-text-strong) !important;
-    font-size: 13px !important;
-    font-weight: 750 !important;
-  }
-
-  .composer-streaming .stop-control {
-    grid-column: 3 !important;
-    border-radius: 14px !important;
-    background: var(--mobile-danger-soft) !important;
-    color: var(--mobile-danger-text) !important;
-    font-size: 0 !important;
-  }
-
-  .composer-streaming .guide-control::before,
-  .composer-streaming .guide-control::after,
-  .composer-streaming .stop-control::before,
-  .composer-streaming .stop-control::after {
-    content: none !important;
-    display: none !important;
-  }
 }

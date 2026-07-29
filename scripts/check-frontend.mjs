@@ -76,9 +76,20 @@ if (!app.includes("if (!window.matchMedia('(max-width: 720px)').matches) {")
 }
 const appChrome = read('web/src/components/appChrome.jsx');
 const mobileComposerCSS = read('web/src/styles/mobile/04-mobile.css');
+const composerLayoutCSS = read('web/src/styles/composer-layout.css');
 if (!appChrome.includes('className="stop-icon" size={12} fill="currentColor" stroke="none"')
   || mobileComposerCSS.includes('content: "■"')) {
   failures.push('stream stop control must use one filled SVG icon across desktop and mobile');
+}
+const streamActionStart = appChrome.indexOf('className="composer-stream-actions"');
+const modelActionOrder = appChrome.indexOf('{modelPicker}', streamActionStart);
+const guideActionOrder = appChrome.indexOf('className="secondary stream-control guide-control"', modelActionOrder);
+const stopActionOrder = appChrome.indexOf('className="danger stream-control stop-control"', guideActionOrder);
+if (streamActionStart < 0 || modelActionOrder < streamActionStart || guideActionOrder < modelActionOrder || stopActionOrder < guideActionOrder
+  || appChrome.includes('<button id="send" className="icon-button" disabled={busy')
+  || !composerLayoutCSS.includes('html:not(.chatdock-keyboard-open) #app.app .composer-stream-actions .model-picker')
+  || !composerLayoutCSS.includes('html.chatdock-keyboard-open #app.app .composer-stream-actions .model-picker')) {
+  failures.push('streaming composer actions must stay right-aligned in model-guide-stop order and hide the mobile model until focus');
 }
 if (appChrome.includes('className="session-menu-trigger icon-button" disabled={busy}')
   || !appChrome.includes('disabled={deletingCurrentStream}')
