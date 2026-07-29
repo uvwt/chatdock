@@ -166,10 +166,11 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
     setSessionMenuID('');
     setMenuTarget(null);
   };
+  const deletingCurrentStream = !!(busy && menuSession?.id === current);
   const menu = menuSession ? createPortal(
     <div className="session-row-menu-portal" role="menu" style={{ left: menuSession.left, top: menuSession.top }} onClick={event => event.stopPropagation()}>
       <button type="button" role="menuitem" onClick={() => { closeSessionMenu(); pinSessionByID(menuSession.id, !!menuSession.pinned); }}>{menuSession.pinned ? '取消置顶' : '置顶'}</button>
-      <button type="button" role="menuitem" className="danger" onClick={() => { closeSessionMenu(); deleteSessionByID(menuSession.id, menuSession.title).then(() => menuSession.onDelete?.()); }} disabled={busy}>删除</button>
+      <button type="button" role="menuitem" className="danger" onClick={() => { closeSessionMenu(); deleteSessionByID(menuSession.id, menuSession.title).then(() => menuSession.onDelete?.()); }} disabled={deletingCurrentStream} title={deletingCurrentStream ? '生成结束或中断后才能删除当前会话' : undefined}>删除</button>
       <button type="button" role="menuitem" onClick={() => { closeSessionMenu(); renameSessionByID(menuSession.id, menuSession.title); }}>重命名标题</button>
     </div>,
     document.body,
@@ -193,7 +194,7 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
         {session.pinned ? <MessageSquare className="session-kind-icon" size={15} aria-hidden="true" /> : null}
         <div className="session-title">{session.title}</div>
       </div>
-      <button type="button" className="session-menu-trigger icon-button" disabled={busy} onClick={event => toggleSessionMenu(event, session)} aria-label={(session.title || '会话') + ' 操作'} aria-expanded={menuOpen ? 'true' : 'false'}><MoreHorizontal size={16} aria-hidden="true" /></button>
+      <button type="button" className="session-menu-trigger icon-button" onClick={event => toggleSessionMenu(event, session)} aria-label={(session.title || '会话') + ' 操作'} aria-expanded={menuOpen ? 'true' : 'false'}><MoreHorizontal size={16} aria-hidden="true" /></button>
     </div>;
   };
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchPinned, fetchSessions, searchSessions } from '../lib/sessionApi.js';
-import { mergeSessionPages, normalizeSessionPage, removeSessionSummary, SESSION_PAGE_SIZE, upsertSessionSummary } from '../lib/sessionPagination.js';
+import { mergeSessionPages, normalizeSessionPage, removeSessionSummary, SESSION_PAGE_SIZE, sessionMatchesProjectFilter, upsertSessionSummary } from '../lib/sessionPagination.js';
 
 function normalizePinnedFeed(data = {}) {
   return {
@@ -215,7 +215,9 @@ export function useSessionList(api, projectFilter = 'all') {
 
   const upsertSession = useCallback(session => {
     setPinnedSessions(current => upsertSessionSummary(current, session, { requirePinned: true }));
-    setSessions(current => upsertSessionSummary(current, session, { requirePinned: false }));
+    setSessions(current => sessionMatchesProjectFilter(session, projectFilterRef.current)
+      ? upsertSessionSummary(current, session, { requirePinned: false })
+      : removeSessionSummary(current, session?.id));
   }, []);
 
   const upsertPinnedProject = useCallback(project => {

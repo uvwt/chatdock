@@ -30,6 +30,14 @@ export function sessionSummaryFromSession(session) {
   };
 }
 
+export function sessionMatchesProjectFilter(session, projectFilter = 'all') {
+  const filter = String(projectFilter || 'all').trim() || 'all';
+  const projectID = String(session?.project_id || '').trim();
+  if (filter === 'all') return true;
+  if (filter === 'plain') return !projectID;
+  return projectID === filter;
+}
+
 export function upsertSessionSummary(items, session, { requirePinned } = {}) {
   const summary = sessionSummaryFromSession(session);
   if (!summary) return items || [];

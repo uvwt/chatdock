@@ -530,14 +530,15 @@ export default function App() {
     return () => window.removeEventListener('keydown', onGlobalShortcut);
   }, []);
 
-  const createPersistedSession = useCallback(async ({ refreshList = true } = {}) => {
+  const createPersistedSession = useCallback(async () => {
     const s = await createSessionRecord(api, { projectID: projectFilter !== 'all' && projectFilter !== 'plain' ? projectFilter : '' });
     setCurrent(s.id);
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
     clearAttachments();
     applySessionModel(s, { fallbackToDefault: false });
-    if (refreshList) upsertSession(s);
+    // 首条消息一旦创建了持久会话，就应立即出现在侧栏；流式结束后再用最终标题覆盖同一条摘要。
+    upsertSession(s);
     void loadProjects().catch(() => {});
     if (window.location.pathname !== sessionPath(s.id)) window.history.pushState({ chatdock: true }, '', sessionPath(s.id));
     return s;
@@ -621,21 +622,23 @@ export default function App() {
   }, [api, current, currentTitle, showDialog, showToast, upsertSession]);
 
   const renameSessionByID = useCallback(async (id, title = '') => {
-    if (!id || busy) return;
+    if (!id) return;
     setSessionMenuID('');
     const values = await showDialog({ title: '重命名会话', confirmText: '保存标题', fields: [{ name: 'title', label: '新的会话标题', value: title || '', required: true }] });
     if (!values || !values.title.trim()) return;
     const s = await renameSession(api, id, values.title.trim());
     if (id === current) {
       setCurrentTitle(s.title || '新会话');
-      setMessages(s.messages || []);
+      // 流式期间服务端返回的是持久化快照，不能用它覆盖页面正在增长的消息流。
+      if (!busy) setMessages(s.messages || []);
     }
     upsertSession(s);
     showToast('会话标题已保存', 'success');
   }, [api, busy, current, showDialog, showToast, upsertSession]);
 
   const deleteSessionByID = useCallback(async (id, title = '当前会话') => {
-    if (!id || busy) return;
+    // 生成中的当前会话不能删除；其他历史会话仍应允许正常管理。
+    if (!id || (busy && id === current)) return;
     const ok = await showDialog({
       title: '删除会话',
       message: '确定删除「' + (title || '未命名会话') + '」？此操作不可恢复。',
@@ -724,13 +727,14 @@ export default function App() {
   }, [api, current, currentTitle, pinnedSessions, sessions, showToast, upsertSession]);
 
   const pinSessionByID = useCallback(async (id, pinned = false) => {
-    if (!id || busy) return;
+    if (!id) return;
     setSessionMenuID('');
     const nextPinned = !pinned;
     const s = await pinSession(api, id, nextPinned);
     if (id === current) {
       setCurrentTitle(s.title || currentTitle || '新会话');
-      setMessages(s.messages || []);
+      // 置顶只改变会话元数据，流式期间保留页面内正在输出的消息。
+      if (!busy) setMessages(s.messages || []);
     }
     upsertSession(s);
     showToast(nextPinned ? '会话已置顶' : '已取消置顶', 'success');
@@ -991,7 +995,7 @@ export default function App() {
     }
     let sessionID = current;
     if (!sessionID) {
-      const session = await createPersistedSession({ refreshList: false });
+      const session = await createPersistedSession();
       if (!session) return;
       sessionID = session.id;
     }

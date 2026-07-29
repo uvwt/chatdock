@@ -75,6 +75,16 @@ if (!app.includes("if (!window.matchMedia('(max-width: 720px)').matches) {")
   failures.push('mobile new conversations must stay centered until the user explicitly focuses the composer');
 }
 const appChrome = read('web/src/components/appChrome.jsx');
+if (appChrome.includes('className="session-menu-trigger icon-button" disabled={busy}')
+  || !appChrome.includes('disabled={deletingCurrentStream}')
+  || !appChrome.includes("title={deletingCurrentStream ? '生成结束或中断后才能删除当前会话' : undefined}")) {
+  failures.push('session menus must remain available while streaming and only protect deletion of the active stream');
+}
+if (app.includes('createPersistedSession({ refreshList: false })')
+  || !app.includes('首条消息一旦创建了持久会话，就应立即出现在侧栏')
+  || !app.includes('if (!busy) setMessages(s.messages || []);')) {
+  failures.push('new sessions must enter the sidebar immediately without clobbering a live stream during metadata edits');
+}
 for (const name of ['Sidebar', 'Topbar', 'ComposerBar']) {
   if (!appChrome.includes('export function ' + name)) failures.push(`app chrome component missing: ${name}`);
   if (app.includes('function ' + name)) failures.push(`app chrome component should stay outside App.jsx: ${name}`);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeSessionPages, normalizeSessionPage, removeSessionSummary, sessionSummaryFromSession, upsertSessionSummary } from './sessionPagination.js';
+import { mergeSessionPages, normalizeSessionPage, removeSessionSummary, sessionMatchesProjectFilter, sessionSummaryFromSession, upsertSessionSummary } from './sessionPagination.js';
 
 test('normalizes the current paginated session response', () => {
   assert.throws(() => normalizeSessionPage([{ id: 'legacy' }]), /invalid session page response/);
@@ -78,4 +78,12 @@ test('upsert can keep pinned and unpinned feeds separate', () => {
   assert.deepEqual(unpinned.map(item => item.id), ['plain']);
 
   assert.deepEqual(removeSessionSummary(pinned, 'target').map(item => item.id), ['keep']);
+});
+
+test('new session summaries only enter their matching project feed', () => {
+  assert.equal(sessionMatchesProjectFilter({ project_id: '' }, 'plain'), true);
+  assert.equal(sessionMatchesProjectFilter({ project_id: 'project-1' }, 'plain'), false);
+  assert.equal(sessionMatchesProjectFilter({ project_id: 'project-1' }, 'project-1'), true);
+  assert.equal(sessionMatchesProjectFilter({ project_id: 'project-2' }, 'project-1'), false);
+  assert.equal(sessionMatchesProjectFilter({ project_id: 'project-2' }, 'all'), true);
 });
