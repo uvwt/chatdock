@@ -85,14 +85,20 @@ const streamActionStart = appChrome.indexOf('className="composer-stream-actions"
 const modelActionOrder = appChrome.indexOf('{modelPicker}', streamActionStart);
 const guideActionOrder = appChrome.indexOf('className="secondary stream-control guide-control"', modelActionOrder);
 const stopActionOrder = appChrome.indexOf('className="danger stream-control stop-control"', guideActionOrder);
+const mobileFlatStreamControls = composerLayoutCSS.match(/#app\.app \.composer\.composer-streaming :is\(\.attach-control, \.model-picker-trigger, \.guide-control, \.stop-control\) \{([^}]*)\}/)?.[1] || '';
 if (streamActionStart < 0 || modelActionOrder < streamActionStart || guideActionOrder < modelActionOrder || stopActionOrder < guideActionOrder
   || appChrome.includes('<button id="send" className="icon-button" disabled={busy')
   || !composerLayoutCSS.includes('flex: 0 1 auto !important;')
   || !composerLayoutCSS.includes('html:not(.chatdock-keyboard-open) #app.app .composer-stream-actions .model-picker')
   || !composerLayoutCSS.includes('html.chatdock-keyboard-open #app.app .composer-stream-actions .model-picker')
+  || !composerLayoutCSS.includes('margin-right: auto;')
+  || !composerLayoutCSS.includes('justify-self: stretch;')
   || !composerLayoutCSS.includes('html.chatdock-keyboard-open #app.app .composer.composer-streaming')
-  || !composerLayoutCSS.includes('"input input"\n      "attach actions"')) {
-  failures.push('streaming composer actions must stay compact on the right and use a focused two-row mobile layout');
+  || !composerLayoutCSS.includes('"input input"\n      "attach actions"')
+  || !/border:\s*0\s*!important/.test(mobileFlatStreamControls)
+  || !/background:\s*transparent\s*!important/.test(mobileFlatStreamControls)
+  || !/box-shadow:\s*none\s*!important/.test(mobileFlatStreamControls)) {
+  failures.push('mobile streaming composer must keep a focused two-row layout with the model on the left and frameless controls');
 }
 if (appChrome.includes('className="session-menu-trigger icon-button" disabled={busy}')
   || !appChrome.includes('disabled={deletingCurrentStream}')

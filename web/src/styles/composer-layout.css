@@ -380,17 +380,18 @@
     gap: 4px;
   }
 
-  /* 手机端只有用户真正聚焦聊天输入框后才展示供应商，避免未展开时挤压输入区。 */
+  /* 手机端未聚焦时隐藏供应商；真正进入双层输入态后放在左侧。 */
   html:not(.chatdock-keyboard-open) #app.app .composer-stream-actions .model-picker {
     display: none !important;
   }
 
   html.chatdock-keyboard-open #app.app .composer-stream-actions .model-picker {
     display: flex !important;
-    max-width: 96px !important;
+    max-width: 112px !important;
+    margin-right: auto;
   }
 
-  /* 聚焦后沿用普通输入区的两层结构：输入在上，附件与流式操作在下。 */
+  /* 聚焦后沿用普通输入区的两层结构：输入在上，附件与扁平操作在下。 */
   html.chatdock-keyboard-open #app.app .composer.composer-streaming {
     grid-template-areas:
       "input input"
@@ -409,39 +410,46 @@
   }
 
   html.chatdock-keyboard-open #app.app .composer-stream-actions {
-    width: auto;
+    width: 100%;
     max-width: 100%;
-    justify-self: end;
+    margin-left: 0;
+    justify-self: stretch;
+  }
+
+  /* 引导态模仿普通聚焦输入框：只有外层玻璃容器可见，内部控件全部扁平。 */
+  #app.app .composer.composer-streaming :is(.attach-control, .model-picker-trigger, .guide-control, .stop-control) {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
   }
 
   #app.app .composer-stream-actions .model-picker-trigger {
-    max-width: 96px !important;
+    max-width: 112px !important;
     padding-inline: 5px !important;
+    justify-content: flex-start !important;
     gap: 4px !important;
   }
 
   #app.app .composer-stream-actions .model-picker-label b {
-    max-width: 62px;
+    max-width: 76px;
     font-size: 12px;
   }
 
   #app.app .composer-stream-actions .guide-control {
-    width: 52px !important;
-    min-width: 52px !important;
-    padding: 0 7px !important;
-    border-radius: 14px !important;
-    background: var(--mobile-panel-raised) !important;
+    width: auto !important;
+    min-width: 48px !important;
+    padding: 0 6px !important;
     color: var(--mobile-text-strong) !important;
     font-size: 13px !important;
-    font-weight: 750 !important;
+    font-weight: 650 !important;
   }
 
   #app.app .composer-stream-actions .stop-control {
-    width: 42px !important;
-    min-width: 42px !important;
+    width: 36px !important;
+    min-width: 36px !important;
     padding: 0 !important;
-    border-radius: 14px !important;
-    background: var(--mobile-danger-soft) !important;
     color: var(--mobile-danger-text) !important;
     font-size: 0 !important;
   }

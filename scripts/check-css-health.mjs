@@ -184,13 +184,19 @@ const composerGlassRule = composerLayout.match(/#app\.app\s+\.composer\s*\{([^}]
 const standardComposerTextareaRule = composerLayout.match(/#app\.app\s+\.composer:not\(\.composer-streaming\)\s+textarea\s*\{([^}]*)\}/)?.[1] || '';
 const streamingComposerTextareaRule = composerLayout.match(/#app\.app\s+\.composer\.composer-streaming\s+textarea\s*\{([^}]*)\}/)?.[1] || '';
 const composerTextareaRules = [standardComposerTextareaRule, streamingComposerTextareaRule];
+const mobileShellStyles = read('web/src/styles/art-direction/05-mobile-shell.css');
+const mobileFloatingComposerRule = mobileShellStyles.match(/html:not\(\.chatdock-keyboard-open\) #app\.app:not\(\.chat-empty\) \.composer\s*\{([^}]*)\}/)?.[1] || '';
 if (!/-webkit-backdrop-filter:\s*blur\(/.test(composerGlassRule)
   || !/backdrop-filter:\s*blur\(/.test(composerGlassRule)
   || !/background:\s*var\(--composer-glass-bg\)\s*!important/.test(composerGlassRule)
+  || !/background:\s*var\(--composer-glass-bg\)\s*!important/.test(mobileFloatingComposerRule)
+  || !/border-color:\s*var\(--composer-glass-border\)\s*!important/.test(mobileFloatingComposerRule)
+  || !/-webkit-backdrop-filter:\s*blur\(26px\)/.test(mobileFloatingComposerRule)
+  || !/backdrop-filter:\s*blur\(26px\)/.test(mobileFloatingComposerRule)
   || composerTextareaRules.some(rule => !/background:\s*transparent\s*!important/.test(rule)
     || !/border:\s*0\s*!important/.test(rule)
     || !/box-shadow:\s*none\s*!important/.test(rule))) {
-  failures.push('normal and streaming composers must share one frosted glass shell with transparent textareas');
+  failures.push('all mobile composer states must share one frosted glass shell with transparent textareas');
 }
 
 const composerActionRule = composerLayout.match(/#app\.app\s+\.composer:not\(\.composer-streaming\)\s+:is\(\.attach-control,\s*\.model-picker-trigger,\s*#send\)\s*\{([^}]*)\}/)?.[1] || '';
