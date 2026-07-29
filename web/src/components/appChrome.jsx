@@ -59,7 +59,7 @@ export function ComposerBar({ busy, createPersistedSession, current, downloadAtt
       <button className="secondary attach-control icon-button" disabled={busy || uploadingFiles} onClick={() => fileInputRef.current?.click()} aria-label="添加附件"><Plus size={20} aria-hidden="true" /></button>
       <ComposerModelPicker busy={busy} providers={providerChoices} selectedProvider={selectedModelProvider} selectedModel={selectedChatModel} showSelection={showSelectedChatModel} open={modelPickerOpen} setOpen={setModelPickerOpen} selectModel={selectChatModel} openSettings={openSettings} />
       {busy ? <button className="secondary stream-control guide-control" onClick={guideActiveJob} disabled={!input.trim()} aria-label="追加引导"><span>引导</span></button> : null}
-      {busy ? <button className="danger stream-control stop-control" onClick={stopStreaming} aria-label="中断生成"><Square size={13} aria-hidden="true" /><span>中断</span></button> : null}
+      {busy ? <button className="danger stream-control stop-control" onClick={stopStreaming} aria-label="中断生成"><Square className="stop-icon" size={12} fill="currentColor" stroke="none" aria-hidden="true" /><span>中断</span></button> : null}
       <textarea ref={inputRef} id="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); busy ? guideActiveJob() : sendMsg(); } }} placeholder={busy ? '输入引导内容' : '输入消息'} />
       <button id="send" className="icon-button" disabled={busy || uploadingFiles || (!input.trim() && !pendingAttachmentIDs.length) || !modelReady} onClick={() => sendMsg()} aria-label={!modelReady ? '请先配置模型' : '发送'}><ArrowUp size={19} aria-hidden="true" /></button>
     </div>

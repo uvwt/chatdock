@@ -414,16 +414,9 @@
 
   .composer-streaming .guide-control::before,
   .composer-streaming .guide-control::after,
+  .composer-streaming .stop-control::before,
   .composer-streaming .stop-control::after {
     content: none !important;
     display: none !important;
-  }
-
-  .composer-streaming .stop-control::before {
-    content: "■" !important;
-    display: block !important;
-    color: var(--mobile-danger-text) !important;
-    font-size: 14px !important;
-    transform: none !important;
   }
 }

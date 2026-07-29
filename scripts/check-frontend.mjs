@@ -75,6 +75,11 @@ if (!app.includes("if (!window.matchMedia('(max-width: 720px)').matches) {")
   failures.push('mobile new conversations must stay centered until the user explicitly focuses the composer');
 }
 const appChrome = read('web/src/components/appChrome.jsx');
+const mobileComposerCSS = read('web/src/styles/mobile/04-mobile.css');
+if (!appChrome.includes('className="stop-icon" size={12} fill="currentColor" stroke="none"')
+  || mobileComposerCSS.includes('content: "■"')) {
+  failures.push('stream stop control must use one filled SVG icon across desktop and mobile');
+}
 if (appChrome.includes('className="session-menu-trigger icon-button" disabled={busy}')
   || !appChrome.includes('disabled={deletingCurrentStream}')
   || !appChrome.includes("title={deletingCurrentStream ? '生成结束或中断后才能删除当前会话' : undefined}")) {
