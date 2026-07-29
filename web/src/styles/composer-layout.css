@@ -1,3 +1,14 @@
+/* 普通输入和流式引导共用同一个可见容器，状态切换只改变内部布局。 */
+#app.app .composer {
+  border: 1px solid var(--composer-glass-border) !important;
+  background: var(--composer-glass-bg) !important;
+  box-shadow:
+    inset 0 1px 0 var(--composer-glass-highlight),
+    0 14px 42px var(--composer-glass-shadow) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(145%) !important;
+  backdrop-filter: blur(26px) saturate(145%) !important;
+}
+
 /* 手机端默认保持单行并隐藏模型入口；桌面端在下方媒体查询中始终展示当前模型。 */
 #app.app .composer:not(.composer-streaming) {
   display: grid !important;
@@ -9,13 +20,6 @@
   align-items: center !important;
   gap: 6px !important;
   overflow: visible !important;
-  border: 1px solid var(--composer-glass-border) !important;
-  background: var(--composer-glass-bg) !important;
-  box-shadow:
-    inset 0 1px 0 var(--composer-glass-highlight),
-    0 14px 42px var(--composer-glass-shadow) !important;
-  -webkit-backdrop-filter: blur(26px) saturate(145%) !important;
-  backdrop-filter: blur(26px) saturate(145%) !important;
 }
 
 #app.app .composer:not(.composer-streaming) .attach-control {
