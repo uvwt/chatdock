@@ -215,8 +215,8 @@ if (!/scroll-behavior:\s*auto/.test(messageCanvasRule)
 
 const executionSummaryStyles = read('web/src/styles/chat/04-execution-summary.css');
 const openExecutionChevronRule = executionSummaryStyles.match(/\.execution-summary\.is-open \.execution-summary-chevron\s*\{([^}]*)\}/)?.[1] || '';
-if (!/transform:\s*rotate\(180deg\)/.test(openExecutionChevronRule)) {
-  failures.push('expanded execution summaries must rotate the down chevron upward, never sideways');
+if (!/transform:\s*rotate\(90deg\)/.test(openExecutionChevronRule)) {
+  failures.push('execution summary disclosure chevrons must point right when collapsed and down when expanded');
 }
 
 const chatErrorStyles = read('web/src/styles/chat/03-chat.css');

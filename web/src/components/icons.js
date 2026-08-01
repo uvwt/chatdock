@@ -5,6 +5,7 @@ export { default as Bot } from 'lucide-react/dist/esm/icons/bot.js';
 export { default as Boxes } from 'lucide-react/dist/esm/icons/boxes.js';
 export { default as Check } from 'lucide-react/dist/esm/icons/check.js';
 export { default as ChevronDown } from 'lucide-react/dist/esm/icons/chevron-down.js';
+export { default as ChevronRight } from 'lucide-react/dist/esm/icons/chevron-right.js';
 export { default as CircleX } from 'lucide-react/dist/esm/icons/circle-x.js';
 export { default as Copy } from 'lucide-react/dist/esm/icons/copy.js';
 export { default as Folder } from 'lucide-react/dist/esm/icons/folder.js';

@@ -1,7 +1,7 @@
 // Chat workbench, message rendering, empty state, and attachment chips.
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ChevronDown,
+  ChevronRight,
   CircleX,
   Copy,
   GitBranch,
@@ -110,7 +110,7 @@ function ExecutionBlock({ block, streaming = false, onInspectToolEvent }) {
         <b>{summary.label}</b>
         {summary.meta ? <small>{summary.meta}</small> : null}
       </span>
-      <span className="execution-summary-chevron" aria-hidden="true"><ChevronDown className={open ? 'is-open' : ''} size={15} /></span>
+      <span className="execution-summary-chevron" aria-hidden="true"><ChevronRight className={open ? 'is-open' : ''} size={15} /></span>
     </button>
     {open ? <div className="execution-inline-detail">
       {events.length ? <div className="execution-inline-tools">{events.map((event, index) => <ToolEventRow key={event.callKey || event.id || index} event={event} onInspectToolEvent={onInspectToolEvent} />)}</div> : null}
