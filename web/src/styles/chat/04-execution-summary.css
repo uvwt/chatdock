@@ -43,7 +43,7 @@
 }
 
 .execution-summary.is-open .execution-summary-chevron {
-  transform: rotate(90deg);
+  transform: rotate(180deg);
 }
 
 .execution-summary.tone-running .execution-summary-icon {

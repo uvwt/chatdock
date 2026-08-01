@@ -213,6 +213,12 @@ if (!/scroll-behavior:\s*auto/.test(messageCanvasRule)
   failures.push('message history must jump to its initial position without a page-length smooth scroll');
 }
 
+const executionSummaryStyles = read('web/src/styles/chat/04-execution-summary.css');
+const openExecutionChevronRule = executionSummaryStyles.match(/\.execution-summary\.is-open \.execution-summary-chevron\s*\{([^}]*)\}/)?.[1] || '';
+if (!/transform:\s*rotate\(180deg\)/.test(openExecutionChevronRule)) {
+  failures.push('expanded execution summaries must rotate the down chevron upward, never sideways');
+}
+
 const chatErrorStyles = read('web/src/styles/chat/03-chat.css');
 const chatErrorCardRule = chatErrorStyles.match(/\.chat-error-card\s*\{([^}]*)\}/)?.[1] || '';
 const chatErrorMessageRule = chatErrorStyles.match(/\.chat-error-message\s*\{([^}]*)\}/)?.[1] || '';
