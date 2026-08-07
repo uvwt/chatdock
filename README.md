@@ -1,45 +1,310 @@
 # ChatDock
 
-ChatDock 是一个自用的轻量 AI 对话中控台，目标是：提示词可控、上下文可控、模型可控、尽量省 token，并可选接入 MCP 工具。
+ChatDock 是一个面向个人使用的自托管 AI 工作台。它把多模型对话、项目上下文、MCP 工具、附件、定时任务和执行过程放在同一个 Web 界面中，并将数据保存在你自己的 SQLite 数据库里。
 
-## 当前功能
+ChatDock 支持 OpenAI Chat Completions 兼容接口，可连接 OpenAI、兼容网关或本地模型服务。它适合希望统一管理模型、提示词、工具和自动化，同时保留完整数据控制权的用户。
 
-- Go 后端 + Vite/React 前端，生产构建后通过 `//go:embed` 嵌入最终 Go 二进制。
-- SQLite 单文件存储，默认数据文件为 `chatdock.sqlite`。
-- OpenAI Chat Completions 兼容接口。
-- 可配置 Base URL / API Key / Model / System Prompt。
-- 可配置最近上下文消息数，用来控制 token 消耗。
-- 可隐藏 `<think>...</think>` 思考内容。
-- 全局配置：模型、供应商、MCP 工具和自动化任务统一配置，不随项目切换。
-- 项目：只保存项目名称、项目提示词和会话归属；普通会话可以不属于任何项目。
-- 自动化任务：全局维护本地定时提示，支持一次性、间隔和 Cron 计划，并把运行结果写入任务运行记录和关联会话。
-- 会话创建、列表、删除、重命名、置顶、全文复制、复制会话、Markdown 导出；会话列表显示最近消息摘要，搜索同时匹配标题和摘要，置顶会话固定在列表顶部。
-- 无 MCP 工具时保留真正流式输出；启用 MCP 工具时通过 SSE 输出工具调用事件和最终回答。
-- MCP HTTP JSON-RPC 客户端：支持 `tools/list`、`tools/call`、Bearer token、server 超时、工具列表缓存、工具 allow/deny/confirm 规则。
-- 产品化前端：独立账号密码登录页、配置中心、项目会话导航、快捷指令面板（`⌘/Ctrl K`）、移动端会话操作面板、空状态引导和 PWA manifest。
-- 数据状态页：展示数据库大小、WAL 状态、项目/会话数量，并自动探测同级 `backups` 目录中的最近数据库备份和数据库备份列表，配置备份文件不会进入产品界面。
-- 自助诊断：数据状态页会标记数据库备份健康状态和最近备份年龄；安全页与快捷指令可复制脱敏后的诊断信息，默认只暴露目录名和文件名，不输出本机绝对路径。
+## 主要能力
 
-## 项目结构
+- **多模型与多供应商**：管理多个 OpenAI 兼容供应商、API Key 和候选模型；每个会话可以单独切换模型。
+- **主模型与备用模型**：主模型在尚未输出内容、也未执行工具前失败时，可自动切换到备用模型。
+- **项目上下文**：为不同项目保存长期提示词，并预览全局提示词与项目提示词组合后的实际内容。
+- **流式对话与后台生成**：切换会话后原任务可以继续运行；重新打开会话时可恢复事件流，也可以中断或追加引导。
+- **完整会话管理**：搜索、置顶、重命名、复制、从指定消息创建分支、编辑并重新生成、Markdown 导出。
+- **附件与图片**：上传、下载并在会话中引用附件；支持向具备视觉能力的模型发送图片。
+- **MCP 工具**：连接 HTTP MCP Server，发现和调用工具，并配置允许、拒绝和人工确认规则。
+- **工具调用确认**：命中 `confirm_tools` 的调用会暂停，等待用户在界面中允许或拒绝。
+- **定时任务**：支持一次性、固定间隔和五段 Cron；可以选择无状态、携带上次结果或连续会话上下文。
+- **AgentDock 任务视图**：可选连接 AgentDock Context API，在 ChatDock 中查看会话关联任务及运行进度。
+- **本地数据与诊断**：SQLite 单文件存储，系统页展示数据库、WAL、备份和脱敏诊断信息。
+- **响应式 Web 与 PWA**：桌面和移动端均可使用，前后端由同一个服务提供。
 
-```text
-chatdock/
-├── cmd/chatdock/          # 程序入口
-├── internal/              # app 组合根、httpapi 服务和各稳定能力包
-├── web/                   # Vite/React 前端源码、构建脚本和 Go embed 包
-│   ├── src/               # React 前端源码
-│   ├── public/            # PWA manifest、图标等静态资源
-│   ├── dist/              # 生产构建产物，由 make web-build 生成，不提交
-│   ├── embed.go           # //go:embed dist，供 Go 后端托管
-│   └── package.json
-├── deploy/                # launchd 示例
-├── Dockerfile
-├── compose.dev.yaml       # 源码目录开发示例；生产不要用这个文件部署
-├── Makefile
-└── go.mod
+## 快速开始
+
+推荐使用 Docker。下面的方式使用 Docker Volume 保存数据，不依赖仓库里的开发环境配置。
+
+### 1. 构建镜像
+
+```bash
+git clone https://github.com/uvwt/chatdock.git
+cd chatdock
+docker build -t chatdock:local .
 ```
 
-## 本机运行
+### 2. 准备登录配置
+
+先生成一个随机 API Token：
+
+```bash
+openssl rand -hex 32
+```
+
+创建 `chatdock.env`：
+
+```dotenv
+CHATDOCK_AUTH_TOKEN=<粘贴随机 Token>
+CHATDOCK_AUTH_USERNAME=admin
+CHATDOCK_AUTH_CREDENTIAL=<设置一个高强度登录密码>
+CHATDOCK_TIMEZONE=Asia/Shanghai
+```
+
+限制配置文件权限：
+
+```bash
+chmod 600 chatdock.env
+```
+
+`CHATDOCK_AUTH_TOKEN` 用于 API 鉴权；浏览器使用用户名和密码登录后，会在当前浏览器中保存后端返回的访问 Token。
+
+### 3. 启动 ChatDock
+
+```bash
+docker volume create chatdock-data
+
+docker run -d \
+  --name chatdock \
+  --restart unless-stopped \
+  --env-file ./chatdock.env \
+  -p 127.0.0.1:8720:8720 \
+  -v chatdock-data:/data \
+  chatdock:local
+```
+
+检查登录接口：
+
+```bash
+curl http://127.0.0.1:8720/api/auth/status
+```
+
+然后打开：
+
+```text
+http://127.0.0.1:8720
+```
+
+使用 `chatdock.env` 中的账号和密码登录。
+
+## 首次配置模型
+
+登录后进入 **配置中心 → 模型**：
+
+1. 新增模型供应商；
+2. 填写名称、OpenAI 兼容 Base URL、API Key 和默认模型；
+3. 使用“测试连接”确认接口可用；
+4. 选择 ChatDock 的默认供应商和默认模型；
+5. 按需设置备用供应商、全局系统提示词、上下文数量和温度。
+
+常见 Base URL 形式：
+
+```text
+https://api.openai.com/v1
+http://127.0.0.1:11434/v1
+https://your-compatible-gateway.example/v1
+```
+
+实际可用模型、鉴权方式和参数取决于所连接的服务。ChatDock 使用 OpenAI Chat Completions 兼容协议，不要求供应商必须是 OpenAI。
+
+## 项目与会话
+
+项目用于保存长期上下文，不会复制模型配置：
+
+- 全局系统提示词适用于所有新对话；
+- 项目提示词只应用于该项目下的会话；
+- 会话可以不属于任何项目；
+- 删除项目不会删除会话，原会话会转为普通会话；
+- 每个会话可以覆盖默认模型选择。
+
+生成过程中可以切换到其他会话，后端任务会继续运行。再次打开原会话时，ChatDock 会继续读取该任务的事件流。
+
+## MCP 工具
+
+在 **配置中心 → 工具** 中添加 MCP Server。下面是连接 AgentDock 的示例：
+
+```json
+{
+  "servers": {
+    "agentdock": {
+      "url": "http://host.docker.internal:18766/mcp",
+      "auth": {
+        "type": "bearer",
+        "token_env": "AGENTDOCK_TOKEN"
+      },
+      "allow_tools": [
+        "recall_*",
+        "skill_*",
+        "workflow_template_manage",
+        "task_manage"
+      ],
+      "deny_tools": [
+        "private_note_manage"
+      ],
+      "confirm_tools": [
+        "exec_command",
+        "file_edit",
+        "git_write"
+      ],
+      "timeout_ms": 90000,
+      "cache_ttl_ms": 30000
+    }
+  }
+}
+```
+
+同时把 MCP Token 加入 `chatdock.env`：
+
+```dotenv
+AGENTDOCK_TOKEN=<AgentDock Token>
+```
+
+重建容器后环境变量才会生效。
+
+规则优先级：
+
+1. `deny_tools` 始终优先；
+2. `allow_tools` 为空时允许该 Server 暴露的全部工具；
+3. `confirm_tools` 会在实际调用前暂停，等待浏览器中的人工确认；
+4. `disabled: true` 可以临时停用 Server；
+5. 工具名支持精确匹配、`prefix*`、`*suffix` 和 `*`。
+
+在 Linux Docker 中访问宿主机服务时，可能还需要在 `docker run` 中加入：
+
+```bash
+--add-host=host.docker.internal:host-gateway
+```
+
+## 工具搜索与 Embeddings
+
+MCP 工具较多时，ChatDock 可以先搜索候选工具，再选择实际调用目标。未配置向量服务时使用关键词搜索；配置 OpenAI 兼容 Embeddings 后可启用混合搜索。
+
+```dotenv
+CHATDOCK_EMBEDDING_BASE_URL=http://embedding-service:8000/v1
+CHATDOCK_EMBEDDING_API_KEY=<可选 API Key>
+CHATDOCK_EMBEDDING_MODEL=BAAI/bge-m3
+```
+
+这些环境变量提供启动配置；也可以在配置中心中维护对应设置。
+
+## 附件与图片
+
+普通附件会保存到 ChatDock 数据目录，并与会话关联。图片要发送给外部视觉模型时，模型服务必须能够访问 ChatDock 生成的签名图片地址。
+
+远程部署可以设置：
+
+```dotenv
+CHATDOCK_PUBLIC_BASE_URL=https://chat.example.com
+```
+
+该地址必须是外部模型服务可访问的 HTTP 或 HTTPS 地址。仅在本机使用、或模型与 ChatDock 位于同一可信网络时，可以按实际网络结构配置内部地址。
+
+## 定时任务
+
+ChatDock 内置三种调度方式：
+
+- `once`：在指定时间执行一次，完成后自动停用；
+- `interval`：按分钟间隔循环执行；
+- `cron`：使用一个或多个标准五段 Cron 表达式，并可指定 IANA 时区。
+
+上下文模式：
+
+- **每次独立执行**：每轮不携带历史，最省 Token；
+- **带上次运行结果**：只把上一次结果加入上下文；
+- **连续会话**：复用关联会话，保留完整上下文。
+
+每次运行都会写入运行记录；也可以在配置中心手动点击“立即运行”进行验证。
+
+## 可选连接 AgentDock 任务
+
+需要在 ChatDock 中查看 AgentDock 任务时，可配置：
+
+```dotenv
+CHATDOCK_AGENTDOCK_CONTEXT_URL=http://host.docker.internal:18766/context
+CHATDOCK_AGENTDOCK_CONTEXT_TOKEN=<AgentDock Token>
+```
+
+连接后，ChatDock 可以显示任务列表、步骤、阻塞状态和当前会话关联任务。实际任务仍由 AgentDock 运行和保存。
+
+## 配置参考
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `CHATDOCK_ADDR` | `:8720` | 服务监听地址 |
+| `CHATDOCK_DATA` | 系统用户配置目录 | SQLite、附件和应用数据目录；Docker 镜像默认 `/data` |
+| `CHATDOCK_AUTH_TOKEN` | 空 | API Bearer Token |
+| `CHATDOCK_AUTH_USERNAME` | 空 | 浏览器登录用户名 |
+| `CHATDOCK_AUTH_CREDENTIAL` | 空 | 浏览器登录密码 |
+| `CHATDOCK_PUBLIC_BASE_URL` | 空 | 模型读取签名图片时使用的公开地址 |
+| `CHATDOCK_TIMEZONE` | 系统时区 | 定时任务默认时区 |
+| `CHATDOCK_EMBEDDING_BASE_URL` | 空 | OpenAI 兼容 Embeddings Base URL |
+| `CHATDOCK_EMBEDDING_API_KEY` | 空 | Embeddings API Key |
+| `CHATDOCK_EMBEDDING_MODEL` | `BAAI/bge-m3` | Embeddings 模型 |
+| `CHATDOCK_AGENTDOCK_CONTEXT_URL` | 空 | 可选 AgentDock Context API 地址 |
+| `CHATDOCK_AGENTDOCK_CONTEXT_TOKEN` | 空 | AgentDock Context API Token |
+| `CHATDOCK_WEB` | 空 | 调试时覆盖内嵌前端资源目录 |
+
+## 数据与备份
+
+ChatDock 默认使用 SQLite：
+
+```text
+<CHATDOCK_DATA>/chatdock.sqlite
+```
+
+数据目录还可能包含 WAL/SHM、附件和应用运行文件。模型 API Key、MCP Token、会话、提示词和任务配置都属于敏感数据，应作为一个整体保护。
+
+建议：
+
+- 定期使用 SQLite 在线备份，或停止 ChatDock 后再复制完整数据目录；
+- 不要只复制 `chatdock.sqlite` 而忽略仍在使用的 `-wal` 文件；
+- 不要把数据目录、环境文件或备份提交到 Git；
+- 可以把备份目录只读挂载到容器 `/backups`，系统页会显示最近备份状态；
+- 升级前先生成可验证的数据库快照。
+
+使用 Docker Volume 时，删除或重建容器不会删除 `chatdock-data`。只有显式删除 Docker Volume 才会移除其中的数据。
+
+## 升级
+
+拉取新代码并重新构建镜像：
+
+```bash
+git pull
+docker build -t chatdock:local .
+```
+
+然后使用与首次启动相同的 `docker run` 参数重建容器，并继续挂载原来的 `chatdock-data`。
+
+ChatDock 不会在运行时自动迁移早期的“多工作空间”数据库。检测到旧表或旧 `workspace_id` 字段时会拒绝启动，避免静默破坏数据。此类旧数据库需要先创建独立快照，再使用：
+
+```bash
+go run ./cmd/chatdock-migrate-workspaces \
+  -source /path/to/legacy-snapshot.sqlite \
+  -target /path/to/current.sqlite \
+  -global-workspace default
+```
+
+迁移工具不会原地修改源数据库，并会在发布目标文件前执行一致性检查。
+
+## 安全建议
+
+ChatDock 按单管理员、个人使用场景设计，不建议直接暴露在公网。
+
+远程访问时建议：
+
+- 继续让 ChatDock 只监听或映射到 `127.0.0.1`；
+- 使用反向代理或 Tunnel 提供 HTTPS；
+- 同时配置随机 `CHATDOCK_AUTH_TOKEN`、用户名和高强度密码；
+- 限制 `chatdock.env`、数据目录和备份的宿主机权限；
+- 不要通过 URL Query 传递 Token；
+- 对可能修改文件、运行命令或写入外部系统的 MCP 工具配置 `confirm_tools`。
+
+除登录状态接口和登录接口外，启用 Token 后的 API 请求需要：
+
+```text
+Authorization: Bearer <CHATDOCK_AUTH_TOKEN>
+```
+
+## 从源码运行
+
+需要 Go、Node.js 和 npm：
 
 ```bash
 make run
@@ -51,172 +316,19 @@ make run
 http://127.0.0.1:8720
 ```
 
-环境变量：
-
-```bash
-CHATDOCK_ADDR=:8720
-CHATDOCK_DATA=~/.config/chatdock   # 可选；默认使用系统用户配置目录下的 chatdock
-CHATDOCK_WEB=/path/to/web/dist     # 可选；为空时使用二进制内嵌的 web/dist
-CHATDOCK_AUTH_TOKEN=your-token              # 可选；设置后 API/MCP 需要 Bearer Token，静态前端仍可访问
-CHATDOCK_AUTH_USERNAME=admin                 # 可选；启用账号密码登录页时使用
-CHATDOCK_AUTH_CREDENTIAL=your-pass           # 可选；启用账号密码登录页时使用
-CHATDOCK_EMBEDDING_BASE_URL=http://m3/v1     # 可选；OpenAI 兼容 /embeddings，用于工具向量混合搜索
-CHATDOCK_EMBEDDING_API_KEY=your-embedding-key # 可选；M3 embedding 服务密钥
-CHATDOCK_EMBEDDING_MODEL=BAAI/bge-m3         # 可选；默认 BAAI/bge-m3
-```
-
-## 前后端一体化构建
-
-ChatDock 采用类似 Memos 的一体化部署方式：
-
-1. `web/src` 通过 Vite/React 构建到 `web/dist`。
-2. `web/embed.go` 使用 `//go:embed dist` 将构建产物嵌入 Go 二进制。
-3. Go `net/http` 在同一个端口下托管静态前端、后端 API 和 MCP 相关能力。
-4. 非 `/api`、非 `/mcp` 的页面路径会 fallback 到 `index.html`，支持 SPA 前端路由；API/MCP 缺失路由保持后端 404。
-
-常用命令：
-
-```bash
-make web-build   # 安装/校验前端依赖并生成 web/dist
-make build       # 构建内嵌前端的单个 Go 二进制
-make run         # 先构建前端，再 go run
-make js-check        # 检查前端配置、lib/hook 脚本语法
-make css-check       # 检查 CSS 模块结构和健康预算
-make frontend-test   # 运行前端纯逻辑测试
-make check           # fmt-check + backend-lint + frontend-lint + frontend-test + vet + test + build
-```
-
-`make check` 会先运行后端目录守卫、前端结构守卫、CSS 健康预算和前端纯逻辑测试，生成前端 dist，并执行：`fmt-check`、`go vet ./...`、`go test ./...`、`go build`。后端守卫会阻止 `internal/chatdock` 和旧导入路径重新出现，并确保程序入口经由 `internal/app` 组装 `httpapi.Server`。前端守卫会确保 `app.css` 和 `styles/settings.css` 都只作为 import 入口，配置页数据加载保留在 `useSettingsData`，附件上传下载保留在 `useAttachments`，聊天展示/工具事件详情不回流到 `App.jsx`，并阻止样式重新堆回入口文件。仓库还包含 GitHub Actions 最小 CI，覆盖 CSS 健康预算、前端测试、前端构建、Go 测试、vet、commit message 格式和 `git diff --check`。如果只想调试磁盘静态目录，可以设置 `CHATDOCK_WEB=/path/to/web/dist` 覆盖内嵌资源。
-
-## 数据存储
-
-ChatDock 使用 SQLite 作为持久化存储，默认数据库路径为：
-
-```text
-<用户配置目录>/chatdock/chatdock.sqlite
-```
-
-也可以用 `CHATDOCK_DATA` 指定数据目录。应用启动只创建当前 SQLite schema，不读取旧 JSON，也不在运行时升级旧工作空间数据库。检测到旧表或旧 `workspace_id` 字段时会拒绝启动；生产升级必须先备份数据库，再使用独立的一次性迁移工具转换和校验数据。
-
-模型、供应商、MCP 配置和自动化任务按全局资源保存。项目只包含名称和项目提示词，会话通过可空的 `project_id` 归属项目；删除项目时会话保留并转为普通会话。
-
-### 旧工作空间数据库一次性迁移
-
-迁移工具只读取独立 SQLite 快照，并把新 schema 写入一个必须不存在的目标文件。它不会原地修改源库，也拒绝带 `-wal` / `-shm` 边车文件的在线数据库：
-
-```bash
-sqlite3 /path/to/old/chatdock.sqlite ".backup '/tmp/chatdock-legacy.sqlite'"
-
-go run ./cmd/chatdock-migrate-workspaces \
-  -source /tmp/chatdock-legacy.sqlite \
-  -target /tmp/chatdock-current.sqlite \
-  -global-workspace default
-```
-
-指定的全局工作空间会迁移为全局配置和普通会话；其他工作空间会迁移为项目。工具会合并 MCP Server、保留现有模型供应商，并在旧工作空间模型配置与同名全局供应商冲突时创建 `legacy-<workspace>` 供应商。迁移报告会列出安全别名改写和无法解析的历史供应商 ID，且在发布目标文件前校验行数、`quick_check`、外键以及旧表/字段是否已经移除。
-
-定时任务当前支持：
-
-- `once`：一次性任务，到点运行后自动禁用。
-- `interval`：按分钟间隔循环运行。
-- `cron`：按一个或多个标准五段 Cron 表达式运行，每个任务可单独指定 IANA 时区。
-
-服务启动后内置调度器每 30 秒扫描一次全局到期任务。任务运行结果写入运行记录；使用连续会话上下文时会复用关联会话。前端也提供“立即运行”按钮，便于手动验证任务提示词。
-
-## MCP 配置示例
-
-```json
-{
-  "servers": {
-    "agentdock": {
-      "url": "http://127.0.0.1:18766/mcp",
-      "auth": {
-        "type": "bearer",
-        "token_env": "AGENTDOCK_TOKEN"
-      },
-      "allow_tools": ["recall_*", "skill_*", "workflow_template_manage", "task_manage"],
-      "deny_tools": ["private_note_manage"],
-      "confirm_tools": ["exec_command", "file_edit", "git_write"],
-      "timeout_ms": 90000,
-      "cache_ttl_ms": 30000
-    }
-  }
-}
-```
-
-规则说明：
-
-- `allow_tools` 为空时默认允许该 server 暴露的工具。
-- `deny_tools` 优先级高于 `allow_tools`。
-- `confirm_tools` 当前会阻止模型自动调用，并返回“需要人工确认”。
-- `disabled: true` 可临时禁用某个 MCP server。
-- 工具名匹配支持精确匹配、前缀通配 `xxx*`、后缀通配 `*xxx` 和 `*`。
-
-## Docker Compose
-
-Dockerfile 是自包含多阶段构建：先用 Node 构建 Vite/React 前端，再用 Go 编译嵌入前端资源的二进制，最终镜像只包含运行时二进制和数据目录。
-
-源码目录只保留开发示例 compose：
-
-```bash
-make dev-up
-curl http://127.0.0.1:8720/api/health
-```
-
-Mac mini 生产部署必须使用专用目录，防止把 `/data` 挂到源码仓库导致“数据像丢失”：
-
-```bash
-make prod-check
-make deploy-prod
-```
-
-生产期望：
-
-```text
-compose: /Volumes/KIOXIA/Docker/chatdock/compose.yaml
-/data:   /Volumes/KIOXIA/Docker/chatdock/data
-```
-
-如果需要手动使用 Docker Compose，请显式指定开发示例：`docker compose -f compose.dev.yaml up -d --build`。
-
-Compose 不需要再挂载或配置 `CHATDOCK_WEB`，前端页面、后端 API 和 MCP 相关能力都运行在 `8720` 同一个端口。默认还会把 `./backups` 只读挂载到容器 `/backups`，用于配置中心展示最近数据库备份状态。
-
-### 生产部署说明
-
-仓库 `compose.dev.yaml` 是本地开发示例，默认把当前目录的 `./data` 挂载到容器 `/data`。当前 Mac mini 生产实例使用外置盘数据目录 `/Volumes/KIOXIA/Docker/chatdock/data`，并把 `/Volumes/KIOXIA/Docker/chatdock/backups` 只读挂载到容器 `/backups` 展示数据库备份状态。生产更新统一使用 `make deploy-prod`：它会从 `/Volumes/KIOXIA/Docker/chatdock/compose.yaml` 构建，检查容器 label 和 `/data` mount，并携带容器现有 Bearer Token 等待 `/api/health` 返回有效的 ChatDock 健康响应。也可以分别运行 `make prod-check` 和 `make prod-health` 复核挂载与应用就绪状态。
-
-新建数据目录和上传目录使用 `0700`，SQLite 与附件文件使用 `0600`。应用不会在启动时隐式修改历史数据权限；旧部署需要在确认挂载并完成一致性备份后单独迁移权限。
-
-## macOS launchd
-
-先构建：
+构建单个包含前端资源的 Go 二进制：
 
 ```bash
 make build
+./bin/chatdock
 ```
 
-复制并按实际路径修改。默认使用二进制内嵌的 `web/dist`，不需要配置 `CHATDOCK_WEB`；只有调试磁盘静态目录时才额外设置 `CHATDOCK_WEB=/path/to/web/dist`。
+提交前执行完整检查：
 
 ```bash
-cp deploy/com.uvwt.chatdock.plist.example ~/Library/LaunchAgents/com.uvwt.chatdock.plist
-launchctl load ~/Library/LaunchAgents/com.uvwt.chatdock.plist
+make check
 ```
 
-## 安全边界
+`make check` 会执行前端依赖与构建、CSS/结构守卫、前端测试、Go 格式、`go vet`、Go 测试和最终二进制构建。
 
-ChatDock 默认按“本机私用工具”设计，不建议公网裸奔。API Key、MCP token、会话内容和系统提示词都会落在本地 SQLite 数据库中，应避免把数据目录提交到 Git 或暴露给非可信用户。
-
-如果设置了 `CHATDOCK_AUTH_TOKEN`，除静态页面资源外的 API 都需要：
-
-```text
-Authorization: Bearer <token>
-```
-
-生产环境建议同时设置 `CHATDOCK_AUTH_TOKEN`、`CHATDOCK_AUTH_USERNAME` 和 `CHATDOCK_AUTH_CREDENTIAL`。前端会显示独立登录页，登录成功后只把后端返回的 Bearer token 保存到浏览器 localStorage；后端不再兼容 URL query token。
-
-## 后续可继续增强
-
-- MCP 人工确认队列和前端确认弹窗。
-- Token 估算与上下文摘要压缩。
-- 会话收藏、置顶和批量导出。
-- 可选敏感配置加密。
+更多实现和开发约束见 [架构文档](./docs/architecture.md)。
