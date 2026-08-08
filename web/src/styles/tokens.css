@@ -1,102 +1,112 @@
-/* ChatDock frontend tokens：集中定义主题变量，后续组件样式优先复用这些语义变量。 */
+/* ChatDock 视觉令牌：纯白画布、黑灰文字与克制的中性色强调。 */
 :root {
   color-scheme: dark;
-  --bg: #0b1020;
-  --panel: #0f172a;
-  --panel-soft: #111827;
-  --panel-deep: #020617;
-  --text: #e5e7eb;
-  --text-strong: #f8fafc;
-  --muted: #94a3b8;
-  --muted-weak: #64748b;
-  --border: #1f2937;
-  --border-strong: #334155;
-  --primary: #2563eb;
-  --primary-strong: #1d4ed8;
-  --danger: #991b1b;
-}
+  --palette-ink: #0f172a;
+  --palette-slate: #64748b;
+  --palette-mint: #38bdf8;
+  --palette-fog: #f8fafc;
+  --gpt-bg: #070b14;
+  --gpt-main: #0b1020;
+  --gpt-sidebar: #080d18;
+  --gpt-sidebar-hover: #111a2e;
+  --gpt-surface: #111827;
+  --gpt-surface-2: #0f172a;
+  --gpt-border: rgba(148, 163, 184, .12);
+  --gpt-border-strong: rgba(148, 163, 184, .22);
+  --gpt-text: #f8fafc;
+  --gpt-muted: #cbd5e1;
+  --gpt-muted-2: #94a3b8;
+  --gpt-accent: #7f96a8;
+  --gpt-accent-strong: #9bb0bf;
+  --gpt-accent-2: #6f8f8c;
+  --gpt-accent-soft: rgba(127, 150, 168, .12);
+  --gpt-accent-contrast: #07111f;
+  --gpt-danger: #fb7185;
+  --agent-task-accent: #0f766e;
+  --agent-task-accent-text: #34d399;
+  --agent-task-accent-soft: rgba(15, 118, 110, .12);
+  --gpt-chat-width: 940px;
+  --gpt-msg-width: 940px;
+  --gpt-sidebar-width: 286px;
+  --dock-gradient: linear-gradient(135deg, var(--palette-mint) 0%, var(--palette-slate) 100%);
+  --dock-card-shadow: 0 32px 100px color-mix(in srgb, var(--palette-ink) 52%, transparent);
+  --dock-ease: cubic-bezier(.22, 1, .36, 1);
+  --dock-radius-sm: 10px;
+  --dock-radius-md: 16px;
+  --dock-radius-lg: 26px;
 
-body.theme-light {
-  color-scheme: light;
-  --bg: #f6f8fb;
-  --panel: #ffffff;
-  --panel-soft: #f8fafc;
-  --panel-deep: #ffffff;
-  --text: #0f172a;
-  --text-strong: #0f172a;
-  --muted: #64748b;
-  --muted-weak: #64748b;
-  --border: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --primary: #2563eb;
-  --primary-strong: #1d4ed8;
-  --danger: #991b1b;
-}
-
-/* ChatGPT-like shell override: 2026-07-01
-   目标：左侧会话栏 + 中央对话流 + 浮动输入框 + 配置抽屉，保留原功能入口。 */
-:root {
-  --gpt-bg: #212121;
-  --gpt-main: #212121;
-  --gpt-sidebar: #171717;
-  --gpt-sidebar-hover: #2f2f2f;
-  --gpt-surface: #303030;
-  --gpt-surface-2: #2a2a2a;
-  --gpt-border: rgba(255,255,255,.10);
-  --gpt-border-strong: rgba(255,255,255,.16);
-  --gpt-text: #f4f4f4;
-  --gpt-muted: #b4b4b4;
-  --gpt-muted-2: #8e8e8e;
-  --gpt-accent: #10a37f;
-  --gpt-danger: #ef4444;
-  --gpt-chat-width: 960px;
-  --gpt-msg-width: 960px;
-  --gpt-sidebar-width: 260px;
-}
-
-body.theme-night,
-body:not(.theme-light) {
+  /* 共享界面尺度：页面只消费语义令牌，不再各自定义高度、圆角和间距。 */
+  --ui-control-compact: 32px;
+  --ui-control: 40px;
+  --ui-control-large: 44px;
+  --ui-radius-small: 8px;
+  --ui-radius-control: 10px;
+  --ui-radius-panel: 14px;
+  --ui-radius-page: 18px;
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-5: 20px;
+  --ui-space-6: 24px;
+  --ui-space-7: 32px;
+  --ui-font-caption: 11px;
+  --ui-font-small: 12px;
+  --ui-font-label: 13px;
+  --ui-font-body: 14px;
+  --ui-font-title: 16px;
+  --ui-weight-medium: 560;
+  --ui-weight-semibold: 640;
+  --ui-weight-bold: 700;
+  --ui-page-width: 1120px;
+  --ui-panel-shadow: 0 12px 32px rgba(0, 0, 0, .12);
+  --ui-focus-ring: 0 0 0 3px color-mix(in srgb, var(--gpt-text) 7%, transparent);
+  --composer-glass-bg: rgba(17, 24, 39, .62);
+  --composer-glass-border: rgba(226, 232, 240, .16);
+  --composer-glass-highlight: rgba(255, 255, 255, .08);
+  --composer-glass-shadow: rgba(0, 0, 0, .28);
   --bg: var(--gpt-bg);
   --panel: var(--gpt-sidebar);
   --panel-soft: var(--gpt-surface-2);
-  --panel-deep: #212121;
+  --panel-deep: var(--gpt-main);
   --text: var(--gpt-text);
-  --text-strong: #ffffff;
+  --text-strong: var(--palette-fog);
   --muted: var(--gpt-muted);
   --muted-weak: var(--gpt-muted-2);
   --border: var(--gpt-border);
   --border-strong: var(--gpt-border-strong);
   --primary: var(--gpt-accent);
-  --primary-strong: #0d8f6f;
+  --primary-strong: var(--gpt-accent-strong);
+  --accent: var(--gpt-accent);
   --danger: var(--gpt-danger);
 }
 
 body.theme-light {
+  color-scheme: light;
   --gpt-bg: #ffffff;
   --gpt-main: #ffffff;
-  --gpt-sidebar: #f7f7f8;
-  --gpt-sidebar-hover: #ececf1;
-  --gpt-surface: #f4f4f4;
-  --gpt-surface-2: #ffffff;
-  --gpt-border: rgba(0,0,0,.10);
-  --gpt-border-strong: rgba(0,0,0,.16);
-  --gpt-text: #0d0d0d;
-  --gpt-muted: #6b7280;
-  --gpt-muted-2: #8a8f98;
-  --gpt-accent: #10a37f;
-  --gpt-danger: #dc2626;
-  background: var(--gpt-bg);
-}
-
-/* Product polish: richer ChatDock workspace shell */
-:root {
-  --dock-hero-glow: rgba(16, 163, 127, .22);
-  --dock-blue-glow: rgba(103, 126, 234, .16);
-  --dock-card-shadow: 0 24px 70px rgba(0,0,0,.28);
-}
-
-body.theme-light {
-  --dock-hero-glow: rgba(16, 163, 127, .14);
-  --dock-blue-glow: rgba(79, 70, 229, .10);
-  --dock-card-shadow: 0 24px 70px rgba(15,23,42,.12);
+  --gpt-sidebar: #ffffff;
+  --gpt-sidebar-hover: #f1f5f9;
+  --gpt-surface: #ffffff;
+  --gpt-surface-2: #f8fafc;
+  --gpt-border: rgba(15, 23, 42, .08);
+  --gpt-border-strong: rgba(15, 23, 42, .15);
+  --gpt-text: #111111;
+  --gpt-muted: #4b5563;
+  --gpt-muted-2: #9ca3af;
+  --gpt-accent: #374151;
+  --gpt-accent-strong: #111827;
+  --gpt-accent-2: #6b7280;
+  --gpt-accent-soft: rgba(17, 24, 39, .06);
+  --gpt-accent-contrast: #ffffff;
+  --gpt-danger: #b91c1c;
+  --agent-task-accent-text: #0f766e;
+  --dock-gradient: #111827;
+  --dock-card-shadow: 0 8px 24px rgba(15, 23, 42, .06);
+  --composer-glass-bg: rgba(229, 231, 235, .58);
+  --composer-glass-border: rgba(255, 255, 255, .72);
+  --composer-glass-highlight: rgba(255, 255, 255, .72);
+  --composer-glass-shadow: rgba(15, 23, 42, .14);
+  --text-strong: #000000;
+  background: #ffffff;
 }

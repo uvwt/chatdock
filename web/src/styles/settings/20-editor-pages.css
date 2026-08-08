@@ -1,0 +1,58 @@
+/* 配置中心交互层级：普通参数直接展示，独立资源使用二级编辑页。 */
+.module-view:has(> .settings-editor-page) > :not(.settings-editor-page) { display: none !important; }
+.settings-editor-page { width: min(100%, 960px); margin: 0 auto; display: grid; gap: 18px; }
+.settings-editor-header { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 14px; padding: 2px 0 4px; }
+.settings-editor-back { width: 36px; height: 36px; min-width: 36px; padding: 0; border-radius: 10px; }
+.settings-editor-heading { min-width: 0; display: grid; gap: 3px; }
+.settings-editor-heading > span { color: var(--gpt-muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.settings-editor-heading h2 { margin: 0; font-size: clamp(22px, 2.1vw, 30px); line-height: 1.2; }
+.settings-editor-heading p, .settings-editor-section-head p { margin: 0; color: var(--gpt-muted); line-height: 1.55; }
+.settings-editor-body, .settings-editor-form { display: grid; gap: 16px; }
+.settings-editor-section { min-width: 0; display: grid; gap: 14px; padding: 18px; border: 1px solid var(--gpt-border); border-radius: 14px; background: var(--gpt-surface); box-shadow: none; }
+.settings-editor-section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--gpt-border); }
+.settings-editor-section-head > div { display: grid; gap: 3px; }
+.settings-editor-section-head b { font-size: 15px; }
+.settings-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.settings-editor-form label, .settings-editor-field { min-width: 0; display: grid; gap: 7px; color: var(--gpt-text); font-size: 13px; font-weight: 650; }
+.settings-editor-form :is(input, select, textarea), .model-routing-section :is(input, select, textarea), .model-response-section :is(input, select, textarea), .model-search-section :is(input, select, textarea) { width: 100%; }
+.settings-editor-form textarea, .model-response-section textarea { min-height: 120px; resize: vertical; line-height: 1.55; }
+.settings-editor-check { display: flex !important; grid-template-columns: none !important; align-items: flex-start; gap: 10px !important; padding: 12px 13px; border: 1px solid var(--gpt-border); border-radius: 11px; background: rgba(127,127,127,.035); cursor: pointer; }
+.settings-editor-check > input { width: 16px !important; height: 16px; margin: 2px 0 0; flex: 0 0 auto; }
+.settings-editor-check > span { display: grid; gap: 2px; min-width: 0; }
+.settings-editor-check small { color: var(--gpt-muted); font-weight: 400; line-height: 1.45; }
+.settings-editor-actions { position: sticky; z-index: 12; bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px; border: 1px solid var(--gpt-border); border-radius: 13px; background: color-mix(in srgb, var(--gpt-surface) 94%, transparent); box-shadow: 0 10px 32px rgba(15,23,42,.10); backdrop-filter: blur(16px); }
+.settings-editor-secondary-actions, .settings-editor-primary-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.settings-editor-primary-actions { margin-left: auto; justify-content: flex-end; }
+.settings-editor-preview { max-height: 420px; overflow: auto; margin: 0; padding: 14px; border: 1px solid var(--gpt-border); border-radius: 10px; background: rgba(127,127,127,.06); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
+.settings-editor-status { padding: 11px 13px; border: 1px solid var(--gpt-border); border-radius: 10px; color: var(--gpt-muted); background: var(--gpt-surface); }
+.model-routing-section, .model-response-section, .model-search-section { display: grid; gap: 14px; }
+.model-route-grid { margin: 0; }
+.model-fallback-toggle { margin-top: 2px; }
+.provider-keys-editor.simplified { display: grid; gap: 9px; }
+.settings-editor-section .provider-key-row { grid-template-columns: auto minmax(120px,.7fr) minmax(220px,1.5fr) auto auto; align-items: center; }
+.settings-editor-section .provider-key-current, .settings-editor-section .provider-key-enabled { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.settings-editor-section .provider-key-current input, .settings-editor-section .provider-key-enabled input { width: 15px; }
+.mcp-settings-editor .mcp-tool-picker, .mcp-settings-editor .mcp-tool-policy-picker { margin: 0; border: 1px solid var(--gpt-border); border-radius: 11px; overflow: hidden; }
+.mcp-settings-editor .builtin-tool-picker-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px; border-bottom: 1px solid var(--gpt-border); }
+.mcp-settings-editor .builtin-tool-picker-summary > span { display: grid; gap: 2px; }
+.mcp-settings-editor .builtin-tool-picker-summary small { color: var(--gpt-muted); font-weight: 400; }
+.mcp-settings-editor .mcp-tool-policy-list { max-height: none; }
+.backup-path-list { display: grid; gap: 8px; }
+.backup-path-row { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 10px; padding: 9px 11px; border: 1px solid var(--gpt-border); border-radius: 9px; }
+.backup-path-row code, .backup-path-value { min-width: 0; overflow-wrap: anywhere; color: var(--gpt-muted); font-size: 12px; }
+.backup-path-value { display: block; margin-top: 9px; padding: 9px 11px; border-radius: 8px; background: rgba(127,127,127,.06); }
+@media (max-width: 720px) {
+  .settings-editor-page { width: 100%; gap: 13px; }
+  .settings-editor-header { gap: 10px; padding-top: 0; }
+  .settings-editor-heading h2 { font-size: 22px; }
+  .settings-editor-section { padding: 14px; border-radius: 12px; }
+  .settings-editor-grid { grid-template-columns: 1fr; gap: 12px; }
+  .settings-editor-section .provider-key-row { grid-template-columns: auto minmax(0,1fr) auto; gap: 8px; padding: 11px; border: 1px solid var(--gpt-border); border-radius: 10px; }
+  .settings-editor-section .provider-key-row > .provider-key-secret { grid-column: 1 / -1; }
+  .settings-editor-section .provider-key-row > .provider-key-enabled { grid-column: 1 / 3; }
+  .settings-editor-actions { bottom: 8px; display: grid; gap: 8px; padding: 9px; }
+  .settings-editor-secondary-actions, .settings-editor-primary-actions { width: 100%; margin: 0; display: grid; grid-template-columns: repeat(auto-fit,minmax(112px,1fr)); }
+  .settings-editor-actions button { width: 100%; }
+  .mcp-settings-editor .mcp-tool-policy-row, .mcp-settings-editor .builtin-tool-exposure-row { align-items: stretch; }
+  .backup-path-row { align-items: start; }
+}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { attachmentLooksLikeImage, chatErrorDetails, contextPreviewText, finalAssistantMessageFromSession, readableChatError, scheduledTaskRunsText, streamErrorMessage, streamStatusText } from './chatPresentation.js';
+import { attachmentLooksLikeImage, chatErrorDetails, finalAssistantMessageFromSession, readableChatError, streamErrorMessage, streamStatusText } from './chatPresentation.js';
 
 test('streamStatusText formats visible streaming state', () => {
   assert.equal(streamStatusText({state: 'streaming', chars: 12, tools: 1, events: 2}, 3), '流式输出中 · 3s · 12 字 · 1 个工具 · 2 个事件');
@@ -44,9 +44,4 @@ test('finalAssistantMessageFromSession returns latest assistant message', () => 
 test('attachmentLooksLikeImage recognizes mime aliases', () => {
   assert.equal(attachmentLooksLikeImage({mime_type: 'image/png'}), true);
   assert.equal(attachmentLooksLikeImage({type: 'text/plain'}), false);
-});
-
-test('scheduledTaskRunsText and contextPreviewText produce copyable diagnostics', () => {
-  assert.match(scheduledTaskRunsText({title: '日报', context_mode: 'session'}, []), /连续会话/);
-  assert.match(contextPreviewText({workspace: 'default', items: [{role: 'user', chars: 2, estimated_tokens: 1, content_preview: 'hi'}]}), /工作空间：default/);
 });

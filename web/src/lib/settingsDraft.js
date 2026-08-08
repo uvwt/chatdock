@@ -3,8 +3,8 @@ function finiteNumber(value, fallback) {
   return Number.isFinite(number) ? number : fallback;
 }
 
-// 只比较真正会提交到工作空间配置接口的字段，避免 providers/models 等派生展示数据误报未保存。
-export function workspaceConfigDraftSignature(config = {}) {
+// 只比较真正会提交到全局配置接口的字段，避免 providers/models 等派生展示数据误报未保存。
+export function globalConfigDraftSignature(config = {}) {
   return JSON.stringify({
     provider_id: String(config.provider_id || ''),
     model: String(config.model || ''),
@@ -21,9 +21,9 @@ export function workspaceConfigDraftSignature(config = {}) {
   });
 }
 
-export function workspaceConfigDraftChanged(current, saved) {
+export function globalConfigDraftChanged(current, saved) {
   if (!saved) return false;
-  return workspaceConfigDraftSignature(current) !== workspaceConfigDraftSignature(saved);
+  return globalConfigDraftSignature(current) !== globalConfigDraftSignature(saved);
 }
 
 function normalizeLineEndings(value) {
@@ -33,4 +33,27 @@ function normalizeLineEndings(value) {
 export function mcpConfigDraftChanged(current, saved) {
   if (saved == null) return false;
   return normalizeLineEndings(current) !== normalizeLineEndings(saved);
+}
+
+export function validateMCPConfigRaw(content) {
+  const raw = String(content ?? '');
+  if (!raw.trim()) return {ok: false, error: 'MCP 配置不能为空。'};
+  try {
+    const config = JSON.parse(raw);
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      return {ok: false, error: 'MCP 配置必须是 JSON 对象。'};
+    }
+    return {ok: true, content: raw, config, error: ''};
+  } catch (error) {
+    return {ok: false, error: 'MCP 配置不是合法 JSON：' + error.message};
+  }
+}
+
+export function unsavedSettingsPrompt(action, configDirty, mcpConfigDirty) {
+  const scopes = [];
+  if (configDirty) scopes.push('模型配置');
+  if (mcpConfigDirty) scopes.push('工具配置');
+  if (!scopes.length) return '';
+  const prefix = action === 'refresh' ? '刷新配置中心' : '离开配置中心';
+  return `${prefix}会丢弃尚未保存的${scopes.join('和')}，确定继续吗？`;
 }

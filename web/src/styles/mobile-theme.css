@@ -1,66 +1,65 @@
-/* 手机端共享主题变量：布局样式只引用语义颜色，避免白天/夜间维护两套结构。 */
+/* 手机端与桌面端共享品牌色和材质，只收紧触控尺寸与抽屉层级。 */
 body.theme-night,
 body:not(.theme-light) {
-  --mobile-bg: #111111;
-  --mobile-panel: #1b1b1b;
-  --mobile-panel-translucent: rgba(27, 27, 27, .94);
-  --mobile-panel-soft: #232323;
-  --mobile-panel-raised: #2a2a2a;
-  --mobile-hover: #252525;
-  --mobile-text: #f4f4f5;
+  --mobile-bg: #17171d;
+  --mobile-panel: #101014;
+  --mobile-panel-translucent: rgba(16, 16, 20, .96);
+  --mobile-panel-soft: #1e1e26;
+  --mobile-panel-raised: #272731;
+  --mobile-hover: #23232c;
+  --mobile-text: #f2f0f7;
   --mobile-text-strong: #ffffff;
-  --mobile-muted: #a1a1aa;
-  --mobile-muted-weak: #71717a;
-  --mobile-border: rgba(255, 255, 255, .10);
+  --mobile-muted: #b9b5c6;
+  --mobile-muted-weak: #777383;
+  --mobile-border: rgba(255, 255, 255, .09);
   --mobile-border-strong: rgba(255, 255, 255, .16);
-  --mobile-shadow-soft: 0 8px 24px rgba(0, 0, 0, .24);
-  --mobile-shadow-raised: 0 18px 52px rgba(0, 0, 0, .34);
-  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(17, 17, 17, .92) 26%, #111111);
-  --mobile-accent-panel: #16251f;
-  --mobile-accent-soft: rgba(16, 163, 127, .16);
-  --mobile-accent-text: #6ee7b7;
-  --mobile-accent-solid: #159a78;
+  --mobile-shadow-soft: 0 8px 24px rgba(0, 0, 0, .20);
+  --mobile-shadow-raised: 0 22px 60px rgba(0, 0, 0, .38);
+  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(23, 23, 29, .95) 34%, #17171d);
+  --mobile-accent-panel: rgba(128, 108, 255, .15);
+  --mobile-accent-soft: rgba(128, 108, 255, .16);
+  --mobile-accent-text: #d9d2ff;
+  --mobile-accent-solid: #806cff;
   --mobile-accent-contrast: #ffffff;
-  --mobile-accent-shadow: 0 10px 24px rgba(16, 163, 127, .20);
-  --mobile-overlay: rgba(0, 0, 0, .62);
-  --mobile-danger-soft: rgba(239, 68, 68, .14);
-  --mobile-danger-border: rgba(239, 68, 68, .30);
-  --mobile-danger-text: #fca5a5;
-  --mobile-action-bg: #f4f4f5;
-  --mobile-action-text: #111111;
-}
-
-body.theme-light {
-  --mobile-bg: #f5f6f8;
-  --mobile-panel: #ffffff;
-  --mobile-panel-translucent: rgba(255, 255, 255, .94);
-  --mobile-panel-soft: #f8fafc;
-  --mobile-panel-raised: #f1f5f9;
-  --mobile-hover: #f8fafc;
-  --mobile-text: #111827;
-  --mobile-text-strong: #0f172a;
-  --mobile-muted: #64748b;
-  --mobile-muted-weak: #94a3b8;
-  --mobile-border: rgba(226, 232, 240, .96);
-  --mobile-border-strong: #d7dee9;
-  --mobile-shadow-soft: 0 8px 24px rgba(15, 23, 42, .06);
-  --mobile-shadow-raised: 0 18px 52px rgba(15, 23, 42, .14);
-  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(255, 255, 255, .92) 26%, #ffffff);
-  --mobile-accent-panel: #f4fbf8;
-  --mobile-accent-soft: #e8f7f1;
-  --mobile-accent-text: #08795f;
-  --mobile-accent-solid: #10a37f;
-  --mobile-accent-contrast: #ffffff;
-  --mobile-accent-shadow: 0 10px 24px rgba(16, 163, 127, .18);
-  --mobile-overlay: rgba(15, 23, 42, .42);
-  --mobile-danger-soft: #fee2e2;
-  --mobile-danger-border: #fecaca;
-  --mobile-danger-text: #b91c1c;
-  --mobile-action-bg: #172033;
+  --mobile-accent-shadow: 0 12px 28px rgba(108, 86, 245, .26);
+  --mobile-overlay: rgba(10, 9, 15, .66);
+  --mobile-danger-soft: rgba(227, 108, 120, .14);
+  --mobile-danger-border: rgba(227, 108, 120, .30);
+  --mobile-danger-text: #ffb1b9;
+  --mobile-action-bg: #806cff;
   --mobile-action-text: #ffffff;
 }
 
-/* 最终主题层只负责颜色，不改组件几何。 */
+body.theme-light {
+  --mobile-bg: #ffffff;
+  --mobile-panel: #ffffff;
+  --mobile-panel-translucent: rgba(255, 255, 255, .96);
+  --mobile-panel-soft: #f8fafc;
+  --mobile-panel-raised: #ffffff;
+  --mobile-hover: #f1f5f9;
+  --mobile-text: #111111;
+  --mobile-text-strong: #000000;
+  --mobile-muted: #4b5563;
+  --mobile-muted-weak: #9ca3af;
+  --mobile-border: rgba(15, 23, 42, .08);
+  --mobile-border-strong: rgba(15, 23, 42, .15);
+  --mobile-shadow-soft: 0 8px 24px rgba(15, 23, 42, .07);
+  --mobile-shadow-raised: 0 24px 60px rgba(15, 23, 42, .16);
+  --mobile-composer-fade: linear-gradient(180deg, transparent, rgba(255, 255, 255, .96) 34%, #ffffff);
+  --mobile-accent-panel: #f3f4f6;
+  --mobile-accent-soft: #f3f4f6;
+  --mobile-accent-text: #111827;
+  --mobile-accent-solid: #374151;
+  --mobile-accent-contrast: #ffffff;
+  --mobile-accent-shadow: none;
+  --mobile-overlay: rgba(15, 23, 42, .22);
+  --mobile-danger-soft: #fef2f2;
+  --mobile-danger-border: #fecaca;
+  --mobile-danger-text: #b91c1c;
+  --mobile-action-bg: #111827;
+  --mobile-action-text: #ffffff;
+}
+
 @media (max-width: 720px) {
   #app.app aside {
     border-right-color: var(--mobile-border) !important;
@@ -71,49 +70,51 @@ body.theme-light {
 
   #app.app .sidebar-mask.show { background: var(--mobile-overlay) !important; }
 
-  #app.app aside :is(.brand-text, .workspace-picker-name, .session-title, .sidebar-section-head, .sidebar-task-item),
-  #app.app aside .sidebar-task-list.session-list-like .sidebar-task-name.session-title {
+  #app.app aside :is(.brand-text, .session-title, .sidebar-section-head) {
     color: var(--mobile-text-strong) !important;
   }
 
-  #app.app aside :is(.sub, .session-preview, .session-meta, .workspace-picker-arrow, .sidebar-section-count) {
+  #app.app aside :is(.sub, .session-preview, .session-meta) {
     color: var(--mobile-muted) !important;
   }
 
-  #app.app aside :is(.sidebar-toggle, .workspace-picker-trigger, .session-search-box, .session-delete) {
+  #app.app aside :is(.sidebar-toggle, .session-search-box, .session-delete) {
     border-color: var(--mobile-border) !important;
     background: var(--mobile-panel-soft) !important;
     color: var(--mobile-text) !important;
   }
 
-  #app.app aside :is(.workspace-picker-meta, .pin-mark) {
-    background: var(--mobile-accent-soft) !important;
-    color: var(--mobile-accent-text) !important;
-  }
-
   #app.app aside .session:hover { background: var(--mobile-hover) !important; }
   #app.app aside .session.active {
-    border-color: var(--mobile-border-strong) !important;
+    border-color: color-mix(in srgb, var(--mobile-accent-solid) 34%, var(--mobile-border)) !important;
     background: var(--mobile-accent-panel) !important;
+    box-shadow: inset 3px 0 0 var(--mobile-accent-solid) !important;
   }
 
-  #app.app :is(.quick-palette, .quick-palette-head, .quick-palette-foot, .quick-palette-item, .model-picker-popover, .workspace-picker-sheet, .session-actions-sheet) {
+  #app.app aside .new {
+    border-color: transparent !important;
+    background: var(--dock-gradient) !important;
+    color: var(--mobile-accent-contrast) !important;
+    box-shadow: var(--mobile-accent-shadow) !important;
+  }
+
+  #app.app :is(.model-picker-popover, .session-actions-sheet) {
     border-color: var(--mobile-border) !important;
     background: var(--mobile-panel-translucent) !important;
     color: var(--mobile-text) !important;
   }
 
-  #app.app :is(.quick-palette-head input, .quick-palette-item em, .quick-palette-close, .model-provider-item, .model-chip, .workspace-picker-item) {
+  #app.app :is(.model-provider-item, .model-chip) {
     border-color: var(--mobile-border) !important;
     background: var(--mobile-panel-soft) !important;
     color: var(--mobile-text) !important;
   }
 
-  #app.app :is(.quick-palette-item b, .model-picker-popover b, .workspace-picker-item b, .session-actions-sheet b) {
+  #app.app :is(.model-picker-popover b, .session-actions-sheet b) {
     color: var(--mobile-text-strong) !important;
   }
 
-  #app.app :is(.quick-palette-item small, .quick-palette-foot, .model-picker-popover small, .workspace-picker-item span) {
+  #app.app .model-picker-popover small {
     color: var(--mobile-muted) !important;
   }
 }

@@ -1,6 +1,10 @@
 @import './settings.css';
-@import './settings/12-automation-tasks.css';
 @import './settings/13-save-state.css';
 @import './settings/14-visual-system.css';
 @import './settings/15-layout-system.css';
 @import './settings/16-mobile-layout.css';
+@import './settings/17-brand-theme.css';
+@import './settings/18-unified.css';
+@import './settings/19-interaction.css';
+@import './settings/20-editor-pages.css';
+@import './settings/21-mobile-polish.css';

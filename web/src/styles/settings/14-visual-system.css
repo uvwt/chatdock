@@ -39,6 +39,19 @@
   text-rendering: optimizeLegibility;
 }
 
+body.theme-night .settings-page,
+body:not(.theme-light) .settings-page {
+  --settings-info-bg: #1a2630;
+  --settings-info-line: #355267;
+  --settings-info-text: #9ac5df;
+  --settings-warning-bg: #2a2418;
+  --settings-warning-line: #6e5931;
+  --settings-warning-text: #e0bd74;
+  --settings-error-bg: #2b1e1e;
+  --settings-error-line: #754040;
+  --settings-error-text: #e4a2a2;
+}
+
 .settings-page button,
 .settings-page input,
 .settings-page textarea,
@@ -73,7 +86,7 @@
 .settings-page .automation-task-title-wrap .task-name,
 .settings-page .mcp-tool-picker-head b,
 .settings-page .stat-value,
-.settings-page .workspace-summary-card b,
+.settings-page .project-summary-card b,
 .settings-page .model-summary-card b {
   color: var(--settings-text) !important;
   font-size: var(--settings-type-section-title) !important;
@@ -192,8 +205,8 @@
   padding: 4px 8px !important;
   border: 1px solid var(--settings-line) !important;
   border-radius: 999px !important;
-  background: #f8fafc !important;
-  color: #475467 !important;
+  background: var(--mobile-panel-raised) !important;
+  color: var(--mobile-muted) !important;
 }
 
 .settings-page .badge.ok {
@@ -338,8 +351,8 @@
   padding: 12px 14px;
   border: 1px solid var(--settings-line, #e4e9ef);
   border-radius: 12px;
-  background: #fff;
-  color: var(--settings-text, #182230);
+  background: var(--mobile-panel, #fff);
+  color: var(--mobile-text, #182230);
   font-size: 14px;
   font-weight: 500;
   line-height: 1.5;

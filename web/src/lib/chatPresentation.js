@@ -1,5 +1,3 @@
-import { fmtDuration, fmtTime, runStatusLabel } from './appUtils.js';
-
 export function streamStatusText(stats = {}, elapsed = 0) {
   const labels = { connecting: '连接模型中', streaming: '流式输出中', paused: '已暂停，后台继续接收', stopping: '正在中断', done: '已完成', error: '输出失败' };
   const parts = [labels[stats.state] || '待命'];
@@ -56,42 +54,3 @@ export function finalAssistantMessageFromSession(session) {
   return null;
 }
 
-export function scheduledTaskContextLabel(mode) {
-  return ({stateless: '每次独立执行', last_result: '带上次运行结果', session: '连续会话'})[mode] || mode || '每次独立执行';
-}
-
-export function scheduledTaskRunsText(task, runs = []) {
-  const lines = [];
-  lines.push('任务：' + (task?.title || '-'));
-  lines.push('上下文模式：' + scheduledTaskContextLabel(task?.context_mode || 'stateless'));
-  lines.push('');
-  if (!runs.length) {
-    lines.push('暂无运行记录。');
-    return lines.join('\n');
-  }
-  runs.forEach((run, index) => {
-    lines.push((index + 1) + '. ' + runStatusLabel(run.status) + ' · ' + fmtTime(run.started_at) + ' · ' + fmtDuration(run.duration_ms) + (run.manual ? ' · 手动' : ' · 自动'));
-    if (run.session_id) lines.push('会话：' + run.session_id);
-    if (run.error) lines.push('错误：' + run.error);
-    if (run.output) {
-      lines.push('输出：');
-      lines.push(String(run.output).slice(0, 1800));
-    }
-    lines.push('');
-  });
-  return lines.join('\n');
-}
-
-export function contextPreviewText(data = {}) {
-  const lines = [];
-  lines.push('工作空间：' + (data.workspace || '-'));
-  lines.push('上下文模式：' + (data.context_mode || '-') + ' · 最近消息窗口：' + (data.recent_messages || 0) + ' · 早期摘要：' + (data.summarize_old ? '开启' : '关闭'));
-  lines.push('会话消息：' + (data.message_count || 0) + ' 条 · 实际发送片段：' + (data.context_count || 0) + ' 条 · 粗略 token：' + (data.estimated_tokens || 0));
-  lines.push('');
-  (data.items || []).forEach((item, index) => {
-    lines.push((index + 1) + '. ' + (item.source || item.role || '上下文') + ' · ' + (item.role || '-') + ' · ' + (item.chars || 0) + ' 字 · ≈' + (item.estimated_tokens || 0) + ' tokens');
-    lines.push(item.content_preview || '');
-    lines.push('');
-  });
-  return lines.join('\n');
-}

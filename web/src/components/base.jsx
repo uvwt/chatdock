@@ -1,5 +1,14 @@
-// Reusable shell components: product cards, modal, auth, palette, and workspace picker.
+// Reusable shell components: product cards, modal, auth, and palette.
 import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import {
+  ArrowDown,
+  ArrowUp,
+  Bot,
+  LoaderCircle,
+  Orbit,
+  Sun,
+  X,
+} from './icons.js';
 import { ScheduleBuilder } from './scheduleBuilder.jsx';
 
 const MarkdownRenderer = lazy(() => import('./markdown.jsx'));
@@ -10,6 +19,20 @@ export function Markdown({ value, className = '' }) {
   return <Suspense fallback={fallback}><MarkdownRenderer value={value} className={className} /></Suspense>;
 }
 
+export function PageLoadingState({ title = '正在加载', detail = '正在准备页面内容。', fullscreen = false }) {
+  return <div className={'route-loading-state ' + (fullscreen ? 'fullscreen' : 'content')} role="status" aria-live="polite" aria-busy="true">
+    <div className="route-loading-card">
+      <span className="route-loading-icon" aria-hidden="true"><LoaderCircle size={20} /></span>
+      <div className="route-loading-copy">
+        <span className="route-loading-eyebrow">CHATDOCK</span>
+        <strong>{title}</strong>
+        <span>{detail}</span>
+      </div>
+      <span className="route-loading-progress" aria-hidden="true"><span /></span>
+    </div>
+  </div>;
+}
+
 export function TextCard({ title, hint, badge, badgeClass = '', active, children }) {
   return <div className={'product-card ' + (active ? 'active' : '')}>
     <div className="product-card-head"><div><b>{title}</b>{hint ? <div className="hint">{hint}</div> : null}</div>{badge ? <span className={'badge ' + badgeClass}>{badge}</span> : null}</div>
@@ -17,63 +40,122 @@ export function TextCard({ title, hint, badge, badgeClass = '', active, children
   </div>;
 }
 
+const quickActionIcons = {
+  continue: ArrowUp,
+  'provider-system-prompt': Bot,
+  'export-session': ArrowDown,
+  theme: Sun,
+};
+
 export function QuickPalette({ open, actions, onClose }) {
-  const [query, setQuery] = useState('');
-  const inputRef = useRef(null);
+  const paletteRef = useRef(null);
+  const firstActionRef = useRef(null);
+  const returnFocusRef = useRef(null);
+  const restoreFocusRef = useRef(true);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
-    if (!open) {
-      setQuery('');
-      return;
-    }
-    const id = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(id);
+    if (!open) return undefined;
+    returnFocusRef.current = document.activeElement;
+    restoreFocusRef.current = true;
+    const frame = requestAnimationFrame(() => firstActionRef.current?.focus());
+    const handlePaletteKeyDown = event => {
+      if (event.key === 'Tab') {
+        const focusable = Array.from(paletteRef.current?.querySelectorAll('button:not(:disabled)') || []);
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        restoreFocusRef.current = true;
+        onCloseRef.current();
+      }
+    };
+    document.addEventListener('keydown', handlePaletteKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', handlePaletteKeyDown);
+      if (!restoreFocusRef.current) return;
+      const target = returnFocusRef.current;
+      requestAnimationFrame(() => {
+        if (target && document.contains(target)) target.focus?.();
+      });
+    };
   }, [open]);
+
   if (!open) return null;
-  const q = query.trim().toLowerCase();
-  const filtered = actions.filter(action => !q || [action.title, action.hint, action.id].some(v => String(v || '').toLowerCase().includes(q)));
+
+  const firstEnabledActionID = actions.find(action => !action.disabled)?.id;
+  const groups = actions.reduce((result, action) => {
+    const label = action.group || '其他';
+    let group = result.find(item => item.label === label);
+    if (!group) {
+      group = {label, actions: []};
+      result.push(group);
+    }
+    group.actions.push(action);
+    return result;
+  }, []);
+
+  function closePalette() {
+    restoreFocusRef.current = true;
+    onClose();
+  }
+
   function runAction(action) {
     if (!action || action.disabled) return;
+    restoreFocusRef.current = false;
     onClose();
     action.run?.();
   }
-  return <div className="quick-palette-backdrop show" onClick={onClose}>
-    <div className="quick-palette" role="dialog" aria-modal="true" aria-label="快捷指令" onClick={e => e.stopPropagation()}>
+
+  return <div className="quick-palette-backdrop show" onClick={closePalette}>
+    <div ref={paletteRef} className="quick-palette" role="dialog" aria-modal="true" aria-labelledby="quickPaletteTitle" aria-describedby="quickPaletteDescription" onClick={event => event.stopPropagation()}>
       <div className="quick-palette-head">
-        <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => {
-          if (e.key === 'Escape') onClose();
-          if (e.key === 'Enter') runAction(filtered.find(a => !a.disabled));
-        }} placeholder="搜索快捷指令，例如：模型、导出、工作空间" />
-        <button className="secondary small quick-palette-close" onClick={onClose} aria-label="关闭快捷指令">×</button>
+        <div className="quick-palette-heading">
+          <span>QUICK ACTIONS</span>
+          <strong id="quickPaletteTitle">快捷操作</strong>
+          <p id="quickPaletteDescription">当前会话与界面的常用入口</p>
+        </div>
+        <button type="button" className="secondary small quick-palette-close icon-button" onClick={closePalette} aria-label="关闭快捷操作"><X size={17} aria-hidden="true" /></button>
       </div>
       <div className="quick-palette-list">
-        {filtered.length ? filtered.map(action => <button key={action.id} type="button" className="quick-palette-item" disabled={!!action.disabled} onClick={() => runAction(action)}>
-          <span><b>{action.title}</b><small>{action.hint}</small></span>
-          <em>{action.disabled ? '不可用' : '执行'}</em>
-        </button>) : <div className="empty compact">没有匹配的快捷指令。</div>}
+        {groups.map((group, groupIndex) => <section className="quick-palette-group" key={group.label} aria-labelledby={'quickPaletteGroup' + groupIndex}>
+          <div className="quick-palette-group-head">
+            <span id={'quickPaletteGroup' + groupIndex}>{group.label}</span>
+            <small>{group.actions.filter(action => !action.disabled).length} / {group.actions.length} 可用</small>
+          </div>
+          <div className="quick-palette-group-actions">
+            {group.actions.map(action => {
+              const ActionIcon = quickActionIcons[action.id] || Orbit;
+              return <button
+                key={action.id}
+                ref={action.id === firstEnabledActionID ? firstActionRef : null}
+                type="button"
+                className="quick-palette-item"
+                disabled={!!action.disabled}
+                onClick={() => runAction(action)}
+              >
+                <span className="quick-palette-item-icon" aria-hidden="true"><ActionIcon size={18} strokeWidth={1.8} /></span>
+                <span className="quick-palette-item-copy"><b>{action.title}</b><small>{action.hint}</small></span>
+                <em className={action.disabled ? 'disabled' : ''} aria-hidden="true">{action.disabled ? '不可用' : '→'}</em>
+              </button>;
+            })}
+          </div>
+        </section>)}
       </div>
-      <div className="quick-palette-foot">快捷键：⌘/Ctrl K 打开，/ 聚焦输入框，Esc 关闭弹层。</div>
-    </div>
-  </div>;
-}
-
-export function WorkspacePicker({ open, workspaceSummaries, busy, activeName, onClose, onSelect }) {
-  if (!open) return null;
-  return <div className="workspace-picker-backdrop show" onClick={onClose}>
-    <div className="workspace-picker-sheet" role="dialog" aria-modal="true" aria-label="选择工作空间" onClick={e => e.stopPropagation()}>
-      <div className="workspace-picker-head">
-        <div><b>选择工作空间</b><div className="hint">切换后会加载对应会话和模型。</div></div>
-        <button className="secondary small" type="button" onClick={onClose}>关闭</button>
-      </div>
-      <div className="workspace-picker-list">
-        {workspaceSummaries.length ? workspaceSummaries.map(item => <button
-          key={item.name}
-          type="button"
-          disabled={busy}
-          className={'workspace-picker-item ' + (item.name === activeName ? 'active' : '')}
-          onClick={() => onSelect(item.name)}>
-          <span className="workspace-picker-item-main"><b>{item.name}</b><span>{item.count} 条会话</span></span>
-          <span className="workspace-picker-check">{item.name === activeName ? '✓' : ''}</span>
-        </button>) : <div className="empty compact">暂无工作空间。</div>}
+      <div className="quick-palette-foot">
+        <span>键盘快捷键</span>
+        <div className="quick-palette-shortcuts"><span><kbd>⌘ / Ctrl K</kbd> 打开</span><span><kbd>Esc</kbd> 关闭</span></div>
       </div>
     </div>
   </div>;
@@ -96,35 +178,34 @@ export function LoginPage({ api, error, refreshAfterLogin, setAuthPage }) {
     } catch (e) { setLoginError('登录失败：' + e.message); }
   }
   return <div id="authPage" className="auth-page">
-    <div className="auth-ambient auth-ambient-one" aria-hidden="true" />
-    <div className="auth-ambient auth-ambient-two" aria-hidden="true" />
+    <div className="auth-grid" aria-hidden="true" />
     <div className="auth-shell">
       <section className="auth-intro" aria-label="ChatDock 简介">
-        <div className="auth-logo">✦</div>
+        <div className="auth-brand-lockup"><span className="auth-logo"><Orbit size={22} /></span><span>CHATDOCK / PRIVATE</span></div>
         <div className="auth-eyebrow">Local-first AI console</div>
-        <h1>ChatDock</h1>
-        <p>把会话、模型供应商、工具和定时任务收进一个轻量工作台。</p>
+        <h1>工作流，<br /><span>不止对话。</span></h1>
+        <p>把模型、工具、项目与自动化放进同一条可追踪的执行链。</p>
         <div className="auth-feature-grid">
-          <span>多工作空间</span>
+          <span>项目上下文</span>
           <span>模型路由</span>
-          <span>MCP 工具</span>
-          <span>定时任务</span>
+          <span>工具执行</span>
+          <span>任务自动化</span>
         </div>
       </section>
       <form className="login-card" onSubmit={submit}>
         <div className="login-card-head">
           <div>
-            <div className="login-brand">ChatDock</div>
-            <b>欢迎回来</b>
+            <div className="login-brand">Private access</div>
+            <b>继续到你的工作台</b>
           </div>
-          <span>私有访问</span>
+          <span>Secure</span>
         </div>
         <div className="hint">{message}</div>
-        <label>账号</label><input autoComplete="username" placeholder="输入账号" value={username} onChange={e => setUsername(e.target.value)} autoFocus />
-        <label>密码</label><input type="password" autoComplete="current-password" placeholder="输入密码" value={credential} onChange={e => setCredential(e.target.value)} />
+        <label><span>账号</span><div className="login-input-wrap"><input autoComplete="username" placeholder="输入账号" value={username} onChange={e => setUsername(e.target.value)} autoFocus /></div></label>
+        <label><span>密码</span><div className="login-input-wrap"><input type="password" autoComplete="current-password" placeholder="输入密码" value={credential} onChange={e => setCredential(e.target.value)} /></div></label>
         <div className="task-error" role="alert">{loginError}</div>
         <button type="submit" className="login-submit" disabled={!canSubmit}>登录并进入</button>
-        <div className="login-footnote">访问凭证只保存在当前浏览器本地。</div>
+        <div className="login-footnote">凭证只保存在当前浏览器本地。</div>
       </form>
     </div>
   </div>;
@@ -161,6 +242,7 @@ export function DialogHost({ dialog, closeDialog }) {
         const control = renderDialogField(field, value, setValue, values, setValues);
         if (field.type === 'hidden') return control;
         if (field.type === 'schedule_builder') return <div key={field.name} className="app-modal-field schedule-builder-field"><span>{field.label || field.name}</span>{control}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</div>;
+        if (field.type === 'readonly_text') return <section key={field.name} className="app-modal-field readonly-text-field"><span>{field.label || field.name}</span>{control}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</section>;
         return <label key={field.name} className={'app-modal-field ' + (field.type === 'provider_keys' ? 'provider-keys-field' : '')}><span>{field.label || field.name}</span>{control}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</label>;
       })}</div>
       <div className="app-modal-actions">{dialog.hideCancel ? null : <button type="button" className="secondary app-modal-cancel" onClick={() => closeDialog(null)}>{dialog.cancelText || '取消'}</button>}<button type="submit" className={dialog.danger ? 'danger' : ''}>{dialog.confirmText || '确定'}</button></div>
@@ -215,7 +297,7 @@ function formatDialogValue(value, emptyText = '无') {
 }
 
 
-function ProviderKeysEditor({ value, setValue, values, setValues }) {
+export function ProviderKeysEditor({ value, setValue, values, setValues }) {
   const rows = Array.isArray(value) && value.length ? value : [{id: 'main', name: '主 key', api_key: '', enabled: true, priority: 1}];
   const selectedID = String(values?.selected_key_id || rows[0]?.id || '').trim();
   const updateRow = (index, patch) => setValue(rows.map((row, i) => i === index ? {...row, ...patch} : row));
@@ -250,6 +332,7 @@ function renderDialogField(field, value, setValue, values = {}, setValues = null
   if (field.type === 'hidden') return <input key={field.name} type="hidden" value={value || ''} readOnly />;
   if (field.type === 'provider_keys') return <ProviderKeysEditor value={value} setValue={setValue} values={values} setValues={setValues} />;
   if (field.type === 'schedule_builder') return <ScheduleBuilder value={value} onChange={setValue} />;
+  if (field.type === 'readonly_text') return <div className="app-modal-readonly-text" role="document" tabIndex={0}><pre>{value || field.emptyText || '（空）'}</pre></div>;
   if (field.type === 'textarea') return <textarea rows={field.rows || 5} value={value} placeholder={field.placeholder || ''} required={!!field.required} onChange={e => setValue(e.target.value)} />;
   if (field.type === 'select') return <select value={value} required={!!field.required} onChange={e => { const next = e.target.value; setValue(next); if (field.fillByValue && setValues) { const fill = field.fillByValue[next] || {}; setValues(current => ({...current, ...Object.fromEntries(Object.entries(fill).filter(([, v]) => v))})); } }}>{(field.options || []).map(opt => typeof opt === 'string' ? <option key={opt} value={opt}>{opt}</option> : <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select>;
   return <input type={field.type || 'text'} min={field.min} max={field.max} step={field.step} value={value} placeholder={field.placeholder || ''} required={!!field.required} onChange={e => setValue(e.target.value)} />;

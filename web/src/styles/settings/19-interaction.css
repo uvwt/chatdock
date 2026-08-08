@@ -1,0 +1,126 @@
+/* 配置中心交互层：导航反馈、键盘焦点和移动端紧凑切换。 */
+.settings-page .settings-refresh-button.refreshing .settings-refresh-icon {
+  animation: settings-refresh-spin .8s linear infinite;
+}
+
+@keyframes settings-refresh-spin {
+  to { transform: rotate(360deg); }
+}
+
+.settings-page .module-tab-dirty {
+  border-color: var(--gpt-border-strong) !important;
+  background: var(--gpt-surface-2) !important;
+  color: var(--gpt-text) !important;
+}
+
+.settings-page :is(.module-tab, .model-option-group > summary, .model-inline-card > summary):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--gpt-text) 24%, transparent) !important;
+  outline-offset: 2px !important;
+}
+
+.settings-page .model-inline-card > summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  margin: 0 3px 4px 8px;
+  border-right: 1.5px solid var(--gpt-muted);
+  border-bottom: 1.5px solid var(--gpt-muted);
+  transform: rotate(45deg);
+  transition: transform .16s ease, margin .16s ease;
+}
+
+.settings-page .model-inline-card[open] > summary::after {
+  margin-top: 5px;
+  margin-bottom: 0;
+  transform: rotate(225deg);
+}
+
+.settings-page .candidate-model-filter {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.settings-page .candidate-model-filter input {
+  width: 100%;
+}
+
+.settings-page .candidate-model-filter span {
+  color: var(--gpt-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .settings-page .settings-sidebar {
+    top: 58px !important;
+    z-index: 30 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    border-bottom: 1px solid var(--gpt-border) !important;
+    background: color-mix(in srgb, var(--gpt-main) 96%, transparent) !important;
+    backdrop-filter: blur(14px) !important;
+  }
+
+  .settings-page .module-tabs {
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 50px !important;
+    margin: 0 !important;
+    padding: 7px 12px !important;
+    gap: 5px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    border: 0 !important;
+    background: transparent !important;
+    scrollbar-width: none !important;
+    scroll-snap-type: x proximity;
+  }
+
+  .settings-page .module-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .settings-page .module-tabs button.module-tab {
+    display: inline-grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: max-content !important;
+    min-height: 36px !important;
+    padding: 0 11px !important;
+    gap: 7px !important;
+    border: 1px solid transparent !important;
+    border-radius: 10px !important;
+    scroll-snap-align: center;
+  }
+
+  .settings-page .module-tab-main {
+    gap: 7px !important;
+  }
+
+  .settings-page .module-tab-icon {
+    width: 15px !important;
+    height: 15px !important;
+    flex-basis: 15px !important;
+  }
+
+  .settings-page .module-tab-label {
+    font-size: 12px !important;
+  }
+
+  .settings-page .settings-save-state {
+    top: calc(116px + env(safe-area-inset-top, 0px)) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-page .settings-refresh-button.refreshing .settings-refresh-icon {
+    animation: none;
+  }
+
+  .settings-page .model-inline-card > summary::after {
+    transition: none;
+  }
+}

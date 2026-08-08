@@ -1,9 +1,10 @@
 // Shared UI formatting, routing, and product-status helpers.
-export const settingsModules = ['workspace', 'model', 'providers', 'tools', 'automation', 'security'];
+export const settingsModules = ['model', 'tools', 'projects', 'automation', 'security'];
 
 export function normalizeSettingsModule(name) {
   if (name === 'data') return 'security';
-  return settingsModules.includes(name) ? name : 'workspace';
+  if (name === 'providers') return 'model';
+  return settingsModules.includes(name) ? name : 'model';
 }
 
 export function agentTaskDataEnabled(setupStatus, systemStatus, authPageVisible = false) {
@@ -65,8 +66,7 @@ export function diagnosticsText({ setupStatus, systemStatus, dataStatus, mcpStat
     '- 状态：' + (systemStatus?.ok ? 'healthy' : 'unknown'),
     '- 地址：' + (systemStatus?.addr || '-'),
     '- 数据目录：' + safePathName(data.data_dir || setup.data_dir),
-    '- 当前工作空间：' + (setup.active_workspace || data.active_workspace || '-'),
-    '- 工作空间数量：' + (data.workspace_count ?? setup.workspace_count ?? '-'),
+    '- 项目数量：' + (data.project_count ?? setup.project_count ?? '-'),
     '- 会话数量：' + (data.session_count ?? '-'),
     '- 数据库：' + (data.database_exists ? safePathName(data.database_path || systemStatus?.database) : '未创建'),
     '- 数据库大小：' + fmtBytes(data.database_size_bytes),
@@ -199,7 +199,7 @@ export function scheduleSummary(t) {
 export function settingsModuleFromPath() {
   const parts = window.location.pathname.split('/').filter(Boolean);
   if (parts[0] !== 'settings') return '';
-  return normalizeSettingsModule(parts[1] || localStorage.getItem('chatdock.settingsModule') || 'workspace');
+  return normalizeSettingsModule(parts[1] || localStorage.getItem('chatdock.settingsModule') || 'model');
 }
 
 export function sessionIDFromPath() {

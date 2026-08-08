@@ -1,11 +1,19 @@
 import React from 'react';
+import {
+  Check,
+  ChevronDown,
+  ListTodo,
+  LoaderCircle,
+  RefreshCw,
+  X,
+} from './icons.js';
 import { activeAgentTaskCount, agentTaskProgress, agentTaskStatusMeta, agentTaskStepMeta } from '../lib/agentTasks.js';
 
 export function TaskPanelToggle({ available, open, tasks, onClick }) {
   const activeCount = activeAgentTaskCount(tasks);
   const label = available ? (open ? '关闭全部任务' : '打开全部任务') : 'AgentDock 任务接口尚未配置';
   return <button type="button" className={'secondary task-panel-toggle ' + (open ? 'active' : '')} onClick={onClick} aria-label={label} aria-expanded={open ? 'true' : 'false'} title={label}>
-    <svg className="task-panel-toggle-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></svg>
+    <ListTodo className="task-panel-toggle-icon" size={17} aria-hidden="true" />
     <span className="task-panel-toggle-label">任务</span>
     {activeCount > 0 ? <span className="task-panel-toggle-count">{activeCount > 99 ? '99+' : activeCount}</span> : null}
   </button>;
@@ -42,7 +50,7 @@ export function CurrentSessionTask({ error, loading, onRefresh, task, taskID }) 
       <span className="current-session-task-step">{task.blocker || currentStep?.title || task.summary || '等待下一步'}</span>
       <span className="current-session-task-progress"><span style={{ width: `${progress.percent}%` }} /></span>
       <span className="current-session-task-count">{progress.text}</span>
-      <span className="current-session-task-chevron" aria-hidden="true">{expanded ? '⌃' : '⌄'}</span>
+      <span className="current-session-task-chevron" aria-hidden="true"><ChevronDown className={expanded ? 'is-open' : ''} size={15} /></span>
     </button>
     {expanded ? <TaskCardDetail task={task} loading={loading} error={error} /> : null}
   </section>;
@@ -58,17 +66,17 @@ export function TaskPanel({ available, deletingTaskID, detailError, detailLoadin
         <p>{available ? (activeTasks.length ? `${activeTasks.length} 个任务正在推进` : '当前没有进行中的任务') : '配置 AgentDock 后可实时查看任务进度'}</p>
       </div>
       <div className="agent-task-panel-actions">
-        <button type="button" className="secondary agent-task-refresh" onClick={() => onRefresh({ initial: true })} disabled={!available || loading} aria-label="刷新任务" title="刷新任务">↻</button>
-        <button type="button" className="secondary agent-task-close" onClick={onClose} aria-label="关闭任务面板" title="关闭任务面板">×</button>
+        <button type="button" className="secondary agent-task-refresh icon-button" onClick={() => onRefresh({ initial: true })} disabled={!available || loading} aria-label="刷新任务" title="刷新任务"><RefreshCw size={16} aria-hidden="true" /></button>
+        <button type="button" className="secondary agent-task-close icon-button" onClick={onClose} aria-label="关闭任务面板" title="关闭任务面板"><X size={16} aria-hidden="true" /></button>
       </div>
     </header>
 
     {available && error ? <div className="agent-task-error"><b>任务服务暂时不可用</b><span>{error}</span><button type="button" className="secondary small" onClick={() => onRefresh({ initial: true })}>重试</button></div> : null}
 
     <div className="agent-task-panel-body">
-      {!available ? <div className="agent-task-empty"><span className="agent-task-empty-icon" aria-hidden="true">⚙</span><b>AgentDock 任务接口尚未配置</b><p>设置 CHATDOCK_AGENTDOCK_CONTEXT_URL 并重启服务后，这里会自动开始同步。</p></div> : null}
+      {!available ? <div className="agent-task-empty"><b>AgentDock 任务接口尚未配置</b><p>设置 CHATDOCK_AGENTDOCK_CONTEXT_URL 并重启服务后，这里会自动开始同步。</p></div> : null}
       {available && loading && !tasks.length ? <TaskPanelLoading /> : null}
-      {available && !loading && !tasks.length && !error ? <div className="agent-task-empty"><span className="agent-task-empty-icon" aria-hidden="true">✓</span><b>任务列表为空</b><p>AgentDock 创建多步骤任务后，会在这里实时显示进度。</p></div> : null}
+      {available && !loading && !tasks.length && !error ? <div className="agent-task-empty"><b>任务列表为空</b><p>AgentDock 创建多步骤任务后，会在这里实时显示进度。</p></div> : null}
       {activeTasks.length ? <TaskSection title="进行中" count={activeTasks.length}>
         {activeTasks.map(task => <TaskCard key={task.id} task={task} deleting={deletingTaskID === task.id} expanded={expandedTaskID === task.id} detail={taskDetail} detailLoading={detailLoading} detailError={detailError} onDelete={onDelete} onExpand={onExpand} />)}
       </TaskSection> : null}
@@ -107,7 +115,7 @@ function TaskCard({ deleting, detail, detailError, detailLoading, expanded, onDe
       <div className="agent-task-progress" aria-label={`完成 ${progress.percent}%`}><span style={{ width: `${progress.percent}%` }} /></div>
     </button>
     <div className="agent-task-card-actions">
-      <button type="button" className="agent-task-card-action expand" onClick={() => onExpand(task.id)} aria-expanded={expanded ? 'true' : 'false'}>{expanded ? '收起步骤' : '查看步骤'} <span aria-hidden="true">{expanded ? '⌃' : '⌄'}</span></button>
+      <button type="button" className="agent-task-card-action expand" onClick={() => onExpand(task.id)} aria-expanded={expanded ? 'true' : 'false'}>{expanded ? '收起步骤' : '查看步骤'} <span aria-hidden="true"><ChevronDown className={expanded ? 'is-open' : ''} size={14} /></span></button>
       <button type="button" className="agent-task-card-action delete" onClick={() => onDelete(task)} disabled={deleting} aria-label={`删除任务 ${view.title}`}>{deleting ? '删除中…' : '删除'}</button>
     </div>
     {expanded ? <TaskCardDetail task={view} loading={detailLoading} error={detailError} /> : null}
@@ -121,7 +129,8 @@ function TaskCardDetail({ error, loading, task }) {
     {task.goal ? <p className="agent-task-goal">{task.goal}</p> : null}
     {task.steps?.length ? <ol className="agent-task-steps">{task.steps.map(step => {
       const meta = agentTaskStepMeta(step.status);
-      return <li key={step.id} className={meta.tone}><span className="agent-task-step-symbol" aria-hidden="true">{meta.symbol}</span><span className="agent-task-step-title">{step.title}</span><span className="agent-task-step-status">{meta.label}</span></li>;
+      const StepIcon = step.status === 'completed' ? Check : LoaderCircle;
+      return <li key={step.id} className={meta.tone}><span className="agent-task-step-symbol" aria-hidden="true"><StepIcon size={13} /></span><span className="agent-task-step-title">{step.title}</span><span className="agent-task-step-status">{meta.label}</span></li>;
     })}</ol> : <div className="agent-task-detail-state">这个任务没有分解步骤。</div>}
     {task.summary ? <div className="agent-task-last-update"><span>最近进展</span><p>{task.summary}</p></div> : null}
   </div>;

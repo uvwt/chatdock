@@ -1,20 +1,20 @@
 # ChatDock
 
-ChatDock 是一个面向个人使用的自托管 AI 工作台。它把多模型对话、工作空间、MCP 工具、附件、定时任务和执行过程放在同一个 Web 界面中，并将数据保存在你自己的 SQLite 数据库里。
+ChatDock 是一个面向个人使用的自托管 AI 工作台。它把多模型对话、项目上下文、MCP 工具、附件、定时任务和执行过程放在同一个 Web 界面中，并将数据保存在你自己的 SQLite 数据库里。
 
-ChatDock 支持 OpenAI Chat Completions 兼容接口，可连接 OpenAI、兼容网关或本地模型服务。工作空间会隔离模型配置、MCP、自动化任务和会话，适合同时维护多套独立 AI 使用环境。
+ChatDock 支持 OpenAI Chat Completions 兼容接口，可连接 OpenAI、兼容网关或本地模型服务。它适合希望统一管理模型、提示词、工具和自动化，同时保留完整数据控制权的用户。
 
 ## 主要能力
 
 - **多模型与多供应商**：管理多个 OpenAI 兼容供应商、API Key 和候选模型；每个会话可以单独切换模型。
 - **主模型与备用模型**：主模型在尚未输出内容、也未执行工具前失败时，可自动切换到备用模型。
-- **多工作空间**：每个工作空间独立保存模型设置、系统提示词、MCP 配置、定时任务和会话。
+- **项目上下文**：为不同项目保存长期提示词，并预览全局提示词与项目提示词组合后的实际内容。
 - **流式对话与后台生成**：切换会话后原任务可以继续运行；重新打开会话时可恢复事件流，也可以中断或追加引导。
 - **完整会话管理**：搜索、置顶、重命名、复制、从指定消息创建分支、编辑并重新生成、Markdown 导出。
 - **附件与图片**：上传、下载并在会话中引用附件；支持向具备视觉能力的模型发送图片。
 - **MCP 工具**：连接 HTTP MCP Server，发现和调用工具，并配置允许、拒绝和人工确认规则。
 - **工具调用确认**：命中 `confirm_tools` 的调用会暂停，等待用户在界面中允许或拒绝。
-- **工作空间自动化**：支持一次性、固定间隔和五段 Cron；每个工作空间维护自己的任务和运行记录。
+- **定时任务**：支持一次性、固定间隔和五段 Cron；可以选择无状态、携带上次结果或连续会话上下文。
 - **AgentDock 任务视图**：可选连接 AgentDock Context API，在 ChatDock 中查看会话关联任务及运行进度。
 - **本地数据与诊断**：SQLite 单文件存储，系统页展示数据库、WAL、备份和脱敏诊断信息。
 - **响应式 Web 与 PWA**：桌面和移动端均可使用，前后端由同一个服务提供。
@@ -45,6 +45,7 @@ openssl rand -hex 32
 CHATDOCK_AUTH_TOKEN=<粘贴随机 Token>
 CHATDOCK_AUTH_USERNAME=admin
 CHATDOCK_AUTH_CREDENTIAL=<设置一个高强度登录密码>
+CHATDOCK_TIMEZONE=Asia/Shanghai
 ```
 
 限制配置文件权限：
@@ -83,15 +84,15 @@ http://127.0.0.1:8720
 
 使用 `chatdock.env` 中的账号和密码登录。
 
-## 首次配置
+## 首次配置模型
 
-首次登录后，ChatDock 会引导你创建默认工作空间并配置模型。也可以进入 **配置中心** 手动完成：
+登录后进入 **配置中心 → 模型**：
 
 1. 新增模型供应商；
 2. 填写名称、OpenAI 兼容 Base URL、API Key 和默认模型；
 3. 使用“测试连接”确认接口可用；
-4. 为当前工作空间选择默认供应商、默认模型和备用模型；
-5. 按需设置系统提示词、上下文数量、温度和思考内容显示方式。
+4. 选择 ChatDock 的默认供应商和默认模型；
+5. 按需设置备用供应商、全局系统提示词、上下文数量和温度。
 
 常见 Base URL 形式：
 
@@ -103,18 +104,17 @@ https://your-compatible-gateway.example/v1
 
 实际可用模型、鉴权方式和参数取决于所连接的服务。ChatDock 使用 OpenAI Chat Completions 兼容协议，不要求供应商必须是 OpenAI。
 
-## 工作空间
+## 项目与会话
 
-工作空间用于隔离不同用途的数据。每个工作空间独立保存：
+项目用于保存长期上下文，不会复制模型配置：
 
-- 默认供应商、模型、备用模型和系统提示词；
-- MCP Server 配置与工具规则；
-- 定时任务和运行记录；
-- 会话、附件和会话内模型选择。
+- 全局系统提示词适用于所有新对话；
+- 项目提示词只应用于该项目下的会话；
+- 会话可以不属于任何项目；
+- 删除项目不会删除会话，原会话会转为普通会话；
+- 每个会话可以覆盖默认模型选择。
 
-切换工作空间后，ChatDock 会载入对应会话和配置。正在生成回复时需要先停止任务，才能安全切换或删除当前工作空间。
-
-删除工作空间会同时删除该空间下的配置、任务和会话；默认工作空间不能删除。执行删除前应先完成数据库备份。
+生成过程中可以切换到其他会话，后端任务会继续运行。再次打开原会话时，ChatDock 会继续读取该任务的事件流。
 
 ## MCP 工具
 
@@ -124,7 +124,7 @@ https://your-compatible-gateway.example/v1
 {
   "servers": {
     "agentdock": {
-      "url": "http://host.docker.internal:18766/mcp",
+      "url": "http://host.docker.internal:8765/mcp",
       "auth": {
         "type": "bearer",
         "token_env": "AGENTDOCK_TOKEN"
@@ -182,11 +182,11 @@ CHATDOCK_EMBEDDING_API_KEY=<可选 API Key>
 CHATDOCK_EMBEDDING_MODEL=BAAI/bge-m3
 ```
 
-这些环境变量提供启动配置；也可以在当前工作空间的配置中心中维护对应设置。
+这些环境变量提供启动配置；也可以在配置中心中维护对应设置。
 
 ## 附件与图片
 
-普通附件会保存到 ChatDock 数据目录，并与工作空间和会话关联。图片要发送给外部视觉模型时，模型服务必须能够访问 ChatDock 生成的签名图片地址。
+普通附件会保存到 ChatDock 数据目录，并与会话关联。图片要发送给外部视觉模型时，模型服务必须能够访问 ChatDock 生成的签名图片地址。
 
 远程部署可以设置：
 
@@ -198,7 +198,7 @@ CHATDOCK_PUBLIC_BASE_URL=https://chat.example.com
 
 ## 定时任务
 
-每个工作空间都可以维护自己的定时任务：
+ChatDock 内置三种调度方式：
 
 - `once`：在指定时间执行一次，完成后自动停用；
 - `interval`：按分钟间隔循环执行；
@@ -210,14 +210,14 @@ CHATDOCK_PUBLIC_BASE_URL=https://chat.example.com
 - **带上次运行结果**：只把上一次结果加入上下文；
 - **连续会话**：复用关联会话，保留完整上下文。
 
-每次运行都会写入当前工作空间的运行记录；也可以在配置中心手动点击“立即运行”进行验证。
+每次运行都会写入运行记录；也可以在配置中心手动点击“立即运行”进行验证。
 
 ## 可选连接 AgentDock 任务
 
 需要在 ChatDock 中查看 AgentDock 任务时，可配置：
 
 ```dotenv
-CHATDOCK_AGENTDOCK_CONTEXT_URL=http://host.docker.internal:18766/context
+CHATDOCK_AGENTDOCK_CONTEXT_URL=http://host.docker.internal:8765/context
 CHATDOCK_AGENTDOCK_CONTEXT_TOKEN=<AgentDock Token>
 ```
 
@@ -233,6 +233,7 @@ CHATDOCK_AGENTDOCK_CONTEXT_TOKEN=<AgentDock Token>
 | `CHATDOCK_AUTH_USERNAME` | 空 | 浏览器登录用户名 |
 | `CHATDOCK_AUTH_CREDENTIAL` | 空 | 浏览器登录密码 |
 | `CHATDOCK_PUBLIC_BASE_URL` | 空 | 模型读取签名图片时使用的公开地址 |
+| `CHATDOCK_TIMEZONE` | 系统时区 | 定时任务默认时区 |
 | `CHATDOCK_EMBEDDING_BASE_URL` | 空 | OpenAI 兼容 Embeddings Base URL |
 | `CHATDOCK_EMBEDDING_API_KEY` | 空 | Embeddings API Key |
 | `CHATDOCK_EMBEDDING_MODEL` | `BAAI/bge-m3` | Embeddings 模型 |
@@ -256,9 +257,7 @@ ChatDock 默认使用 SQLite：
 - 不要只复制 `chatdock.sqlite` 而忽略仍在使用的 `-wal` 文件；
 - 不要把数据目录、环境文件或备份提交到 Git；
 - 可以把备份目录只读挂载到容器 `/backups`，系统页会显示最近备份状态；
-- 删除工作空间或升级前先生成可验证的数据库快照。
-
-旧版 JSON 数据会在首次启动时自动导入 SQLite，包括 `config.json`、`mcp.json`、`scheduled_tasks.json` 和 `sessions/*.json`。原文件不会自动删除，可以暂时作为迁移备份。
+- 升级前先生成可验证的数据库快照。
 
 使用 Docker Volume 时，删除或重建容器不会删除 `chatdock-data`。只有显式删除 Docker Volume 才会移除其中的数据。
 
@@ -271,13 +270,18 @@ git pull
 docker build -t chatdock:local .
 ```
 
-然后删除旧容器，并使用与首次启动相同的 `docker run` 参数重建，继续挂载原来的 `chatdock-data`：
+然后使用与首次启动相同的 `docker run` 参数重建容器，并继续挂载原来的 `chatdock-data`。
+
+ChatDock 不会在运行时自动迁移早期的“多工作空间”数据库。检测到旧表或旧 `workspace_id` 字段时会拒绝启动，避免静默破坏数据。此类旧数据库需要先创建独立快照，再使用：
 
 ```bash
-docker rm -f chatdock
+go run ./cmd/chatdock-migrate-workspaces \
+  -source /path/to/legacy-snapshot.sqlite \
+  -target /path/to/current.sqlite \
+  -global-workspace default
 ```
 
-数据库 Schema 会通过迁移记录自动升级。执行升级前仍应保留完整数据库快照。
+迁移工具不会原地修改源数据库，并会在发布目标文件前执行一致性检查。
 
 ## 安全建议
 
@@ -325,4 +329,6 @@ make build
 make check
 ```
 
-`make check` 会执行前端构建、CSS 与结构守卫、前端测试、Bundle 预算、Go 格式、`go vet`、Go 测试和最终二进制构建。
+`make check` 会执行前端依赖与构建、CSS/结构守卫、前端测试、Go 格式、`go vet`、Go 测试和最终二进制构建。
+
+更多实现和开发约束见 [架构文档](./docs/architecture.md)。

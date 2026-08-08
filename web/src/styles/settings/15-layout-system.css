@@ -14,7 +14,7 @@
   padding: 24px !important;
   overflow: auto !important;
   background:
-    radial-gradient(circle at 8% 0%, rgba(16, 163, 127, .08), transparent 30%),
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--mobile-accent-solid) 8%, transparent), transparent 30%),
     var(--mobile-bg) !important;
 }
 
@@ -197,8 +197,8 @@
 }
 
 .settings-page .module-tab.active::before {
-  background: #10a37f;
-  box-shadow: 0 0 0 4px rgba(16, 163, 127, .12);
+  background: var(--mobile-accent-solid);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--mobile-accent-solid) 12%, transparent);
 }
 
 .settings-page .module-tab-label {
@@ -281,7 +281,7 @@
 .settings-page .automation-task-card,
 .settings-page .task-card,
 .settings-page .stat-card,
-.settings-page .workspace-summary-card,
+.settings-page .project-summary-card,
 .settings-page .model-summary-card,
 .settings-page .backup-item,
 .settings-page .backup-health,
@@ -290,6 +290,21 @@
   border-radius: 16px !important;
   background: var(--mobile-panel) !important;
   box-shadow: var(--mobile-shadow-soft) !important;
+}
+
+.settings-page #projectCards .product-card.active,
+.settings-page .provider-grid .product-card.active {
+  border-color: color-mix(in srgb, var(--mobile-accent-solid) 34%, var(--mobile-border)) !important;
+  background: var(--mobile-accent-panel) !important;
+  color: var(--mobile-text) !important;
+  box-shadow: inset 3px 0 0 var(--mobile-accent-solid), var(--mobile-shadow-soft) !important;
+}
+
+.settings-page #projectCards .product-card.active .badge,
+.settings-page .provider-grid .product-card.active .badge {
+  border-color: color-mix(in srgb, var(--mobile-accent-solid) 24%, var(--mobile-border)) !important;
+  background: var(--mobile-accent-soft) !important;
+  color: var(--mobile-accent-text) !important;
 }
 
 .settings-page .settings-section-head,
@@ -306,6 +321,6 @@
 .settings-page .tasks-list,
 .settings-page .mcp-form-list,
 .settings-page .mcp-status-grid,
-.settings-page #workspaceCards {
+.settings-page #projectCards {
   gap: 14px !important;
 }

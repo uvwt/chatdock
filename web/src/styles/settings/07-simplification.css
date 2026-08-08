@@ -12,11 +12,10 @@
 .settings-page .model-summary-card,
 .settings-page .settings-section,
 .settings-page .mcp-form-card,
-.settings-page .workspace-summary-card,
+.settings-page .project-summary-card,
 .settings-page .empty.compact,
 .settings-page .backup-item,
 .settings-page .backup-health,
-.settings-page .mcp-raw-json,
 .settings-page .mcp-advanced-fields {
   border-color: #e5e7eb !important;
   background: #fff !important;
@@ -57,7 +56,7 @@
 }
 
 .settings-page .product-card,
-.settings-page #workspaceCards .product-card,
+.settings-page #projectCards .product-card,
 .settings-page .provider-grid .product-card,
 .settings-page .task-card,
 .settings-page .stat-card,
@@ -131,10 +130,10 @@
   font-size: 12px !important;
 }
 
-.settings-page .workspace-summary-grid,
+.settings-page .project-summary-grid,
 .settings-page .model-summary-grid,
 .settings-page #dataStatus,
-.settings-page #workspaceCards,
+.settings-page #projectCards,
 .settings-page .provider-grid,
 .settings-page .tasks-list,
 .settings-page .mcp-status-grid,
@@ -144,12 +143,12 @@
   gap: 10px !important;
 }
 
-.settings-page .workspace-summary-card {
+.settings-page .project-summary-card {
   padding: 11px 12px !important;
   border-radius: 12px !important;
 }
 
-.settings-page .workspace-summary-card b {
+.settings-page .project-summary-card b {
   margin-top: 4px !important;
   font-size: 17px !important;
 }
@@ -254,7 +253,7 @@
     border-radius: 14px !important;
   }
 
-  .settings-page #workspaceCards,
+  .settings-page #projectCards,
   .settings-page .provider-grid,
   .settings-page .tasks-list,
   .settings-page .tasks-list,
@@ -339,14 +338,12 @@
 }
 
 .settings-page details.settings-section,
-.settings-page details.mcp-advanced-fields,
-.settings-page details.mcp-raw-json {
+.settings-page details.mcp-advanced-fields {
   padding: 10px 12px !important;
 }
 
 .settings-page details.settings-section[open],
-.settings-page details.mcp-advanced-fields[open],
-.settings-page details.mcp-raw-json[open] {
+.settings-page details.mcp-advanced-fields[open] {
   padding: 12px !important;
 }
 

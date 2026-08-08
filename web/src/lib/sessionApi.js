@@ -1,23 +1,41 @@
 import { fetchWithAuth } from './http.js';
 
-export function fetchSessions(api, { cursor = '', limit = 30 } = {}) {
+function appendProjectFilter(params, projectFilter = 'all') {
+  if (projectFilter === 'plain') params.set('project_id', '');
+  else if (projectFilter && projectFilter !== 'all') params.set('project_id', projectFilter);
+}
+
+function appendPinnedFilter(params, pinned) {
+  if (pinned === true) params.set('pinned', '1');
+  else if (pinned === false) params.set('pinned', '0');
+}
+
+export function fetchSessions(api, { cursor = '', limit = 30, projectFilter = 'all', pinned } = {}) {
   const params = new URLSearchParams({ limit: String(limit) });
   if (cursor) params.set('cursor', cursor);
+  appendProjectFilter(params, projectFilter);
+  appendPinnedFilter(params, pinned);
   return api('/api/sessions?' + params.toString());
 }
 
-export function searchSessions(api, query, { cursor = '', limit = 30 } = {}) {
+export function fetchPinned(api) {
+  return api('/api/pinned');
+}
+
+export function searchSessions(api, query, { cursor = '', limit = 30, projectFilter = 'all' } = {}) {
   const params = new URLSearchParams({ q: query, limit: String(limit) });
   if (cursor) params.set('cursor', cursor);
+  appendProjectFilter(params, projectFilter);
   return api('/api/sessions/search?' + params.toString());
 }
 
-export function fetchContextPreview(api, id) {
-  return api('/api/sessions/' + encodeURIComponent(id) + '/context-preview');
+export function fetchProviderSystemPrompt(api, id) {
+  return api('/api/sessions/' + encodeURIComponent(id) + '/provider-system-prompt');
 }
 
-export function createSessionRecord(api) {
-  return api('/api/sessions', {method:'POST', body:'{}'});
+export function createSessionRecord(api, { projectID = '' } = {}) {
+  const body = projectID ? JSON.stringify({project_id: projectID}) : '{}';
+  return api('/api/sessions', {method:'POST', body});
 }
 
 export function fetchSession(api, id) {

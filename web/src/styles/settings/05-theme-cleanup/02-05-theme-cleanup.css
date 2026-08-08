@@ -35,13 +35,13 @@
   margin-top: 0 !important;
 }
 
-.settings-page .workspace-summary-grid,
+.settings-page .project-summary-grid,
 .settings-page .model-summary-grid {
   gap: 10px !important;
   margin: 8px 0 12px !important;
 }
 
-.settings-page .workspace-summary-card,
+.settings-page .project-summary-card,
 .settings-page .model-summary-card {
   min-height: unset !important;
   padding: 12px 13px !important;
@@ -49,7 +49,7 @@
   border-radius: 14px !important;
 }
 
-.settings-page .workspace-summary-card b,
+.settings-page .project-summary-card b,
 .settings-page .model-summary-card b {
   font-size: 15px !important;
 }

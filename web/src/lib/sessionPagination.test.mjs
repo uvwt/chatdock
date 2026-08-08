@@ -1,13 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeSessionPages, normalizeSessionPage, sessionSummaryFromSession, upsertSessionSummary } from './sessionPagination.js';
+import { mergeSessionPages, normalizeSessionPage, removeSessionSummary, sessionMatchesProjectFilter, sessionSummaryFromSession, upsertSessionSummary } from './sessionPagination.js';
 
-test('normalizes paginated and legacy session responses', () => {
-  assert.deepEqual(normalizeSessionPage([{ id: 'legacy' }]), {
-    sessions: [{ id: 'legacy' }],
-    nextCursor: '',
-    hasMore: false,
-  });
+test('normalizes the current paginated session response', () => {
+  assert.throws(() => normalizeSessionPage([{ id: 'legacy' }]), /invalid session page response/);
   assert.deepEqual(normalizeSessionPage({ sessions: [{ id: 'page' }], next_cursor: 'next', has_more: true }), {
     sessions: [{ id: 'page' }],
     nextCursor: 'next',
@@ -37,13 +33,8 @@ test('projects a full session into a compact list summary', () => {
     id: 'session-1',
     title: '分页会话',
     pinned: true,
-    provider_id: '',
-    model: '',
-    preview: '最新 回复',
-    last_role: 'assistant',
-    created_at: undefined,
+    project_id: '',
     updated_at: undefined,
-    count: 1,
   });
 });
 
@@ -62,4 +53,37 @@ test('upserts refreshed sessions and keeps pinned/newer rows first', () => {
   assert.equal(items[0].id, 'target');
   assert.equal(items[0].title, '新标题');
   assert.equal(items[0].pinned, true);
+});
+
+test('upsert can keep pinned and unpinned feeds separate', () => {
+  const pinned = upsertSessionSummary([
+    { id: 'keep', title: '已置顶', pinned: true, updated_at: '2026-07-20T10:00:00Z' },
+  ], {
+    id: 'target',
+    title: '新置顶',
+    pinned: true,
+    updated_at: '2026-07-21T10:00:00Z',
+  }, { requirePinned: true });
+  assert.deepEqual(pinned.map(item => item.id), ['target', 'keep']);
+
+  const unpinned = upsertSessionSummary([
+    { id: 'plain', title: '普通', pinned: false, updated_at: '2026-07-20T10:00:00Z' },
+    { id: 'target', title: '旧标题', pinned: false, updated_at: '2026-07-20T11:00:00Z' },
+  ], {
+    id: 'target',
+    title: '已置顶',
+    pinned: true,
+    updated_at: '2026-07-21T10:00:00Z',
+  }, { requirePinned: false });
+  assert.deepEqual(unpinned.map(item => item.id), ['plain']);
+
+  assert.deepEqual(removeSessionSummary(pinned, 'target').map(item => item.id), ['keep']);
+});
+
+test('new session summaries only enter their matching project feed', () => {
+  assert.equal(sessionMatchesProjectFilter({ project_id: '' }, 'plain'), true);
+  assert.equal(sessionMatchesProjectFilter({ project_id: 'project-1' }, 'plain'), false);
+  assert.equal(sessionMatchesProjectFilter({ project_id: 'project-1' }, 'project-1'), true);
+  assert.equal(sessionMatchesProjectFilter({ project_id: 'project-2' }, 'project-1'), false);
+  assert.equal(sessionMatchesProjectFilter({ project_id: 'project-2' }, 'all'), true);
 });

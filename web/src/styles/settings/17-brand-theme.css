@@ -1,0 +1,548 @@
+/* 配置中心与主工作台共享同一套编辑式视觉语言。 */
+.settings-page {
+  --mobile-bg: var(--gpt-bg);
+  --mobile-panel: var(--gpt-main);
+  --mobile-panel-soft: var(--gpt-surface-2);
+  --mobile-panel-raised: var(--gpt-surface);
+  --mobile-text: var(--gpt-text);
+  --mobile-text-strong: var(--text-strong);
+  --mobile-muted: var(--gpt-muted);
+  --mobile-muted-2: var(--gpt-muted-2);
+  --mobile-border: var(--gpt-border);
+  --mobile-hover: var(--gpt-sidebar-hover);
+  --mobile-accent-solid: var(--gpt-accent);
+  --mobile-accent-soft: var(--gpt-accent-soft);
+  --mobile-accent-text: color-mix(in srgb, var(--gpt-accent) 72%, var(--gpt-text));
+  --v4-green: var(--gpt-accent);
+  --set-accent: var(--gpt-accent);
+  --settings-v5-accent: var(--gpt-accent);
+  --settings-info-bg: var(--gpt-surface-2);
+  --settings-info-line: var(--gpt-border);
+  --settings-info-text: var(--gpt-text);
+  --settings-success-bg: var(--gpt-accent-soft);
+  --settings-success-line: color-mix(in srgb, var(--gpt-accent) 28%, var(--gpt-border));
+  --settings-success-text: var(--gpt-accent);
+  background: var(--gpt-bg) !important;
+}
+
+@media (min-width: 901px) {
+  .settings-page {
+    padding: 0 !important;
+  }
+
+  .settings-page .settings {
+    width: 100vw !important;
+    height: 100dvh !important;
+    grid-template-columns: 224px minmax(0, 1fr) !important;
+    grid-template-rows: 72px minmax(0, 1fr) !important;
+    overflow: hidden;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: var(--gpt-main) !important;
+    box-shadow: none !important;
+  }
+
+  .settings-page .settings-header {
+    min-height: 72px !important;
+    padding: 0 22px !important;
+    border-bottom: 1px solid var(--gpt-border) !important;
+    background: var(--gpt-main) !important;
+    backdrop-filter: none;
+  }
+
+  .settings-page .settings-sidebar {
+    border-right: 1px solid var(--gpt-border) !important;
+    background: var(--gpt-sidebar) !important;
+  }
+
+  .settings-page .module-tabs {
+    padding: 18px 13px !important;
+  }
+
+  .settings-page .settings-content {
+    position: relative;
+    padding: 34px clamp(30px, 4vw, 62px) 56px !important;
+    background: var(--gpt-main) !important;
+  }
+}
+
+.settings-page .settings-header-main {
+  gap: 14px !important;
+}
+
+.settings-page .settings-back-button,
+.settings-page .settings-header-actions .settings-refresh-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  min-height: 36px !important;
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 10px !important;
+  background: var(--gpt-surface-2) !important;
+  color: var(--gpt-muted) !important;
+  box-shadow: none !important;
+}
+
+.settings-page .settings-back-button:hover,
+.settings-page .settings-header-actions .settings-refresh-button:hover {
+  border-color: var(--gpt-border-strong) !important;
+  color: var(--gpt-text) !important;
+}
+
+.settings-page .settings-title-row h2 {
+  color: var(--gpt-text) !important;
+  font-size: 19px !important;
+  font-weight: 700 !important;
+  letter-spacing: -.035em !important;
+}
+
+.settings-page .settings-header-main p {
+  color: var(--gpt-muted) !important;
+  font-size: 10px !important;
+  letter-spacing: .04em;
+}
+
+.settings-page .settings-global-save-state {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.settings-page .module-tab {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 9px !important;
+  width: 100% !important;
+  min-height: 42px !important;
+  padding: 8px 11px !important;
+  border: 1px solid transparent !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  color: var(--gpt-muted) !important;
+  box-shadow: none !important;
+  text-align: left !important;
+}
+
+.settings-page .module-tab::before,
+.settings-page .module-tab.active::before {
+  content: none !important;
+}
+
+.settings-page .module-tab:hover {
+  border-color: var(--gpt-border) !important;
+  background: var(--gpt-sidebar-hover) !important;
+  color: var(--gpt-text) !important;
+}
+
+.settings-page .module-tab.active,
+.settings-page .module-tabs button.module-tab.active {
+  border-color: color-mix(in srgb, var(--gpt-accent) 28%, var(--gpt-border)) !important;
+  background: var(--gpt-accent-soft) !important;
+  color: var(--gpt-accent) !important;
+  box-shadow: inset 2px 0 0 var(--gpt-accent) !important;
+}
+
+.settings-page .module-tab-label {
+  min-width: 0;
+  font-size: 12px !important;
+  font-weight: 620 !important;
+}
+
+.settings-page .module-tab-dirty {
+  border: 1px solid color-mix(in srgb, var(--gpt-accent) 26%, var(--gpt-border)) !important;
+  background: transparent !important;
+  color: var(--gpt-accent) !important;
+  font-size: 8px !important;
+}
+
+.settings-page .settings-sidebar-footer {
+  border-top: 1px solid var(--gpt-border) !important;
+  color: var(--gpt-muted) !important;
+}
+
+.settings-page .module-view-title {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 14px !important;
+  margin-bottom: 26px !important;
+}
+
+.settings-page .module-view-title > div > span {
+  color: var(--gpt-text) !important;
+  font-family: inherit !important;
+  font-size: 28px !important;
+  font-weight: 680 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -.035em !important;
+}
+
+.settings-page .module-view-title p {
+  max-width: 620px;
+  margin-top: 6px !important;
+  color: var(--gpt-muted) !important;
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+}
+
+.settings-page :is(
+  .hint,
+  .product-meta,
+  .model-quick-head span,
+  .settings-disclosure p,
+  .data-info-row span,
+  .project-summary-card span,
+  .stat-card span,
+  .task-meta,
+  .mcp-server-main span,
+  .mcp-server-meta small
+) {
+  color: var(--gpt-muted) !important;
+}
+
+.settings-page .settings-block-head,
+.settings-page .settings-section-title {
+  color: var(--gpt-muted) !important;
+}
+
+.settings-page .settings-block-head > label,
+.settings-page .settings-section-title > b,
+.settings-page .settings-section h3 {
+  color: var(--gpt-text) !important;
+  font-size: 12px !important;
+  font-weight: 680 !important;
+  letter-spacing: .02em !important;
+}
+
+.settings-page .settings-section,
+.settings-page .model-quick-panel,
+.settings-page .model-inline-card,
+.settings-page .mcp-form-card,
+.settings-page .product-card,
+.settings-page .automation-task-card,
+.settings-page .task-card,
+.settings-page .stat-card,
+.settings-page .project-summary-card,
+.settings-page .model-summary-card,
+.settings-page .backup-item,
+.settings-page .backup-health,
+.settings-page .empty.compact {
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 14px !important;
+  background: var(--gpt-surface) !important;
+  color: var(--gpt-text) !important;
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--palette-ink) 4.5%, transparent) !important;
+  transition: border-color .2s ease, box-shadow .2s ease !important;
+}
+
+body:not(.theme-light) .settings-page .settings-section,
+body:not(.theme-light) .settings-page .model-quick-panel,
+body:not(.theme-light) .settings-page .model-inline-card,
+body:not(.theme-light) .settings-page .mcp-form-card,
+body:not(.theme-light) .settings-page .product-card,
+body:not(.theme-light) .settings-page .automation-task-card,
+body:not(.theme-light) .settings-page .task-card,
+body:not(.theme-light) .settings-page .stat-card,
+body:not(.theme-light) .settings-page .project-summary-card,
+body:not(.theme-light) .settings-page .model-summary-card,
+body:not(.theme-light) .settings-page .backup-item,
+body:not(.theme-light) .settings-page .backup-health,
+body:not(.theme-light) .settings-page .empty.compact {
+  background: var(--gpt-surface) !important;
+  color: var(--gpt-text) !important;
+}
+
+body:not(.theme-light) .settings-page :is(.settings-section, .model-quick-panel, .model-inline-card, .mcp-form-card, .product-card, .task-card, .stat-card, .project-summary-card) :is(b, strong, label) {
+  color: var(--gpt-text) !important;
+}
+
+body:not(.theme-light) .settings-page :is(.model-quick-head span, .product-meta, .hint) {
+  color: var(--gpt-muted) !important;
+}
+
+.settings-page .product-card:hover,
+.settings-page .automation-task-card:hover,
+.settings-page .task-card:hover {
+  transform: none;
+  border-color: var(--gpt-border-strong) !important;
+  box-shadow: 0 10px 32px color-mix(in srgb, var(--palette-ink) 7%, transparent) !important;
+}
+
+body .settings-page [data-module-view="projects"] #projectCards .product-card.active,
+body .settings-page [data-module-view="providers"] .product-card.active,
+.settings-page #projectCards .product-card.active,
+.settings-page .provider-grid .product-card.active {
+  border-color: color-mix(in srgb, var(--gpt-accent) 44%, var(--gpt-border)) !important;
+  background: color-mix(in srgb, var(--gpt-accent) 7%, var(--gpt-surface)) !important;
+  box-shadow: inset 3px 0 0 var(--gpt-accent), 0 8px 28px color-mix(in srgb, var(--palette-ink) 6%, transparent) !important;
+}
+
+.settings-page .model-option.active,
+.settings-page .provider-chip.active,
+.settings-page .badge.ok,
+.settings-page .product-card.active .badge,
+.settings-page .settings-save-state.saved,
+.settings-page .setup-banner.ok,
+.settings-page .mcp-inline-warning.ok,
+.settings-page .backup-health.ok {
+  border-color: color-mix(in srgb, var(--gpt-accent) 30%, var(--gpt-border)) !important;
+  background: var(--gpt-accent-soft) !important;
+  color: var(--gpt-accent) !important;
+  box-shadow: none !important;
+}
+
+.settings-page .settings-save-state {
+  border-radius: 999px !important;
+}
+
+.settings-page .settings-save-state-icon {
+  display: inline-grid !important;
+  place-items: center !important;
+}
+
+.settings-page button:not(.secondary):not(.danger):not(.module-tab):not(.model-option),
+.settings-page .settings-actions button:not(.secondary):not(.danger),
+.settings-page .mcp-primary-actions button:first-child {
+  border: 1px solid var(--gpt-accent) !important;
+  border-radius: 10px !important;
+  background: var(--gpt-accent) !important;
+  color: var(--gpt-accent-contrast) !important;
+  box-shadow: none !important;
+}
+
+.settings-page button:not(.secondary):not(.danger):not(.module-tab):not(.model-option):hover:not(:disabled),
+.settings-page .settings-actions button:not(.secondary):not(.danger):hover:not(:disabled) {
+  transform: none;
+  background: var(--gpt-accent-strong) !important;
+}
+
+.settings-page button.secondary,
+.settings-page input,
+.settings-page textarea,
+.settings-page select,
+.settings-page .code-preview {
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 10px !important;
+  background: var(--gpt-surface-2) !important;
+  color: var(--gpt-text) !important;
+  box-shadow: none !important;
+}
+
+.settings-page button.secondary:hover:not(:disabled) {
+  border-color: var(--gpt-border-strong) !important;
+  background: var(--gpt-sidebar-hover) !important;
+}
+
+.settings-page input:focus,
+.settings-page textarea:focus,
+.settings-page select:focus {
+  border-color: color-mix(in srgb, var(--gpt-accent) 58%, var(--gpt-border)) !important;
+  box-shadow: 0 0 0 4px var(--gpt-accent-soft) !important;
+}
+
+.settings-page input::placeholder,
+.settings-page textarea::placeholder {
+  color: var(--gpt-muted-2) !important;
+  opacity: 1;
+}
+
+.settings-page :is(button, input, textarea, select):disabled {
+  color: var(--gpt-muted) !important;
+  opacity: .86;
+}
+
+.settings-page .automation-task-more summary {
+  display: inline-grid !important;
+  place-items: center !important;
+  color: var(--gpt-muted) !important;
+}
+
+.settings-page .automation-task-more summary::marker,
+.settings-page .automation-task-more summary::-webkit-details-marker {
+  display: none;
+  content: "";
+}
+
+.settings-page .setup-banner::before,
+.settings-page .product-card::before,
+.settings-page .mcp-tool-policy-actions button.active::before {
+  content: none !important;
+}
+
+.settings-page .mcp-directory-section,
+.settings-page .mcp-detail-section,
+.settings-page .mcp-form-list.redesigned {
+  max-width: 920px;
+}
+
+.settings-page .mcp-directory-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-page .mcp-config-directory {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.settings-page button.mcp-config-directory-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 18px !important;
+  width: 100% !important;
+  min-height: 68px !important;
+  padding: 12px 14px !important;
+  border: 1px solid var(--gpt-border) !important;
+  border-radius: 12px !important;
+  background: var(--gpt-surface-2) !important;
+  color: var(--gpt-text) !important;
+  box-shadow: none !important;
+  text-align: left !important;
+}
+
+.settings-page button.mcp-config-directory-row:hover {
+  border-color: var(--gpt-border-strong) !important;
+  background: var(--gpt-sidebar-hover) !important;
+}
+
+.settings-page .mcp-config-directory-row > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.settings-page .mcp-config-directory-row b {
+  overflow: hidden;
+  color: var(--gpt-text) !important;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-page .mcp-config-directory-row small,
+.settings-page .mcp-config-directory-row em {
+  overflow: hidden;
+  color: var(--gpt-muted) !important;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-page .mcp-config-modal {
+  width: min(920px, 100%);
+}
+
+.settings-page .mcp-config-modal .app-modal-form {
+  display: grid;
+  gap: 16px;
+}
+
+.settings-page .mcp-config-modal .app-modal-title {
+  margin: 0;
+  color: var(--gpt-text) !important;
+}
+
+.settings-page .mcp-config-modal-body,
+.settings-page .mcp-config-modal .mcp-detail-section,
+.settings-page .mcp-config-modal .mcp-form-list.redesigned {
+  min-width: 0;
+  max-width: none;
+}
+
+.settings-page .mcp-config-modal .mcp-detail-section,
+.settings-page .mcp-config-modal .mcp-form-card {
+  margin: 0;
+}
+
+.settings-page .mcp-config-modal .mcp-form-head {
+  justify-content: flex-end;
+}
+
+.settings-page .mcp-config-modal .app-modal-actions {
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  .settings-page {
+    background: var(--gpt-bg) !important;
+  }
+
+  .settings-page .settings-header,
+  .settings-page .settings-content,
+  .settings-page .module-tabs {
+    background: var(--gpt-main) !important;
+  }
+
+  .settings-page .settings-header {
+    border-bottom: 1px solid var(--gpt-border) !important;
+  }
+
+  .settings-page .module-tabs {
+    gap: 4px !important;
+    border-bottom: 1px solid var(--gpt-border) !important;
+  }
+
+  .settings-page .module-tab {
+    display: inline-flex !important;
+    width: auto !important;
+    min-height: 38px !important;
+  }
+
+  .settings-page .module-tab.active,
+  .settings-page .module-tabs button.module-tab.active {
+    box-shadow: inset 0 -2px 0 var(--gpt-accent) !important;
+  }
+
+  .settings-page .settings-content {
+    padding: 24px 15px 46px !important;
+  }
+
+  .settings-page .module-view-title {
+    margin-bottom: 20px !important;
+  }
+
+  .settings-page .module-view-title > div > span {
+    font-size: 28px !important;
+  }
+
+  .settings-page .mcp-directory-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .settings-page .mcp-directory-actions button {
+    width: 100%;
+  }
+
+  .settings-page button.mcp-config-directory-row {
+    grid-template-columns: 1fr !important;
+    gap: 9px !important;
+    min-height: 78px !important;
+    padding: 12px !important;
+  }
+
+  .settings-page .mcp-config-modal .app-modal-form {
+    padding: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-page *,
+  .settings-page *::before,
+  .settings-page *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+.settings-page .settings-back-icon {
+  transform: none;
+}

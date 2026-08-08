@@ -1,0 +1,649 @@
+/* ChatDock 编辑式视觉系统：黑白画布、精确网格与低频酸性高光。 */
+html {
+  background: var(--gpt-bg);
+}
+
+body.theme-night,
+body:not(.theme-light) {
+  --mobile-bg: var(--gpt-bg);
+  --mobile-panel: var(--gpt-sidebar);
+  --mobile-panel-translucent: color-mix(in srgb, var(--gpt-sidebar) 94%, transparent);
+  --mobile-panel-soft: var(--gpt-surface-2);
+  --mobile-panel-raised: var(--gpt-surface);
+  --mobile-hover: var(--gpt-sidebar-hover);
+  --mobile-text: var(--gpt-text);
+  --mobile-text-strong: var(--text-strong);
+  --mobile-muted: var(--gpt-muted);
+  --mobile-muted-weak: var(--gpt-muted-2);
+  --mobile-border: var(--gpt-border);
+  --mobile-border-strong: var(--gpt-border-strong);
+  --mobile-shadow-soft: 0 10px 30px rgba(0, 0, 0, .16);
+  --mobile-shadow-raised: 0 28px 90px rgba(0, 0, 0, .46);
+  --mobile-composer-fade: linear-gradient(180deg, transparent, color-mix(in srgb, var(--gpt-main) 96%, transparent) 34%, var(--gpt-main));
+  --mobile-accent-panel: var(--gpt-accent-soft);
+  --mobile-accent-soft: var(--gpt-accent-soft);
+  --mobile-accent-text: var(--gpt-accent);
+  --mobile-accent-solid: var(--gpt-accent);
+  --mobile-accent-contrast: var(--gpt-accent-contrast);
+  --mobile-accent-shadow: 0 12px 34px color-mix(in srgb, var(--gpt-accent) 18%, transparent);
+  --mobile-overlay: rgba(0, 0, 0, .60);
+  --mobile-action-bg: var(--gpt-accent);
+  --mobile-action-text: var(--gpt-accent-contrast);
+}
+
+body.theme-light {
+  --mobile-bg: var(--gpt-bg);
+  --mobile-panel: var(--gpt-sidebar);
+  --mobile-panel-translucent: color-mix(in srgb, var(--gpt-sidebar) 94%, transparent);
+  --mobile-panel-soft: var(--gpt-surface-2);
+  --mobile-panel-raised: var(--gpt-surface);
+  --mobile-hover: var(--gpt-sidebar-hover);
+  --mobile-text: var(--gpt-text);
+  --mobile-text-strong: var(--text-strong);
+  --mobile-muted: var(--gpt-muted);
+  --mobile-muted-weak: var(--gpt-muted-2);
+  --mobile-border: var(--gpt-border);
+  --mobile-border-strong: var(--gpt-border-strong);
+  --mobile-shadow-soft: 0 10px 30px rgba(32, 35, 25, .08);
+  --mobile-shadow-raised: 0 28px 90px rgba(32, 35, 25, .18);
+  --mobile-composer-fade: linear-gradient(180deg, transparent, color-mix(in srgb, var(--gpt-main) 96%, transparent) 34%, var(--gpt-main));
+  --mobile-accent-panel: var(--gpt-accent-soft);
+  --mobile-accent-soft: var(--gpt-accent-soft);
+  --mobile-accent-text: var(--gpt-accent-strong);
+  --mobile-accent-solid: var(--gpt-accent);
+  --mobile-accent-contrast: var(--gpt-accent-contrast);
+  --mobile-accent-shadow: 0 12px 34px color-mix(in srgb, var(--gpt-accent) 16%, transparent);
+  --mobile-overlay: rgba(15, 17, 12, .42);
+  --mobile-action-bg: var(--gpt-accent);
+  --mobile-action-text: var(--gpt-accent-contrast);
+}
+
+body {
+  overflow: hidden;
+  background: var(--gpt-bg);
+  color: var(--gpt-text);
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-feature-settings: "ss01" 1, "cv02" 1, "cv03" 1;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  border: 1px solid transparent;
+  border-radius: var(--dock-radius-sm);
+  transition:
+    color .24s var(--dock-ease),
+    background .24s var(--dock-ease),
+    border-color .24s var(--dock-ease),
+    transform .24s var(--dock-ease),
+    box-shadow .24s var(--dock-ease),
+    opacity .2s ease;
+}
+
+button:hover:not(:disabled) {
+  filter: none;
+  transform: translateY(-1px);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0) scale(.98);
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+}
+
+.icon-button svg,
+button svg {
+  flex: 0 0 auto;
+}
+
+::selection {
+  background: var(--gpt-accent);
+  color: var(--gpt-accent-contrast);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--gpt-text) 20%, transparent);
+  background-clip: padding-box;
+}
+
+#app.app,
+#app.app.sidebar-collapsed,
+#app.app.settings-open,
+#app.app.sidebar-collapsed.settings-open {
+  position: relative;
+  grid-template-columns: var(--gpt-sidebar-width) minmax(0, 1fr);
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--gpt-main);
+}
+
+#app.app.sidebar-collapsed,
+#app.app.sidebar-collapsed.settings-open {
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+
+#app.app::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+  opacity: .035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+}
+
+#app.app main {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--gpt-text) 2.4%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--gpt-text) 2.4%, transparent) 1px, transparent 1px),
+    var(--gpt-main);
+  background-size: 64px 64px;
+}
+
+#app.app main::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 1;
+  background:
+    radial-gradient(circle at 76% 4%, color-mix(in srgb, var(--gpt-accent) 8%, transparent), transparent 28%),
+    radial-gradient(circle at 14% 90%, color-mix(in srgb, var(--gpt-accent-2) 6%, transparent), transparent 34%);
+  mask-image: none;
+}
+
+body.theme-light #app.app::after {
+  opacity: .012;
+}
+
+body.theme-light #app.app main {
+  background: var(--gpt-main);
+}
+
+body.theme-light #app.app main::before {
+  opacity: .42;
+  background:
+    radial-gradient(circle at 76% 4%, color-mix(in srgb, var(--gpt-accent) 3%, transparent), transparent 28%),
+    radial-gradient(circle at 14% 90%, color-mix(in srgb, var(--gpt-accent-2) 2%, transparent), transparent 34%);
+}
+/* 普通内容需要压在画布装饰层之上；顶栏和其他悬浮控件必须保留自己的定位。 */
+#app.app main > :not(.topbar):not(.jump-latest):not(.current-session-task):not(.composer-shell) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Sidebar */
+#app.app aside {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  padding: 13px 10px 12px;
+  overflow: hidden;
+  border-right: 1px solid var(--gpt-border);
+  background: var(--gpt-sidebar);
+  box-shadow: 8px 0 28px rgba(0, 0, 0, .035);
+}
+
+#app.app .sidebar-head {
+  display: flex;
+  align-items: center;
+  min-height: 54px;
+  padding: 3px 3px 12px 5px;
+}
+
+#app.app .brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+#app.app .brand-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--gpt-accent) 42%, var(--gpt-border));
+  border-radius: 50%;
+  background: var(--gpt-accent);
+  color: var(--gpt-accent-contrast);
+  box-shadow: 0 0 0 6px var(--gpt-accent-soft);
+}
+
+#app.app .brand-mark::before,
+#app.app .brand-mark::after,
+#app.app .brand-mark span {
+  content: none;
+}
+
+#app.app .brand-mark svg {
+  animation: brandOrbit 14s linear infinite;
+}
+
+#app.app .brand-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+#app.app .brand-text {
+  color: var(--gpt-text);
+  font-size: 18px;
+  font-weight: 780;
+  letter-spacing: -.045em;
+}
+
+#app.app .brand .sub {
+  margin: 0;
+  color: var(--gpt-muted-2);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+#app.app .sidebar-toggle {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--gpt-muted);
+}
+
+#app.app .sidebar-toggle:hover:not(:disabled) {
+  border-color: var(--gpt-border);
+  background: var(--gpt-sidebar-hover);
+  color: var(--gpt-text);
+}
+
+#app.app .session-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  gap: 7px;
+  padding: 2px 2px 12px;
+}
+
+#app.app .session-search-box {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  gap: 8px;
+  border: 1px solid var(--gpt-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--gpt-muted-2);
+  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+
+#app.app .session-search-box:focus-within {
+  border-color: var(--gpt-border-strong);
+  background: var(--gpt-surface-2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gpt-text) 4%, transparent);
+}
+
+#app.app .session-search {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--gpt-text);
+  outline: 0;
+}
+
+#app.app aside .new {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  margin: 0;
+  border: 1px solid var(--gpt-border-strong);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--gpt-text);
+  box-shadow: none;
+}
+
+#app.app aside .new:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--gpt-text);
+  background: color-mix(in srgb, var(--gpt-text) 5%, transparent);
+}
+
+#app.app .sidebar-section-head {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 9px;
+}
+
+#app.app .sidebar-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--gpt-muted-2);
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+#app.app .sidebar-section-head > button {
+  min-height: 0;
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--gpt-text);
+  font-size: 10px;
+}
+
+#app.app .sidebar-section-head > button:hover {
+  color: var(--gpt-text);
+}
+
+#app.app .session-menu-trigger {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--gpt-muted-2);
+}
+
+#app.app #sessions {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 2px;
+  padding: 0 2px 14px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+#app.app .sidebar-pinned-list,
+#app.app .sidebar-manage-list {
+  display: grid;
+  gap: 2px;
+  padding: 0 0 8px;
+}
+
+#app.app .sidebar-tree-node {
+  min-width: 0;
+}
+
+#app.app .sidebar-tree-node > summary {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 16px;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gpt-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+#app.app .sidebar-tree-node > summary::-webkit-details-marker,
+#app.app .sidebar-tree-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+#app.app .sidebar-tree-node > summary:hover,
+#app.app .sidebar-tree-node[open] > summary {
+  background: color-mix(in srgb, var(--gpt-text) 3.5%, transparent);
+  color: var(--gpt-text);
+}
+
+#app.app .sidebar-tree-node[open] > summary {
+  box-shadow: inset 2px 0 0 var(--gpt-text);
+}
+
+#app.app .sidebar-tree-node > summary span {
+  overflow: hidden;
+  color: var(--gpt-text);
+  font-size: 13px;
+  font-weight: 540;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#app.app .sidebar-tree-node > summary svg:last-child {
+  transition: transform .18s ease;
+}
+
+#app.app .sidebar-tree-node:not([open]) > summary svg:last-child {
+  transform: rotate(-90deg);
+}
+
+#app.app .sidebar-tree-children {
+  display: grid;
+  gap: 1px;
+  padding: 2px 0 5px 26px;
+}
+
+#app.app .sidebar-tree-new-chat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gpt-muted);
+  font-size: 12px;
+  font-weight: 560;
+  text-align: left;
+}
+
+#app.app .sidebar-tree-new-chat:hover {
+  background: color-mix(in srgb, var(--gpt-text) 3.5%, transparent);
+  color: var(--gpt-text);
+}
+
+#app.app .sidebar-tree-session,
+#app.app .sidebar-tree-more > summary,
+#app.app .sidebar-tree-state {
+  display: block;
+  min-width: 0;
+  padding: 7px 9px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gpt-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#app.app .sidebar-tree-session:hover {
+  background: color-mix(in srgb, var(--gpt-text) 3.5%, transparent);
+  color: var(--gpt-text);
+}
+
+#app.app .sidebar-tree-session.active {
+  background: transparent;
+  color: var(--gpt-text);
+  box-shadow: inset 2px 0 0 var(--gpt-text);
+}
+
+#app.app .sidebar-tree-session-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  align-items: center;
+  min-width: 0;
+  border-radius: 8px;
+}
+
+#app.app .sidebar-tree-session-row .sidebar-tree-session {
+  width: 100%;
+  padding-right: 4px;
+}
+
+#app.app .sidebar-tree-session-menu {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--gpt-muted-2);
+  opacity: 0;
+  transition: opacity .16s ease, background .16s ease, color .16s ease;
+}
+
+#app.app .sidebar-tree-session-row:hover .sidebar-tree-session-menu,
+#app.app .sidebar-tree-session-row:focus-within .sidebar-tree-session-menu {
+  opacity: 1;
+}
+
+#app.app .sidebar-tree-session-menu:hover {
+  background: var(--gpt-sidebar-hover);
+  color: var(--gpt-text);
+}
+
+#app.app .sidebar-tree-more > summary {
+  color: var(--gpt-muted-2);
+  cursor: pointer;
+}
+
+#app.app .sidebar-tree-more[open] > summary {
+  display: none;
+}
+
+#app.app #sessions .session {
+  position: relative;
+  display: flex;
+  min-height: 38px;
+  margin: 0;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gpt-muted);
+  box-shadow: none;
+}
+
+#app.app #sessions .session:not(.active):hover {
+  background: color-mix(in srgb, var(--gpt-text) 3.5%, transparent);
+  color: var(--gpt-text);
+}
+
+#app.app #sessions .session.active {
+  background: transparent;
+  color: var(--gpt-text);
+}
+
+#app.app #sessions .session.active::before {
+  content: "";
+  position: absolute;
+  inset: 8px auto 8px -2px;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--gpt-text);
+}
+
+#app.app #sessions .sidebar-link .session-main {
+  padding-right: 0;
+}
+
+#app.app .session-main {
+  min-width: 0;
+  padding-right: 30px;
+}
+
+#app.app #sessions .session.pinned .session-main {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+}
+
+#app.app #sessions .session-kind-icon {
+  color: var(--gpt-muted);
+}
+
+#app.app .session-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 530;
+  line-height: 1.3;
+}
+
+#app.app aside .session-preview,
+#app.app aside .session-meta {
+  display: none;
+}
+
+#app.app aside .session.scheduled-run .session-preview.scheduled-output {
+  display: -webkit-box;
+}
+
+#app.app .session-search-meta {
+  color: var(--gpt-muted-2);
+  font-size: 10px;
+}
+
+#app.app #sessions .session-main {
+  width: 100%;
+  min-width: 0;
+}
+
+#app.app #sessions .session-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

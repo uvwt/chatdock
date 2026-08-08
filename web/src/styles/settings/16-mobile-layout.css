@@ -233,7 +233,7 @@
   .settings-page .automation-task-card,
   .settings-page .task-card,
   .settings-page .stat-card,
-  .settings-page .workspace-summary-card,
+  .settings-page .project-summary-card,
   .settings-page .model-summary-card,
   .settings-page .empty.compact {
     padding: 14px !important;
@@ -248,7 +248,7 @@
   .settings-page .automation-task-card,
   .settings-page .task-card,
   .settings-page .stat-card,
-  .settings-page .workspace-summary-card,
+  .settings-page .project-summary-card,
   .settings-page .model-summary-card,
   .settings-page .empty.compact {
     border-color: var(--mobile-border) !important;
@@ -294,12 +294,12 @@
     gap: 12px !important;
   }
 
-  .settings-page .workspace-summary-grid,
+  .settings-page .project-summary-grid,
   .settings-page .model-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
-  .settings-page [data-module-view="workspace"] .workspace-summary-grid {
+  .settings-page [data-module-view="projects"] .project-summary-grid {
     gap: 0 !important;
     margin: 0 0 20px !important;
     overflow: hidden !important;
@@ -309,7 +309,7 @@
     box-shadow: none !important;
   }
 
-  .settings-page [data-module-view="workspace"] .workspace-summary-card {
+  .settings-page [data-module-view="projects"] .project-summary-card {
     min-height: 74px !important;
     padding: 13px 15px !important;
     border: 0 !important;
@@ -318,47 +318,47 @@
     box-shadow: none !important;
   }
 
-  .settings-page [data-module-view="workspace"] .workspace-summary-card:nth-child(odd) {
+  .settings-page [data-module-view="projects"] .project-summary-card:nth-child(odd) {
     border-right: 1px solid var(--mobile-border) !important;
   }
 
-  .settings-page [data-module-view="workspace"] .workspace-summary-card:nth-child(-n + 2) {
+  .settings-page [data-module-view="projects"] .project-summary-card:nth-child(-n + 2) {
     border-bottom: 1px solid var(--mobile-border) !important;
   }
 
-  .settings-page [data-module-view="workspace"] .workspace-summary-card span {
+  .settings-page [data-module-view="projects"] .project-summary-card span {
     color: var(--mobile-muted) !important;
     font-size: 12px !important;
   }
 
-  .settings-page [data-module-view="workspace"] .workspace-summary-card b {
+  .settings-page [data-module-view="projects"] .project-summary-card b {
     margin-top: 5px !important;
     color: var(--mobile-text-strong) !important;
     font-size: 18px !important;
   }
 
-  .settings-page [data-module-view="workspace"] .setup-banner.ok {
+  .settings-page [data-module-view="projects"] .setup-banner.ok {
     display: none !important;
   }
 
-  .settings-page [data-module-view="workspace"] #workspaceCards {
+  .settings-page [data-module-view="projects"] #projectCards {
     display: grid !important;
     grid-template-columns: 1fr !important;
     row-gap: 12px !important;
   }
 
-  .settings-page [data-module-view="workspace"] #workspaceCards .product-card {
+  .settings-page [data-module-view="projects"] #projectCards .product-card {
     padding: 15px !important;
     border-radius: 15px !important;
   }
 
-  .settings-page [data-module-view="workspace"] #workspaceCards .product-card.active {
+  .settings-page [data-module-view="projects"] #projectCards .product-card.active {
     border-color: rgba(16, 163, 127, .32) !important;
     background: var(--mobile-panel) !important;
     box-shadow: inset 3px 0 0 var(--mobile-accent-solid) !important;
   }
 
-  .settings-page [data-module-view="workspace"] #workspaceCards .product-card-head {
+  .settings-page [data-module-view="projects"] #projectCards .product-card-head {
     margin: 0 0 8px !important;
     padding: 0 !important;
     display: flex !important;
@@ -369,11 +369,11 @@
     border: 0 !important;
   }
 
-  .settings-page [data-module-view="workspace"] #workspaceCards .product-card-head b {
+  .settings-page [data-module-view="projects"] #projectCards .product-card-head b {
     font-size: 16px !important;
   }
 
-  .settings-page [data-module-view="workspace"] #workspaceCards .badge {
+  .settings-page [data-module-view="projects"] #projectCards .badge {
     width: auto !important;
     min-width: 0 !important;
     min-height: 23px !important;
@@ -384,25 +384,25 @@
     color: var(--mobile-muted) !important;
   }
 
-  .settings-page [data-module-view="workspace"] #workspaceCards .product-card.active .badge {
+  .settings-page [data-module-view="projects"] #projectCards .product-card.active .badge {
     background: var(--mobile-accent-soft) !important;
     color: var(--mobile-accent-text) !important;
   }
 
-  .settings-page [data-module-view="workspace"] #workspaceCards .product-meta {
+  .settings-page [data-module-view="projects"] #projectCards .product-meta {
     color: var(--mobile-muted) !important;
     font-size: 13px !important;
     line-height: 1.55 !important;
   }
 
-  .settings-page [data-module-view="workspace"] #workspaceCards .product-actions {
+  .settings-page [data-module-view="projects"] #projectCards .product-actions {
     margin-top: 14px !important;
     display: flex !important;
     flex-wrap: wrap !important;
     gap: 8px !important;
   }
 
-  .settings-page [data-module-view="workspace"] #workspaceCards .product-actions button {
+  .settings-page [data-module-view="projects"] #projectCards .product-actions button {
     width: auto !important;
     min-width: 0 !important;
     min-height: 36px !important;
@@ -410,13 +410,13 @@
     border-radius: 10px !important;
   }
 
-  .settings-page [data-module-view="workspace"] #workspaceCards .product-actions button.secondary {
+  .settings-page [data-module-view="projects"] #projectCards .product-actions button.secondary {
     border-color: transparent !important;
     background: var(--mobile-accent-soft) !important;
     color: var(--mobile-accent-text) !important;
   }
 
-  .settings-page [data-module-view="workspace"] #workspaceCards .product-actions button.danger {
+  .settings-page [data-module-view="projects"] #projectCards .product-actions button.danger {
     border-color: var(--mobile-danger-border) !important;
     background: var(--mobile-danger-soft) !important;
     color: var(--mobile-danger-text) !important;
@@ -474,7 +474,7 @@
   }
 }
 
-/* 表单型模块同样遵循手机主题，避免工作区页正常而模型/供应商页仍强制白底。 */
+/* 表单型模块同样遵循手机主题，避免项目页正常而模型/供应商页仍强制白底。 */
 @media (max-width: 900px) {
   body .settings-page .settings-section,
   body .settings-page .model-quick-panel,
@@ -579,7 +579,7 @@
     color: var(--mobile-text) !important;
   }
 
-  body .settings-page [data-module-view="security"] .workspace-summary-card b {
+  body .settings-page [data-module-view="security"] .project-summary-card b {
     color: var(--mobile-text-strong) !important;
   }
 }

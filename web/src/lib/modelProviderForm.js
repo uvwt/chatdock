@@ -77,14 +77,14 @@ export function providerLabel(provider) {
   return provider?.name || provider?.id || '供应商';
 }
 
-export function workspaceDefaultModelChoice(config = {}, provider = null) {
+export function globalDefaultModelChoice(config = {}, provider = null) {
   const providerID = String(providerChoiceID(provider) || '').trim();
-  const workspaceProviderID = String(config?.provider_id || '').trim();
-  const workspaceModel = String(config?.model || '').trim();
+  const globalProviderID = String(config?.provider_id || '').trim();
+  const globalModel = String(config?.model || '').trim();
   const providerModel = String(provider?.default_model || provider?.models?.[0] || '').trim();
   return {
     provider_id: providerID,
-    model: !providerID || providerID === workspaceProviderID ? (workspaceModel || providerModel) : providerModel,
+    model: !providerID || providerID === globalProviderID ? (globalModel || providerModel) : providerModel,
   };
 }
 

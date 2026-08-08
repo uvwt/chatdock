@@ -62,11 +62,11 @@ export function agentTaskStatusMeta(status) {
 export function agentTaskStepMeta(status) {
   switch (status) {
     case 'completed':
-      return { label: '已完成', symbol: '✓', tone: 'completed' };
+      return { label: '已完成', tone: 'completed' };
     case 'in_progress':
-      return { label: '进行中', symbol: '●', tone: 'active' };
+      return { label: '进行中', tone: 'active' };
     default:
-      return { label: '未开始', symbol: '○', tone: 'pending' };
+      return { label: '未开始', tone: 'pending' };
   }
 }
 

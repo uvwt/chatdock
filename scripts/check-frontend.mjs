@@ -15,7 +15,7 @@ const settingsCssNonImportLines = settingsCss.filter(line => !line.startsWith('@
 if (settingsCssNonImportLines.length) failures.push('web/src/styles/settings.css must stay import-only; move real rules into web/src/styles/settings/*.css');
 
 const appSource = read('web/src/App.jsx');
-const settingFetchNames = ['fetchConfig', 'fetchDataStatus', 'fetchMCPConfig', 'fetchMCPStatus', 'fetchModelProviders', 'fetchScheduledTasks', 'fetchSetupStatus', 'fetchSystemStatus', 'fetchWorkspaces'];
+const settingFetchNames = ['fetchConfig', 'fetchDataStatus', 'fetchMCPConfig', 'fetchMCPStatus', 'fetchModelProviders', 'fetchScheduledTasks', 'fetchSetupStatus', 'fetchSystemStatus', 'fetchProjects'];
 for (const name of settingFetchNames) {
   if (appSource.includes(name)) failures.push(`settings fetch helper should stay in useSettingsData.js, not App.jsx: ${name}`);
 }
@@ -39,16 +39,90 @@ const forbiddenAppHelpers = ['ComposerModelPicker', 'readableChatError', 'buildT
 for (const name of forbiddenAppHelpers) {
   if (app.includes('function ' + name)) failures.push(`helper should stay outside App.jsx: ${name}`);
 }
-if (!read('web/src/components/modelPicker.jsx').includes('export function ComposerModelPicker')) failures.push('model picker component missing');
+const modelPickerSource = read('web/src/components/modelPicker.jsx');
+if (!modelPickerSource.includes('export function ComposerModelPicker')) failures.push('model picker component missing');
+if (!modelPickerSource.includes('onPointerDown={handleTriggerPointerDown}')
+  || !modelPickerSource.includes('event.preventDefault()')
+  || !modelPickerSource.includes('event.detail === 0')
+  || !modelPickerSource.includes('if (!mobileSheet) return;')
+  || !modelPickerSource.includes('requestAnimationFrame(() => activeElement.blur())')) {
+  failures.push('model picker trigger must open on pointerdown, release mobile input focus after opening, and preserve accessible click support');
+}
 if (!read('web/src/lib/chatPresentation.js').includes('export function readableChatError')) failures.push('chat presentation helpers missing');
 if (!read('web/src/lib/toolEventDetails.js').includes('export function buildToolEventDetail')) failures.push('tool event detail helpers missing');
 
+const settingsActions = read('web/src/hooks/useSettingsActions.js');
+if (!settingsActions.includes('export function useSettingsActions')) failures.push('settings mutations belong in web/src/hooks/useSettingsActions.js');
+for (const name of ['editProject', 'editModelProvider', 'editScheduledTask']) {
+  if (app.includes('const ' + name + ' = useCallback')) failures.push(`settings action should stay outside App.jsx: ${name}`);
+}
+for (const [stateName, setterName] of [['selectedScheduledTaskID', 'setSelectedScheduledTaskID'], ['selectedScheduledTaskRuns', 'setSelectedScheduledTaskRuns']]) {
+  if (app.includes(setterName + '(') && !app.includes(`const [${stateName}, ${setterName}] = useState`)) failures.push(`${setterName} is used without local state ownership`);
+}
 const appLineCount = app.split(/\n/).length;
-if (appLineCount > 1610) failures.push(`App.jsx line count ${appLineCount} exceeds 1610; keep shell JSX in appChrome.jsx and protocol logic in lib/`);
+if (appLineCount > 1300) failures.push(`App.jsx line count ${appLineCount} exceeds 1300; keep settings mutations in useSettingsActions.js and shell JSX in appChrome.jsx`);
+const chatComponent = read('web/src/components/chat.jsx');
+for (const token of ['chat-error-icon', 'chat-error-content', 'chat-error-message', 'chat-error-meta']) {
+  if (!chatComponent.includes(token)) failures.push(`chat error notice structure missing: ${token}`);
+}
+const messageAutoFollow = read('web/src/hooks/useMessageAutoFollow.js');
+if (!messageAutoFollow.includes("box.scrollTo({ top, behavior: 'smooth' });")
+  || !messageAutoFollow.includes('box.scrollTop = box.scrollHeight;')) {
+  failures.push('only explicit jump-to-latest actions should animate; automatic history positioning must stay immediate');
+}
+if (!app.includes("if (!window.matchMedia('(max-width: 720px)').matches) {")
+  || !app.includes('window.setTimeout(() => inputRef.current?.focus(), 0);')) {
+  failures.push('mobile new conversations must stay centered until the user explicitly focuses the composer');
+}
 const appChrome = read('web/src/components/appChrome.jsx');
+const mobileComposerCSS = read('web/src/styles/mobile/04-mobile.css');
+const composerLayoutCSS = read('web/src/styles/composer-layout.css');
+if (!appChrome.includes('className="stop-icon" size={12} fill="currentColor" stroke="none"')
+  || mobileComposerCSS.includes('content: "■"')) {
+  failures.push('stream stop control must use one filled SVG icon across desktop and mobile');
+}
+const streamActionStart = appChrome.indexOf('className="composer-stream-actions"');
+const modelActionOrder = appChrome.indexOf('{modelPicker}', streamActionStart);
+const guideActionOrder = appChrome.indexOf('className="secondary stream-control guide-control"', modelActionOrder);
+const stopActionOrder = appChrome.indexOf('className="danger stream-control stop-control"', guideActionOrder);
+const mobileFlatStreamControls = composerLayoutCSS.match(/#app\.app \.composer\.composer-streaming :is\(\.attach-control, \.model-picker-trigger, \.guide-control, \.stop-control\) \{([^}]*)\}/)?.[1] || '';
+if (streamActionStart < 0 || modelActionOrder < streamActionStart || guideActionOrder < modelActionOrder || stopActionOrder < guideActionOrder
+  || appChrome.includes('<button id="send" className="icon-button" disabled={busy')
+  || !composerLayoutCSS.includes('flex: 0 1 auto !important;')
+  || !composerLayoutCSS.includes('html:not(.chatdock-keyboard-open) #app.app .composer-stream-actions .model-picker')
+  || !composerLayoutCSS.includes('html.chatdock-keyboard-open #app.app .composer-stream-actions .model-picker')
+  || !composerLayoutCSS.includes('margin-right: auto;')
+  || !composerLayoutCSS.includes('justify-self: stretch;')
+  || !composerLayoutCSS.includes('html.chatdock-keyboard-open #app.app .composer.composer-streaming')
+  || !composerLayoutCSS.includes('"input input"\n      "attach actions"')
+  || !/border:\s*0\s*!important/.test(mobileFlatStreamControls)
+  || !/background:\s*transparent\s*!important/.test(mobileFlatStreamControls)
+  || !/box-shadow:\s*none\s*!important/.test(mobileFlatStreamControls)) {
+  failures.push('mobile streaming composer must keep a focused two-row layout with the model on the left and frameless controls');
+}
+if (appChrome.includes('className="session-menu-trigger icon-button" disabled={busy}')
+  || !appChrome.includes('disabled={deletingCurrentStream}')
+  || !appChrome.includes("title={deletingCurrentStream ? '生成结束或中断后才能删除当前会话' : undefined}")) {
+  failures.push('session menus must remain available while streaming and only protect deletion of the active stream');
+}
+if (app.includes('createPersistedSession({ refreshList: false })')
+  || !app.includes('首条消息一旦创建了持久会话，就应立即出现在侧栏')
+  || !app.includes('if (!busy) setMessages(s.messages || []);')) {
+  failures.push('new sessions must enter the sidebar immediately without clobbering a live stream during metadata edits');
+}
 for (const name of ['Sidebar', 'Topbar', 'ComposerBar']) {
   if (!appChrome.includes('export function ' + name)) failures.push(`app chrome component missing: ${name}`);
   if (app.includes('function ' + name)) failures.push(`app chrome component should stay outside App.jsx: ${name}`);
+}
+const emphasizedSidebarTitleSnippets = [
+  'className="sidebar-section-title sidebar-section-title-emphasis">置顶</div>',
+  'className="sidebar-section-title sidebar-section-title-emphasis" onClick={() => openManagementPage(\'projects\')}>项目</button>',
+  'className="sidebar-section-title sidebar-section-title-emphasis">全部会话</div>',
+];
+if (emphasizedSidebarTitleSnippets.some(snippet => !appChrome.includes(snippet))
+  || (appChrome.match(/sidebar-section-title sidebar-section-title-emphasis/g) || []).length !== 3
+  || !appChrome.includes('className="sidebar-section-title" onClick={() => { setTaskSearch(\'\'); openManagementPage(\'automation\'); }}>定时任务</button>')) {
+  failures.push('only pinned, projects, and all conversations sidebar section titles should be emphasized');
 }
 if (!read('web/src/lib/quickActions.js').includes('export function buildQuickActions')) failures.push('quick action construction belongs in web/src/lib/quickActions.js');
 const componentExportChecks = [
@@ -57,7 +131,8 @@ const componentExportChecks = [
   ['web/src/components/base.jsx', 'export function DialogHost'],
   ['web/src/hooks/useAttachments.js', 'export function useAttachments'],
   ['web/src/hooks/useSettingsData.js', 'export function useSettingsData'],
-  ['web/src/lib/sessionPresentation.js', 'export function scheduledTaskSessionRows'],
+  ['web/src/components/managementPages.jsx', 'export function ManagementPage'],
+  ['web/src/lib/sessionPresentation.js', 'export function visibleSessionRows'],
 ];
 for (const [file, token] of componentExportChecks) {
   if (!read(file).includes(token)) failures.push(`expected export missing in ${file}: ${token}`);
@@ -91,6 +166,30 @@ const rows = providerForm.providerKeyRows({ api_keys: [{ id: 'main', name: 'main
 if (rows[0]?.api_key !== '********' || !rows[0]?.saved) failures.push('providerKeyRows should represent saved keys with a mask');
 const inputs = providerForm.providerKeyInputsFromRows([{ id: 'main', name: '主 key', api_key: '********', saved: true }]);
 if (inputs?.[0]?.api_key !== '********') failures.push('providerKeyInputsFromRows should preserve masked saved keys');
+
+
+const packageJSON = JSON.parse(read('web/package.json'));
+if (!packageJSON.dependencies?.['lucide-react']) failures.push('lucide-react must remain the single UI icon library');
+
+const walkFiles = (directory, suffixes) => fs.readdirSync(path.join(root, directory), { withFileTypes: true }).flatMap(entry => {
+  const relative = path.join(directory, entry.name);
+  if (entry.isDirectory()) return walkFiles(relative, suffixes);
+  return suffixes.some(suffix => entry.name.endsWith(suffix)) ? [relative] : [];
+});
+for (const file of walkFiles('web/src', ['.js', '.jsx', '.css'])) {
+  if (read(file).toLowerCase().includes('workspace')) {
+    failures.push(`${file} still uses the removed workspace concept; use project, task, or management terminology`);
+  }
+}
+const iconComponentFiles = ['web/src/App.jsx', ...walkFiles('web/src/components', ['.jsx'])];
+for (const file of iconComponentFiles) {
+  if (read(file).includes('<svg')) failures.push(`${file} contains an inline SVG; use a Lucide component instead`);
+}
+const visibleUISourceFiles = [...iconComponentFiles, ...walkFiles('web/src/styles', ['.css'])];
+const emojiPattern = /[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/u;
+for (const file of visibleUISourceFiles) {
+  if (emojiPattern.test(read(file))) failures.push(`${file} contains an emoji or symbol glyph; use a Lucide icon or CSS geometry instead`);
+}
 
 if (failures.length) {
   console.error(failures.map(item => `frontend lint: ${item}`).join('\n'));

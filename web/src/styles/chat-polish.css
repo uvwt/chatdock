@@ -19,21 +19,22 @@
 
 @media (max-width: 720px) {
   #app.app .messages:has(.product-empty-state) {
+    align-items: stretch !important;
+    justify-content: flex-start !important;
     padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   #app.app .product-empty-state {
     width: 100% !important;
-    padding-left: 10px !important;
-    padding-right: 10px !important;
+    padding: 62px 10px 0 !important;
   }
 }
 
 /* 2026-07-04 浅色主题会话气泡：用户消息不再使用高饱和蓝色。 */
 body.theme-light #app.app .msg.user {
   border-color: transparent !important;
-  background: #f4f4f4 !important;
-  color: #111827 !important;
+  background: var(--gpt-surface) !important;
+  color: var(--gpt-text) !important;
   box-shadow: none !important;
 }
 
@@ -65,8 +66,7 @@ body.theme-light #app.app .msg.user .attachment-main span {
   #app.app select,
   #app.app .composer textarea,
   #app.app #input,
-  #app.app .session-search,
-  #app.app .quick-palette-head input {
+  #app.app .session-search {
     font-size: 16px !important;
   }
 
@@ -89,25 +89,28 @@ body.theme-light #app.app #sessions .session {
   box-sizing: border-box !important;
 }
 
-body.theme-light #app.app #sessions .session:hover {
-  background: #eef8f3 !important;
-  border-color: #dcefe6 !important;
+body.theme-light #app.app #sessions .session:not(.active):hover {
+  background: color-mix(in srgb, var(--gpt-text) 3.5%, transparent) !important;
+  border-color: transparent !important;
 }
 
 body.theme-light #app.app #sessions .session.active {
-  background: #e8f6ef !important;
-  border-color: #cce9da !important;
-  color: #273344 !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--gpt-text) !important;
   box-shadow: none !important;
 }
 
-body.theme-light #app.app #sessions .session.active::before,
-body.theme-light #app.app #sessions .session.active::after {
-  border-color: #1fb98b !important;
+body.theme-light #app.app #sessions .session.active::before {
+  border-color: var(--gpt-text) !important;
+  background: var(--gpt-text) !important;
 }
 
 /* 2026-07-04 用户消息悬浮操作：按钮独立成气泡下方一行，避免和气泡内容重叠。 */
 #app.app .user-message-wrap {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
   width: fit-content !important;
   max-width: min(620px, 72%) !important;
   margin: 0 max(18px, calc((100% - var(--gpt-msg-width)) / 2)) 24px auto !important;
@@ -128,7 +131,8 @@ body.theme-light #app.app #sessions .session.active::after {
   align-items: center !important;
   justify-content: flex-end !important;
   gap: 4px !important;
-  width: 100% !important;
+  width: max-content !important;
+  max-width: 100% !important;
   margin: 4px 0 0 auto !important;
   padding: 0 !important;
   opacity: 0 !important;
@@ -214,31 +218,6 @@ body.theme-light #app.app #sessions .session.active::after {
 
 #app.app #sessions .session {
   padding-right: 42px !important;
-}
-
-#app.app #sessions .pin-mark {
-  display: inline-grid !important;
-  place-items: center !important;
-  width: 18px !important;
-  height: 18px !important;
-  min-width: 18px !important;
-  margin-right: 6px !important;
-  padding: 0 !important;
-  border-radius: 7px !important;
-  background: #dff7ed !important;
-  color: #0f766e !important;
-  vertical-align: -3px !important;
-  font-size: 0 !important;
-  line-height: 1 !important;
-}
-
-#app.app #sessions .pin-mark::before {
-  content: "" !important;
-  width: 11px !important;
-  height: 11px !important;
-  background: currentColor !important;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M14.7 3.3 20.7 9.3 18.6 11.4 17.2 10 13.4 13.8 13.8 17.7 12.4 19.1 8.6 15.3 4.3 19.6 3 18.3 7.3 14 3.5 10.2 4.9 8.8 8.8 9.2 12.6 5.4 11.2 4 14.7 3.3Z'/%3E%3C/svg%3E") center / contain no-repeat !important;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M14.7 3.3 20.7 9.3 18.6 11.4 17.2 10 13.4 13.8 13.8 17.7 12.4 19.1 8.6 15.3 4.3 19.6 3 18.3 7.3 14 3.5 10.2 4.9 8.8 8.8 9.2 12.6 5.4 11.2 4 14.7 3.3Z'/%3E%3C/svg%3E") center / contain no-repeat !important;
 }
 
 @media (max-width: 720px) {
@@ -330,5 +309,17 @@ body.theme-light #app.app #sessions .session.active::after {
 
   .user-message-editor small {
     color: var(--mobile-muted);
+  }
+}
+
+
+/* 2026-07-26 mobile floating composer: keep canvas continuous behind overlays. */
+@media (max-width: 720px) {
+  #app.app .messages {
+    padding-bottom: 0 !important;
+  }
+
+  #app.app .messages > .msg:last-child {
+    margin-bottom: 0 !important;
   }
 }

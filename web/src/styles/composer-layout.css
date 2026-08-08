@@ -1,0 +1,462 @@
+/* 普通输入和流式引导共用同一个可见容器，状态切换只改变内部布局。 */
+#app.app .composer {
+  border: 1px solid var(--composer-glass-border) !important;
+  background: var(--composer-glass-bg) !important;
+  box-shadow:
+    inset 0 1px 0 var(--composer-glass-highlight),
+    0 14px 42px var(--composer-glass-shadow) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(145%) !important;
+  backdrop-filter: blur(26px) saturate(145%) !important;
+}
+
+/* 手机端默认保持单行并隐藏模型入口；桌面端在下方媒体查询中始终展示当前模型。 */
+#app.app .composer:not(.composer-streaming) {
+  display: grid !important;
+  grid-template-areas: "attach input send";
+  grid-template-columns: 42px minmax(0, 1fr) 42px !important;
+  height: 62px !important;
+  min-height: 62px !important;
+  max-height: none !important;
+  align-items: center !important;
+  gap: 6px !important;
+  overflow: visible !important;
+}
+
+#app.app .composer:not(.composer-streaming) .attach-control {
+  grid-area: attach !important;
+}
+
+#app.app .composer:not(.composer-streaming) textarea {
+  grid-area: input !important;
+  width: 100%;
+  min-width: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+#app.app .composer:not(.composer-streaming) textarea:focus {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#app.app .composer:not(.composer-streaming) .model-picker {
+  display: none !important;
+}
+
+#app.app .composer:not(.composer-streaming) .model-picker-trigger {
+  width: 42px !important;
+  min-width: 42px !important;
+  max-width: 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  border-radius: 0 !important;
+}
+
+#app.app .composer:not(.composer-streaming) .model-picker-icon {
+  flex: 0 0 auto;
+  color: var(--gpt-muted);
+}
+
+#app.app .composer:not(.composer-streaming) .model-picker-label {
+  display: none !important;
+}
+
+#app.app .composer:not(.composer-streaming) #send {
+  grid-area: send !important;
+}
+
+/* 外层 composer 是输入区唯一的可见容器，内部操作只保留图标和文字。 */
+#app.app .composer:not(.composer-streaming) :is(.attach-control, .model-picker-trigger, #send) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+#app.app .composer:not(.composer-streaming) :is(.attach-control, .model-picker-trigger) {
+  color: var(--gpt-muted) !important;
+}
+
+#app.app .composer:not(.composer-streaming) :is(.attach-control, .model-picker-trigger):hover:not(:disabled) {
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--gpt-text) !important;
+  transform: none !important;
+}
+
+#app.app .composer:not(.composer-streaming) #send {
+  color: var(--gpt-text) !important;
+  opacity: 1 !important;
+}
+
+#app.app .composer:not(.composer-streaming) #send:hover:not(:disabled) {
+  background: transparent !important;
+  color: var(--gpt-accent-strong) !important;
+  transform: none !important;
+}
+
+#app.app .composer:not(.composer-streaming) #send:disabled {
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--gpt-muted-2) !important;
+  box-shadow: none !important;
+  opacity: .42 !important;
+}
+
+/* 生成中保持输入内容在左、操作组在右；操作顺序由 DOM 固定为模型、引导、中止。 */
+#app.app .composer.composer-streaming {
+  display: grid !important;
+  grid-template-areas: "attach input actions";
+  grid-template-columns: 42px minmax(0, 1fr) auto !important;
+  grid-template-rows: 42px;
+  height: 62px !important;
+  min-height: 62px !important;
+  max-height: 62px !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 9px 10px !important;
+  overflow: visible !important;
+  border-radius: 30px !important;
+}
+
+#app.app .composer.composer-streaming .attach-control {
+  grid-area: attach !important;
+}
+
+#app.app .composer.composer-streaming textarea {
+  grid-area: input !important;
+  width: 100%;
+  min-width: 0;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 10px 7px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#app.app .composer-stream-actions {
+  grid-area: actions !important;
+  display: flex !important;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-left: auto;
+}
+
+#app.app .composer-stream-actions .model-picker {
+  display: flex !important;
+  flex: 0 1 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: 200px !important;
+}
+
+#app.app .composer-stream-actions .model-picker-trigger {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: 200px !important;
+  padding: 0 8px !important;
+  justify-content: flex-end !important;
+}
+
+#app.app .composer-stream-actions .model-picker-label {
+  display: inline-flex !important;
+  min-width: 0;
+  align-items: center;
+  gap: 3px;
+}
+
+#app.app .composer-stream-actions .model-picker-label b {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#app.app .composer-stream-actions .guide-control {
+  min-width: 58px !important;
+  padding-inline: 10px !important;
+}
+
+#app.app .composer-stream-actions .stop-control {
+  min-width: 64px !important;
+  padding-inline: 10px !important;
+}
+
+#app.app .composer:is(.composer-model-picker-open, :focus-within):not(.composer-streaming) {
+  grid-template-areas:
+    "input input input"
+    "attach model send";
+  grid-template-columns: 42px minmax(0, 1fr) 42px !important;
+  grid-template-rows: minmax(42px, auto) 42px;
+  height: auto !important;
+  min-height: 104px !important;
+  padding: 9px 10px !important;
+  row-gap: 2px !important;
+  border-radius: 22px;
+}
+
+#app.app .composer:is(.composer-model-picker-open, :focus-within):not(.composer-streaming) .model-picker {
+  display: flex !important;
+  grid-area: model !important;
+  width: min(240px, 100%) !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  justify-self: start;
+}
+
+#app.app .composer:is(.composer-model-picker-open, :focus-within):not(.composer-streaming) .model-picker-trigger {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 8px !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+  border-radius: 0 !important;
+}
+
+#app.app .composer:is(.composer-model-picker-open, :focus-within) .model-picker-label {
+  display: inline-flex !important;
+  min-width: 0;
+  align-items: center;
+  gap: 3px;
+  color: var(--gpt-text);
+}
+
+#app.app .composer:is(.composer-model-picker-open, :focus-within) .model-picker-label b {
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 721px) {
+  /* 桌面端始终使用单行布局，模型入口靠右常驻；聚焦和打开模型面板都不改变输入框高度。 */
+  #app.app .composer:not(.composer-streaming),
+  #app.app .composer:is(.composer-model-picker-open, :focus-within):not(.composer-streaming) {
+    grid-template-areas: "attach input model send";
+    grid-template-columns: 42px minmax(0, 1fr) minmax(120px, 220px) 42px !important;
+    grid-template-rows: 42px;
+    height: 62px !important;
+    min-height: 62px !important;
+    max-height: 62px !important;
+    padding: 9px 10px !important;
+    row-gap: 0 !important;
+    border-radius: 30px !important;
+  }
+
+  #app.app .composer:not(.composer-streaming) .model-picker,
+  #app.app .composer:is(.composer-model-picker-open, :focus-within):not(.composer-streaming) .model-picker {
+    display: flex !important;
+    grid-area: model !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 220px !important;
+    justify-self: end;
+  }
+
+  #app.app .composer:not(.composer-streaming) .model-picker-trigger,
+  #app.app .composer:is(.composer-model-picker-open, :focus-within):not(.composer-streaming) .model-picker-trigger {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 220px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 8px !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+  }
+
+  #app.app .composer:not(.composer-streaming) .model-picker-popover {
+    right: 0;
+    left: auto;
+  }
+
+  #app.app .composer:not(.composer-streaming) .model-picker-label {
+    display: inline-flex !important;
+    min-width: 0;
+    align-items: center;
+    gap: 3px;
+    color: var(--gpt-text);
+  }
+
+  #app.app .composer:not(.composer-streaming) .model-picker-label b {
+    min-width: 0;
+    overflow: hidden;
+    color: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* 已有消息时使用底部悬浮输入区；空会话由首页布局负责把输入框放在内容区中央。 */
+  #app.app:not(.chat-empty) .composer-shell {
+    position: absolute !important;
+    inset: auto 0 0 !important;
+    z-index: 11 !important;
+    padding: 0 24px 20px !important;
+    border: 0 !important;
+    background: transparent !important;
+    pointer-events: none !important;
+  }
+
+  #app.app:not(.chat-empty) .composer-shell > * {
+    pointer-events: auto !important;
+  }
+
+  #app.app:not(.chat-empty) .messages {
+    /* 正文画布继续铺到底部，末尾伪元素只负责提供可滚动越过悬浮输入框的空间。 */
+    padding-bottom: 0 !important;
+    scroll-padding-bottom: 168px;
+  }
+
+  #app.app:not(.chat-empty) .messages::after {
+    content: '';
+    display: block;
+    height: 168px;
+    pointer-events: none;
+  }
+
+  #app.app:not(.chat-empty) .messages > .msg:last-child {
+    margin-bottom: 0 !important;
+  }
+}
+
+@media (max-width: 720px) {
+  #app.app .composer:not(.composer-streaming) {
+    grid-template-columns: 42px minmax(0, 1fr) 42px !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    max-height: 56px !important;
+    padding: 6px !important;
+  }
+
+  #app.app .composer:is(.composer-model-picker-open, :focus-within):not(.composer-streaming) {
+    grid-template-columns: 42px minmax(0, 1fr) 42px !important;
+    grid-template-rows: minmax(42px, auto) 42px;
+    height: auto !important;
+    min-height: 104px !important;
+    max-height: none !important;
+    padding: 8px !important;
+  }
+
+  #app.app .composer:is(.composer-model-picker-open, :focus-within):not(.composer-streaming) textarea {
+    padding-inline: 6px !important;
+  }
+
+  #app.app .composer.composer-streaming {
+    grid-template-columns: 42px minmax(0, 1fr) auto !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    max-height: 56px !important;
+    padding: 6px !important;
+    gap: 5px !important;
+    border-radius: 22px !important;
+  }
+
+  #app.app .composer-stream-actions {
+    gap: 4px;
+  }
+
+  /* 手机端未聚焦时隐藏供应商；真正进入双层输入态后放在左侧。 */
+  html:not(.chatdock-keyboard-open) #app.app .composer-stream-actions .model-picker {
+    display: none !important;
+  }
+
+  html.chatdock-keyboard-open #app.app .composer-stream-actions .model-picker {
+    display: flex !important;
+    max-width: 112px !important;
+    margin-right: auto;
+  }
+
+  /* 聚焦后沿用普通输入区的两层结构：输入在上，附件与扁平操作在下。 */
+  html.chatdock-keyboard-open #app.app .composer.composer-streaming {
+    grid-template-areas:
+      "input input"
+      "attach actions";
+    grid-template-columns: 42px minmax(0, 1fr) !important;
+    grid-template-rows: minmax(42px, auto) 42px;
+    height: auto !important;
+    min-height: 104px !important;
+    max-height: none !important;
+    padding: 8px !important;
+    row-gap: 2px !important;
+  }
+
+  html.chatdock-keyboard-open #app.app .composer.composer-streaming textarea {
+    padding-inline: 6px !important;
+  }
+
+  html.chatdock-keyboard-open #app.app .composer-stream-actions {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    justify-self: stretch;
+  }
+
+  /* 引导态模仿普通聚焦输入框：只有外层玻璃容器可见，内部控件全部扁平。 */
+  #app.app .composer.composer-streaming :is(.attach-control, .model-picker-trigger, .guide-control, .stop-control) {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  #app.app .composer-stream-actions .model-picker-trigger {
+    max-width: 112px !important;
+    padding-inline: 5px !important;
+    justify-content: flex-start !important;
+    gap: 4px !important;
+  }
+
+  #app.app .composer-stream-actions .model-picker-label b {
+    max-width: 76px;
+    font-size: 12px;
+  }
+
+  #app.app .composer-stream-actions .guide-control {
+    width: auto !important;
+    min-width: 48px !important;
+    padding: 0 6px !important;
+    color: var(--mobile-text-strong) !important;
+    font-size: 13px !important;
+    font-weight: 650 !important;
+  }
+
+  #app.app .composer-stream-actions .stop-control {
+    width: 36px !important;
+    min-width: 36px !important;
+    padding: 0 !important;
+    color: var(--mobile-danger-text) !important;
+    font-size: 0 !important;
+  }
+
+  #app.app .composer-stream-actions :is(.guide-control, .stop-control)::before,
+  #app.app .composer-stream-actions :is(.guide-control, .stop-control)::after {
+    content: none !important;
+    display: none !important;
+  }
+}

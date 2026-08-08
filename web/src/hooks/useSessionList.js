@@ -1,9 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchSessions, searchSessions } from '../lib/sessionApi.js';
-import { mergeSessionPages, normalizeSessionPage, SESSION_PAGE_SIZE, upsertSessionSummary } from '../lib/sessionPagination.js';
+import { fetchPinned, fetchSessions, searchSessions } from '../lib/sessionApi.js';
+import { mergeSessionPages, normalizeSessionPage, removeSessionSummary, SESSION_PAGE_SIZE, sessionMatchesProjectFilter, upsertSessionSummary } from '../lib/sessionPagination.js';
 
-export function useSessionList(api) {
+function normalizePinnedFeed(data = {}) {
+  return {
+    sessions: Array.isArray(data.sessions) ? data.sessions : [],
+    projects: Array.isArray(data.projects) ? data.projects : [],
+    tasks: Array.isArray(data.tasks) ? data.tasks : [],
+  };
+}
+
+function upsertPinnedItem(items, item) {
+  if (!item?.id) return Array.isArray(items) ? items : [];
+  const rest = (Array.isArray(items) ? items : []).filter(current => current.id !== item.id);
+  if (!item.pinned) return rest;
+  return [item, ...rest];
+}
+
+export function useSessionList(api, projectFilter = 'all') {
   const [sessions, setSessions] = useState([]);
+  const [pinnedSessions, setPinnedSessions] = useState([]);
+  const [pinnedProjects, setPinnedProjects] = useState([]);
+  const [pinnedTasks, setPinnedTasks] = useState([]);
   const [sessionsHasMore, setSessionsHasMore] = useState(false);
   const [sessionsLoadingMore, setSessionsLoadingMore] = useState(false);
   const [sessionSearch, setSessionSearch] = useState('');
@@ -18,13 +36,16 @@ export function useSessionList(api) {
   const listRefreshingRef = useRef(false);
   const loadedPagesRef = useRef(1);
   const listRequestRef = useRef(0);
+  const pinnedRequestRef = useRef(0);
   const searchCursorRef = useRef('');
   const searchHasMoreRef = useRef(false);
   const searchLoadingMoreRef = useRef(false);
   const searchRequestRef = useRef(0);
   const searchValueRef = useRef('');
+  const projectFilterRef = useRef(projectFilter);
 
   useEffect(() => {
+    projectFilterRef.current = projectFilter;
     listRequestRef.current += 1;
     searchRequestRef.current += 1;
     listCursorRef.current = '';
@@ -42,6 +63,33 @@ export function useSessionList(api) {
     setSessionSearchBusy(false);
     setSessionSearchHasMore(false);
     setSessionSearchLoadingMore(false);
+  }, [api, projectFilter]);
+
+  useEffect(() => {
+    pinnedRequestRef.current += 1;
+    setPinnedSessions([]);
+    setPinnedProjects([]);
+    setPinnedTasks([]);
+  }, [api]);
+
+  const loadPinnedFeed = useCallback(async () => {
+    const requestID = pinnedRequestRef.current + 1;
+    pinnedRequestRef.current = requestID;
+    try {
+      const feed = normalizePinnedFeed(await fetchPinned(api));
+      if (requestID !== pinnedRequestRef.current) return feed;
+      setPinnedSessions(feed.sessions);
+      setPinnedProjects(feed.projects);
+      setPinnedTasks(feed.tasks);
+      return feed;
+    } catch {
+      if (requestID === pinnedRequestRef.current) {
+        setPinnedSessions([]);
+        setPinnedProjects([]);
+        setPinnedTasks([]);
+      }
+      return normalizePinnedFeed();
+    }
   }, [api]);
 
   const loadSessions = useCallback(async ({ reset = false } = {}) => {
@@ -49,30 +97,37 @@ export function useSessionList(api) {
     listRequestRef.current = requestID;
     listRefreshingRef.current = true;
     const targetPages = reset ? 1 : Math.max(1, loadedPagesRef.current);
+    const pinnedPromise = loadPinnedFeed();
     try {
       let cursor = '';
       let items = [];
       let hasMore = true;
       let loadedPages = 0;
       for (let pageIndex = 0; pageIndex < targetPages && hasMore; pageIndex += 1) {
-        const page = normalizeSessionPage(await fetchSessions(api, { cursor, limit: SESSION_PAGE_SIZE }));
-        if (requestID !== listRequestRef.current) return [];
+        const page = normalizeSessionPage(await fetchSessions(api, {
+          cursor,
+          limit: SESSION_PAGE_SIZE,
+          projectFilter,
+          pinned: false,
+        }));
+        if (requestID !== listRequestRef.current || projectFilter !== projectFilterRef.current) return [];
         items = mergeSessionPages(items, page.sessions);
         cursor = page.nextCursor;
         hasMore = page.hasMore;
         loadedPages += 1;
       }
-      if (requestID !== listRequestRef.current) return [];
+      if (requestID !== listRequestRef.current || projectFilter !== projectFilterRef.current) return [];
       listCursorRef.current = cursor;
       listHasMoreRef.current = hasMore;
       loadedPagesRef.current = Math.max(1, loadedPages);
       setSessions(items);
       setSessionsHasMore(hasMore);
+      await pinnedPromise;
       return items;
     } finally {
       if (requestID === listRequestRef.current) listRefreshingRef.current = false;
     }
-  }, [api]);
+  }, [api, loadPinnedFeed, projectFilter]);
 
   const loadMoreSessions = useCallback(async () => {
     if (!listHasMoreRef.current || listLoadingMoreRef.current || listRefreshingRef.current) return;
@@ -80,8 +135,14 @@ export function useSessionList(api) {
     listLoadingMoreRef.current = true;
     setSessionsLoadingMore(true);
     try {
-      const page = normalizeSessionPage(await fetchSessions(api, { cursor: listCursorRef.current, limit: SESSION_PAGE_SIZE }));
-      if (requestID !== listRequestRef.current) return;
+      const activeFilter = projectFilterRef.current;
+      const page = normalizeSessionPage(await fetchSessions(api, {
+        cursor: listCursorRef.current,
+        limit: SESSION_PAGE_SIZE,
+        projectFilter: activeFilter,
+        pinned: false,
+      }));
+      if (requestID !== listRequestRef.current || activeFilter !== projectFilterRef.current) return;
       setSessions(current => mergeSessionPages(current, page.sessions));
       listCursorRef.current = page.nextCursor;
       listHasMoreRef.current = page.hasMore;
@@ -114,8 +175,9 @@ export function useSessionList(api) {
     setSessionSearchBusy(true);
     const timer = window.setTimeout(async () => {
       try {
-        const page = normalizeSessionPage(await searchSessions(api, query, { limit: SESSION_PAGE_SIZE }));
-        if (requestID !== searchRequestRef.current || query !== searchValueRef.current) return;
+        const activeFilter = projectFilterRef.current;
+        const page = normalizeSessionPage(await searchSessions(api, query, { limit: SESSION_PAGE_SIZE, projectFilter: activeFilter }));
+        if (requestID !== searchRequestRef.current || query !== searchValueRef.current || activeFilter !== projectFilterRef.current) return;
         setSessionSearchResults(page.sessions);
         searchCursorRef.current = page.nextCursor;
         searchHasMoreRef.current = page.hasMore;
@@ -127,7 +189,7 @@ export function useSessionList(api) {
       }
     }, 260);
     return () => window.clearTimeout(timer);
-  }, [api, sessionSearch]);
+  }, [api, sessionSearch, projectFilter]);
 
   const loadMoreSearchSessions = useCallback(async () => {
     const query = searchValueRef.current;
@@ -136,8 +198,9 @@ export function useSessionList(api) {
     searchLoadingMoreRef.current = true;
     setSessionSearchLoadingMore(true);
     try {
-      const page = normalizeSessionPage(await searchSessions(api, query, { cursor: searchCursorRef.current, limit: SESSION_PAGE_SIZE }));
-      if (requestID !== searchRequestRef.current || query !== searchValueRef.current) return;
+      const activeFilter = projectFilterRef.current;
+      const page = normalizeSessionPage(await searchSessions(api, query, { cursor: searchCursorRef.current, limit: SESSION_PAGE_SIZE, projectFilter: activeFilter }));
+      if (requestID !== searchRequestRef.current || query !== searchValueRef.current || activeFilter !== projectFilterRef.current) return;
       setSessionSearchResults(current => mergeSessionPages(current, page.sessions));
       searchCursorRef.current = page.nextCursor;
       searchHasMoreRef.current = page.hasMore;
@@ -151,16 +214,31 @@ export function useSessionList(api) {
   }, [api]);
 
   const upsertSession = useCallback(session => {
-    setSessions(current => upsertSessionSummary(current, session));
+    setPinnedSessions(current => upsertSessionSummary(current, session, { requirePinned: true }));
+    setSessions(current => sessionMatchesProjectFilter(session, projectFilterRef.current)
+      ? upsertSessionSummary(current, session, { requirePinned: false })
+      : removeSessionSummary(current, session?.id));
+  }, []);
+
+  const upsertPinnedProject = useCallback(project => {
+    setPinnedProjects(current => upsertPinnedItem(current, project));
+  }, []);
+
+  const upsertPinnedTask = useCallback(task => {
+    setPinnedTasks(current => upsertPinnedItem(current, task));
   }, []);
 
   const removeSession = useCallback(sessionID => {
-    setSessions(current => current.filter(session => session.id !== sessionID));
-    setSessionSearchResults(current => current.filter(session => session.id !== sessionID));
+    setPinnedSessions(current => removeSessionSummary(current, sessionID));
+    setSessions(current => removeSessionSummary(current, sessionID));
+    setSessionSearchResults(current => removeSessionSummary(current, sessionID));
   }, []);
 
   return {
     sessions,
+    pinnedSessions,
+    pinnedProjects,
+    pinnedTasks,
     sessionSearch,
     setSessionSearch,
     sessionSearchResults,
@@ -170,9 +248,12 @@ export function useSessionList(api) {
     sessionSearchHasMore,
     sessionSearchLoadingMore,
     loadSessions,
+    loadPinnedFeed,
     loadMoreSessions,
     loadMoreSearchSessions,
     upsertSession,
+    upsertPinnedProject,
+    upsertPinnedTask,
     removeSession,
   };
 }

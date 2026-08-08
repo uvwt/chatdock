@@ -28,8 +28,48 @@ export function shouldUseComposerKeyboardLayout(activeElement, composerShell) {
   return composerShell?.contains?.(activeElement) === true && isTextEntryTarget(activeElement);
 }
 
+export function isLoadingMessageList(messages) {
+  return Array.isArray(messages)
+    && messages.length > 0
+    && messages.every(message => message?.role === 'loading');
+}
+
 export function shouldKeepMessagesAtBottom(messageBox, threshold = 120) {
   if (!messageBox) return false;
   const bottomGap = messageBox.scrollHeight - messageBox.scrollTop - messageBox.clientHeight;
   return bottomGap <= threshold;
+}
+
+export function messageBottomClearance(messageRect, overlayRects, gap = 12) {
+  const messageBottom = Number(messageRect?.bottom);
+  if (!Number.isFinite(messageBottom)) return 0;
+
+  const overlayTop = (Array.isArray(overlayRects) ? overlayRects : [])
+    .filter(rect => Number(rect?.height) > 0)
+    .map(rect => Number(rect?.top))
+    .filter(top => Number.isFinite(top) && top < messageBottom)
+    .reduce((minimum, top) => Math.min(minimum, top), messageBottom);
+
+  if (overlayTop >= messageBottom) return 0;
+  const safeGap = Number.isFinite(Number(gap)) ? Math.max(0, Number(gap)) : 0;
+  return Math.max(0, Math.ceil(messageBottom - overlayTop + safeGap));
+}
+
+export function nextMessageAutoFollowState(messageBox, previousScrollTop = 0, paused = false, threshold = 24) {
+  if (!messageBox) {
+    return { scrollTop: previousScrollTop, paused, stickToBottom: false };
+  }
+
+  const scrollTop = Number(messageBox.scrollTop) || 0;
+  const bottomGap = Math.max(0, (Number(messageBox.scrollHeight) || 0) - scrollTop - (Number(messageBox.clientHeight) || 0));
+  const nearBottom = bottomGap <= threshold;
+  const movedUp = scrollTop < previousScrollTop - 1;
+
+  // 用户上滑后持续暂停自动跟随；只有真正回到底部附近才恢复。
+  const nextPaused = nearBottom ? false : (paused || movedUp);
+  return {
+    scrollTop,
+    paused: nextPaused,
+    stickToBottom: nearBottom && !nextPaused,
+  };
 }

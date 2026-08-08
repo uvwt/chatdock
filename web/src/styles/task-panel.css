@@ -12,9 +12,9 @@
 }
 
 #app.app .task-panel-toggle.active {
-  border-color: rgba(16, 163, 127, .42);
-  background: rgba(16, 163, 127, .12);
-  color: #6ee7b7;
+  border-color: color-mix(in srgb, var(--agent-task-accent) 42%, transparent);
+  background: var(--agent-task-accent-soft);
+  color: var(--agent-task-accent-text);
 }
 
 .task-panel-toggle-icon {
@@ -38,7 +38,7 @@
   place-items: center;
   padding: 0 5px;
   border-radius: 999px;
-  background: #10a37f;
+  background: var(--agent-task-accent);
   color: #fff;
   font-size: 10px;
   font-weight: 800;
@@ -104,8 +104,8 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #10a37f;
-  box-shadow: 0 0 0 4px rgba(16, 163, 127, .12);
+  background: var(--agent-task-accent);
+  box-shadow: 0 0 0 4px var(--agent-task-accent-soft);
 }
 
 .agent-task-panel-actions {
@@ -180,8 +180,8 @@
 }
 
 .agent-task-card.expanded {
-  border-color: rgba(16, 163, 127, .32);
-  background: rgba(16, 163, 127, .045);
+  border-color: color-mix(in srgb, var(--agent-task-accent) 32%, transparent);
+  background: color-mix(in srgb, var(--agent-task-accent) 4.5%, transparent);
 }
 
 .agent-task-card.blocked {
@@ -221,7 +221,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #6ee7b7;
+  color: var(--agent-task-accent-text);
   font-size: 11px;
   font-weight: 720;
 }
@@ -273,7 +273,7 @@
 
 .agent-task-current span {
   margin-right: 6px;
-  color: #6ee7b7;
+  color: var(--agent-task-accent-text);
   font-weight: 750;
 }
 
@@ -293,7 +293,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #10a37f, #22c55e);
+  background: var(--agent-task-accent);
   transition: width .25s ease;
 }
 
@@ -397,15 +397,15 @@
 }
 
 .agent-task-steps li.completed .agent-task-step-symbol {
-  border-color: rgba(16, 163, 127, .45);
-  background: #10a37f;
+  border-color: color-mix(in srgb, var(--agent-task-accent) 45%, transparent);
+  background: var(--agent-task-accent);
   color: #fff;
 }
 
 .agent-task-steps li.active .agent-task-step-symbol {
-  border-color: #10a37f;
-  color: #10a37f;
-  box-shadow: 0 0 0 4px rgba(16, 163, 127, .1);
+  border-color: var(--agent-task-accent);
+  color: var(--agent-task-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--agent-task-accent) 10%, transparent);
 }
 
 .agent-task-step-title {
@@ -499,9 +499,9 @@
   height: 34px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(16, 163, 127, .3);
+  border: 1px solid color-mix(in srgb, var(--agent-task-accent) 30%, transparent);
   border-radius: 50%;
-  color: #10a37f;
+  color: var(--agent-task-accent);
 }
 
 .agent-task-empty b {
@@ -624,7 +624,7 @@ body.theme-light .agent-task-card:hover {
 }
 
 body.theme-light .agent-task-card.expanded {
-  background: rgba(16, 163, 127, .045);
+  background: color-mix(in srgb, var(--agent-task-accent) 4.5%, transparent);
 }
 
 body.theme-light .agent-task-card-action.delete {

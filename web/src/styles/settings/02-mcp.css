@@ -81,8 +81,7 @@
   background: rgba(255,255,255,.025);
 }
 
-.mcp-advanced-fields summary,
-.mcp-raw-json summary {
+.mcp-advanced-fields summary {
   cursor: pointer;
   color: var(--gpt-text, var(--text));
   font-weight: 700;
@@ -112,25 +111,12 @@
   color: var(--gpt-accent-contrast, #fff);
 }
 
-.mcp-raw-json {
-  margin-top: 12px;
-  border: 1px dashed var(--gpt-border, var(--border));
-  border-radius: 16px;
-  padding: 12px;
-}
-
-.mcp-raw-json .mcp-editor {
-  margin-top: 10px;
-  min-height: 180px;
-}
-
 body.theme-light .mcp-form-card {
   background: #ffffff;
   border-color: #dbe4f0;
 }
 
-body.theme-light .mcp-advanced-fields,
-body.theme-light .mcp-raw-json {
+body.theme-light .mcp-advanced-fields {
   background: #f8fafc;
   border-color: #dbe4f0;
 }
@@ -275,10 +261,7 @@ body.theme-light .mcp-raw-json {
   }
 
   #send::before {
-    content: '↑';
-    font-size: 25px;
-    line-height: 1;
-    font-weight: 850;
+    content: none;
   }
 
   .stream-control {
@@ -350,21 +333,6 @@ body.theme-light .mcp-raw-json {
 
   .mcp-primary-actions {
     bottom: calc(env(safe-area-inset-bottom, 0px));
-  }
-
-  .mcp-raw-json .mcp-editor {
-    min-height: 220px;
-    font-size: 14px;
-  }
-
-  .quick-palette-backdrop {
-    align-items: flex-start !important;
-    padding: 10px !important;
-  }
-
-  .quick-palette {
-    max-height: calc(100dvh - 20px) !important;
-    border-radius: 24px !important;
   }
 }
 

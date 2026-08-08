@@ -5,9 +5,10 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#FFFFFF",
+  "theme_color": "#18181B",
   "icons": [
-    {"src": "/chatdock-mark.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+    {"src": "/chatdock-mark.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"},
+    {"src": "/chatdock-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable"}
   ]
 }

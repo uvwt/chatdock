@@ -246,9 +246,7 @@ body.theme-light .model-option { background:#f8fafc; }
 .diagnostics-preview,
 .backup-item,
 .setup-banner,
-.workspace-picker-sheet,
 .session-actions-sheet,
-.quick-palette,
 .app-modal-card,
 .app-toast {
   border-color: var(--gpt-border);
@@ -268,9 +266,7 @@ body.theme-light .model-option { background:#f8fafc; }
 .task-meta,
 .hint,
 .stat-label,
-.empty,
-.quick-palette-foot,
-.workspace-picker-item-main span {
+.empty {
   color: var(--gpt-muted);
 }
 
@@ -289,30 +285,16 @@ label,
 
 input,
 textarea,
-select,
-.workspace-picker-item,
-.workspace-picker-trigger {
+select {
   border-color: var(--gpt-border);
   background: var(--gpt-surface);
   color: var(--gpt-text);
 }
 
-.quick-palette-backdrop.show,
-.workspace-picker-backdrop.show,
 .session-actions-backdrop.show,
 .app-modal-backdrop {
   background: rgba(0,0,0,.52);
   backdrop-filter: blur(4px);
-}
-
-.quick-palette-item {
-  border-color: var(--gpt-border);
-  background: transparent;
-  color: var(--gpt-text);
-}
-
-.quick-palette-item:hover:not(:disabled) {
-  background: var(--gpt-sidebar-hover);
 }
 
 

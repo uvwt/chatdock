@@ -82,46 +82,6 @@
     margin-bottom: 12px !important;
   }
 
-  aside .workspace-picker-trigger {
-    min-height: 54px !important;
-    padding: 0 14px !important;
-    border: 1px solid var(--mobile-border) !important;
-    border-radius: 18px !important;
-    background: var(--mobile-panel-soft) !important;
-    box-shadow: none !important;
-  }
-
-  aside .workspace-picker-icon {
-    width: 28px;
-    height: 28px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    background: var(--mobile-accent-soft);
-    color: var(--mobile-accent-text) !important;
-    font-size: 16px !important;
-  }
-
-  aside .workspace-picker-name {
-    font-size: 15px !important;
-    font-weight: 800 !important;
-  }
-
-  aside .workspace-picker-meta {
-    padding: 3px 8px;
-    border-radius: 999px;
-    background: var(--mobile-panel);
-    color: var(--mobile-muted) !important;
-    font-size: 12px !important;
-    font-weight: 800 !important;
-  }
-
-  aside .workspace-picker-arrow {
-    color: var(--mobile-muted) !important;
-    font-size: 18px !important;
-  }
-
   aside .session-search-row {
     grid-template-columns: minmax(0, 1fr) 52px !important;
     gap: 8px !important;
@@ -151,7 +111,7 @@
   }
 
   aside .new {
-    background: linear-gradient(135deg, #2563eb, #0f6bff) !important;
+    background: #111827 !important;
     border-color: transparent !important;
     color: #ffffff !important;
   }
@@ -169,10 +129,10 @@
   }
 
   aside .session {
-    min-height: auto !important;
-    padding: 12px 13px !important;
+    min-height: 44px !important;
+    padding: 8px 10px 8px 12px !important;
     border: 1px solid transparent !important;
-    border-radius: 16px !important;
+    border-radius: 13px !important;
     background: transparent !important;
     box-shadow: none !important;
   }
@@ -189,46 +149,23 @@
   aside .session.active {
     border-color: var(--mobile-border-strong) !important;
     background: var(--mobile-accent-panel) !important;
-    box-shadow: inset 3px 0 0 #2563eb !important;
+    box-shadow: inset 3px 0 0 #6b7280 !important;
   }
 
   aside .session-title {
-    display: -webkit-box;
+    display: block;
     overflow: hidden;
     color: var(--mobile-text-strong) !important;
-    font-size: 15px !important;
-    line-height: 1.28 !important;
-    font-weight: 780 !important;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    font-size: 14px !important;
+    line-height: 1.35 !important;
+    font-weight: 680 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   aside .session-preview,
   aside .session-meta {
-    display: block !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--mobile-muted-weak) !important;
-    font-size: 11px !important;
-    line-height: 1.3 !important;
-  }
-
-  aside .session-preview {
-    margin-top: 5px !important;
-  }
-
-  aside .session-meta {
-    margin-top: 4px !important;
-  }
-
-  aside .pin-mark {
-    padding: 1px 5px !important;
-    border-radius: 999px !important;
-    background: var(--mobile-accent-soft) !important;
-    color: var(--mobile-accent-text) !important;
-    font-size: 10px !important;
-    vertical-align: 1px;
+    display: none !important;
   }
 
   .msg.assistant,
@@ -412,15 +349,19 @@
 
   .model-picker-popover {
     position: fixed !important;
-    left: 18px !important;
-    right: 18px !important;
-    bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
-    width: auto !important;
-    max-height: min(460px, 58vh) !important;
-    padding: 16px !important;
-    border-radius: 26px !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 1400 !important;
+    width: 100% !important;
+    max-height: min(620px, 72dvh) !important;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+    border-left: 0 !important;
+    border-radius: 26px 26px 0 0 !important;
     background: var(--mobile-panel-translucent) !important;
-    box-shadow: var(--mobile-shadow-raised) !important;
+    box-shadow: 0 -24px 70px rgba(15, 23, 42, .18) !important;
   }
 
   .model-provider-item {
@@ -436,53 +377,4 @@
     background: var(--mobile-panel) !important;
   }
 
-  /* 生成中只保留真正可用的控件，避免发送、引导和中断在窄屏上重叠。 */
-  .composer.composer-streaming {
-    grid-template-columns: minmax(0, 1fr) 58px 42px !important;
-  }
-
-  .composer-streaming .attach-control,
-  .composer-streaming .model-picker,
-  .composer-streaming #send {
-    display: none !important;
-  }
-
-  .composer-streaming textarea {
-    grid-column: 1 !important;
-  }
-
-  .composer-streaming .guide-control {
-    grid-column: 2 !important;
-    width: 58px !important;
-    min-width: 58px !important;
-    padding: 0 10px !important;
-    border-radius: 14px !important;
-    background: var(--mobile-panel-raised) !important;
-    color: var(--mobile-text-strong) !important;
-    font-size: 13px !important;
-    font-weight: 750 !important;
-  }
-
-  .composer-streaming .stop-control {
-    grid-column: 3 !important;
-    border-radius: 14px !important;
-    background: var(--mobile-danger-soft) !important;
-    color: var(--mobile-danger-text) !important;
-    font-size: 0 !important;
-  }
-
-  .composer-streaming .guide-control::before,
-  .composer-streaming .guide-control::after,
-  .composer-streaming .stop-control::after {
-    content: none !important;
-    display: none !important;
-  }
-
-  .composer-streaming .stop-control::before {
-    content: "■" !important;
-    display: block !important;
-    color: var(--mobile-danger-text) !important;
-    font-size: 14px !important;
-    transform: none !important;
-  }
 }

@@ -29,7 +29,7 @@
 .settings-page .product-card,
 .settings-page .task-card,
 .settings-page .stat-card,
-.settings-page .workspace-summary-card,
+.settings-page .project-summary-card,
 .settings-page .model-summary-card,
 .settings-page .mcp-form-card,
 .settings-page .mcp-status-grid .product-card,
@@ -52,7 +52,7 @@
 .settings-page .product-card,
 .settings-page .task-card,
 .settings-page .stat-card,
-.settings-page .workspace-summary-card,
+.settings-page .project-summary-card,
 .settings-page .model-summary-card,
 .settings-page .empty.compact {
   padding: 11px 12px !important;
@@ -131,9 +131,9 @@
 
 .settings-page .settings-form-grid,
 .settings-page .mcp-form-grid,
-.settings-page .workspace-summary-grid,
+.settings-page .project-summary-grid,
 .settings-page .model-inline-grid,
-.settings-page #workspaceCards,
+.settings-page #projectCards,
 .settings-page .provider-grid,
 .settings-page .tasks-list,
 .settings-page .tasks-list,
@@ -143,7 +143,7 @@
   gap: 9px !important;
 }
 
-.settings-page .workspace-summary-card b,
+.settings-page .project-summary-card b,
 .settings-page .stat-value {
   font-size: 17px !important;
 }
@@ -178,7 +178,6 @@
 }
 
 .settings-page .mcp-advanced-fields,
-.settings-page .mcp-raw-json,
 .settings-page details.settings-section {
   border: 0 !important;
   background: rgba(255,255,255,.64) !important;
@@ -297,7 +296,7 @@
   .settings-page .product-card,
   .settings-page .task-card,
   .settings-page .stat-card,
-  .settings-page .workspace-summary-card,
+  .settings-page .project-summary-card,
   .settings-page .model-summary-card,
   .settings-page .mcp-form-card,
   .settings-page .empty.compact {
@@ -427,7 +426,7 @@
 .settings-page .product-card,
 .settings-page .task-card,
 .settings-page .stat-card,
-.settings-page .workspace-summary-card,
+.settings-page .project-summary-card,
 .settings-page .model-summary-card,
 .settings-page .mcp-form-card,
 .settings-page .mcp-status-grid .product-card,
@@ -450,7 +449,7 @@
 .settings-page .product-card,
 .settings-page .task-card,
 .settings-page .stat-card,
-.settings-page .workspace-summary-card,
+.settings-page .project-summary-card,
 .settings-page .model-summary-card,
 .settings-page .empty.compact {
   padding: 14px !important;

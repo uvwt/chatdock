@@ -34,7 +34,7 @@
 .settings-page .mcp-form-card,
 .settings-page .product-card,
 .settings-page .task-card,
-.settings-page .workspace-summary-card,
+.settings-page .project-summary-card,
 .settings-page .backup-item,
 .settings-page .backup-health,
 .settings-page .empty.compact { background: var(--v4-card) !important; border: 1px solid var(--v4-line) !important; border-radius: 13px !important; box-shadow: 0 1px 2px rgba(15,23,42,.035) !important; }
@@ -81,7 +81,6 @@
 .settings-page .mcp-server-meta { display: inline-flex !important; align-items: center !important; justify-content: flex-end !important; gap: 8px !important; min-width: 0 !important; }
 .settings-page .mcp-form-list.redesigned { display: grid !important; gap: 12px !important; grid-template-columns: 1fr !important; }
 .settings-page .mcp-advanced-fields,
-.settings-page .mcp-raw-json,
 .settings-page .model-mini-details { border: 1px solid var(--v4-line) !important; background: var(--v4-soft) !important; box-shadow: none !important; border-radius: 11px !important; }
 .settings-page .mcp-tool-policy-row { background: transparent !important; border-radius: 0 !important; border: 0 !important; border-bottom: 1px solid var(--v4-line) !important; }
 .settings-page .data-table-section { padding: 14px !important; }
@@ -143,7 +142,7 @@
 .settings-page .mcp-form-card,
 .settings-page .product-card,
 .settings-page .task-card,
-.settings-page .workspace-summary-card,
+.settings-page .project-summary-card,
 .settings-page .stat-card,
 .settings-page .model-summary-card,
 .settings-page .backup-item,
@@ -252,7 +251,7 @@
 .settings-page .mcp-form-card,
 .settings-page .product-card,
 .settings-page .task-card,
-.settings-page .workspace-summary-card,
+.settings-page .project-summary-card,
 .settings-page .stat-card,
 .settings-page .model-summary-card,
 .settings-page .backup-item,
@@ -283,7 +282,7 @@
 .settings-page .task-name,
 .settings-page .task-name,
 .settings-page .stat-value,
-.settings-page .workspace-summary-card b,
+.settings-page .project-summary-card b,
 .settings-page .model-summary-card b {
   color: var(--settings-v5-text) !important;
   font-weight: 820 !important;
@@ -355,7 +354,6 @@
 }
 
 .settings-page .mcp-advanced-fields,
-.settings-page .mcp-raw-json,
 .settings-page .model-mini-details,
 .settings-page details.settings-section {
   background: var(--settings-v5-card) !important;

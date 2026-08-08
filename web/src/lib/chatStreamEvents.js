@@ -3,18 +3,45 @@ import { streamErrorMessage } from './chatPresentation.js';
 import { appendToolStartEvent, mergeToolResultEvent } from './toolEvents.js';
 
 const assistantEventNames = new Set([
-  'tool_setup_ready',
   'tool_setup_error',
   'tool_call_start',
   'tool_call_result',
   'tool_confirmation_required',
   'tool_confirmation_resolved',
+  'model_retry',
   'model_fallback',
   'job_cancelled',
   'guidance_queued',
   'guidance_injected',
   'error',
 ]);
+
+export function messagesForRunningJobReplay(messages, job = {}) {
+  const next = Array.isArray(messages) ? [...messages] : [];
+  const last = next.at(-1);
+  const createdAt = last?.role === 'assistant' || last?.role === 'assistant-stream'
+    ? (last.created_at || job.started_at || new Date().toISOString())
+    : (job.started_at || new Date().toISOString());
+  const streamMessage = {
+    role: 'assistant-stream',
+    job_id: job.id || '',
+    answer: '',
+    reasoning: '',
+    parts: [],
+    events: [{ kind: 'tool', text: '已恢复后台生成', details: { event: 'resume_running_job', job } }],
+    created_at: createdAt,
+  };
+
+  // 运行中的任务会把当前助手回复作为 checkpoint 持久化，同时保留完整 SSE 事件。
+  // 恢复时会从第 0 个事件重新构建时间线，因此必须替换 checkpoint，而不是再追加一条助手消息。
+  if (last?.role === 'assistant' || last?.role === 'assistant-stream') {
+    next[next.length - 1] = streamMessage;
+    return next;
+  }
+
+  next.push(streamMessage);
+  return next;
+}
 
 export function chatStreamStatsAfterEvent(stats, event, data = {}, paused = false) {
   switch (event) {
@@ -23,6 +50,7 @@ export function chatStreamStatsAfterEvent(stats, event, data = {}, paused = fals
       return { ...stats, state: paused ? 'paused' : 'streaming', chars: stats.chars + chars };
     }
     case 'tool_setup_ready':
+    case 'model_retry':
     case 'model_fallback':
     case 'tool_call_result':
     case 'guidance_queued':
@@ -59,20 +87,24 @@ export function projectsChatStreamAssistant(event, data = {}) {
 
 export function chatStreamAssistantAfterEvent(message, event, data = {}) {
   switch (event) {
-    case 'tool_setup_ready':
-      return appendEvent(message, {
-        kind: 'tool',
-        text: data.mode === 'discovery'
-          ? `已准备可用工具索引：${data.tool_count || 0} 个工具`
-          : `MCP 已接入：${data.tool_count || 0} 个工具`,
-        details: { event, data },
-      });
     case 'tool_setup_error':
-      return appendEvent(message, { kind: 'tool', text: `⚠️ MCP 未接入：${data.message || '工具初始化失败'}`, details: { event, data } });
+      return appendEvent(message, { kind: 'tool', text: `MCP 未接入：${data.message || '工具初始化失败'}`, details: { event, data } });
     case 'tool_call_start':
       return appendToolStartEvent(message, event, data);
     case 'tool_call_result':
       return mergeToolResultEvent(message, event, data);
+    case 'model_retry':
+      return appendEvent(message, {
+        kind: 'tool',
+        phase: 'done',
+        text: '重新连接模型',
+        meta: [
+          data.provider_id,
+          data.model,
+          data.attempt && data.max_retries ? `${data.attempt}/${data.max_retries}` : '',
+        ].filter(Boolean).join(' · '),
+        details: { event, data },
+      });
     case 'model_fallback':
       return appendEvent(message, {
         kind: 'tool',
@@ -94,27 +126,27 @@ export function chatStreamAssistantAfterEvent(message, event, data = {}) {
       return {
         ...message,
         events: (message.events || []).map(item => item.confirmation?.id === data.id
-          ? { ...item, status: 'resolved', text: `${data.approved ? '✅ 已允许工具：' : '⛔ 已拒绝工具：'}${data.tool || item.confirmation?.tool || 'MCP 工具'}` }
+          ? { ...item, status: 'resolved', text: `${data.approved ? '已允许工具：' : '已拒绝工具：'}${data.tool || item.confirmation?.tool || 'MCP 工具'}` }
           : item),
       };
     case 'job_cancelled':
-      return appendEvent(message, { kind: 'tool', text: '⏹️ 已请求停止生成', details: { event, data } });
+      return appendEvent(message, { kind: 'tool', text: '已请求停止生成', details: { event, data } });
     case 'guidance_queued':
-      return appendEvent(message, { kind: 'guide', phase: 'running', text: '🧭 已收到引导，等待下一轮模型调用', meta: data.message || '', details: { event, data } });
+      return appendEvent(message, { kind: 'guide', phase: 'running', text: '已收到引导，等待下一轮模型调用', meta: data.message || '', details: { event, data } });
     case 'guidance_injected':
-      return appendEvent(message, { kind: 'guide', phase: 'done', text: '🧭 已将引导加入下一轮模型上下文', meta: data.message || '', details: { event, data } });
+      return appendEvent(message, { kind: 'guide', phase: 'done', text: '已将引导加入下一轮模型上下文', meta: data.message || '', details: { event, data } });
     case 'run_event': {
       const meta = [runStatusLabel(data.status || ''), data.server, data.action, fmtDuration(data.duration_ms)].filter(Boolean).join(' · ');
       return appendEvent(message, {
         kind: 'run',
-        text: `🧭 ${data.summary || data.tool || 'MCP 工具事件'}`,
+        text: `${data.summary || data.tool || 'MCP 工具事件'}`,
         meta,
         details: { event, tool: data.tool || '', arguments: data.arguments, result: data.result, error: data.error || '', duration_ms: data.duration_ms, data },
       });
     }
     case 'error': {
       const error = streamErrorMessage(data);
-      return appendEvent({ ...message, error: data, answer: message.answer || '' }, { kind: 'error', phase: 'error', text: `⚠️ ${error}`, details: { event, error, data } });
+      return appendEvent({ ...message, error: data, answer: message.answer || '' }, { kind: 'error', phase: 'error', text: error, details: { event, error, data } });
     }
     default:
       return message;

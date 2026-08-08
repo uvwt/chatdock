@@ -1,96 +1,3 @@
-.hero-metric-row span { color: var(--gpt-muted); font-size: 12px; }
-.hero-metric-row strong {
-  color: var(--gpt-text);
-  font-size: 22px;
-  letter-spacing: -.04em;
-}
-
-.starter-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.starter-card {
-  text-align: left;
-  border-radius: 22px;
-  padding: 16px;
-  min-height: 132px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 9px;
-  color: var(--gpt-text);
-  cursor: pointer;
-  transition: transform .18s ease, border-color .18s ease, background .18s ease;
-}
-
-.starter-card:hover:not(:disabled) {
-  transform: translateY(-3px);
-  border-color: rgba(16,163,127,.42);
-  background: linear-gradient(180deg, rgba(16,163,127,.12), rgba(255,255,255,.03));
-}
-
-.starter-icon {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: 13px;
-  color: var(--gpt-accent-contrast);
-  background: linear-gradient(135deg, #10a37f, #3b82f6);
-  box-shadow: 0 12px 30px rgba(16,163,127,.22);
-}
-
-.starter-card b {
-  font-size: 15px;
-}
-
-.starter-card span:last-child {
-  color: var(--gpt-muted);
-  line-height: 1.55;
-}
-
-.empty-capability-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
-  padding: 5px;
-  border-radius: 22px;
-  box-shadow: none;
-}
-
-.empty-capability-strip div {
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: rgba(255,255,255,.025);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.empty-capability-strip b { color: var(--gpt-text); font-size: 13px; }
-.empty-capability-strip span { color: var(--gpt-muted); font-size: 12px; line-height: 1.45; }
-
-.composer-shell {
-  z-index: 4;
-  background: linear-gradient(180deg, transparent, var(--gpt-bg) 42%) !important;
-}
-
-.composer {
-  box-shadow: 0 14px 42px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.06) !important;
-  border-color: rgba(255,255,255,.12) !important;
-}
-
-body.theme-light .composer {
-  box-shadow: 0 14px 42px rgba(15,23,42,.10), inset 0 1px 0 rgba(255,255,255,.7) !important;
-  border-color: rgba(15,23,42,.11) !important;
-}
-
-.composer textarea {
-  font-size: 14px !important;
-}
-
 #send {
   min-width: 52px;
   font-weight: 750;
@@ -98,21 +5,64 @@ body.theme-light .composer {
 
 @media (max-width: 1180px) {
   .product-empty-state {
-    width: min(920px, calc(100vw - var(--gpt-sidebar-width) - 42px));
+    width: min(980px, calc(100vw - var(--gpt-sidebar-width) - 38px));
   }
-  .product-hero { grid-template-columns: 1fr; }
-  .hero-panel { min-height: 0; }
+
+  .product-hero {
+    gap: 30px;
+    padding: 42px;
+  }
+
+  .hero-copy h1 { font-size: 52px !important; }
+}
+
+@media (max-width: 1040px) {
+  .product-hero {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .hero-copy { max-width: 650px; }
 }
 
 @media (max-width: 720px) {
   .product-empty-state {
     width: auto;
-    padding: 14px 12px 132px;
+    padding: 10px 10px 124px;
   }
-  .hero-copy { padding: 24px; border-radius: 24px; }
-  .hero-copy h1 { font-size: 34px !important; }
-  .starter-grid,
-  .empty-capability-strip { grid-template-columns: 1fr; }
+
+  .product-hero {
+    gap: 24px;
+    padding: 28px 20px 20px;
+    border-radius: 24px;
+  }
+
+  .hero-ambient {
+    top: -88px;
+    right: -112px;
+    width: 320px;
+    height: 320px;
+    opacity: .62;
+  }
+
+  .hero-orbit-a { inset: 28px; }
+  .hero-orbit-b { inset: 82px; }
+  .hero-core { inset: 118px; }
+
+  .hero-copy h1 {
+    margin-top: 16px;
+    font-size: 42px !important;
+  }
+
+  .hero-copy p {
+    margin-bottom: 22px;
+    font-size: 14px !important;
+  }
+
+  .hero-actions { flex-wrap: wrap; }
+  .hero-actions button:first-child { flex: 1 0 100%; }
+  .hero-actions button.secondary { flex: 1 1 0; }
+  .hero-trust-row { display: none; }
 }
 
 
@@ -125,10 +75,26 @@ body.theme-light .composer {
   cursor: not-allowed;
 }
 
-.msg.assistant .answer:empty::before {
-  content: '正在连接模型…';
-  color: var(--gpt-muted-2);
-  font-style: italic;
+.assistant-waiting {
+  padding: 6px 0 14px;
+}
+
+.assistant-waiting-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gpt-muted-2);
+  animation: assistant-waiting-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes assistant-waiting-pulse {
+  0%, 100% { opacity: .4; transform: scale(.62); }
+  50% { opacity: 1; transform: scale(1.38); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-waiting-dot { animation: none; }
 }
 
 .session-search-meta {
@@ -176,13 +142,14 @@ body.theme-light .composer {
 
 .model-picker-trigger {
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
   min-height: 42px;
-  max-width: 180px;
-  padding: 6px 12px;
-  border-radius: 18px;
+  max-width: 240px;
+  padding: 6px 10px;
+  border-radius: 12px;
   line-height: 1.15;
 }
 
@@ -222,7 +189,7 @@ body.theme-light .composer {
 .model-picker-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 10px;
   margin-bottom: 10px;
 }
@@ -311,177 +278,10 @@ body.theme-light .jump-latest {
 }
 
 
-/* 2026-07 浏览器截图优化：空状态更像产品工作台，卡片层级更清楚。 */
-.product-empty-state {
-  padding-top: clamp(18px, 3.2vh, 44px) !important;
-}
-
-.hero-copy,
-.hero-panel,
-.starter-card,
-.empty-capability-strip {
-  backdrop-filter: blur(20px) saturate(140%);
-}
-
-.hero-copy {
-  min-height: 286px;
-}
-
-.hero-copy::before {
-  content: '';
-  position: absolute;
-  inset: 1px;
-  border-radius: 29px;
-  pointer-events: none;
-  background: linear-gradient(135deg, rgba(255,255,255,.10), transparent 42%);
-  opacity: .75;
-}
-
-.hero-copy > *,
-.hero-panel > * {
-  position: relative;
-  z-index: 1;
-}
-
-.hero-panel {
-  position: relative;
-  overflow: hidden;
-}
-
-.hero-panel::before {
-  content: '';
-  position: absolute;
-  width: 190px;
-  height: 190px;
-  right: -92px;
-  bottom: -110px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(59,130,246,.24), transparent 65%);
-  pointer-events: none;
-}
-
-.hero-metric-row small {
-  color: var(--gpt-muted-2);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .08em;
-}
-
-.starter-card {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-}
-
-.starter-card::after {
-  content: '';
-  position: absolute;
-  inset: auto -40px -56px auto;
-  width: 112px;
-  height: 112px;
-  border-radius: 50%;
-  background: rgba(16,163,127,.10);
-  z-index: -1;
-}
-
-.starter-card-arrow {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  color: var(--gpt-muted-2);
-  font-size: 14px;
-  transform: translate(-2px, 2px);
-  opacity: 0;
-  transition: transform .18s ease, opacity .18s ease, color .18s ease;
-}
-
-.starter-card:hover:not(:disabled) .starter-card-arrow {
-  opacity: 1;
-  color: var(--gpt-text);
-  transform: translate(0, 0);
-}
-
-.empty-capability-strip div {
-  position: relative;
-  padding-left: 52px !important;
-}
-
-.empty-capability-strip i {
-  position: absolute;
-  left: 16px;
-  top: 15px;
-  width: 24px;
-  height: 24px;
-  display: inline-grid;
-  place-items: center;
-  border-radius: 9px;
-  background: rgba(16,163,127,.13);
-  color: #6ee7b7;
-  font-style: normal;
-  font-size: 11px;
-  font-weight: 850;
-  letter-spacing: -.02em;
-}
-
-body.theme-light .empty-capability-strip i {
-  color: #047857;
-  background: rgba(16,163,127,.10);
-}
-
 .tool-event { border:0; background:transparent; color:var(--gpt-muted); font-size:14px; padding:2px 0; margin:4px 0 7px; display:inline-flex; gap:7px; align-items:center; }
 .tool-event.has-details::after { content:"⌄"; }
 .tool-event.phase-running { color:var(--gpt-muted-2); }
 .tool-event.phase-error { color:#fca5a5; }
-
-/* 2026-07 快捷指令面板密度修复：减小字体，并给右侧执行按钮固定安全列。 */
-.quick-palette-head input {
-  font-size: 14px;
-  font-weight: 560;
-}
-
-.quick-palette-close,
-.quick-palette-head > button {
-  width: 40px;
-  min-width: 40px;
-  min-height: 40px;
-  padding: 0;
-  font-size: 18px;
-}
-
-.quick-palette-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 44px;
-  gap: 10px;
-  min-height: 54px;
-  padding: 9px 10px 9px 13px;
-}
-
-.quick-palette-item span {
-  max-width: 100%;
-}
-
-.quick-palette-item b {
-  font-size: 14px;
-  line-height: 1.18;
-}
-
-.quick-palette-item small {
-  font-size: 11px;
-  line-height: 1.24;
-}
-
-.quick-palette-item em {
-  width: 44px;
-  min-width: 44px;
-  padding: 0;
-  font-size: 11px;
-  text-align: center;
-  justify-self: end;
-}
-
-.quick-palette-foot {
-  font-size: 11px;
-}
 
 /* Assistant message prose: clean ChatGPT-like text, no card frame. */
 .msg.assistant,

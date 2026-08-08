@@ -1,13 +1,13 @@
 export const SESSION_PAGE_SIZE = 30;
 
 export function normalizeSessionPage(data) {
-  if (Array.isArray(data)) {
-    return { sessions: data, nextCursor: '', hasMore: false };
+  if (!data || Array.isArray(data) || !Array.isArray(data.sessions)) {
+    throw new TypeError('invalid session page response');
   }
   return {
-    sessions: Array.isArray(data?.sessions) ? data.sessions : [],
-    nextCursor: String(data?.next_cursor || ''),
-    hasMore: !!data?.has_more,
+    sessions: data.sessions,
+    nextCursor: String(data.next_cursor || ''),
+    hasMore: !!data.has_more,
   };
 }
 
@@ -21,29 +21,36 @@ export function mergeSessionPages(current = [], incoming = []) {
 
 export function sessionSummaryFromSession(session) {
   if (!session?.id) return null;
-  const messages = Array.isArray(session.messages) ? session.messages : [];
-  const last = messages[messages.length - 1] || {};
-  let preview = String(last.content || last.error?.message || '').replace(/\s+/g, ' ').trim();
-  if ([...preview].length > 120) preview = [...preview].slice(0, 120).join('') + '…';
   return {
     id: session.id,
     title: session.title || '新会话',
     pinned: !!session.pinned,
-    provider_id: session.provider_id || '',
-    model: session.model || '',
-    preview,
-    last_role: last.role || '',
-    created_at: session.created_at,
+    project_id: session.project_id || '',
     updated_at: session.updated_at,
-    count: messages.length,
   };
 }
 
-export function upsertSessionSummary(items, session) {
+export function sessionMatchesProjectFilter(session, projectFilter = 'all') {
+  const filter = String(projectFilter || 'all').trim() || 'all';
+  const projectID = String(session?.project_id || '').trim();
+  if (filter === 'all') return true;
+  if (filter === 'plain') return !projectID;
+  return projectID === filter;
+}
+
+export function upsertSessionSummary(items, session, { requirePinned } = {}) {
   const summary = sessionSummaryFromSession(session);
   if (!summary) return items || [];
-  const merged = mergeSessionPages((items || []).filter(item => item.id !== summary.id), [summary]);
-  return merged.sort(compareSessionSummaries);
+  const rest = (items || []).filter(item => item.id !== summary.id);
+  if (requirePinned === true && !summary.pinned) return rest;
+  if (requirePinned === false && summary.pinned) return rest;
+  return mergeSessionPages(rest, [summary]).sort(compareSessionSummaries);
+}
+
+export function removeSessionSummary(items, sessionID) {
+  const id = String(sessionID || '').trim();
+  if (!id) return items || [];
+  return (items || []).filter(item => item.id !== id);
 }
 
 function compareSessionSummaries(left, right) {
