@@ -124,7 +124,7 @@ https://your-compatible-gateway.example/v1
 {
   "servers": {
     "agentdock": {
-      "url": "http://host.docker.internal:18766/mcp",
+      "url": "http://host.docker.internal:8765/mcp",
       "auth": {
         "type": "bearer",
         "token_env": "AGENTDOCK_TOKEN"
@@ -217,7 +217,7 @@ ChatDock 内置三种调度方式：
 需要在 ChatDock 中查看 AgentDock 任务时，可配置：
 
 ```dotenv
-CHATDOCK_AGENTDOCK_CONTEXT_URL=http://host.docker.internal:18766/context
+CHATDOCK_AGENTDOCK_CONTEXT_URL=http://host.docker.internal:8765/context
 CHATDOCK_AGENTDOCK_CONTEXT_TOKEN=<AgentDock Token>
 ```
 
