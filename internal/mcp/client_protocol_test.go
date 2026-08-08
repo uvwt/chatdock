@@ -67,6 +67,28 @@ func TestCallToolResolvesSanitizedServerAliasToOriginalConfigName(t *testing.T) 
 	}
 }
 
+func TestMCPRequestAcceptsJSONAndEventStream(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		accept := r.Header.Get("Accept")
+		if !strings.Contains(accept, "application/json") || !strings.Contains(accept, "text/event-stream") {
+			t.Fatalf("Accept = %q, want both application/json and text/event-stream", accept)
+		}
+		var request struct {
+			ID any `json:"id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": request.ID, "result": map[string]any{"tools": []any{}}})
+	}))
+	defer server.Close()
+
+	cfg := MCPConfig{Servers: map[string]MCPServerConfig{"demo": {URL: server.URL}}}
+	if _, err := NewMCPClient().ListServerTools(context.Background(), cfg, "demo"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestListServerToolsRejectsSanitizedToolAliasCollision(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request struct {

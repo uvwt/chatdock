@@ -175,6 +175,7 @@ func (c *MCPClient) call(ctx context.Context, server MCPServerConfig, method str
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
 	if token := server.bearerToken(); token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
