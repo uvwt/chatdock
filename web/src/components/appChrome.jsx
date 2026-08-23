@@ -110,18 +110,54 @@ function SidebarTreeNode({ api, current, item, kind, openSession, openSessionMen
   </details>;
 }
 
-// 会话列表首屏和切换筛选时的占位。行高与 .session 一致，避免骨架换成真实行时再跳一次。
-function SessionRowsSkeleton({ rows = 6 }) {
-  return <div className="session-skeleton-list" role="status" aria-label="正在加载会话列表" aria-busy="true">
-    {Array.from({ length: rows }, (_, index) => <span key={index} className="session-skeleton-row" />)}
-  </div>;
+// 侧栏分段首屏占位。三段的真实条目数只有请求回来才知道，纯靠猜行数一定对不上，
+// 所以把上一次的行数缓存到 localStorage，首屏按它预留等高空间，数据到达时高度不变。
+const SECTION_ROWS_KEY = 'chatdock.sidebar.sectionRows.v1';
+
+function readSectionRows() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SECTION_ROWS_KEY) || '{}');
+    return raw && typeof raw === 'object' ? raw : {};
+  } catch {
+    return {};
+  }
 }
 
-export function Sidebar({ api, busy, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, sessionsLoaded = true, newSession, onLoadMoreSessions, openSession, openManagementPage, pinSessionByID, pinnedSessions = [], pinnedProjects = [], pinnedTasks = [], projects, projectFilter, renameSessionByID, scheduledTasks, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setSidebarCollapsed, setTaskSearch, sidebarCollapsed, startProjectConversation }) {
+function writeSectionRows(next) {
+  try {
+    localStorage.setItem(SECTION_ROWS_KEY, JSON.stringify(next));
+  } catch {
+    // localStorage 不可用时只是回退到默认行数，不影响功能。
+  }
+}
+
+// 占位高度必须和真实布局算法一致：每行内容高 40px（--ui-control，.session 与 tree summary 共用），
+// 行与行之间是 .sidebar-*-list 的 2px grid gap。按 rows*42 算会每段多出 2px，实测三段累计 6px 位移。
+const SECTION_ROW_HEIGHT = 40;
+const SECTION_ROW_GAP = 2;
+
+function SectionPlaceholder({ rows, label }) {
+  const safeRows = Math.max(0, Math.min(12, Number(rows) || 0));
+  if (!safeRows) return null;
+  const height = safeRows * SECTION_ROW_HEIGHT + (safeRows - 1) * SECTION_ROW_GAP;
+  return <div
+    className="sidebar-section-placeholder"
+    style={{ height: `${height}px` }}
+    role="status"
+    aria-label={label}
+    aria-busy="true"
+  />;
+}
+
+export function Sidebar({ api, busy, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, sessionsLoaded = true, newSession, onLoadMoreSessions, openSession, openManagementPage, pinSessionByID, pinnedSessions = [], pinnedProjects = [], pinnedTasks = [], pinnedLoaded = true, projects, projectsLoaded = true, projectFilter, renameSessionByID, scheduledTasks, scheduledTasksLoaded = true, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setSidebarCollapsed, setTaskSearch, sidebarCollapsed, startProjectConversation }) {
   const [menuTarget, setMenuTarget] = React.useState(null);
   const sessionsRef = React.useRef(null);
   const loadMoreRef = React.useRef(null);
   const menuSession = menuTarget?.id === sessionMenuID ? menuTarget : null;
+  // 首屏用上一次记录的行数预留高度；本次数据到齐后再写回，供下次首屏使用。
+  const cachedRowsRef = React.useRef(null);
+  if (cachedRowsRef.current === null) cachedRowsRef.current = readSectionRows();
+  const cachedRows = cachedRowsRef.current;
 
   React.useEffect(() => {
     if (!sessionMenuID) return undefined;
@@ -194,9 +230,11 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
   const pinnedSessionRows = searchingSessions ? [] : pinnedSessions;
   const pinnedProjectRows = searchingSessions ? [] : pinnedProjects;
   const pinnedTaskRows = searchingSessions ? [] : pinnedTasks;
-  // 置顶区在没有任何置顶项时整段不渲染：首屏 pinned 数据后到，先渲染空标题再填充
-  // 会把下面的项目、定时任务和全部会话整体往下推一次。
+  // 置顶区在完全没有置顶项时整段不渲染，但必须先确认 pinned feed 已到达，
+  // 否则整段会从“不渲染”跳到“渲染”，同样把下方内容推走。
   const hasPinnedRows = pinnedSessionRows.length > 0 || pinnedProjectRows.length > 0 || pinnedTaskRows.length > 0;
+  const pinnedPlaceholderRows = pinnedLoaded ? 0 : (cachedRows.pinned || 0);
+  const showPinnedSection = !searchingSessions && (pinnedLoaded ? hasPinnedRows : pinnedPlaceholderRows > 0);
   // 列表为空时要先分清是还在取数据还是真的没有会话：搜索态看 sessionSearchBusy，
   // 普通列表看 sessionsLoaded，两者都未就绪时展示骨架而不是“暂无会话”。
   const pendingSessionRows = searchingSessions ? sessionSearchBusy : !sessionsLoaded;
@@ -206,6 +244,20 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
   const managementProjects = (projects || []).filter(item => !item.pinned && !pinnedProjectIDs.has(item.id));
   const managementTasks = (scheduledTasks || []).filter(item => !item.pinned && !pinnedTaskIDs.has(item.id));
   const sessionRows = filteredSessions;
+  const pinnedRowCount = pinnedSessions.length + pinnedProjects.length + pinnedTasks.length;
+  const projectRowCount = managementProjects.length;
+  const taskRowCount = managementTasks.length;
+  // 三段都到齐后记录真实行数，供下次首屏预留同样高度。搜索态的结果数不代表常规列表长度，不记录。
+  React.useEffect(() => {
+    if (!pinnedLoaded || !projectsLoaded || !scheduledTasksLoaded || !sessionsLoaded) return;
+    if (sessionSearch.trim()) return;
+    writeSectionRows({
+      pinned: pinnedRowCount,
+      projects: projectRowCount,
+      tasks: taskRowCount,
+      sessions: Math.min(12, filteredSessions.length),
+    });
+  }, [pinnedLoaded, projectsLoaded, scheduledTasksLoaded, sessionsLoaded, sessionSearch, pinnedRowCount, projectRowCount, taskRowCount, filteredSessions.length]);
   const renderSession = session => {
     const isActive = current === session.id;
     const menuOpen = sessionMenuID === session.id;
@@ -231,20 +283,26 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
         <button className="new icon-button" onClick={newSession} aria-label="新会话"><MessageSquarePlus {...iconProps} /></button>
       </div>
       <div id="sessions" ref={sessionsRef} onScroll={handleSessionScroll}>
-        {!searchingSessions && hasPinnedRows ? <>
+        {showPinnedSection ? <>
           <div className="sidebar-section-head"><div className="sidebar-section-title sidebar-section-title-emphasis">置顶</div></div>
-          <div className="sidebar-pinned-list">{pinnedSessionRows.map(renderSession)}{pinnedProjectRows.map(item => renderTreeNode('project', item))}{pinnedTaskRows.map(item => renderTreeNode('task', item))}</div>
+          <div className="sidebar-pinned-list">{pinnedLoaded
+            ? <>{pinnedSessionRows.map(renderSession)}{pinnedProjectRows.map(item => renderTreeNode('project', item))}{pinnedTaskRows.map(item => renderTreeNode('task', item))}</>
+            : <SectionPlaceholder rows={pinnedPlaceholderRows} label="正在加载置顶" />}</div>
         </> : null}
         {!searchingSessions ? <>
           <div className="sidebar-section-head"><button className="sidebar-section-title sidebar-section-title-emphasis" onClick={() => openManagementPage('projects')}>项目</button></div>
-          <div className="sidebar-manage-list">{managementProjects.map(item => renderTreeNode('project', item))}</div>
+          <div className="sidebar-manage-list">{projectsLoaded
+            ? managementProjects.map(item => renderTreeNode('project', item))
+            : <SectionPlaceholder rows={cachedRows.projects || 0} label="正在加载项目" />}</div>
           <div className="sidebar-section-head"><button className="sidebar-section-title" onClick={() => { setTaskSearch(''); openManagementPage('automation'); }}>定时任务</button></div>
-          <div className="sidebar-manage-list">{managementTasks.map(item => renderTreeNode('task', item))}</div>
+          <div className="sidebar-manage-list">{scheduledTasksLoaded
+            ? managementTasks.map(item => renderTreeNode('task', item))
+            : <SectionPlaceholder rows={cachedRows.tasks || 0} label="正在加载定时任务" />}</div>
         </> : null}
         <div className="sidebar-section-head"><div className="sidebar-section-title sidebar-section-title-emphasis">全部会话</div></div>
         {searchingSessions ? <div className="session-search-meta">{sessionSearchBusy ? '搜索中…' : (hasMoreSessions ? '全文搜索 · 已加载 ' : '全文搜索 ') + filteredSessions.length + ' 条'}</div> : null}
         {sessionRows.length ? sessionRows.map(renderSession) : (pendingSessionRows
-          ? <SessionRowsSkeleton />
+          ? <SectionPlaceholder rows={cachedRows.sessions || 6} label="正在加载会话列表" />
           : <div className="empty compact">{searchingSessions ? '没有匹配会话' : '暂无会话，开始新会话'}</div>)}
         <div ref={loadMoreRef} style={{ minHeight: 1 }} aria-hidden="true" />
         {loadingMoreSessions ? <div className="session-search-meta" role="status">正在加载更多…</div> : null}

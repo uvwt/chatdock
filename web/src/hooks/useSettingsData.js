@@ -50,6 +50,8 @@ export function useSettingsData(api) {
   const [projectSessionCounts, setProjectSessionCounts] = useState({all: 0, plain: 0, byProject: {}});
   const [providers, setProviders] = useState([]);
   const [scheduledTasks, setScheduledTasks] = useState([]);
+  // 侧栏“定时任务”分段需要区分未加载与真的没有任务，否则数据到达时整段会把下方内容推走。
+  const [scheduledTasksLoaded, setScheduledTasksLoaded] = useState(false);
   const [dataStatus, setDataStatus] = useState(null);
   const [systemStatus, setSystemStatus] = useState(null);
   const [mcpStatus, setMcpStatus] = useState([]);
@@ -86,12 +88,16 @@ export function useSettingsData(api) {
   }, [api]);
 
   const loadProjects = useCallback(async () => {
-    const data = await fetchProjects(api);
-    const next = normalizeProjectListResponse(data);
-    setProjects(next.projects);
-    setProjectsLoaded(true);
-    setProjectSessionCounts(next.sessionCounts);
-    return data;
+    try {
+      const data = await fetchProjects(api);
+      const next = normalizeProjectListResponse(data);
+      setProjects(next.projects);
+      setProjectSessionCounts(next.sessionCounts);
+      return data;
+    } finally {
+      // 失败也要退出加载态，否则侧栏项目分段会永久停在骨架上。
+      setProjectsLoaded(true);
+    }
   }, [api]);
 
   const loadModelProviders = useCallback(async () => {
@@ -100,8 +106,13 @@ export function useSettingsData(api) {
   }, [api]);
 
   const loadScheduledTasks = useCallback(async () => {
-    const data = await fetchScheduledTasks(api);
-    setScheduledTasks(data.tasks || []);
+    try {
+      const data = await fetchScheduledTasks(api);
+      setScheduledTasks(data.tasks || []);
+    } finally {
+      // 失败也要退出加载态，否则侧栏定时任务分段会永久停在骨架上。
+      setScheduledTasksLoaded(true);
+    }
   }, [api]);
 
   const loadDataStatus = useCallback(async () => {
@@ -133,6 +144,7 @@ export function useSettingsData(api) {
     providers,
     setProviders,
     scheduledTasks,
+    scheduledTasksLoaded,
     setScheduledTasks,
     dataStatus,
     setDataStatus,

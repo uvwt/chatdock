@@ -206,6 +206,7 @@ export default function App() {
     pinnedSessions,
     pinnedProjects,
     pinnedTasks,
+    pinnedLoaded,
     sessionSearch,
     setSessionSearch,
     sessionSearchResults,
@@ -231,6 +232,7 @@ export default function App() {
     projectSessionCounts,
     providers,
     scheduledTasks,
+    scheduledTasksLoaded,
     setScheduledTasks,
     dataStatus,
     systemStatus,
@@ -1246,7 +1248,7 @@ export default function App() {
         api={api} busy={busy} current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} goHome={goHome}
         hasMoreSessions={visibleSessionsHasMore} loadingMoreSessions={visibleSessionsLoadingMore} sessionsLoaded={sessionsLoaded} newSession={newSession}
         onLoadMoreSessions={loadMoreVisibleSessions} openSession={openSession} openManagementPage={openManagementPage}
-        pinSessionByID={pinSessionByID} pinnedSessions={pinnedSessions} pinnedProjects={pinnedProjects} pinnedTasks={pinnedTasks} projects={projects} projectFilter={projectFilter} renameSessionByID={renameSessionByID}
+        pinSessionByID={pinSessionByID} pinnedSessions={pinnedSessions} pinnedProjects={pinnedProjects} pinnedTasks={pinnedTasks} pinnedLoaded={pinnedLoaded} projects={projects} projectsLoaded={projectsLoaded} scheduledTasksLoaded={scheduledTasksLoaded} projectFilter={projectFilter} renameSessionByID={renameSessionByID}
         startProjectConversation={startProjectConversation}
         scheduledTasks={scheduledTasks} setTaskSearch={setTaskSearch}
         sessionMenuID={sessionMenuID} sessionSearch={sessionSearch} sessionSearchBusy={sessionSearchBusy}

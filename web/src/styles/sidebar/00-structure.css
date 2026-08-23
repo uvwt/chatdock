@@ -46,35 +46,11 @@
   pointer-events: auto;
 }
 
-/* 会话列表加载占位：行数和行高对齐 .session，让骨架换成真实行时不再产生高度跳变。 */
-#app.app .session-skeleton-list {
-  display: grid;
-  gap: 2px;
-  padding: 0 4px;
-}
-
-#app.app .session-skeleton-row {
-  height: 42px;
+/* 侧栏分段加载占位：高度由 JS 按上次记录的行数写入 inline style，
+   数据到达时高度不变，因此不会把下方分段推走。占位本身保持视觉安静。 */
+#app.app .sidebar-section-placeholder {
   border-radius: 10px;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--gpt-text) 4%, transparent) 25%,
-    color-mix(in srgb, var(--gpt-text) 8%, transparent) 37%,
-    color-mix(in srgb, var(--gpt-text) 4%, transparent) 63%
-  );
-  background-size: 400% 100%;
-  animation: sessionSkeletonShimmer 1.4s ease-in-out infinite;
-}
-
-@keyframes sessionSkeletonShimmer {
-  0% { background-position: 100% 50%; }
-  100% { background-position: 0 50%; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #app.app .session-skeleton-row {
-    animation: none;
-  }
+  background: color-mix(in srgb, var(--gpt-text) 3%, transparent);
 }
 
 .sidebar-mask {

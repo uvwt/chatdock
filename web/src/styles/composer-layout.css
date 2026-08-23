@@ -339,6 +339,17 @@
     pointer-events: none;
   }
 
+  /* 168px 基线只够让开输入框。任务卡是额外的 absolute 浮层，高度随步骤文案变化，
+     它在场时按实测 clearance 取较大值，避免卡片变高后压住正文末尾。
+     基线规则保持字面量不变，这里只做叠加，守卫锁定的布局契约不受影响。 */
+  #app.app:not(.chat-empty):has(.current-session-task) .messages {
+    scroll-padding-bottom: max(168px, var(--chatdock-message-bottom-clearance, 0px));
+  }
+
+  #app.app:not(.chat-empty):has(.current-session-task) .messages::after {
+    height: max(168px, var(--chatdock-message-bottom-clearance, 0px));
+  }
+
   #app.app:not(.chat-empty) .messages > .msg:last-child {
     margin-bottom: 0 !important;
   }

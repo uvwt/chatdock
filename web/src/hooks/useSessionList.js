@@ -25,6 +25,9 @@ export function useSessionList(api, projectFilter = 'all') {
   const [pinnedSessions, setPinnedSessions] = useState([]);
   const [pinnedProjects, setPinnedProjects] = useState([]);
   const [pinnedTasks, setPinnedTasks] = useState([]);
+  // 置顶区同样要区分“还没取到 pinned feed”和“确实没有置顶项”：只看数组长度会让整段
+  // 从不渲染跳到渲染，把下面的项目、定时任务和全部会话整体往下推一次。
+  const [pinnedLoaded, setPinnedLoaded] = useState(false);
   const [sessionsHasMore, setSessionsHasMore] = useState(false);
   const [sessionsLoadingMore, setSessionsLoadingMore] = useState(false);
   const [sessionSearch, setSessionSearch] = useState('');
@@ -72,9 +75,8 @@ export function useSessionList(api, projectFilter = 'all') {
 
   useEffect(() => {
     pinnedRequestRef.current += 1;
-    setPinnedSessions([]);
-    setPinnedProjects([]);
-    setPinnedTasks([]);
+    // 同样不清空置顶数据，只把它标记为未加载：清空会让整段置顶区先消失再出现。
+    setPinnedLoaded(false);
   }, [api]);
 
   const loadPinnedFeed = useCallback(async () => {
@@ -94,6 +96,9 @@ export function useSessionList(api, projectFilter = 'all') {
         setPinnedTasks([]);
       }
       return normalizePinnedFeed();
+    } finally {
+      // 成功和失败都要退出加载态，否则请求出错时侧栏会永久停在骨架上。
+      if (requestID === pinnedRequestRef.current) setPinnedLoaded(true);
     }
   }, [api]);
 
@@ -250,6 +255,7 @@ export function useSessionList(api, projectFilter = 'all') {
     pinnedSessions,
     pinnedProjects,
     pinnedTasks,
+    pinnedLoaded,
     sessionSearch,
     setSessionSearch,
     sessionSearchResults,

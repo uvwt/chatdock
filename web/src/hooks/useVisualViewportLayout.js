@@ -52,17 +52,24 @@ export function useVisualViewportLayout() {
     const updateMessageBottomClearance = (messageBox, preserveBottom) => {
       window.cancelAnimationFrame(clearanceFrame);
       clearanceFrame = window.requestAnimationFrame(() => {
-        if (!mobile.matches || !messageBox) {
+        if (!messageBox) {
           root.style.removeProperty('--chatdock-message-bottom-clearance');
           return;
         }
 
-        const overlayRects = [
-          document.querySelector('#app.app .composer-shell'),
-          document.querySelector('#app.app .current-session-task'),
-        ].filter(Boolean).map(element => element.getBoundingClientRect());
+        // 只把真正脱离文档流的浮层算进遮挡：任务卡是 absolute，会直接压住正文末尾；
+        // 桌面端 composer-shell 是 sticky，本身占据流内空间，不需要额外补偿。
+        // 移动端 composer 会浮起来，所以那里仍要把它计入。
+        const overlays = mobile.matches
+          ? ['#app.app .composer-shell', '#app.app .current-session-task']
+          : ['#app.app .current-session-task'];
+        const overlayRects = overlays
+          .map(selector => document.querySelector(selector))
+          .filter(Boolean)
+          .map(element => element.getBoundingClientRect());
         const clearance = messageBottomClearance(messageBox.getBoundingClientRect(), overlayRects);
-        root.style.setProperty('--chatdock-message-bottom-clearance', `${clearance}px`);
+        if (clearance > 0) root.style.setProperty('--chatdock-message-bottom-clearance', `${clearance}px`);
+        else root.style.removeProperty('--chatdock-message-bottom-clearance');
         if (!preserveBottom) return;
         window.cancelAnimationFrame(clearanceScrollFrame);
         clearanceScrollFrame = window.requestAnimationFrame(() => {
@@ -81,7 +88,12 @@ export function useVisualViewportLayout() {
       window.cancelAnimationFrame(layoutFrame);
       layoutFrame = window.requestAnimationFrame(() => {
         if (!mobile.matches) {
-          clearViewportState();
+          // 桌面端不需要 visualViewport 那套高度锁定，但任务卡是 absolute 浮层，
+          // 仍要按它的实际高度补偿正文底部，否则会盖住最后一段消息。
+          root.style.removeProperty('--chatdock-viewport-height');
+          root.style.removeProperty('--chatdock-viewport-offset-top');
+          root.classList.remove('chatdock-keyboard-open');
+          updateMessageBottomClearance(messageBox, preserveBottomAfterClearance);
           return;
         }
 

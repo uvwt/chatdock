@@ -91,6 +91,13 @@
   padding: var(--ui-space-2) var(--ui-space-2) var(--ui-space-1);
 }
 
+/* #sessions 是 grid，默认 align-content 等于 stretch 会按剩余空间拉伸各行；
+   内容一多一少，拉伸量就在所有行间重新分配，分组标题自己就会变高变矮。 */
+#app.app #sessions {
+  align-content: start;
+  grid-auto-rows: min-content;
+}
+
 /* 分组、项目、任务和会话标题共用同一套排版，图标与辅助信息继续保留弱化层级。 */
 #app.app .sidebar-section-title,
 #app.app .sidebar-section-head > button,
