@@ -89,11 +89,8 @@
     body.theme-light .markdown code { background: #e2e8f0; color: #0f172a; }
     body.theme-light .markdown pre code { background: transparent; color: #e2e8f0; }
     body.theme-light .markdown a { color: #2563eb; }
-    body.theme-light .markdown .table-wrap { border-color: #dbe3ee; }
-    body.theme-light .markdown table { background: #ffffff; }
-    body.theme-light .markdown th,
-    body.theme-light .markdown td { border-color: #e2e8f0; }
-    body.theme-light .markdown th { background: #f1f5f9; color: #0f172a; }
+    /* 表格在两套主题下都由 ui-consistency.css 用 --gpt-* 令牌统一渲染，
+       浅色主题不再需要单独覆盖表格边框、底色和表头。 */
 
 html,
 body,

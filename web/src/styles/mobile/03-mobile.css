@@ -266,24 +266,11 @@
     content: none !important;
   }
 
-  .markdown .table-wrap {
-    border-color: var(--mobile-border) !important;
-    background: var(--mobile-panel) !important;
-  }
-
-  .markdown table {
-    background: var(--mobile-panel) !important;
-    color: var(--mobile-text) !important;
-  }
-
+  /* 表格观感统一由 ui-consistency.css 负责：无边框、无底色、依赖滚动阴影提示横滑。
+     这里不再覆盖 table-wrap 与单元格底色，否则会盖掉滚动阴影并与桌面端割裂成两套风格。 */
   .markdown th,
   .markdown td {
     border-color: var(--mobile-border) !important;
-  }
-
-  .markdown th {
-    background: var(--mobile-panel-raised) !important;
-    color: var(--mobile-text-strong) !important;
   }
 
   .markdown code:not(pre code) {

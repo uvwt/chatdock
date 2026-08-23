@@ -159,12 +159,12 @@
   color: var(--gpt-muted) !important;
 }
 
+/* wrap 已经没有边框和底色（见 ui-consistency.css），圆角和 transparent 底色都是空规则；
+   这里只保留正文节奏需要的外边距。 */
 .msg.assistant.markdown .table-wrap,
 .msg.assistant .markdown .table-wrap,
 .msg.assistant .answer .table-wrap {
   margin: 13px 0 16px !important;
-  border-radius: 12px !important;
-  background: transparent !important;
 }
 
 .msg.assistant.markdown th,

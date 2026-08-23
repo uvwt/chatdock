@@ -19,6 +19,9 @@ function upsertPinnedItem(items, item) {
 
 export function useSessionList(api, projectFilter = 'all') {
   const [sessions, setSessions] = useState([]);
+  // 侧栏必须区分“还没加载完”和“确实没有会话”。缺少这个标记时，首屏和切换筛选都会
+  // 先渲染一帧“暂无会话”再被真实列表替换，看起来就是列表闪一下。
+  const [sessionsLoaded, setSessionsLoaded] = useState(false);
   const [pinnedSessions, setPinnedSessions] = useState([]);
   const [pinnedProjects, setPinnedProjects] = useState([]);
   const [pinnedTasks, setPinnedTasks] = useState([]);
@@ -56,7 +59,9 @@ export function useSessionList(api, projectFilter = 'all') {
     searchCursorRef.current = '';
     searchHasMoreRef.current = false;
     searchLoadingMoreRef.current = false;
-    setSessions([]);
+    // 这里不清空 sessions：切换项目筛选时保留上一批结果，等新一页返回后整体替换，
+    // 避免列表先塌成空态再重新长出来。加载状态交给 sessionsLoaded 表达。
+    setSessionsLoaded(false);
     setSessionsHasMore(false);
     setSessionsLoadingMore(false);
     setSessionSearchResults([]);
@@ -125,7 +130,12 @@ export function useSessionList(api, projectFilter = 'all') {
       await pinnedPromise;
       return items;
     } finally {
-      if (requestID === listRequestRef.current) listRefreshingRef.current = false;
+      // 只有仍然属于当前筛选的请求才结束加载态；请求失败时也要置位，
+      // 否则侧栏会永久停在骨架上，比展示上一批结果更糟。
+      if (requestID === listRequestRef.current) {
+        listRefreshingRef.current = false;
+        setSessionsLoaded(true);
+      }
     }
   }, [api, loadPinnedFeed, projectFilter]);
 
@@ -236,6 +246,7 @@ export function useSessionList(api, projectFilter = 'all') {
 
   return {
     sessions,
+    sessionsLoaded,
     pinnedSessions,
     pinnedProjects,
     pinnedTasks,

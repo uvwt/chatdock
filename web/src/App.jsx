@@ -202,6 +202,7 @@ export default function App() {
   const api = useMemo(() => createJsonApi({ authHeaders, onUnauthorized: setAuthPage }), [authHeaders]);
   const {
     sessions,
+    sessionsLoaded,
     pinnedSessions,
     pinnedProjects,
     pinnedTasks,
@@ -1243,7 +1244,7 @@ export default function App() {
     {settingsOpen ? <div id="settingsPage" className="settings-page"><Suspense fallback={<PageLoadingState fullscreen title="正在打开配置中心" detail="正在准备模型、工具与系统设置。" />}>{settingsPanel}</Suspense></div> : <div id="app" className={appClass}>
       <Sidebar
         api={api} busy={busy} current={current} deleteSessionByID={deleteSessionByID} filteredSessions={filteredSessions} goHome={goHome}
-        hasMoreSessions={visibleSessionsHasMore} loadingMoreSessions={visibleSessionsLoadingMore} newSession={newSession}
+        hasMoreSessions={visibleSessionsHasMore} loadingMoreSessions={visibleSessionsLoadingMore} sessionsLoaded={sessionsLoaded} newSession={newSession}
         onLoadMoreSessions={loadMoreVisibleSessions} openSession={openSession} openManagementPage={openManagementPage}
         pinSessionByID={pinSessionByID} pinnedSessions={pinnedSessions} pinnedProjects={pinnedProjects} pinnedTasks={pinnedTasks} projects={projects} projectFilter={projectFilter} renameSessionByID={renameSessionByID}
         startProjectConversation={startProjectConversation}

@@ -41,12 +41,9 @@
     .markdown pre code { padding: 0; background: transparent; white-space: pre; }
     .markdown a { color: #93c5fd; text-decoration: none; }
     .markdown a:hover { text-decoration: underline; }
-    .markdown .table-wrap { margin: 10px 0 14px; overflow-x: auto; border: 1px solid #1f2937; border-radius: 10px; }
-    .markdown table { width: 100%; min-width: 420px; border-collapse: collapse; background: #020617; }
-    .markdown th, .markdown td { padding: 9px 11px; border-bottom: 1px solid #1f2937; border-right: 1px solid #1f2937; text-align: left; vertical-align: top; }
-    .markdown th:last-child, .markdown td:last-child { border-right: 0; }
-    .markdown tr:last-child td { border-bottom: 0; }
-    .markdown th { background: #0f172a; color: #e2e8f0; font-weight: 700; }
+    /* 表格样式统一收敛到 styles/ui-consistency.css：那里用 !important 全量接管了
+       table-wrap 与 th/td 的边框、底色、间距和字号，这里的旧硬编码深色卡片式规则
+       早已完全失效，保留只会误导后续维护。 */
     .reasoning .markdown h1, .reasoning .markdown h2, .reasoning .markdown h3, .reasoning .markdown h4 { color: #cbd5e1; }
     .composer { border-top: 1px solid #1f2937; padding: 14px; display: flex; gap: 10px; }
     .quick-control, .stream-control { flex: 0 0 auto; min-width: 68px; }

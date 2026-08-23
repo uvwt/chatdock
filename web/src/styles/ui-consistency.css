@@ -131,6 +131,9 @@
   cursor: default;
 }
 
+/* 表格保持无边框的正文观感，但必须让用户看出还能横向滑动。
+   这里用纯 CSS 滚动阴影：local 背景层随内容滚动、scroll 层固定，
+   只有真正溢出时两侧才出现渐隐阴影，表格不溢出时完全看不到装饰。 */
 .table-wrap,
 .msg.assistant.markdown .table-wrap,
 .msg.assistant .markdown .table-wrap,
@@ -138,10 +141,16 @@
   width: 100%;
   margin: 16px 0 !important;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
   border: 0 !important;
   border-radius: 0 !important;
-  background: transparent !important;
   box-shadow: none !important;
+  background:
+    linear-gradient(to right, var(--gpt-main) 40%, transparent) left center / 32px 100% no-repeat local,
+    linear-gradient(to left, var(--gpt-main) 40%, transparent) right center / 32px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, color-mix(in srgb, var(--gpt-text) 16%, transparent), transparent) left center / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, color-mix(in srgb, var(--gpt-text) 16%, transparent), transparent) right center / 12px 100% no-repeat scroll !important;
 }
 
 .table-wrap table,
@@ -223,7 +232,6 @@
 
   .table-wrap {
     margin-inline: 0;
-    border-radius: 12px !important;
   }
 }
 
