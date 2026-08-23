@@ -7,6 +7,7 @@ import { DialogHost, LoginPage, Markdown, PageLoadingState, QuickPalette } from 
 import { agentTaskDataEnabled, diagnosticsText, filenameFromResponse, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath } from './lib/appUtils.js';
 import { attachmentLooksLikeImage, chatErrorDetails, finalAssistantMessageFromSession, readableChatError, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
+import { loadMarkdownRenderer } from './lib/markdownLoader.js';
 import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js';
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, guideChatJob, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
@@ -50,8 +51,9 @@ export default function App() {
 
   const [sessionMenuID, setSessionMenuID] = useState('');
   const [current, setCurrent] = useState(null);
-  const [currentTitle, setCurrentTitle] = useState('未选择会话');
-  const [messages, setMessages] = useState([]);
+  const [currentTitle, setCurrentTitle] = useState(() => (sessionIDFromPath() ? '正在加载会话…' : '未选择会话'));
+  // 首屏若路由已指向某个会话，直接以加载态开场；否则会先渲染一帧空态再切成加载态。
+  const [messages, setMessages] = useState(() => (sessionIDFromPath() ? [{ role: 'loading', content: '正在加载会话' }] : []));
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [streamPaused, setStreamPaused] = useState(false);
@@ -368,6 +370,9 @@ export default function App() {
 
     const s = await fetchSession(api, id);
     if (sessionOpenSeqRef.current !== seq) return false;
+    // 等解析器分包就绪再落正文，避免先渲染一帧裸 Markdown 再塌成表格。
+    await loadMarkdownRenderer().catch(() => {});
+    if (sessionOpenSeqRef.current !== seq) return false;
     setCurrent(s.id);
     setCurrentTitle(s.title || '新会话');
     setMessages(s.messages || []);
@@ -378,9 +383,12 @@ export default function App() {
   }, [api, applySessionModel, clearAttachments, detachActiveStream, resetMessageAutoFollow, setProjectFilter, upsertSession]);
 
   const refreshAfterLogin = useCallback(async () => {
-    await Promise.allSettled([refreshProductState(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions({reset: true})]);
+    // 会话正文与其余初始化请求并行发出；串行等待会把加载态无谓地拖长一整个往返。
     const routeSession = sessionIDFromPath();
-    if (routeSession) await loadSessionFromRoute(routeSession).catch(e => showToast('会话路由加载失败：' + e.message, 'error'));
+    const routeTask = routeSession
+      ? loadSessionFromRoute(routeSession).catch(e => showToast('会话路由加载失败：' + e.message, 'error'))
+      : Promise.resolve();
+    await Promise.allSettled([routeTask, refreshProductState(), loadConfig(), loadMCPConfig(), loadScheduledTasks(), loadSessions({reset: true})]);
   }, [refreshProductState, loadConfig, loadMCPConfig, loadScheduledTasks, loadSessions, loadSessionFromRoute, showToast]);
 
   useEffect(() => {
@@ -592,6 +600,8 @@ export default function App() {
     closeSidebarOnMobile();
     try {
       const s = await fetchSession(api, id);
+      if (sessionOpenSeqRef.current !== seq) return;
+      await loadMarkdownRenderer().catch(() => {});
       if (sessionOpenSeqRef.current !== seq) return;
       setCurrent(s.id || id);
       setCurrentTitle(s.title || summary?.title || '新会话');

@@ -10,11 +10,18 @@ import {
   X,
 } from './icons.js';
 import { ScheduleBuilder } from './scheduleBuilder.jsx';
+import { loadMarkdownRenderer, markdownRendererIfReady } from '../lib/markdownLoader.js';
 
-const MarkdownRenderer = lazy(() => import('./markdown.jsx'));
+const MarkdownRenderer = lazy(loadMarkdownRenderer);
 
 export function Markdown({ value, className = '' }) {
-  // 首次渲染 Markdown 时再加载解析器；加载期间保留可读文本，避免消息区域空白或跳动。
+  // 分包已就绪时直接同步渲染，跳过 React.lazy 首帧必然 suspend 的那一次裸文本。
+  const ready = markdownRendererIfReady();
+  if (ready) {
+    const Renderer = ready.default;
+    return <Renderer value={value} className={className} />;
+  }
+  // 尚未就绪时保留可读文本，避免消息区域空白或跳动。
   const fallback = <div className={className} aria-busy="true">{value || ''}</div>;
   return <Suspense fallback={fallback}><MarkdownRenderer value={value} className={className} /></Suspense>;
 }
