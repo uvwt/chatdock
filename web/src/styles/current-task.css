@@ -2,8 +2,9 @@
   position: absolute;
   z-index: 9;
   left: 50%;
-  bottom: 78px;
-  width: min(calc(100% - 36px), var(--gpt-chat-width));
+  bottom: 96px;
+  /* 输入框实际宽度是 min(900px, 100% - 72px)（外层 24px 内边距 + .composer 自身 24px），任务卡两侧再各内收 18px。 */
+  width: min(864px, calc(100% - 108px));
   margin: 0;
   overflow: hidden;
   transform: translateX(-50%);
@@ -220,8 +221,8 @@ body.theme-light .current-session-task-status.blocked {
 
 @media (max-width: 720px) {
   .current-session-task {
-    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
-    width: calc(100% - 20px);
+    bottom: calc(82px + env(safe-area-inset-bottom, 0px));
+    width: calc(100% - 44px);
     border-radius: 14px;
   }
 
