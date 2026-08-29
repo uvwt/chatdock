@@ -53,3 +53,31 @@ func TestModelStreamReturnsPartialContentAlongsideProtocolError(t *testing.T) {
 		t.Fatalf("partial stream answer=%q error=%v", answer, err)
 	}
 }
+
+func TestModelStreamsKeepContextOverflowClassificationBeyondSummaryLimit(t *testing.T) {
+	body := `data: {"error":{"message":"` + strings.Repeat("gateway metadata ", 30) + `","code":"context_too_large"}}` + "\n\n"
+
+	_, plainErr := readModelStream(strings.NewReader(body), model.ModelConfig{}, func(StreamDelta) error { return nil })
+	if !IsContextTooLargeModelError(plainErr) || !strings.Contains(plainErr.Error(), "context_too_large") {
+		t.Fatalf("plain stream lost context overflow classification: %v", plainErr)
+	}
+
+	_, toolErr := readModelToolStream(strings.NewReader(body), model.ModelConfig{}, func(string, any) error { return nil })
+	if !IsContextTooLargeModelError(toolErr) || !strings.Contains(toolErr.Error(), "context_too_large") {
+		t.Fatalf("tool stream lost context overflow classification: %v", toolErr)
+	}
+}
+
+func TestModelStreamTransportErrorStaysRetryable(t *testing.T) {
+	body := `data: {"error":{"message":"connection reset by peer"}}` + "\n\n"
+	_, err := readModelToolStream(strings.NewReader(body), model.ModelConfig{}, func(string, any) error { return nil })
+	if err == nil {
+		t.Fatal("expected in-band transport error")
+	}
+	if !IsRetryableModelError(err) {
+		t.Fatalf("in-band transport error must remain fallback eligible: %v", err)
+	}
+	if _, retry := ModelRetryDelay(err, 0); !retry {
+		t.Fatalf("in-band transport error must remain same-model retryable: %v", err)
+	}
+}

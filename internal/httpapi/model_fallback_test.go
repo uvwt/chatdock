@@ -122,6 +122,46 @@ func TestCompleteModelWithFallbackDoesNotRetryDeterministicFailure(t *testing.T)
 	}
 }
 
+func TestCompleteModelWithFallbackRoutesContextOverflowWithoutSameModelRetry(t *testing.T) {
+	primary := model.ModelConfig{ProviderID: "primary", Model: "primary-model"}
+	fallback := model.ModelConfig{ProviderID: "backup", Model: "backup-model"}
+	attempts := make([]string, 0, 2)
+	retryEvents := 0
+	fallbackEvents := 0
+
+	answer, usedCfg, err := completeModelWithFallbackRetryDelays(
+		context.Background(),
+		primary,
+		&fallback,
+		func(event string, value any) error {
+			switch event {
+			case "model_retry":
+				retryEvents++
+			case "model_fallback":
+				fallbackEvents++
+			}
+			return nil
+		},
+		[]time.Duration{0, 0},
+		func(cfg model.ModelConfig, emit func(string, any) error, markStarted func()) (string, error) {
+			attempts = append(attempts, cfg.ProviderID)
+			if cfg.ProviderID == primary.ProviderID {
+				return "", errors.New("model api failed: 503 Service Unavailable: gateway [context_too_large]")
+			}
+			return "fallback answer", nil
+		},
+	)
+	if err != nil || answer != "fallback answer" || usedCfg.ProviderID != fallback.ProviderID {
+		t.Fatalf("unexpected fallback result: answer=%q config=%#v err=%v", answer, usedCfg, err)
+	}
+	if len(attempts) != 2 || attempts[0] != primary.ProviderID || attempts[1] != fallback.ProviderID {
+		t.Fatalf("context overflow should go directly to fallback: %#v", attempts)
+	}
+	if retryEvents != 0 || fallbackEvents != 1 {
+		t.Fatalf("unexpected retry/fallback events: retries=%d fallbacks=%d", retryEvents, fallbackEvents)
+	}
+}
+
 func TestCompleteModelWithFallbackDoesNotRetryAfterVisibleOutput(t *testing.T) {
 	primary := model.ModelConfig{ProviderID: "primary", Model: "primary-model"}
 	fallback := model.ModelConfig{ProviderID: "backup", Model: "backup-model"}

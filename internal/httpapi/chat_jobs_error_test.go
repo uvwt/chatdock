@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"strings"
 	"testing"
 
 	storepkg "chatdock/internal/store"
@@ -36,6 +37,18 @@ func TestChatStreamErrorPayloadIncludesRawDetails(t *testing.T) {
 	}
 }
 
+func TestNewMessageErrorPrioritizesContextOverflowOverTimeoutWrapper(t *testing.T) {
+	raw := `model api failed: 504 Gateway Timeout: upstream wrapper [context_too_large]`
+	got := newMessageError("req_context_timeout", raw)
+
+	if got.Message != "模型调用失败：上下文过长，请减少当前对话或工具输出后重试。" {
+		t.Fatalf("unexpected public message: %q", got.Message)
+	}
+	if got.Code != "UPSTREAM_CONTEXT_TOO_LARGE" || got.Retryable {
+		t.Fatalf("context overflow must outrank timeout and stay non-retryable: %#v", got)
+	}
+}
+
 func TestNewMessageErrorMarksBadRequestAsNotRetryable(t *testing.T) {
 	raw := `model api failed: 400 Bad Request: {"error":{"code":"InvalidParameter","message":"Invalid request body"}}`
 	got := newMessageError("req_bad_request", raw)
@@ -45,5 +58,19 @@ func TestNewMessageErrorMarksBadRequestAsNotRetryable(t *testing.T) {
 	}
 	if got.Code != "UPSTREAM_BAD_REQUEST" || got.Retryable {
 		t.Fatalf("bad request must not be marked retryable: %#v", got)
+	}
+}
+
+func TestChatErrorClassifiesContextTooLargeSeparately(t *testing.T) {
+	raw := `model api failed: 400 Bad Request: {"error":{"message":"Your input exceeds the context window of this model.","code":"context_too_large"}}`
+	messageError := newMessageError("req-context", raw)
+	if messageError.Code != "UPSTREAM_CONTEXT_TOO_LARGE" {
+		t.Fatalf("code = %q, want UPSTREAM_CONTEXT_TOO_LARGE", messageError.Code)
+	}
+	if messageError.Retryable {
+		t.Fatal("context overflow must not be user-retryable without changing the input")
+	}
+	if !strings.Contains(messageError.Message, "上下文过长") {
+		t.Fatalf("unexpected public message: %q", messageError.Message)
 	}
 }

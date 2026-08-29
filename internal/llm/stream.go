@@ -135,7 +135,7 @@ func parseStreamDelta(data string) (StreamDelta, error) {
 		return StreamDelta{}, fmt.Errorf("decode model stream chunk: %w", err)
 	}
 	if len(chunk.Error) > 0 && string(chunk.Error) != "null" {
-		return StreamDelta{}, fmt.Errorf("model stream failed: %s", summarizeModelProviderBody("application/json", chunk.Error))
+		return StreamDelta{}, modelStreamError("model stream failed", chunk.Error)
 	}
 	if len(chunk.Choices) == 0 {
 		return StreamDelta{}, nil
