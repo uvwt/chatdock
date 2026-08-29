@@ -17,6 +17,11 @@ const maxAutoModelRetryDelay = 5 * time.Second
 // IsRetryableModelError 只判断故障是否属于可恢复类型，不决定是否适合在当前模型上立即重试。
 // 例如 Retry-After 很长的 429 仍可切换备用模型，但不应让交互请求原地等待。
 func IsRetryableModelError(err error) bool {
+	// 上下文溢出不应在同一模型上原地重试，但备用模型可能有更大的上下文窗口。
+	// 因此它仍属于可通过 fallback 恢复的错误。
+	if IsContextTooLargeModelError(err) {
+		return true
+	}
 	_, retryable := modelRetryAfter(err)
 	return retryable
 }
@@ -45,9 +50,14 @@ func modelRetryAfter(err error) (time.Duration, bool) {
 	if err == nil || errors.Is(err, context.Canceled) {
 		return 0, false
 	}
+	if IsContextTooLargeModelError(err) {
+		return 0, false
+	}
 
 	var apiErr *modelAPIResponseError
-	if errors.As(err, &apiErr) {
+	// statusCode=0 代表 HTTP 200 后由 SSE error chunk 报出的带内错误。
+	// 这类错误仍需继续检查底层传输错误文本，不能被 HTTP 状态判断提前短路。
+	if errors.As(err, &apiErr) && apiErr.statusCode != 0 {
 		return apiErr.retryAfter, retryableModelStatus(apiErr.statusCode)
 	}
 

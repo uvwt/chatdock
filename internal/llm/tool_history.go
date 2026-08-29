@@ -132,15 +132,7 @@ func historicalToolCall(event model.MessageEvent, contextIndex int, toolIndex in
 }
 
 func historicalToolContent(payload map[string]any) string {
-	content := mcp.CompactJSON(payload)
-	if len(content) <= historicalToolResultMaxBytes {
-		return content
-	}
-	marker := fmt.Sprintf("\n...[历史工具结果过长，原始 %d 字节，已截断]...\n", len(content))
-	available := historicalToolResultMaxBytes - len(marker)
-	headBytes := available * 3 / 4
-	tailBytes := available - headBytes
-	return utf8Prefix(content, headBytes) + marker + utf8Suffix(content, tailBytes)
+	return modelToolContent(payload, historicalToolResultMaxBytes, "历史工具结果过长")
 }
 
 func utf8Prefix(value string, maxBytes int) string {

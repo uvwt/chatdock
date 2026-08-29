@@ -122,6 +122,15 @@ func TestModelRetryDelayClassifiesTransientFailures(t *testing.T) {
 			fallback:  500 * time.Millisecond,
 			wantRetry: false,
 		},
+		"context overflow wrapped as service unavailable": {
+			err: modelAPIError("model api failed", &http.Response{
+				Status:     "503 Service Unavailable",
+				StatusCode: http.StatusServiceUnavailable,
+				Header:     make(http.Header),
+			}, []byte(`{"error":{"code":"context_length_exceeded","message":"maximum context length exceeded"}}`)),
+			fallback:  500 * time.Millisecond,
+			wantRetry: false,
+		},
 		"canceled": {
 			err:       context.Canceled,
 			fallback:  500 * time.Millisecond,
@@ -141,6 +150,28 @@ func TestModelRetryDelayClassifiesTransientFailures(t *testing.T) {
 				t.Fatalf("ModelRetryDelay() = (%v, %v), want (%v, %v)", delay, retry, tc.wantDelay, tc.wantRetry)
 			}
 		})
+	}
+}
+
+func TestModelAPIErrorKeepsContextClassificationBeyondSummaryLimit(t *testing.T) {
+	body := []byte(strings.Repeat("gateway metadata ", 40) + `{"error":{"code":"context_too_large","message":"input exceeds the context window"}}`)
+	err := modelAPIError("model api failed", &http.Response{
+		Status:     "503 Service Unavailable",
+		StatusCode: http.StatusServiceUnavailable,
+		Header:     make(http.Header),
+	}, body)
+
+	if !IsContextTooLargeModelError(err) {
+		t.Fatalf("full provider body context overflow was not classified: %v", err)
+	}
+	if delay, retry := ModelRetryDelay(err, 500*time.Millisecond); retry || delay != 0 {
+		t.Fatalf("context overflow must not retry on the same model: delay=%v retry=%v", delay, retry)
+	}
+	if !IsRetryableModelError(err) {
+		t.Fatal("context overflow should remain eligible for fallback model routing")
+	}
+	if !strings.Contains(err.Error(), "context_too_large") {
+		t.Fatalf("bounded error text lost the structured context marker: %v", err)
 	}
 }
 

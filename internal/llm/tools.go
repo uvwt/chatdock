@@ -67,6 +67,7 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 		return c.completeWithMCPToolsBlocking(ctx, cfg, messages, currentTools, call, loopOptions)
 	}
 
+	currentToolMessagesStart := len(messages)
 	var visibleAnswer strings.Builder
 	toolRounds := 0
 	finalResponseRequested := false
@@ -115,6 +116,7 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 			return strings.TrimSpace(visibleAnswer.String()), err
 		}
 		messages = append(messages, toolMessages...)
+		rebalanceToolContent(messages, currentToolMessagesStart, currentToolAggregateMaxBytes)
 		messages = append(messages, modelMessages...)
 		if loopOptions.AfterToolRound != nil {
 			guidanceMessages, err := loopOptions.AfterToolRound()
@@ -132,6 +134,7 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 }
 
 func (c *ChatClient) completeWithMCPToolsBlocking(ctx context.Context, cfg model.ModelConfig, messages []map[string]any, currentTools func() []map[string]any, call func(string, map[string]any) (any, error), options MCPToolLoopOptions) (string, error) {
+	currentToolMessagesStart := len(messages)
 	toolRounds := 0
 	finalResponseRequested := false
 	for {
@@ -168,6 +171,7 @@ func (c *ChatClient) completeWithMCPToolsBlocking(ctx context.Context, cfg model
 			return "", err
 		}
 		messages = append(messages, toolMessages...)
+		rebalanceToolContent(messages, currentToolMessagesStart, currentToolAggregateMaxBytes)
 		messages = append(messages, modelMessages...)
 	}
 }
@@ -211,7 +215,7 @@ func executeModelToolCalls(calls []ModelToolCall, call func(string, map[string]a
 			"role":         "tool",
 			"tool_call_id": callID,
 			"name":         toolCall.Function.Name,
-			"content":      mcp.CompactJSON(eventPayload),
+			"content":      modelToolContent(eventPayload, currentToolResultMaxBytes, "工具结果过长"),
 		})
 		modelMessages = append(modelMessages, toolModelMessagesFromPayload(payload)...)
 	}
@@ -470,7 +474,7 @@ func parseToolStreamDelta(data string) (toolStreamDelta, error) {
 		return toolStreamDelta{}, fmt.Errorf("decode model tool stream chunk: %w", err)
 	}
 	if len(chunk.Error) > 0 && string(chunk.Error) != "null" {
-		return toolStreamDelta{}, fmt.Errorf("model tool stream failed: %s", summarizeModelProviderBody("application/json", chunk.Error))
+		return toolStreamDelta{}, modelStreamError("model tool stream failed", chunk.Error)
 	}
 	if len(chunk.Choices) == 0 {
 		return toolStreamDelta{}, nil
@@ -642,6 +646,7 @@ func BuildChatMessagesAny(cfg model.ModelConfig, history []model.Message) []map[
 			messages = append(messages, map[string]any{"role": "user", "content": imageContent})
 		}
 	}
+	rebalanceToolContent(messages, 0, historicalToolAggregateMaxBytes)
 	return mergeLeadingSystemMessagesAny(messages)
 }
 

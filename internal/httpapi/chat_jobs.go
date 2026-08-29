@@ -258,6 +258,8 @@ func publicChatErrorMessage(raw string) string {
 	switch {
 	case strings.Contains(lower, "context canceled"):
 		return "生成已中断。"
+	case llm.IsContextTooLargeErrorText(text):
+		return "模型调用失败：上下文过长，请减少当前对话或工具输出后重试。"
 	case strings.Contains(lower, "client.timeout") || strings.Contains(lower, "timeout") || strings.Contains(lower, "deadline exceeded"):
 		return "模型响应中断：上游连接超时。"
 	case strings.Contains(lower, "connection refused") || strings.Contains(lower, "no such host") || strings.Contains(lower, "connection reset"):
@@ -278,6 +280,8 @@ func publicChatErrorMessage(raw string) string {
 func chatErrorCode(raw string) string {
 	lower := strings.ToLower(raw)
 	switch {
+	case llm.IsContextTooLargeErrorText(raw):
+		return "UPSTREAM_CONTEXT_TOO_LARGE"
 	case strings.Contains(lower, "timeout") || strings.Contains(lower, "deadline exceeded"):
 		return "UPSTREAM_TIMEOUT"
 	case strings.Contains(lower, "connection refused") || strings.Contains(lower, "no such host") || strings.Contains(lower, "connection reset"):

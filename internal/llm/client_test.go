@@ -495,6 +495,118 @@ func TestCompleteWithMCPToolsEventsHasNoFixedRoundCap(t *testing.T) {
 	}
 }
 
+func TestCompleteWithMCPToolsEventsBoundsCurrentToolContextAndKeepsEventsFull(t *testing.T) {
+	const rawResultBytes = 80 << 10
+	requestCount := 0
+	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher := w.(http.Flusher)
+		send := func(data string) {
+			_, _ = w.Write([]byte("data: " + data + "\n\n"))
+			flusher.Flush()
+		}
+
+		if requestCount <= 30 {
+			send(fmt.Sprintf(`{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_%d","type":"function","function":{"name":"large_tool","arguments":"{}"}}]}}]}`, requestCount))
+		} else if requestCount == 31 {
+			messages := body["messages"].([]any)
+			assistantCalls := map[string]bool{}
+			toolResults := map[string]bool{}
+			totalToolBytes := 0
+			var firstToolContent, lastToolContent string
+			for _, rawMessage := range messages {
+				message := rawMessage.(map[string]any)
+				switch message["role"] {
+				case "assistant":
+					for _, rawCall := range message["tool_calls"].([]any) {
+						call := rawCall.(map[string]any)
+						assistantCalls[call["id"].(string)] = true
+					}
+				case "tool":
+					callID := message["tool_call_id"].(string)
+					toolResults[callID] = true
+					content := message["content"].(string)
+					totalToolBytes += len(content)
+					if firstToolContent == "" {
+						firstToolContent = content
+					}
+					lastToolContent = content
+				}
+			}
+			if len(assistantCalls) != 30 || len(toolResults) != 30 {
+				t.Fatalf("tool protocol pairs = assistant:%d tool:%d, want 30/30", len(assistantCalls), len(toolResults))
+			}
+			for callID := range assistantCalls {
+				if !toolResults[callID] {
+					t.Fatalf("assistant tool call %q lost its tool result", callID)
+				}
+			}
+			if totalToolBytes > currentToolAggregateMaxBytes {
+				t.Fatalf("current tool content = %d bytes, max %d", totalToolBytes, currentToolAggregateMaxBytes)
+			}
+			if !strings.Contains(firstToolContent, "tool_context_budget") {
+				t.Fatalf("oldest tool result was not compacted: %q", firstToolContent)
+			}
+			if !strings.Contains(lastToolContent, "已截断") || strings.Contains(lastToolContent, "tool_context_budget") {
+				t.Fatalf("newest tool result should keep bounded content: %q", lastToolContent)
+			}
+			send(`{"choices":[{"delta":{"content":"完成"}}]}`)
+		} else {
+			t.Fatalf("unexpected request %d", requestCount)
+		}
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+		flusher.Flush()
+	}))
+	defer modelServer.Close()
+
+	client := NewChatClient()
+	cfg := model.ModelConfig{BaseURL: modelServer.URL, Model: "fake", HideThinking: true}
+	tools := []mcp.MCPTool{{Name: "large", FullName: "large_tool", Description: "large", InputSchema: map[string]any{"type": "object"}}}
+	var resultEvents []map[string]any
+	calls := 0
+	answer, err := client.CompleteWithMCPToolsEvents(context.Background(), cfg, []model.Message{{Role: "user", Content: "hi"}}, tools, func(name string, args map[string]any) (any, error) {
+		calls++
+		blob := strings.Repeat("x", rawResultBytes)
+		structured := map[string]any{"round": calls, "blob": blob}
+		mirror, err := json.Marshal(structured)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return map[string]any{
+			"structuredContent": structured,
+			"content":           []any{map[string]any{"type": "text", "text": string(mirror)}},
+			"isError":           false,
+		}, nil
+	}, func(kind string, payload any) error {
+		if kind == "tool_call_result" {
+			resultEvents = append(resultEvents, payload.(map[string]any))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if answer != "完成" || calls != 30 || requestCount != 31 {
+		t.Fatalf("unexpected loop result: answer=%q calls=%d requests=%d", answer, calls, requestCount)
+	}
+	if len(resultEvents) != 30 {
+		t.Fatalf("persisted result events = %d, want 30", len(resultEvents))
+	}
+	firstResult := resultEvents[0]["result"].(map[string]any)
+	structured := firstResult["structuredContent"].(map[string]any)
+	if len(structured["blob"].(string)) != rawResultBytes {
+		t.Fatalf("event result was truncated: %d bytes", len(structured["blob"].(string)))
+	}
+	if _, ok := firstResult["content"]; !ok {
+		t.Fatal("event result lost the original MCP content mirror")
+	}
+}
+
 func TestAppendMCPToolUseHint(t *testing.T) {
 	messages := []map[string]any{{"role": "system", "content": "base"}, {"role": "user", "content": "hi"}}
 	out := appendMCPToolUseHint(messages, []mcp.MCPTool{{Name: "read", FullName: "agentdock__read"}})

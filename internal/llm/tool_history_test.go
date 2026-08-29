@@ -2,6 +2,7 @@ package llm
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -77,8 +78,62 @@ func TestHistoricalToolContentTruncatesAtUTF8Boundary(t *testing.T) {
 	if !utf8.ValidString(content) {
 		t.Fatal("truncated content is not valid UTF-8")
 	}
-	if !strings.Contains(content, "历史工具结果过长") {
+	if !strings.Contains(content, "已截断") {
 		t.Fatalf("truncation marker missing: %q", content)
+	}
+	if !json.Valid([]byte(content)) {
+		t.Fatalf("historical tool content must remain valid JSON: %q", content)
+	}
+}
+
+func TestBuildChatMessagesAnyBoundsHistoricalToolAggregate(t *testing.T) {
+	assistant := model.Message{ID: "assistant-many-tools", Role: "assistant", Content: "历史工具链完成。"}
+	for index := 0; index < 20; index++ {
+		toolName := fmt.Sprintf("history_tool_%d", index)
+		assistant.Events = append(assistant.Events, model.MessageEvent{
+			ID:      fmt.Sprintf("event_%d", index),
+			Kind:    "tool",
+			Phase:   "done",
+			CallKey: toolName + "::{}",
+			Text:    "调用完成：" + toolName,
+			Details: map[string]any{
+				"event":     "tool_call_result",
+				"tool":      toolName,
+				"arguments": map[string]any{},
+				"data": map[string]any{
+					"ok":   true,
+					"tool": toolName,
+					"result": map[string]any{
+						"value": strings.Repeat(toolName, historicalToolResultMaxBytes),
+					},
+				},
+			},
+		})
+	}
+
+	messages := BuildChatMessagesAny(model.ModelConfig{ContextMode: model.ContextModeCustom, MaxContextMessages: 20}, []model.Message{
+		assistant,
+		{Role: "user", Content: "继续"},
+	})
+	toolMessages := messagesWithRole(messages, "tool")
+	if len(toolMessages) != 20 {
+		t.Fatalf("historical tool messages = %d, want 20", len(toolMessages))
+	}
+	total := 0
+	for _, message := range toolMessages {
+		content, _ := message["content"].(string)
+		total += len(content)
+	}
+	if total > historicalToolAggregateMaxBytes {
+		t.Fatalf("historical tool content = %d bytes, max %d", total, historicalToolAggregateMaxBytes)
+	}
+	firstContent, _ := toolMessages[0]["content"].(string)
+	lastContent, _ := toolMessages[len(toolMessages)-1]["content"].(string)
+	if !strings.Contains(firstContent, "tool_context_budget") {
+		t.Fatalf("oldest historical tool result was not compacted: %q", firstContent)
+	}
+	if strings.Contains(lastContent, "tool_context_budget") {
+		t.Fatalf("newest historical tool result should be retained when budget allows: %q", lastContent)
 	}
 }
 
