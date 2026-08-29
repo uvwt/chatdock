@@ -280,7 +280,7 @@ func TestSessionGetCompactsToolEventDetailsAndLazyLoadsFullEvent(t *testing.T) {
 	}
 	huge := strings.Repeat("x", 20000)
 	_, err = app.store.AppendAssistantMessageWithParts(session.ID, "done", "", nil, []model.MessageEvent{{
-		Kind: "tool", Phase: "done", Text: "调用完成：chatdock_tool_execute", Details: map[string]any{
+		Kind: "tool", Phase: "done", Text: "调用完成：chatdock_tool_execute", Meta: `{"tool":"chatdock_tool_execute"}`, Details: map[string]any{
 			"event":     "tool_call_result",
 			"tool":      "chatdock_tool_execute",
 			"ok":        true,

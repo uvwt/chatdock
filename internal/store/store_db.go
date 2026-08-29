@@ -85,6 +85,54 @@ func (s *Store) initSQLite() error {
 	if err := ensurePinnedEntityColumns(s.db); err != nil {
 		return err
 	}
+	if err := backfillMCPAppEventMeta(s.db); err != nil {
+		return err
+	}
+	return nil
+}
+
+func backfillMCPAppEventMeta(db *sql.DB) error {
+	// 旧事件可能已经把完整 Apps detail 放进独立表，但 meta 里只有 tool 名。
+	// 这里只回填渲染入口需要的轻量字段，HTML 继续留在 detail 表按需加载。
+	stmts := []string{
+		`UPDATE session_message_events
+SET meta = json_set(
+  CASE WHEN json_valid(meta) THEN meta ELSE '{}' END,
+  '$.data.mcp_app',
+  json_object(
+    'server', COALESCE(json_extract((SELECT d.details_json FROM session_message_event_details d WHERE d.session_id = session_message_events.session_id AND d.event_id = session_message_events.id), '$.data.mcp_app.server'), ''),
+    'resource_uri', COALESCE(json_extract((SELECT d.details_json FROM session_message_event_details d WHERE d.session_id = session_message_events.session_id AND d.event_id = session_message_events.id), '$.data.mcp_app.resource_uri'), ''),
+    'mime_type', COALESCE(json_extract((SELECT d.details_json FROM session_message_event_details d WHERE d.session_id = session_message_events.session_id AND d.event_id = session_message_events.id), '$.data.mcp_app.mime_type'), '')
+  )
+)
+WHERE json_valid(meta)
+  AND json_type(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.data.mcp_app') IS NULL
+  AND EXISTS (
+    SELECT 1 FROM session_message_event_details d
+    WHERE d.session_id = session_message_events.session_id
+      AND d.event_id = session_message_events.id
+      AND json_type(d.details_json, '$.data.mcp_app') = 'object'
+  )`,
+		`UPDATE session_message_events
+SET meta = json_set(
+  CASE WHEN json_valid(meta) THEN meta ELSE '{}' END,
+  '$.data.mcp_app_error',
+  json_extract((SELECT d.details_json FROM session_message_event_details d WHERE d.session_id = session_message_events.session_id AND d.event_id = session_message_events.id), '$.data.mcp_app_error')
+)
+WHERE json_valid(meta)
+  AND json_type(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.data.mcp_app_error') IS NULL
+  AND EXISTS (
+    SELECT 1 FROM session_message_event_details d
+    WHERE d.session_id = session_message_events.session_id
+      AND d.event_id = session_message_events.id
+      AND json_type(d.details_json, '$.data.mcp_app_error') = 'text'
+  )`,
+	}
+	for _, stmt := range stmts {
+		if _, err := db.Exec(stmt); err != nil {
+			return fmt.Errorf("backfill MCP App event meta: %w", err)
+		}
+	}
 	return nil
 }
 
