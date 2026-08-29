@@ -298,10 +298,7 @@ func insertSessionMessageEventTx(tx sqlWriter, sessionID string, messageIndex in
 	if strings.TrimSpace(event.ID) == "" {
 		event.ID = model.NewID()
 	}
-	meta := strings.TrimSpace(event.Meta)
-	if meta == "" && len(event.Details) > 0 {
-		meta = compactEventMetaForDB(event.Details)
-	}
+	meta := mergeEventMetaForDB(event.Meta, event.Details)
 	if _, err := tx.Exec(`INSERT INTO session_message_events(session_id, message_index, event_index, id, kind, phase, call_key, text, meta) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`, sessionID, messageIndex, eventIndex, event.ID, event.Kind, event.Phase, event.CallKey, event.Text, meta); err != nil {
 		return err
 	}
@@ -315,6 +312,46 @@ func insertSessionMessageEventTx(tx sqlWriter, sessionID string, messageIndex in
 		}
 	}
 	return nil
+}
+
+func mergeEventMetaForDB(existing string, details map[string]any) string {
+	existing = strings.TrimSpace(existing)
+	compact := compactEventMetaForDB(details)
+	if compact == "" {
+		return existing
+	}
+	if existing == "" {
+		return compact
+	}
+
+	var base, extra map[string]any
+	if err := json.Unmarshal([]byte(existing), &base); err != nil {
+		// 非 JSON meta 可能是用户可见摘要；不能为了 Apps 元数据覆盖它。
+		return existing
+	}
+	if err := json.Unmarshal([]byte(compact), &extra); err != nil {
+		return existing
+	}
+	mergeCompactEventMeta(base, extra)
+	raw, err := json.Marshal(base)
+	if err != nil {
+		return existing
+	}
+	return string(raw)
+}
+
+func mergeCompactEventMeta(dst, src map[string]any) {
+	for key, value := range src {
+		srcMap, srcIsMap := value.(map[string]any)
+		dstMap, dstIsMap := dst[key].(map[string]any)
+		if srcIsMap && dstIsMap {
+			mergeCompactEventMeta(dstMap, srcMap)
+			continue
+		}
+		if _, exists := dst[key]; !exists {
+			dst[key] = value
+		}
+	}
 }
 
 func compactEventMetaForDB(details map[string]any) string {

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/json"
 	"testing"
 
 	"chatdock/internal/model"
@@ -179,5 +180,77 @@ func TestAppendingMessagePreservesExistingLazyEventDetails(t *testing.T) {
 	result, _ := messages[0].Events[0].Details["result"].(map[string]any)
 	if result["content"] != "preserved" {
 		t.Fatalf("hydrated preserved result = %#v", result)
+	}
+}
+
+func TestNewStoreBackfillsLegacyMCPAppEventMeta(t *testing.T) {
+	dataDir := t.TempDir()
+	store, err := NewStore(dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := store.CreateSession("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	event := model.MessageEvent{
+		ID:    "legacy-app-event",
+		Kind:  "tool",
+		Phase: "done",
+		Text:  "调用完成：NexusDock__agentdock_context",
+		Meta:  `{"tool":"NexusDock__agentdock_context"}`,
+		Details: map[string]any{
+			"tool": "NexusDock__agentdock_context",
+			"data": map[string]any{
+				"mcp_app": map[string]any{
+					"server":       "NexusDock",
+					"resource_uri": "ui://agentdock/context",
+					"mime_type":    "text/html;profile=mcp-app",
+					"html":         "<html>large app</html>",
+				},
+			},
+		},
+	}
+	if _, err := store.AppendAssistantMessageWithParts(session.ID, "done", "", nil, []model.MessageEvent{event}); err != nil {
+		t.Fatal(err)
+	}
+	// 模拟修复前已经落盘的事件：完整 detail 存在，但 meta 只有 tool 名。
+	if _, err := store.db.Exec(`UPDATE session_message_events SET meta = ? WHERE session_id = ? AND id = ?`, `{"tool":"NexusDock__agentdock_context"}`, session.ID, event.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := NewStore(dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	var metaRaw string
+	if err := reopened.db.QueryRow(`SELECT meta FROM session_message_events WHERE session_id = ? AND id = ?`, session.ID, event.ID).Scan(&metaRaw); err != nil {
+		t.Fatal(err)
+	}
+	var meta map[string]any
+	if err := json.Unmarshal([]byte(metaRaw), &meta); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := meta["data"].(map[string]any)
+	app, _ := data["mcp_app"].(map[string]any)
+	if app["server"] != "NexusDock" || app["resource_uri"] != "ui://agentdock/context" || app["mime_type"] != "text/html;profile=mcp-app" {
+		t.Fatalf("backfilled app descriptor = %#v", app)
+	}
+	if app["html"] != nil {
+		t.Fatalf("backfill must keep app HTML lazy, got %#v", app)
+	}
+	loaded, ok, err := reopened.GetSession(session.ID)
+	if err != nil || !ok {
+		t.Fatalf("get session after backfill: ok=%v err=%v", ok, err)
+	}
+	if len(loaded.Messages) != 1 || len(loaded.Messages[0].Events) != 1 {
+		t.Fatalf("unexpected loaded session: %#v", loaded.Messages)
+	}
+	if len(loaded.Messages[0].Events[0].Details) != 0 {
+		t.Fatalf("full event details must remain lazy after backfill: %#v", loaded.Messages[0].Events[0].Details)
 	}
 }
