@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createSessionRecord, fetchPinned, fetchProviderSystemPrompt, fetchSessions, searchSessions } from './sessionApi.js';
+import { callMCPAppTool, createSessionRecord, fetchPinned, fetchProviderSystemPrompt, fetchSessions, resolveSessionToolEvent, searchSessions } from './sessionApi.js';
 
 function captureApi(calls) {
   return async (path, options = {}) => {
@@ -43,4 +43,23 @@ test('fetchProviderSystemPrompt uses the provider prompt endpoint', async () => 
   await fetchProviderSystemPrompt(captureApi(calls), 'session/1');
 
   assert.equal(calls[0].path, '/api/sessions/session%2F1/provider-system-prompt');
+});
+
+test('MCP App calls are bound to the current session', async () => {
+  const calls = [];
+  await callMCPAppTool(captureApi(calls), 'session-1', {sourceTool: 'demo__source', name: 'safe', arguments: {value: 1}});
+  assert.equal(calls[0].path, '/api/mcp/apps/call');
+  assert.deepEqual(JSON.parse(calls[0].options.body), {session_id: 'session-1', source_tool: 'demo__source', name: 'safe', arguments: {value: 1}});
+});
+
+test('resolveSessionToolEvent hydrates lazy event once and reuses cache', async () => {
+  const calls = [];
+  const cache = new Map();
+  const api = async path => { calls.push(path); return {event: {id: 'evt-1', details: {data: {mcp_app: {html: '<p>app</p>'}}}}}; };
+  const lazy = {id: 'evt-1', details: {lazy: true, session_id: 'session-1', event_id: 'evt-1'}};
+  const first = await resolveSessionToolEvent(api, '', lazy, cache);
+  const second = await resolveSessionToolEvent(api, '', lazy, cache);
+  assert.equal(first.details.data.mcp_app.html, '<p>app</p>');
+  assert.equal(second, first);
+  assert.equal(calls.length, 1);
 });

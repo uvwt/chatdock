@@ -1,9 +1,11 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,6 +14,7 @@ import (
 
 	"chatdock/internal/mcp"
 	"chatdock/internal/model"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 type testMCPResource struct {
@@ -22,32 +25,49 @@ type testMCPResource struct {
 func newTestMCPResource(t *testing.T, tools []map[string]any, status int) *testMCPResource {
 	t.Helper()
 	resource := &testMCPResource{}
+	sdkServer := mcpsdk.NewServer(&mcpsdk.Implementation{Name: "chatdock-test-resource", Version: "1"}, nil)
+	for _, rawTool := range tools {
+		raw, err := json.Marshal(rawTool)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var tool mcpsdk.Tool
+		if err := json.Unmarshal(raw, &tool); err != nil {
+			t.Fatal(err)
+		}
+		sdkServer.AddTool(&tool, func(context.Context, *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+			return &mcpsdk.CallToolResult{Content: []mcpsdk.Content{}}, nil
+		})
+	}
+	handler := mcpsdk.NewStreamableHTTPHandler(func(*http.Request) *mcpsdk.Server { return sdkServer }, &mcpsdk.StreamableHTTPOptions{Stateless: true, JSONResponse: true})
 	resource.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			handler.ServeHTTP(w, r)
+			return
+		}
+		raw, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("read MCP request: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewReader(raw))
 		var request struct {
-			ID     any    `json:"id"`
 			Method string `json:"method"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		if err := json.Unmarshal(raw, &request); err != nil {
 			t.Errorf("decode MCP request: %v", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if request.Method != "tools/list" {
-			t.Errorf("unexpected MCP method %q", request.Method)
-			w.WriteHeader(http.StatusBadRequest)
-			return
+		if request.Method == "tools/list" {
+			resource.listCalls.Add(1)
+			if status != http.StatusOK {
+				http.Error(w, "resource unavailable", status)
+				return
+			}
 		}
-		resource.listCalls.Add(1)
-		if status != http.StatusOK {
-			http.Error(w, "resource unavailable", status)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"jsonrpc": "2.0",
-			"id":      request.ID,
-			"result":  map[string]any{"tools": tools},
-		})
+		handler.ServeHTTP(w, r)
 	}))
 	t.Cleanup(resource.server.Close)
 	return resource

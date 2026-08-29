@@ -11,7 +11,7 @@ import { loadMarkdownRenderer } from './lib/markdownLoader.js';
 import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js';
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, guideChatJob, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
-import { branchSession, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchSession, fetchSessionMarkdown, fetchProviderSystemPrompt, fetchSessionToolEvent, pinSession, renameSession, updateSessionModel } from './lib/sessionApi.js';
+import { branchSession, callMCPAppTool as requestMCPAppTool, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchSession, fetchSessionMarkdown, fetchProviderSystemPrompt, pinSession, renameSession, resolveSessionToolEvent, updateSessionModel } from './lib/sessionApi.js';
 import { useAttachments } from './hooks/useAttachments.js';
 import { useAgentTasks } from './hooks/useAgentTasks.js';
 import { useCurrentSessionTask } from './hooks/useCurrentSessionTask.js';
@@ -200,6 +200,7 @@ export default function App() {
   }, []);
 
   const api = useMemo(() => createJsonApi({ authHeaders, onUnauthorized: setAuthPage }), [authHeaders]);
+  const callMCPAppTool = useCallback(input => requestMCPAppTool(api, current, input), [api, current]);
   const {
     sessions,
     sessionsLoaded,
@@ -1143,31 +1144,17 @@ export default function App() {
     showToast,
   });
 
+  const resolveToolEventDetail = useCallback(event => resolveSessionToolEvent(api, current, event, toolEventDetailCacheRef.current), [api, current]);
+
   const inspectToolEvent = useCallback(async (event) => {
     if (!event?.details) return;
-    let detailEvent = event;
-    const ref = event.details || {};
-    if (ref.lazy) {
-      const sessionID = ref.session_id || current;
-      const messageIndex = ref.message_index;
-      const eventID = ref.event_id || event.id || '';
-      const hasEventIndex = ref.event_index !== undefined && ref.event_index !== null;
-      const hasPartIndex = ref.part_index !== undefined && ref.part_index !== null;
-      if (!sessionID || (!eventID && (messageIndex === undefined || (!hasEventIndex && !hasPartIndex)))) return;
-      const cacheKey = eventID ? [sessionID, eventID].join(':') : [sessionID, messageIndex, hasEventIndex ? ref.event_index : '', hasPartIndex ? ref.part_index : ''].join(':');
-      try {
-        if (!toolEventDetailCacheRef.current.has(cacheKey)) {
-          const data = await fetchSessionToolEvent(api, sessionID, ref);
-          toolEventDetailCacheRef.current.set(cacheKey, data.event || event);
-        }
-        detailEvent = toolEventDetailCacheRef.current.get(cacheKey) || event;
-      } catch (e) {
-        showToast('工具事件详情加载失败：' + e.message, 'error');
-        return;
-      }
+    try {
+      const detailEvent = await resolveToolEventDetail(event);
+      await showDialog({ title: '工具事件详情', confirmText: '关闭', hideCancel: true, variant: 'tool-event-modal', toolEventDetail: buildToolEventDetail(detailEvent) });
+    } catch (e) {
+      showToast('工具事件详情加载失败：' + e.message, 'error');
     }
-    await showDialog({ title: '工具事件详情', confirmText: '关闭', hideCancel: true, variant: 'tool-event-modal', toolEventDetail: buildToolEventDetail(detailEvent) });
-  }, [api, current, showDialog, showToast]);
+  }, [resolveToolEventDetail, showDialog, showToast]);
 
   const showProviderSystemPrompt = useCallback(async () => {
     if (!current) return;
@@ -1264,7 +1251,7 @@ export default function App() {
           sidebarCollapsed={sidebarCollapsed} taskPanelAvailable={taskDataEnabled} taskPanelOpen={taskPanelOpen}
           taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
         />
-        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onPointerDown={handleMessagesPointerDown} onPointerUp={handleMessagesPointerEnd} onPointerCancel={handleMessagesPointerEnd} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} previousMessage={messages[i - 1]} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} />) : <EmptyState />}</div>
+        <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onPointerDown={handleMessagesPointerDown} onPointerUp={handleMessagesPointerEnd} onPointerCancel={handleMessagesPointerEnd} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} previousMessage={messages[i - 1]} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} onResolveToolEvent={resolveToolEventDetail} onMCPAppToolCall={callMCPAppTool} />) : <EmptyState />}</div>
         {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息"><ArrowDown className="jump-latest-icon" size={17} aria-hidden="true" /></button> : null}
         <CurrentSessionTask
           error={currentSessionTask.error} loading={currentSessionTask.loading} onRefresh={currentSessionTask.refresh}

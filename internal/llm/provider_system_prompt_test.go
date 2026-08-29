@@ -87,3 +87,42 @@ func TestBuildProviderSystemPromptEqualsTheSystemMessageSentToProvider(t *testin
 		t.Fatalf("sent system prompt differs from preview:\nsent: %q\npreview: %q", sentPrompt, expected)
 	}
 }
+
+func TestMCPServerInstructionsReachProviderWithoutVisibleTools(t *testing.T) {
+	var sentMessages []map[string]any
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Messages []map[string]any `json:"messages"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		sentMessages = body.Messages
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"ok"}}]}`))
+	}))
+	defer provider.Close()
+
+	cfg := model.ModelConfig{BaseURL: provider.URL, Model: "demo"}
+	instructions := []mcp.MCPServerInstruction{{Server: "agentdock", Instructions: "Call agentdock_context before using other capabilities."}}
+	client := NewChatClient()
+	answer, err := client.CompleteWithMCPToolsEvents(
+		context.Background(),
+		cfg,
+		[]model.Message{{Role: "user", Content: "hello"}},
+		nil,
+		nil,
+		nil,
+		MCPToolLoopOptions{ServerInstructions: instructions},
+	)
+	if err != nil || answer != "ok" {
+		t.Fatalf("answer=%q err=%v", answer, err)
+	}
+	if len(sentMessages) < 2 || sentMessages[0]["role"] != "system" {
+		t.Fatalf("provider messages=%#v", sentMessages)
+	}
+	prompt, _ := sentMessages[0]["content"].(string)
+	if !strings.Contains(prompt, "Call agentdock_context") || !strings.Contains(prompt, "allow/deny/confirm") {
+		t.Fatalf("provider did not receive scoped MCP instructions: %q", prompt)
+	}
+}

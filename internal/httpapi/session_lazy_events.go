@@ -115,6 +115,26 @@ func compactToolEventData(data map[string]any) map[string]any {
 	if result := compactToolResult(data["result"]); len(result) > 0 {
 		out["result"] = result
 	}
+	if app := compactMCPAppDescriptor(data["mcp_app"]); len(app) > 0 {
+		out["mcp_app"] = app
+	}
+	if value := shortString(data["mcp_app_error"], 800); value != "" {
+		out["mcp_app_error"] = value
+	}
+	return out
+}
+
+func compactMCPAppDescriptor(value any) map[string]any {
+	app, ok := value.(map[string]any)
+	if !ok {
+		return nil
+	}
+	out := map[string]any{}
+	for _, key := range []string{"server", "resource_uri", "mime_type"} {
+		if text := shortString(app[key], 500); text != "" {
+			out[key] = text
+		}
+	}
 	return out
 }
 

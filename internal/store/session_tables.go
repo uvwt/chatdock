@@ -333,6 +333,26 @@ func compactEventMetaForDB(details map[string]any) string {
 	if value, ok := details["tool"].(string); ok && strings.TrimSpace(value) != "" {
 		out["tool"] = strings.TrimSpace(value)
 	}
+	if data, ok := details["data"].(map[string]any); ok {
+		dataOut := map[string]any{}
+		if app, ok := data["mcp_app"].(map[string]any); ok {
+			appOut := map[string]any{}
+			for _, key := range []string{"server", "resource_uri", "mime_type"} {
+				if value, ok := app[key].(string); ok && strings.TrimSpace(value) != "" {
+					appOut[key] = strings.TrimSpace(value)
+				}
+			}
+			if len(appOut) > 0 {
+				dataOut["mcp_app"] = appOut
+			}
+		}
+		if value, ok := data["mcp_app_error"].(string); ok && strings.TrimSpace(value) != "" {
+			dataOut["mcp_app_error"] = strings.TrimSpace(value)
+		}
+		if len(dataOut) > 0 {
+			out["data"] = dataOut
+		}
+	}
 	if len(out) == 0 {
 		return ""
 	}

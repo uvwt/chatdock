@@ -11,14 +11,15 @@ import (
 )
 
 type conversationToolSet struct {
-	visible           []mcp.MCPTool
-	visibleNames      map[string]bool
-	allByName         map[string]mcp.MCPTool
-	onDemand          toolCatalog
-	resources         map[string]*conversationToolResource
-	resourceOrder     []string
-	mcpConfig         mcp.MCPConfig
-	loadResourceTools conversationToolLoader
+	visible            []mcp.MCPTool
+	visibleNames       map[string]bool
+	allByName          map[string]mcp.MCPTool
+	onDemand           toolCatalog
+	resources          map[string]*conversationToolResource
+	resourceOrder      []string
+	mcpConfig          mcp.MCPConfig
+	loadResourceTools  conversationToolLoader
+	serverInstructions []mcp.MCPServerInstruction
 }
 
 func newConversationToolSet(allTools []mcp.MCPTool, cfg mcp.MCPConfig) *conversationToolSet {
@@ -228,6 +229,19 @@ func (a *Server) loadConversationTools(ctx context.Context, emit func(string, an
 	if a.mcpClient != nil {
 		set.loadResourceTools = func(loadCtx context.Context, resourceID string) ([]mcp.MCPTool, error) {
 			return a.mcpClient.ListServerTools(loadCtx, mcpConfig, resourceID)
+		}
+		discoveredInstructions, discoveryErrors := a.mcpClient.ServerInstructions(ctx, mcpConfig)
+		set.serverInstructions = discoveredInstructions
+		for serverName, discoveryErr := range discoveryErrors {
+			if resource := set.resources[serverName]; resource != nil {
+				resource.info.Status = "error"
+				resource.info.LastError = compactResourceText(discoveryErr.Error())
+			}
+			if emit != nil {
+				if emitErr := emit("tool_setup_error", map[string]any{"stage": "discovery", "resource": serverName, "message": discoveryErr.Error()}); emitErr != nil {
+					return nil, mcpConfig, emitErr
+				}
+			}
 		}
 		// 复用近期 tools/list 缓存，让资源索引能显示工具数量，同时不额外访问远端 MCP。
 		for resourceID := range mcpConfig.Servers {

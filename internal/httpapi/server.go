@@ -126,7 +126,7 @@ func (a *Server) Shutdown(ctx context.Context) error {
 	if waitErr := a.waitForBackground(ctx); waitErr != nil {
 		return errors.Join(shutdownErr, waitErr)
 	}
-	return errors.Join(shutdownErr, a.closeStore())
+	return errors.Join(shutdownErr, a.closeResources())
 }
 
 func (a *Server) Close() error {
@@ -173,7 +173,11 @@ func (a *Server) waitForBackground(ctx context.Context) error {
 
 func (a *Server) closeResources() error {
 	a.backgroundWG.Wait()
-	return a.closeStore()
+	var mcpErr error
+	if a.mcpClient != nil {
+		mcpErr = a.mcpClient.Close()
+	}
+	return errors.Join(mcpErr, a.closeStore())
 }
 
 func (a *Server) closeStore() error {

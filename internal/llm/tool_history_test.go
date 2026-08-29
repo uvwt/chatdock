@@ -137,6 +137,35 @@ func TestBuildChatMessagesAnyBoundsHistoricalToolAggregate(t *testing.T) {
 	}
 }
 
+func TestHistoricalToolCallExcludesMCPAppPresentationPayload(t *testing.T) {
+	html := strings.Repeat("<section>app</section>", 2000)
+	event := model.MessageEvent{
+		Kind: "tool", Phase: "done", Text: "调用完成：demo__inspect",
+		Details: map[string]any{
+			"event": "tool_call_result",
+			"tool":  "demo__inspect",
+			"data": map[string]any{
+				"ok":            true,
+				"tool":          "demo__inspect",
+				"result":        map[string]any{"structuredContent": map[string]any{"answer": "kept"}},
+				"mcp_app":       map[string]any{"resource_uri": "ui://demo/app", "html": html},
+				"mcp_app_error": "presentation only",
+			},
+		},
+	}
+	_, payload, ok := historicalToolCall(event, 1, 0)
+	if !ok {
+		t.Fatal("expected historical tool call")
+	}
+	raw := historicalToolContent(payload)
+	if strings.Contains(raw, "<section>app</section>") || strings.Contains(raw, "mcp_app") || strings.Contains(raw, "presentation only") {
+		t.Fatalf("presentation payload leaked into model history: %s", raw)
+	}
+	if !strings.Contains(raw, "kept") {
+		t.Fatalf("real tool result was lost: %s", raw)
+	}
+}
+
 func historicalToolTestMessage(messageID string, toolName string, before string, after string) model.Message {
 	eventID := messageID + "-event"
 	event := model.MessageEvent{

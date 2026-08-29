@@ -286,7 +286,14 @@ func TestSessionGetCompactsToolEventDetailsAndLazyLoadsFullEvent(t *testing.T) {
 			"ok":        true,
 			"arguments": map[string]any{"name": "DockMini.exec_command", "arguments": map[string]any{"cmd": huge}},
 			"result":    map[string]any{"tool": "DockMini.exec_command", "result": huge},
-			"data":      map[string]any{"tool": "chatdock_tool_execute", "arguments": map[string]any{"name": "DockMini.exec_command"}, "result": map[string]any{"tool": "DockMini.exec_command", "result": huge}},
+			"data": map[string]any{
+				"tool":      "chatdock_tool_execute",
+				"arguments": map[string]any{"name": "DockMini.exec_command"},
+				"result":    map[string]any{"tool": "DockMini.exec_command", "result": huge},
+				"mcp_app": map[string]any{
+					"server": "DockMini", "resource_uri": "ui://agentdock/context", "mime_type": "text/html;profile=mcp-app", "html": "<html>" + huge + "</html>",
+				},
+			},
 		},
 	}})
 	if err != nil {
@@ -317,6 +324,11 @@ func TestSessionGetCompactsToolEventDetailsAndLazyLoadsFullEvent(t *testing.T) {
 	args, _ := details["arguments"].(map[string]any)
 	if args["name"] != "DockMini.exec_command" {
 		t.Fatalf("compact event should keep display name, got %#v", details)
+	}
+	data, _ := details["data"].(map[string]any)
+	appDescriptor, _ := data["mcp_app"].(map[string]any)
+	if appDescriptor["server"] != "DockMini" || appDescriptor["resource_uri"] != "ui://agentdock/context" || appDescriptor["html"] != nil {
+		t.Fatalf("compact event should preserve only MCP App descriptor, got %#v", appDescriptor)
 	}
 
 	w = httptest.NewRecorder()

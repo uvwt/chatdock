@@ -108,7 +108,7 @@ func historicalToolCall(event model.MessageEvent, contextIndex int, toolIndex in
 		arguments = mapFromAny(data["arguments"])
 	}
 
-	payload := data
+	payload := modelHistoryPayload(data)
 	if len(payload) == 0 {
 		payload = map[string]any{
 			"ok":     event.Phase == "done",
@@ -155,6 +155,24 @@ func utf8Suffix(value string, maxBytes int) string {
 		start++
 	}
 	return value[start:]
+}
+
+func modelHistoryPayload(data map[string]any) map[string]any {
+	if len(data) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(data))
+	for key, value := range data {
+		switch key {
+		case "mcp_app", "mcp_app_error":
+			// MCP App HTML and presentation errors belong to the host UI only.
+			// They must never consume model-history budget or displace real tool output.
+			continue
+		default:
+			out[key] = value
+		}
+	}
+	return out
 }
 
 func mapFromAny(value any) map[string]any {

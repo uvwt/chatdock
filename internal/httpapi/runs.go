@@ -31,14 +31,6 @@ func (a *Server) completeWithRecordedTools(ctx context.Context, jobID string, se
 		return "", cfg, err
 	}
 	visibleTools := toolSet.tools()
-	if len(visibleTools) == 0 {
-		return completeModelWithFallback(ctx, cfg, fallbackCfg, emit, func(attemptCfg model.ModelConfig, attemptEmit func(string, any) error, _ func()) (string, error) {
-			if attemptEmit != nil {
-				return a.client.Stream(ctx, attemptCfg, history, func(delta llm.StreamDelta) error { return attemptEmit("delta", delta) })
-			}
-			return a.client.Complete(ctx, attemptCfg, history)
-		})
-	}
 
 	if emit != nil {
 		if err := emit("tool_setup_ready", map[string]any{
@@ -70,8 +62,9 @@ func (a *Server) completeWithRecordedTools(ctx context.Context, jobID string, se
 		return a.client.CompleteWithMCPToolsEvents(ctx, attemptCfg, history, visibleTools, func(name string, args map[string]any) (any, error) {
 			return a.callVisibleConversationTool(ctx, toolSet, runRealTool, name, args)
 		}, attemptEmit, llm.MCPToolLoopOptions{
-			RefreshTools: toolSet.tools,
-			OnToolCall:   markStarted,
+			RefreshTools:       toolSet.tools,
+			OnToolCall:         markStarted,
+			ServerInstructions: toolSet.serverInstructions,
 			AfterToolRound: func() ([]map[string]any, error) {
 				return a.consumeChatJobGuidance(jobID, emit)
 			},
@@ -113,6 +106,33 @@ func (a *Server) finishRecordedToolRun(recorder *activeToolRun, runErr error, em
 		return emit("run_finish", run)
 	}
 	return nil
+}
+
+func compactMCPAppForRunAudit(data map[string]any) map[string]any {
+	if len(data) == 0 {
+		return data
+	}
+	out := make(map[string]any, len(data))
+	for key, value := range data {
+		if key != "mcp_app" {
+			out[key] = value
+			continue
+		}
+		app, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+		descriptor := map[string]any{}
+		for _, field := range []string{"server", "resource_uri", "mime_type"} {
+			if item, exists := app[field]; exists {
+				descriptor[field] = item
+			}
+		}
+		if len(descriptor) > 0 {
+			out[key] = descriptor
+		}
+	}
+	return out
 }
 
 func (a *Server) recordToolRunEvent(sessionID string, recorder *activeToolRun, event string, value any, emit func(string, any) error) error {
@@ -161,7 +181,7 @@ func (a *Server) recordToolRunEvent(sessionID string, recorder *activeToolRun, e
 		status = "failed"
 	}
 	finished := now
-	created, err := a.store.AddMCPRunEvent(recorder.RunID, storepkg.RunEventInput{Kind: "tool_result", Status: status, Tool: toolName, Arguments: args, Result: data, Error: errorText, StartedAt: started, FinishedAt: &finished, DurationMS: finished.Sub(started).Milliseconds()})
+	created, err := a.store.AddMCPRunEvent(recorder.RunID, storepkg.RunEventInput{Kind: "tool_result", Status: status, Tool: toolName, Arguments: args, Result: compactMCPAppForRunAudit(data), Error: errorText, StartedAt: started, FinishedAt: &finished, DurationMS: finished.Sub(started).Milliseconds()})
 	if err != nil {
 		return err
 	}
