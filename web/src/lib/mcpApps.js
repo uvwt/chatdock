@@ -184,8 +184,8 @@ const SANDBOX_PROXY_HTML = String.raw`<!doctype html><html><head><meta charset="
   const allowedProtocols={connect:['http:','https:','ws:','wss:'],resource:['http:','https:'],frame:['http:','https:'],base:['http:','https:']};
   function validSource(value,protocols){
     const raw=String(value||'').trim();
-    if(!raw||/[\\s;'"\\\\]/.test(raw))return '';
-    const wildcard=raw.match(/^(https?|wss?):\\/\\/\\*\\.([a-z0-9-]+(?:\\.[a-z0-9-]+)+)(?::([1-9]\\d{0,4}))?$/i);
+    if(!raw||/[\s;'"\\]/.test(raw))return '';
+    const wildcard=raw.match(/^(https?|wss?):\/\/\*\.([a-z0-9-]+(?:\.[a-z0-9-]+)+)(?::([1-9]\d{0,4}))?$/i);
     if(wildcard){const protocol=wildcard[1].toLowerCase()+':',port=wildcard[3]?Number(wildcard[3]):0;return protocols.includes(protocol)&&port<=65535?raw.toLowerCase():'';}
     try{const url=new URL(raw);return protocols.includes(url.protocol)&&!url.username&&!url.password&&url.pathname==='/'&&!url.search&&!url.hash?url.origin:'';}catch{return '';}
   }
@@ -212,9 +212,9 @@ const SANDBOX_PROXY_HTML = String.raw`<!doctype html><html><head><meta charset="
   function injectCSP(html,csp){
     const escaped=cspText(csp).replaceAll('&','&amp;').replaceAll('"','&quot;');
     const meta='<meta http-equiv="Content-Security-Policy" content="'+escaped+'">';
-    if(/<head(?:\\s[^>]*)?>/i.test(html))return html.replace(/<head(\\s[^>]*)?>/i,match=>match+meta);
-    if(/<html(?:\\s[^>]*)?>/i.test(html))return html.replace(/<html(\\s[^>]*)?>/i,match=>match+'<head>'+meta+'</head>');
-    if(/^\\s*<!doctype[^>]*>/i.test(html))return html.replace(/^(\\s*<!doctype[^>]*>)/i,'$1'+meta);
+    if(/<head(?:\s[^>]*)?>/i.test(html))return html.replace(/<head(\s[^>]*)?>/i,match=>match+meta);
+    if(/<html(?:\s[^>]*)?>/i.test(html))return html.replace(/<html(\s[^>]*)?>/i,match=>match+'<head>'+meta+'</head>');
+    if(/^\s*<!doctype[^>]*>/i.test(html))return html.replace(/^(\s*<!doctype[^>]*>)/i,'$1'+meta);
     return meta+html;
   }
   function allowValue(permissions={}){

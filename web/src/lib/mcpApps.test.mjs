@@ -55,6 +55,13 @@ test('mcpAppResultFromEvent supports hydrated direct result', () => {
 });
 
 
+test('MCP App Sandbox Proxy generated script is valid JavaScript', () => {
+  const proxyHTML = decodeURIComponent(MCP_APP_SANDBOX_PROXY_URL.split(',', 2)[1]);
+  const script = proxyHTML.match(/<script>([\s\S]*)<\/script>/i)?.[1] || '';
+  assert.ok(script, 'sandbox proxy script should exist');
+  assert.doesNotThrow(() => new Function(script));
+});
+
 test('MCP App Sandbox Proxy implements the mandatory two-frame handshake', () => {
   assert.match(MCP_APP_SANDBOX_PROXY_URL, /^data:text\/html;charset=utf-8,/);
   const proxyHTML = decodeURIComponent(MCP_APP_SANDBOX_PROXY_URL.split(',', 2)[1]);
