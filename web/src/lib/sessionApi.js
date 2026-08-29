@@ -53,6 +53,27 @@ export function fetchSessionToolEvent(api, id, ref = {}) {
   return api('/api/sessions/' + encodeURIComponent(id) + '/tool-event?' + params.toString());
 }
 
+
+export function callMCPAppTool(api, sessionID, {sourceTool, name, arguments: args}) {
+  return api('/api/mcp/apps/call', {method: 'POST', body: JSON.stringify({session_id: sessionID, source_tool: sourceTool, name, arguments: args || {}})});
+}
+
+export async function resolveSessionToolEvent(api, currentSessionID, event, cache = new Map()) {
+  if (!event?.details?.lazy) return event;
+  const ref = event.details;
+  const sessionID = ref.session_id || currentSessionID;
+  const eventID = ref.event_id || event.id || '';
+  const hasEventIndex = ref.event_index !== undefined && ref.event_index !== null;
+  const hasPartIndex = ref.part_index !== undefined && ref.part_index !== null;
+  if (!sessionID || (!eventID && (ref.message_index === undefined || (!hasEventIndex && !hasPartIndex)))) return event;
+  const cacheKey = eventID ? [sessionID, eventID].join(':') : [sessionID, ref.message_index, hasEventIndex ? ref.event_index : '', hasPartIndex ? ref.part_index : ''].join(':');
+  if (!cache.has(cacheKey)) {
+    const data = await fetchSessionToolEvent(api, sessionID, ref);
+    cache.set(cacheKey, data.event || event);
+  }
+  return cache.get(cacheKey) || event;
+}
+
 export function renameSession(api, id, title) {
   return api('/api/sessions/' + encodeURIComponent(id) + '/rename', {method:'POST', body: JSON.stringify({title})});
 }

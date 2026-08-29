@@ -166,6 +166,12 @@ AGENTDOCK_TOKEN=<AgentDock Token>
 4. `disabled: true` 可以临时停用 Server；
 5. 工具名支持精确匹配、`prefix*`、`*suffix` 和 `*`。
 
+### MCP 协议与 Apps UI
+
+ChatDock 优先使用 MCP Core `2026-07-28` 协议，并兼容需要旧版 `initialize` 流程的 Server。Server 返回的 `instructions` 会作为受限的外部指导加入模型上下文，不能覆盖 ChatDock 的系统规则、工具白名单或人工确认策略。
+
+对于 MCP Apps `2026-01-26`，ChatDock 会协商 `io.modelcontextprotocol/ui`，读取 `ui://` 资源，并在双层 iframe Sandbox Proxy 中应用 Server 声明的 CSP 后渲染 `text/html;profile=mcp-app`。当前 Host 支持 App 初始化、尺寸更新、工具输入/结果通知，以及 App 对同一 MCP Server 的工具调用；仅提供 `inline` 展示模式。`ui/open-link`、`ui/message`、`ui/update-model-context` 和 `ui/request-display-mode` 暂未实现，也不会在 Host capabilities 中声明。
+
 在 Linux Docker 中访问宿主机服务时，可能还需要在 `docker run` 中加入：
 
 ```bash

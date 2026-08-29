@@ -31,9 +31,10 @@ type ModelChatResponse struct {
 }
 
 type MCPToolLoopOptions struct {
-	RefreshTools   func() []mcp.MCPTool
-	AfterToolRound func() ([]map[string]any, error)
-	OnToolCall     func()
+	RefreshTools       func() []mcp.MCPTool
+	AfterToolRound     func() ([]map[string]any, error)
+	OnToolCall         func()
+	ServerInstructions []mcp.MCPServerInstruction
 }
 
 const finalToolResponseInstruction = "请根据已经完成的工具调用结果给出明确、完整的最终答复。如果工具调用失败，请说明失败原因和下一步。不要继续调用工具，也不要返回空内容。"
@@ -43,12 +44,11 @@ func (c *ChatClient) CompleteWithMCPTools(ctx context.Context, cfg model.ModelCo
 }
 
 func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.ModelConfig, history []model.Message, tools []mcp.MCPTool, call func(string, map[string]any) (any, error), emit func(string, any) error, options ...MCPToolLoopOptions) (string, error) {
-	messages := BuildChatMessagesAny(cfg, history)
-	messages = appendMCPToolUseHint(messages, tools)
 	loopOptions := MCPToolLoopOptions{}
 	if len(options) > 0 {
 		loopOptions = options[0]
 	}
+	messages := appendMCPContext(BuildChatMessagesAny(cfg, history), tools, loopOptions.ServerInstructions)
 	currentTools := func() []map[string]any {
 		if loopOptions.RefreshTools != nil {
 			return MCPToolsToOpenAITools(loopOptions.RefreshTools())
@@ -58,9 +58,21 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 	openAITools := currentTools()
 	if len(openAITools) == 0 || call == nil {
 		if emit != nil {
-			return c.Stream(ctx, cfg, history, func(delta StreamDelta) error { return emit("delta", delta) })
+			response, err := c.streamChatWithRawMessages(ctx, cfg, messages, nil, emit)
+			return strings.TrimSpace(response.Content), err
 		}
-		return c.Complete(ctx, cfg, history)
+		response, err := c.completeChatWithRawMessages(ctx, cfg, messages, nil)
+		if err != nil {
+			return "", err
+		}
+		answer := strings.TrimSpace(response.Content)
+		if cfg.HideThinking {
+			answer = StripThinkingContent(answer)
+		}
+		if answer == "" {
+			return "", ErrEmptyModelContent
+		}
+		return answer, nil
 	}
 
 	if emit == nil {
@@ -200,7 +212,22 @@ func executeModelToolCalls(calls []ModelToolCall, call func(string, map[string]a
 		if callErr != nil {
 			payload["error"] = callErr.Error()
 		}
-		eventPayload := sanitizeToolPayload(payload)
+		if mcpResult, ok := normalizedMCPToolResult(result); ok && mcpResult.IsError {
+			payload["ok"] = false
+			if _, exists := payload["error"]; !exists {
+				payload["error"] = mcpToolResultErrorSummary(mcpResult)
+			}
+		}
+		modelPayload := sanitizeToolPayload(payload)
+		eventPayload := cloneToolEventPayload(modelPayload)
+		if mcpResult, ok := normalizedMCPToolResult(result); ok {
+			if app := mcpResult.AppResource(); app != nil {
+				eventPayload["mcp_app"] = app
+			}
+			if appErr := strings.TrimSpace(mcpResult.AppError()); appErr != "" {
+				eventPayload["mcp_app_error"] = appErr
+			}
+		}
 		if emit != nil {
 			if err := emit("tool_call_result", eventPayload); err != nil {
 				return nil, nil, err
@@ -215,11 +242,44 @@ func executeModelToolCalls(calls []ModelToolCall, call func(string, map[string]a
 			"role":         "tool",
 			"tool_call_id": callID,
 			"name":         toolCall.Function.Name,
-			"content":      modelToolContent(eventPayload, currentToolResultMaxBytes, "工具结果过长"),
+			"content":      modelToolContent(modelPayload, currentToolResultMaxBytes, "工具结果过长"),
 		})
 		modelMessages = append(modelMessages, toolModelMessagesFromPayload(payload)...)
 	}
 	return toolMessages, modelMessages, nil
+}
+
+func normalizedMCPToolResult(value any) (mcp.MCPToolResult, bool) {
+	switch result := value.(type) {
+	case mcp.MCPToolResult:
+		return result, true
+	case *mcp.MCPToolResult:
+		if result != nil {
+			return *result, true
+		}
+	}
+	return mcp.MCPToolResult{}, false
+}
+
+func mcpToolResultErrorSummary(result mcp.MCPToolResult) string {
+	for _, item := range result.Content {
+		content, _ := item.(map[string]any)
+		if content["type"] != "text" {
+			continue
+		}
+		if text := strings.TrimSpace(fmt.Sprint(content["text"])); text != "" {
+			return text
+		}
+	}
+	return "MCP tool returned isError=true"
+}
+
+func cloneToolEventPayload(payload map[string]any) map[string]any {
+	out := make(map[string]any, len(payload)+2)
+	for key, value := range payload {
+		out[key] = value
+	}
+	return out
 }
 
 func decodeToolArguments(raw string) map[string]any {
@@ -322,29 +382,17 @@ func normalizeToolModelContent(value any) []map[string]any {
 }
 
 func appendMCPToolUseHint(messages []map[string]any, tools []mcp.MCPTool) []map[string]any {
-	if len(tools) == 0 {
-		return messages
-	}
-	hint := map[string]any{"role": "system", "content": "ChatDock 工具资源已接入。直接工具可以立即调用。若存在 chatdock_tools_search，说明还有按需资源或工具：可按目标搜索；任务明确集中在一个资源时，可只指定该资源并省略 query，一次加载该资源全部工具。加载后的真实工具会在下一次模型请求中直接出现，请按其 schema 直接调用，不要猜测尚未暴露的参数，也不要声称没有工具权限。"}
-	out := make([]map[string]any, 0, len(messages)+1)
-	inserted := false
-	for _, msg := range messages {
-		if !inserted && msg["role"] != "system" {
-			out = append(out, hint)
-			inserted = true
-		}
-		out = append(out, msg)
-	}
-	if !inserted {
-		out = append(out, hint)
-	}
-	return mergeLeadingSystemMessagesAny(out)
+	return appendMCPContext(messages, tools, nil)
 }
 
 // BuildProviderSystemPrompt 复用真实供应商请求的消息构造链路，返回首条 system 消息。
-// 工具提示、自动摘要和运行时注入的 system 上下文都会按实际请求顺序合并。
-func BuildProviderSystemPrompt(cfg model.ModelConfig, history []model.Message, tools []mcp.MCPTool) string {
-	messages := appendMCPToolUseHint(BuildChatMessagesAny(cfg, history), tools)
+// 工具提示、MCP Server instructions、自动摘要和运行时 system 上下文都会按实际请求顺序合并。
+func BuildProviderSystemPrompt(cfg model.ModelConfig, history []model.Message, tools []mcp.MCPTool, instructionSets ...[]mcp.MCPServerInstruction) string {
+	var instructions []mcp.MCPServerInstruction
+	if len(instructionSets) > 0 {
+		instructions = instructionSets[0]
+	}
+	messages := appendMCPContext(BuildChatMessagesAny(cfg, history), tools, instructions)
 	if len(messages) == 0 || messages[0]["role"] != "system" {
 		return ""
 	}

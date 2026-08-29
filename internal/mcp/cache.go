@@ -75,6 +75,15 @@ func cloneTools(tools []MCPTool) []MCPTool {
 	for i, tool := range tools {
 		out[i] = tool
 		out[i].InputSchema = cloneJSONMap(tool.InputSchema)
+		out[i].OutputSchema = cloneJSONMap(tool.OutputSchema)
+		out[i].Annotations = cloneJSONMap(tool.Annotations)
+		out[i].Meta = cloneJSONMap(tool.Meta)
+		if tool.Icons != nil {
+			out[i].Icons = make([]map[string]any, len(tool.Icons))
+			for j, icon := range tool.Icons {
+				out[i].Icons[j] = cloneJSONMap(icon)
+			}
+		}
 	}
 	return out
 }

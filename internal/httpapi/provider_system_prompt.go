@@ -31,6 +31,6 @@ func (a *Server) handleProviderSystemPrompt(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	prompt := llm.BuildProviderSystemPrompt(cfg, history, toolSet.tools())
+	prompt := llm.BuildProviderSystemPrompt(cfg, history, toolSet.tools(), toolSet.serverInstructions)
 	writeJSONResponse(w, http.StatusOK, map[string]string{"system_prompt": prompt})
 }

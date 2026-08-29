@@ -39,6 +39,7 @@ func (a *Server) routes() http.Handler {
 	mux.HandleFunc("GET /api/mcp/confirmations", a.handleListMCPConfirmations)
 	mux.HandleFunc("POST /api/mcp/confirmations/{id}/resolve", a.handleResolveMCPConfirmation)
 	mux.HandleFunc("POST /api/mcp/call", a.handleCallMCPTool)
+	mux.HandleFunc("POST /api/mcp/apps/call", a.handleCallMCPAppTool)
 	mux.HandleFunc("GET /api/scheduled-tasks", a.handleListScheduledTasks)
 	mux.HandleFunc("POST /api/scheduled-tasks", a.handleCreateScheduledTask)
 	mux.HandleFunc("PUT /api/scheduled-tasks/{id}", a.handleUpdateScheduledTask)

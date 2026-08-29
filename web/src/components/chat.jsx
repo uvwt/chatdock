@@ -14,6 +14,8 @@ import { fmtBytes } from '../lib/appUtils.js';
 import { assistantMessageBlocks, executionBlockSummary, toolEventDisplayName, toolEventMetaText } from '../lib/messageExecution.js';
 import { formatMessageTimeDivider, shouldShowMessageTimeDivider } from '../lib/messageTimeline.js';
 import { Markdown } from './base.jsx';
+import { MCPAppFrame } from './mcpApp.jsx';
+import { mcpAppArgumentsFromEvent, mcpAppResultFromEvent } from '../lib/mcpApps.js';
 
 function MessageActions({ text, onCopy, onBranch, onEdit, user = false }) {
   return <div className={'msg-actions ' + (user ? 'user-message-actions' : '')}>
@@ -81,11 +83,49 @@ function PendingConfirmations({ confirmations = [], onResolveConfirmation, onIns
     </div>);
 }
 
-function ExecutionBlock({ block, streaming = false, onInspectToolEvent }) {
+function MCPAppEventFrame({ event, onMCPAppToolCall, onResolveToolEvent }) {
+  const [resolvedEvent, setResolvedEvent] = useState(event);
+  const [loadError, setLoadError] = useState('');
+  const initialData = event?.details?.data || {};
+  const descriptor = initialData.mcp_app;
+  const needsHydration = !!descriptor && !descriptor.html && !!event?.details?.lazy;
+
+  useEffect(() => {
+    setResolvedEvent(event);
+    setLoadError('');
+    if (!needsHydration || !onResolveToolEvent) return undefined;
+    let active = true;
+    onResolveToolEvent(event).then(fullEvent => {
+      if (active) setResolvedEvent(fullEvent || event);
+    }).catch(error => {
+      if (active) setLoadError(String(error?.message || error || '加载失败'));
+    });
+    return () => { active = false; };
+  }, [event, needsHydration, onResolveToolEvent]);
+
+  const data = resolvedEvent?.details?.data || {};
+  if (loadError) return <div className="mcp-app-error" role="status">MCP App 详情加载失败：{loadError}</div>;
+  if (!data.mcp_app) {
+    if (data.mcp_app_error) return <div className="mcp-app-error" role="status">MCP App 无法加载：{data.mcp_app_error}</div>;
+    if (needsHydration) return <div className="mcp-app-loading" role="status">正在加载 MCP App…</div>;
+    return null;
+  }
+  if (!data.mcp_app.html) return <div className="mcp-app-loading" role="status">正在加载 MCP App…</div>;
+  return <MCPAppFrame
+    app={data.mcp_app}
+    arguments={mcpAppArgumentsFromEvent(resolvedEvent)}
+    result={mcpAppResultFromEvent(resolvedEvent)}
+    sourceTool={resolvedEvent?.details?.tool}
+    onToolCall={onMCPAppToolCall}
+  />;
+}
+
+function ExecutionBlock({ block, streaming = false, onInspectToolEvent, onMCPAppToolCall, onResolveToolEvent }) {
   const [manuallyOpen, setManuallyOpen] = useState(false);
   const summary = executionBlockSummary(block, {streaming});
   const events = block.kind === 'tools' ? block.events : [];
   const reasoning = block.kind === 'reasoning' ? block.text : '';
+  const appEvents = events.filter(event => event?.details?.data?.mcp_app || event?.details?.data?.mcp_app_error);
   const open = streaming || manuallyOpen;
 
   useEffect(() => {
@@ -116,6 +156,10 @@ function ExecutionBlock({ block, streaming = false, onInspectToolEvent }) {
       {events.length ? <div className="execution-inline-tools">{events.map((event, index) => <ToolEventRow key={event.callKey || event.id || index} event={event} onInspectToolEvent={onInspectToolEvent} />)}</div> : null}
       {reasoning ? <div className="execution-inline-reasoning"><Markdown className="markdown" value={reasoning} /></div> : null}
     </div> : null}
+    {appEvents.length ? <div className="execution-mcp-apps">{appEvents.map((event, index) => {
+      const data = event?.details?.data || {};
+      return <MCPAppEventFrame key={(event.callKey || index) + ':' + (data.mcp_app?.resource_uri || 'error')} event={event} onMCPAppToolCall={onMCPAppToolCall} onResolveToolEvent={onResolveToolEvent} />;
+    })}</div> : null}
   </section>;
 }
 
@@ -143,7 +187,7 @@ function ErrorNotice({ error }) {
   </div>;
 }
 
-function AssistantContent({ message, streaming = false, hideThinking = false, onResolveConfirmation, onInspectToolEvent }) {
+function AssistantContent({ message, streaming = false, hideThinking = false, onResolveConfirmation, onInspectToolEvent, onMCPAppToolCall, onResolveToolEvent }) {
   const { blocks } = assistantMessageBlocks(message, {streaming, hideThinking});
   const lastBlock = blocks[blocks.length - 1];
   const activeExecutionIndex = streaming && (lastBlock?.kind === 'reasoning' || lastBlock?.kind === 'tools')
@@ -163,6 +207,8 @@ function AssistantContent({ message, streaming = false, hideThinking = false, on
         block={block}
         streaming={index === activeExecutionIndex}
         onInspectToolEvent={onInspectToolEvent}
+        onMCPAppToolCall={onMCPAppToolCall}
+        onResolveToolEvent={onResolveToolEvent}
       />;
     })}
     {!blocks.length && streaming ? <div className="assistant-waiting" role="status" aria-label="模型正在生成">
@@ -223,7 +269,7 @@ function ConversationLoadingState({ label = '正在加载会话' }) {
   </div>;
 }
 
-export function MessageView({ message, previousMessage, messageIndex = -1, onCopy, onBranch, onEditUserMessage, onDownloadAttachment, hideThinking = true, onResolveConfirmation, onInspectToolEvent }) {
+export function MessageView({ message, previousMessage, messageIndex = -1, onCopy, onBranch, onEditUserMessage, onDownloadAttachment, hideThinking = true, onResolveConfirmation, onInspectToolEvent, onMCPAppToolCall, onResolveToolEvent }) {
   if (message.role === 'loading') return <ConversationLoadingState label={message.content} />;
   if (message.role === 'empty') return <div className="empty">{message.content}</div>;
 
@@ -234,12 +280,12 @@ export function MessageView({ message, previousMessage, messageIndex = -1, onCop
 
   if (message.role === 'assistant-stream') {
     content = <div className="msg assistant" data-model-message="true">
-      <AssistantContent message={message} streaming hideThinking={hideThinking} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
+      <AssistantContent message={message} streaming hideThinking={hideThinking} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} onMCPAppToolCall={onMCPAppToolCall} onResolveToolEvent={onResolveToolEvent} />
     </div>;
   } else if (message.role === 'assistant') {
     const copyText = assistantMessageBlocks(message, {hideThinking: true}).textParts.join('\n\n');
     content = <div className="msg assistant markdown" data-model-message="true">
-      <AssistantContent message={message} hideThinking={hideThinking} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} />
+      <AssistantContent message={message} hideThinking={hideThinking} onResolveConfirmation={onResolveConfirmation} onInspectToolEvent={onInspectToolEvent} onMCPAppToolCall={onMCPAppToolCall} onResolveToolEvent={onResolveToolEvent} />
       <MessageActions text={copyText} onCopy={onCopy} onBranch={onBranch ? () => onBranch(messageIndex) : null} />
     </div>;
   } else {
