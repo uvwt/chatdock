@@ -22,34 +22,32 @@ const (
 	maxImageURLBytes = 20 << 20
 )
 
-func builtinImageTools() []mcp.MCPTool {
-	return []mcp.MCPTool{
+func builtinImageToolRegistrations() []builtinToolRegistration {
+	return []builtinToolRegistration{
 		{
-			Server:      builtinToolServerImages,
-			Name:        "image_url_load",
-			FullName:    builtinToolLoadImageURL,
-			Title:       "加载图片链接",
-			Description: "加载并校验一张 http/https 图片链接，将图片作为模型可见的视觉输入发送给大模型；默认只传 image_url 内容块，不把图片 base64 塞进普通文本上下文。适合用户给出图片超链接并要求看图、识图、分析图片。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{
-				"url":    map[string]any{"type": "string", "description": "图片的 http 或 https URL。必须是公网可访问的图片链接。"},
-				"prompt": map[string]any{"type": "string", "description": "随图片一起发送给模型的说明或问题。为空时使用默认说明。"},
-				"detail": map[string]any{"type": "string", "enum": []string{"auto", "low", "high"}, "description": "模型视觉细节级别，默认 auto。"},
-			}, "required": []string{"url"}},
+			Tool: mcp.MCPTool{
+				Server:      builtinToolServerImages,
+				Name:        "image_url_load",
+				FullName:    builtinToolLoadImageURL,
+				Title:       "加载图片链接",
+				Description: "加载并校验一张 http/https 图片链接，将图片作为模型可见的视觉输入发送给大模型；默认只传 image_url 内容块，不把图片 base64 塞进普通文本上下文。适合用户给出图片超链接并要求看图、识图、分析图片。",
+				InputSchema: map[string]any{"type": "object", "properties": map[string]any{
+					"url":    map[string]any{"type": "string", "description": "图片的 http 或 https URL。必须是公网可访问的图片链接。"},
+					"prompt": map[string]any{"type": "string", "description": "随图片一起发送给模型的说明或问题。为空时使用默认说明。"},
+					"detail": map[string]any{"type": "string", "enum": []string{"auto", "low", "high"}, "description": "模型视觉细节级别，默认 auto。"},
+				}, "required": []string{"url"}},
+			},
+			Handler: (*Server).callBuiltinLoadImageURL,
 		},
 	}
 }
 
-func isBuiltinImageTool(name string) bool {
-	return name == builtinToolLoadImageURL
+func builtinImageTools() []mcp.MCPTool {
+	return builtinToolsFromRegistrations(builtinImageToolRegistrations())
 }
 
-func (a *Server) callBuiltinImageTool(ctx context.Context, name string, args map[string]any) (any, error) {
-	switch name {
-	case builtinToolLoadImageURL:
-		return loadImageURLForModel(ctx, args)
-	default:
-		return nil, fmt.Errorf("unknown builtin image tool: %s", name)
-	}
+func (a *Server) callBuiltinLoadImageURL(ctx context.Context, args map[string]any) (any, error) {
+	return loadImageURLForModel(ctx, args)
 }
 
 func loadImageURLForModel(ctx context.Context, args map[string]any) (map[string]any, error) {

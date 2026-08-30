@@ -118,7 +118,7 @@ func TestOnDemandResourceDefersToolsListUntilSelected(t *testing.T) {
 	if got := mail.listCalls.Load(); got != 0 {
 		t.Fatalf("on-demand mail resource should not list tools during setup, got %d calls", got)
 	}
-	if toolSet.resources["calendar"].info.Loaded || toolSet.resources["mail"].info.Loaded {
+	if toolSet.resources.byID["calendar"].info.Loaded || toolSet.resources.byID["mail"].info.Loaded {
 		t.Fatalf("on-demand resources should remain unloaded: %#v", toolSet.resourceIndex())
 	}
 
@@ -136,7 +136,7 @@ func TestOnDemandResourceDefersToolsListUntilSelected(t *testing.T) {
 	if len(loaded) != 1 || loaded[0] != "calendar__events_create" {
 		t.Fatalf("single-resource bulk load should expose its real tool, got %#v", result)
 	}
-	if !toolSet.visibleNames["calendar__events_create"] {
+	if _, ok := toolSet.visibleTool("calendar__events_create"); !ok {
 		t.Fatal("loaded real tool should be directly callable in the next model request")
 	}
 
@@ -199,13 +199,13 @@ func TestDirectResourceFailureDoesNotDisableOtherResources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !toolSet.visibleNames["healthy__ping"] {
+	if _, ok := toolSet.visibleTool("healthy__ping"); !ok {
 		t.Fatalf("healthy resource tool should remain visible: %#v", toolSet.tools())
 	}
-	if resource := toolSet.resources["broken"]; resource.info.Status != "error" || resource.info.Loaded {
+	if resource := toolSet.resources.byID["broken"]; resource.info.Status != "error" || resource.info.Loaded {
 		t.Fatalf("broken resource should be isolated as an unloadable error: %#v", resource.info)
 	}
-	if resource := toolSet.resources["healthy"]; resource.info.Status != "ready" || !resource.info.Loaded {
+	if resource := toolSet.resources.byID["healthy"]; resource.info.Status != "ready" || !resource.info.Loaded {
 		t.Fatalf("healthy resource should finish loading: %#v", resource.info)
 	}
 	if len(setupErrors) != 1 || setupErrors[0]["resource"] != "broken" {

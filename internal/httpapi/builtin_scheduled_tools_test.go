@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -19,7 +18,7 @@ func TestBuiltinScheduledTaskToolCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	created, err := app.callBuiltinScheduledTaskTool(context.Background(), builtinToolCreateScheduledTask, map[string]any{
+	created, err := callBuiltinToolForTest(app, builtinToolCreateScheduledTask, map[string]any{
 		"title":            "日报",
 		"prompt":           "总结今天",
 		"schedule_type":    "interval",
@@ -34,7 +33,7 @@ func TestBuiltinScheduledTaskToolCRUD(t *testing.T) {
 	}
 	id := createdTasks[0].ID
 
-	listed, err := app.callBuiltinScheduledTaskTool(context.Background(), builtinToolListScheduledTasks, map[string]any{"query": "日报"})
+	listed, err := callBuiltinToolForTest(app, builtinToolListScheduledTasks, map[string]any{"query": "日报"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +41,7 @@ func TestBuiltinScheduledTaskToolCRUD(t *testing.T) {
 		t.Fatalf("list should find created task: %#v", tasks)
 	}
 
-	updated, err := app.callBuiltinScheduledTaskTool(context.Background(), builtinToolUpdateScheduledTask, map[string]any{"id": id, "enabled": false, "schedule_type": "cron", "cron_expressions": []any{"30 9 * * *", "0 18 * * *"}, "timezone": "Asia/Shanghai"})
+	updated, err := callBuiltinToolForTest(app, builtinToolUpdateScheduledTask, map[string]any{"id": id, "enabled": false, "schedule_type": "cron", "cron_expressions": []any{"30 9 * * *", "0 18 * * *"}, "timezone": "Asia/Shanghai"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +50,7 @@ func TestBuiltinScheduledTaskToolCRUD(t *testing.T) {
 		t.Fatalf("unexpected updated tasks: %#v", updatedTasks)
 	}
 
-	enabled, err := app.callBuiltinScheduledTaskTool(context.Background(), builtinToolUpdateScheduledTask, map[string]any{"id": id, "enabled": true})
+	enabled, err := callBuiltinToolForTest(app, builtinToolUpdateScheduledTask, map[string]any{"id": id, "enabled": true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +58,7 @@ func TestBuiltinScheduledTaskToolCRUD(t *testing.T) {
 		t.Fatalf("update enabled should turn task on: %#v", tasks)
 	}
 
-	deleted, err := app.callBuiltinScheduledTaskTool(context.Background(), builtinToolDeleteScheduledTask, map[string]any{"id": id})
+	deleted, err := callBuiltinToolForTest(app, builtinToolDeleteScheduledTask, map[string]any{"id": id})
 	if err != nil {
 		t.Fatal(err)
 	}
