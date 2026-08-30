@@ -37,6 +37,49 @@ type conversationToolResource struct {
 
 type conversationToolLoader func(context.Context, string) ([]mcp.MCPTool, error)
 
+type conversationToolResources struct {
+	byID   map[string]*conversationToolResource
+	order  []string
+	loader conversationToolLoader
+}
+
+func newConversationToolResources(capacity int) conversationToolResources {
+	return conversationToolResources{
+		byID:  make(map[string]*conversationToolResource, capacity),
+		order: make([]string, 0, capacity),
+	}
+}
+
+func (r conversationToolResources) loadedCount() int {
+	count := 0
+	for _, resource := range r.byID {
+		if resource.info.Loaded {
+			count++
+		}
+	}
+	return count
+}
+
+func (r conversationToolResources) onDemandCount() int {
+	count := 0
+	for _, resource := range r.byID {
+		if resource.info.Status != "disabled" && resource.info.Exposure == mcp.ToolExposureOnDemand {
+			count++
+		}
+	}
+	return count
+}
+
+func (r conversationToolResources) errorCount() int {
+	count := 0
+	for _, resource := range r.byID {
+		if resource.info.Status == "error" {
+			count++
+		}
+	}
+	return count
+}
+
 func newBuiltinToolResource(exposure mcp.ToolExposure) *conversationToolResource {
 	if exposure == "" {
 		exposure = mcp.ToolExposureDirect
@@ -140,9 +183,9 @@ func resourceIndexPayload(resources []toolResource) []map[string]any {
 }
 
 func (s *conversationToolSet) resourceIndex() []toolResource {
-	resources := make([]toolResource, 0, len(s.resourceOrder))
-	for _, id := range s.resourceOrder {
-		resource := s.resources[id]
+	resources := make([]toolResource, 0, len(s.resources.order))
+	for _, id := range s.resources.order {
+		resource := s.resources.byID[id]
 		if resource == nil {
 			continue
 		}
@@ -152,9 +195,9 @@ func (s *conversationToolSet) resourceIndex() []toolResource {
 }
 
 func (s *conversationToolSet) enabledResourceIDs() []string {
-	ids := make([]string, 0, len(s.resourceOrder))
-	for _, id := range s.resourceOrder {
-		resource := s.resources[id]
+	ids := make([]string, 0, len(s.resources.order))
+	for _, id := range s.resources.order {
+		resource := s.resources.byID[id]
 		if resource == nil || resource.info.Status == "disabled" {
 			continue
 		}
@@ -168,10 +211,10 @@ func (s *conversationToolSet) resolveResourceID(value string) (string, bool) {
 	if value == "" {
 		return "", false
 	}
-	if _, ok := s.resources[value]; ok {
+	if _, ok := s.resources.byID[value]; ok {
 		return value, true
 	}
-	for id := range s.resources {
+	for id := range s.resources.byID {
 		if strings.EqualFold(id, value) {
 			return id, true
 		}
@@ -189,9 +232,9 @@ func (s *conversationToolSet) matchResourceIDs(query string, limit int) []string
 		score int
 	}
 	terms := toolDiscoveryTerms(query)
-	matches := make([]scoredResource, 0, len(s.resourceOrder))
-	for _, id := range s.resourceOrder {
-		resource := s.resources[id]
+	matches := make([]scoredResource, 0, len(s.resources.order))
+	for _, id := range s.resources.order {
+		resource := s.resources.byID[id]
 		if resource == nil || resource.info.Status == "disabled" {
 			continue
 		}
@@ -233,7 +276,7 @@ func (s *conversationToolSet) matchResourceIDs(query string, limit int) []string
 }
 
 func (s *conversationToolSet) loadResource(ctx context.Context, id string) (*conversationToolResource, error) {
-	resource := s.resources[id]
+	resource := s.resources.byID[id]
 	if resource == nil {
 		return nil, fmt.Errorf("tool resource not found: %s", id)
 	}
@@ -243,11 +286,11 @@ func (s *conversationToolSet) loadResource(ctx context.Context, id string) (*con
 	if resource.info.Loaded {
 		return resource, nil
 	}
-	if s.loadResourceTools == nil {
+	if s.resources.loader == nil {
 		return resource, fmt.Errorf("tool resource loader is unavailable: %s", id)
 	}
 	// 只有目标资源真正被选中时才请求 tools/list；其他按需资源保持未加载。
-	tools, err := s.loadResourceTools(ctx, id)
+	tools, err := s.resources.loader(ctx, id)
 	if err != nil {
 		resource.info.Status = "error"
 		resource.info.LastError = compactResourceText(err.Error())
@@ -258,7 +301,7 @@ func (s *conversationToolSet) loadResource(ctx context.Context, id string) (*con
 }
 
 func (s *conversationToolSet) setLoadedResourceTools(id string, tools []mcp.MCPTool, status string) {
-	resource := s.resources[id]
+	resource := s.resources.byID[id]
 	if resource == nil {
 		return
 	}
@@ -270,7 +313,6 @@ func (s *conversationToolSet) setLoadedResourceTools(id string, tools []mcp.MCPT
 	resource.info.LastError = ""
 	resource.info.ToolCount = len(resource.toolNames)
 	resource.info.ToolCountKnown = true
-	s.ensureDiscoveryVisibility()
 }
 
 func (s *conversationToolSet) catalogForResources(resourceIDs []string, restrict bool) toolCatalog {
@@ -284,7 +326,7 @@ func (s *conversationToolSet) catalogForResources(resourceIDs []string, restrict
 	tools := make([]mcp.MCPTool, 0, len(s.onDemand.tools))
 	for _, tool := range s.onDemand.tools {
 		resourceID := tool.Server
-		if isBuiltinChatDockTool(tool.FullName) {
+		if tool.Server == builtinToolServerDiscovery {
 			resourceID = builtinToolResourceID
 		}
 		if allowed[resourceID] {
@@ -298,7 +340,7 @@ func (s *conversationToolSet) toolDefinitionsForResources(resourceIDs []string) 
 	seen := map[string]bool{}
 	tools := make([]mcp.MCPTool, 0)
 	for _, id := range resourceIDs {
-		resource := s.resources[id]
+		resource := s.resources.byID[id]
 		if resource == nil {
 			continue
 		}
@@ -306,7 +348,7 @@ func (s *conversationToolSet) toolDefinitionsForResources(resourceIDs []string) 
 			if seen[name] {
 				continue
 			}
-			tool, ok := s.allByName[name]
+			tool, ok := s.loaded.Get(name)
 			if !ok {
 				continue
 			}

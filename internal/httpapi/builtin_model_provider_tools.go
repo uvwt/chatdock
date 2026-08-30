@@ -18,7 +18,7 @@ const (
 	builtinToolServerModelProviders = "chatdock"
 )
 
-func builtinModelProviderTools() []mcp.MCPTool {
+func builtinModelProviderToolRegistrations() []builtinToolRegistration {
 	keyProps := map[string]any{
 		"id":       map[string]any{"type": "string", "description": "Key id，例如 main、backup；为空时按名称自动生成"},
 		"name":     map[string]any{"type": "string", "description": "Key 显示名称，例如 主 key、备用 key"},
@@ -40,71 +40,79 @@ func builtinModelProviderTools() []mcp.MCPTool {
 		"set_as_global_default": map[string]any{"type": "boolean", "description": "保存后是否设为全局默认供应商"},
 		"global_model":          map[string]any{"type": "string", "description": "设为全局默认供应商时使用的模型；为空用 default_model"},
 	}
-	return []mcp.MCPTool{
+	return []builtinToolRegistration{
 		{
-			Server:      builtinToolServerModelProviders,
-			Name:        "model_providers_list",
-			FullName:    builtinToolListModelProviders,
-			Title:       "查询模型供应商",
-			Description: "查询全局模型供应商。可传 id 精确查询，或传 query 按名称、Base URL、模型名模糊过滤。结果只返回 has_api_key/api_key_masked 和 key 状态，不返回明文 API Key。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string"}, "query": map[string]any{"type": "string"}}},
+			Tool: mcp.MCPTool{
+				Server:      builtinToolServerModelProviders,
+				Name:        "model_providers_list",
+				FullName:    builtinToolListModelProviders,
+				Title:       "查询模型供应商",
+				Description: "查询全局模型供应商。可传 id 精确查询，或传 query 按名称、Base URL、模型名模糊过滤。结果只返回 has_api_key/api_key_masked 和 key 状态，不返回明文 API Key。",
+				InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string"}, "query": map[string]any{"type": "string"}}},
+			},
+			Handler: (*Server).callBuiltinListModelProviders,
 		},
 		{
-			Server:      builtinToolServerModelProviders,
-			Name:        "model_provider_save",
-			FullName:    builtinToolSaveModelProvider,
-			Title:       "保存模型供应商",
-			Description: "新增或编辑 OpenAI 兼容模型供应商；也可启用/停用、设置全局默认供应商，并在 api_keys 中维护多个 Key。",
-			InputSchema: map[string]any{"type": "object", "properties": providerProps},
+			Tool: mcp.MCPTool{
+				Server:      builtinToolServerModelProviders,
+				Name:        "model_provider_save",
+				FullName:    builtinToolSaveModelProvider,
+				Title:       "保存模型供应商",
+				Description: "新增或编辑 OpenAI 兼容模型供应商；也可启用/停用、设置全局默认供应商，并在 api_keys 中维护多个 Key。",
+				InputSchema: map[string]any{"type": "object", "properties": providerProps},
+			},
+			Handler: (*Server).callBuiltinSaveModelProvider,
 		},
 		{
-			Server:      builtinToolServerModelProviders,
-			Name:        "model_provider_test",
-			FullName:    builtinToolTestModelProvider,
-			Title:       "测试模型供应商",
-			Description: "Test real chat connectivity with /chat/completions. fetch_models=true only returns candidate_models from /models; candidate models are not saved automatically. Only chat success marks the provider/key usable.",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "供应商 id"}, "model": map[string]any{"type": "string", "description": "可选，临时测试的模型名"}, "selected_key_id": map[string]any{"type": "string", "description": "只测试指定 Key"}, "all_keys": map[string]any{"type": "boolean", "description": "测试所有启用 Key"}, "fetch_models": map[string]any{"type": "boolean", "description": "Return candidate_models from /models without saving"}}, "required": []string{"id"}},
+			Tool: mcp.MCPTool{
+				Server:      builtinToolServerModelProviders,
+				Name:        "model_provider_test",
+				FullName:    builtinToolTestModelProvider,
+				Title:       "测试模型供应商",
+				Description: "Test real chat connectivity with /chat/completions. fetch_models=true only returns candidate_models from /models; candidate models are not saved automatically. Only chat success marks the provider/key usable.",
+				InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "供应商 id"}, "model": map[string]any{"type": "string", "description": "可选，临时测试的模型名"}, "selected_key_id": map[string]any{"type": "string", "description": "只测试指定 Key"}, "all_keys": map[string]any{"type": "boolean", "description": "测试所有启用 Key"}, "fetch_models": map[string]any{"type": "boolean", "description": "Return candidate_models from /models without saving"}}, "required": []string{"id"}},
+			},
+			Handler: (*Server).callBuiltinTestModelProvider,
 		},
 		{
-			Server:      builtinToolServerModelProviders,
-			Name:        "model_provider_delete",
-			FullName:    builtinToolDeleteModelProvider,
-			Title:       "删除模型供应商",
-			Description: "按 id 删除全局模型供应商。删除前必须确认用户明确要求删除；正在被全局配置使用或最后一个供应商不能删除。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "要删除的供应商 id"}}, "required": []string{"id"}},
+			Tool: mcp.MCPTool{
+				Server:      builtinToolServerModelProviders,
+				Name:        "model_provider_delete",
+				FullName:    builtinToolDeleteModelProvider,
+				Title:       "删除模型供应商",
+				Description: "按 id 删除全局模型供应商。删除前必须确认用户明确要求删除；正在被全局配置使用或最后一个供应商不能删除。",
+				InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "要删除的供应商 id"}}, "required": []string{"id"}},
+			},
+			Handler: (*Server).callBuiltinDeleteModelProvider,
 		},
 	}
 }
 
-func isBuiltinModelProviderTool(name string) bool {
-	switch name {
-	case builtinToolListModelProviders, builtinToolSaveModelProvider, builtinToolDeleteModelProvider, builtinToolTestModelProvider:
-		return true
-	default:
-		return false
-	}
+func builtinModelProviderTools() []mcp.MCPTool {
+	return builtinToolsFromRegistrations(builtinModelProviderToolRegistrations())
 }
 
-func (a *Server) callBuiltinModelProviderTool(ctx context.Context, name string, args map[string]any) (any, error) {
-	switch name {
-	case builtinToolListModelProviders:
-		return a.builtinListModelProviders(args)
-	case builtinToolSaveModelProvider:
-		return a.builtinSaveModelProvider(args)
-	case builtinToolDeleteModelProvider:
-		id, err := requiredStringArg(args, "id")
-		if err != nil {
-			return nil, err
-		}
-		if err := a.store.DeleteModelProvider(id); err != nil {
-			return nil, err
-		}
-		return map[string]any{"ok": true, "deleted_id": id}, nil
-	case builtinToolTestModelProvider:
-		return a.builtinTestModelProvider(ctx, args)
-	default:
-		return nil, fmt.Errorf("unknown builtin model provider tool: %s", name)
+func (a *Server) callBuiltinListModelProviders(_ context.Context, args map[string]any) (any, error) {
+	return a.builtinListModelProviders(args)
+}
+
+func (a *Server) callBuiltinSaveModelProvider(_ context.Context, args map[string]any) (any, error) {
+	return a.builtinSaveModelProvider(args)
+}
+
+func (a *Server) callBuiltinDeleteModelProvider(_ context.Context, args map[string]any) (any, error) {
+	id, err := requiredStringArg(args, "id")
+	if err != nil {
+		return nil, err
 	}
+	if err := a.store.DeleteModelProvider(id); err != nil {
+		return nil, err
+	}
+	return map[string]any{"ok": true, "deleted_id": id}, nil
+}
+
+func (a *Server) callBuiltinTestModelProvider(ctx context.Context, args map[string]any) (any, error) {
+	return a.builtinTestModelProvider(ctx, args)
 }
 
 func (a *Server) builtinSaveModelProvider(args map[string]any) (map[string]any, error) {

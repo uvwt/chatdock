@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"chatdock/internal/mcp"
@@ -23,13 +24,13 @@ func TestConversationToolSetAppliesGenericServerDefaultAndToolOverride(t *testin
 
 	set := newConversationToolSet(tools, cfg)
 
-	if !set.visibleNames["calendar__events_list"] {
+	if _, ok := set.visibleTool("calendar__events_list"); !ok {
 		t.Fatal("direct override should expose the real tool immediately")
 	}
-	if set.visibleNames["calendar__events_create"] {
+	if _, ok := set.visibleTool("calendar__events_create"); ok {
 		t.Fatal("server default on_demand should hide the real tool initially")
 	}
-	if !set.visibleNames[builtinToolSearchTools] {
+	if _, ok := set.visibleTool(builtinToolSearchTools); !ok {
 		t.Fatal("on-demand tools should expose the search entrypoint")
 	}
 	if len(set.onDemand.tools) != 1 || set.onDemand.tools[0].FullName != "calendar__events_create" {
@@ -52,13 +53,13 @@ func TestConversationToolSetCanHideOneToolFromDirectServer(t *testing.T) {
 	}
 
 	set := newConversationToolSet(tools, cfg)
-	if !set.visibleNames["calendar__events_list"] {
+	if _, ok := set.visibleTool("calendar__events_list"); !ok {
 		t.Fatal("server default direct should expose tools without overrides")
 	}
-	if set.visibleNames["calendar__events_delete"] {
+	if _, ok := set.visibleTool("calendar__events_delete"); ok {
 		t.Fatal("on_demand override should hide the selected tool initially")
 	}
-	if !set.visibleNames[builtinToolSearchTools] {
+	if _, ok := set.visibleTool(builtinToolSearchTools); !ok {
 		t.Fatal("a hidden override should keep the search entrypoint available")
 	}
 }
@@ -100,6 +101,39 @@ func TestSearchingOnDemandToolsExposesRealToolForDirectCall(t *testing.T) {
 	}
 }
 
+func TestToolSearchUsesDeclaredSchemaValidation(t *testing.T) {
+	cfg := mcp.MCPConfig{Servers: map[string]mcp.MCPServerConfig{
+		"calendar": {ToolExposure: mcp.ToolExposureOnDemand},
+	}}
+	set := newConversationToolSet([]mcp.MCPTool{{
+		Server:      "calendar",
+		Name:        "events_list",
+		FullName:    "calendar__events_list",
+		Description: "查询日历安排",
+	}}, cfg)
+	app := &Server{}
+	runRealTool := func(name string, args map[string]any) (any, error) {
+		t.Fatalf("discovery validation must run before real tool execution: %s %#v", name, args)
+		return nil, nil
+	}
+
+	_, err := app.callVisibleConversationTool(context.Background(), set, runRealTool, builtinToolSearchTools, map[string]any{
+		"query": "日历",
+		"limit": "8",
+	})
+	if err == nil || !strings.Contains(err.Error(), "arguments.limit must be integer") {
+		t.Fatalf("expected schema type validation for discovery tool, got %v", err)
+	}
+
+	_, err = app.callVisibleConversationTool(context.Background(), set, runRealTool, builtinToolSearchTools, map[string]any{
+		"query":      "日历",
+		"unexpected": true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "arguments.unexpected is not allowed") {
+		t.Fatalf("expected additionalProperties validation for discovery tool, got %v", err)
+	}
+}
+
 func TestConversationToolSetAppliesBuiltinDefaultAndToolOverride(t *testing.T) {
 	cfg := mcp.MCPConfig{BuiltinTools: mcp.ToolExposureConfig{
 		ToolExposure: mcp.ToolExposureOnDemand,
@@ -109,13 +143,13 @@ func TestConversationToolSetAppliesBuiltinDefaultAndToolOverride(t *testing.T) {
 	}}
 	set := newConversationToolSet(builtinScheduledTaskTools(), cfg)
 
-	if !set.visibleNames[builtinToolCreateScheduledTask] {
+	if _, ok := set.visibleTool(builtinToolCreateScheduledTask); !ok {
 		t.Fatal("direct builtin override should expose the real tool immediately")
 	}
-	if set.visibleNames[builtinToolListScheduledTasks] {
+	if _, ok := set.visibleTool(builtinToolListScheduledTasks); ok {
 		t.Fatal("builtin on_demand default should hide tools without overrides")
 	}
-	if !set.visibleNames[builtinToolSearchTools] {
+	if _, ok := set.visibleTool(builtinToolSearchTools); !ok {
 		t.Fatal("hidden builtin tools should expose the search entrypoint")
 	}
 }

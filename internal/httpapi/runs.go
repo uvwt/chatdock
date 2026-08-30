@@ -35,14 +35,14 @@ func (a *Server) completeWithRecordedTools(ctx context.Context, jobID string, se
 	if emit != nil {
 		if err := emit("tool_setup_ready", map[string]any{
 			"mode":                     "resource_dynamic",
-			"tool_count":               len(toolSet.allByName),
+			"tool_count":               len(toolSet.loaded.tools),
 			"exposed_tool_count":       len(visibleTools),
 			"builtin_tool_count":       len(builtinChatDockTools()),
 			"on_demand_tool_count":     len(toolSet.onDemand.tools),
-			"resource_count":           len(toolSet.resources),
-			"loaded_resource_count":    toolSet.loadedResourceCount(),
-			"on_demand_resource_count": toolSet.onDemandResourceCount(),
-			"resource_error_count":     toolSet.resourceErrorCount(),
+			"resource_count":           len(toolSet.resources.byID),
+			"loaded_resource_count":    toolSet.resources.loadedCount(),
+			"on_demand_resource_count": toolSet.resources.onDemandCount(),
+			"resource_error_count":     toolSet.resources.errorCount(),
 		}); err != nil {
 			return "", cfg, err
 		}

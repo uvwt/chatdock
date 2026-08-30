@@ -164,7 +164,7 @@ func TestScheduledTaskRunWritesConversationDetails(t *testing.T) {
 		}
 		switch requestNumber {
 		case 1:
-			send(`{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"` + builtinToolSearchTools + `","arguments":"{\"query\":\"定时任务\"}"}}]}}]}`)
+			send(`{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"` + builtinToolListScheduledTasks + `","arguments":"{}"}}]}}]}`)
 		case 2:
 			send(`{"choices":[{"delta":{"reasoning_content":"先查工具。"}}]}`)
 			send(`{"choices":[{"delta":{"content":"完成定时任务。"}}]}`)

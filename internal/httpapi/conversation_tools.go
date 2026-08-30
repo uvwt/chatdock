@@ -11,38 +11,62 @@ import (
 )
 
 type conversationToolSet struct {
-	visible            []mcp.MCPTool
-	visibleNames       map[string]bool
-	allByName          map[string]mcp.MCPTool
+	loaded             toolCatalog
 	onDemand           toolCatalog
-	resources          map[string]*conversationToolResource
-	resourceOrder      []string
+	exposure           conversationToolExposure
+	resources          conversationToolResources
 	mcpConfig          mcp.MCPConfig
-	loadResourceTools  conversationToolLoader
 	serverInstructions []mcp.MCPServerInstruction
+}
+
+type conversationToolExposure struct {
+	tools []mcp.MCPTool
+	names map[string]bool
+}
+
+func newConversationToolExposure(capacity int) conversationToolExposure {
+	return conversationToolExposure{
+		tools: make([]mcp.MCPTool, 0, capacity),
+		names: make(map[string]bool, capacity),
+	}
+}
+
+func (e *conversationToolExposure) Add(tool mcp.MCPTool) bool {
+	if tool.FullName == "" || e.names[tool.FullName] {
+		return false
+	}
+	e.tools = append(e.tools, tool)
+	e.names[tool.FullName] = true
+	return true
+}
+
+func (e conversationToolExposure) Has(name string) bool {
+	return e.names[strings.TrimSpace(name)]
+}
+
+func (e conversationToolExposure) Tools() []mcp.MCPTool {
+	return append([]mcp.MCPTool(nil), e.tools...)
 }
 
 func newConversationToolSet(allTools []mcp.MCPTool, cfg mcp.MCPConfig) *conversationToolSet {
 	set := &conversationToolSet{
-		visible:       make([]mcp.MCPTool, 0, len(allTools)),
-		visibleNames:  map[string]bool{},
-		allByName:     map[string]mcp.MCPTool{},
-		onDemand:      newToolCatalog(nil),
-		resources:     map[string]*conversationToolResource{},
-		resourceOrder: make([]string, 0, len(cfg.Servers)+1),
-		mcpConfig:     cfg,
+		loaded:    newToolCatalog(nil),
+		onDemand:  newToolCatalog(nil),
+		exposure:  newConversationToolExposure(len(allTools)),
+		resources: newConversationToolResources(len(cfg.Servers) + 1),
+		mcpConfig: cfg,
 	}
 
 	hasBuiltinTools := false
 	for _, tool := range allTools {
-		if isBuiltinChatDockTool(tool.FullName) || tool.Server == builtinToolServerDiscovery {
+		if tool.Server == builtinToolServerDiscovery {
 			hasBuiltinTools = true
 			break
 		}
 	}
 	if hasBuiltinTools {
-		set.resources[builtinToolResourceID] = newBuiltinToolResource(cfg.BuiltinTools.ToolExposure)
-		set.resourceOrder = append(set.resourceOrder, builtinToolResourceID)
+		set.resources.byID[builtinToolResourceID] = newBuiltinToolResource(cfg.BuiltinTools.ToolExposure)
+		set.resources.order = append(set.resources.order, builtinToolResourceID)
 	}
 
 	serverNames := make([]string, 0, len(cfg.Servers))
@@ -51,14 +75,14 @@ func newConversationToolSet(allTools []mcp.MCPTool, cfg mcp.MCPConfig) *conversa
 	}
 	sort.Strings(serverNames)
 	for _, serverName := range serverNames {
-		set.resources[serverName] = newMCPToolResource(serverName, cfg.Servers[serverName])
-		set.resourceOrder = append(set.resourceOrder, serverName)
+		set.resources.byID[serverName] = newMCPToolResource(serverName, cfg.Servers[serverName])
+		set.resources.order = append(set.resources.order, serverName)
 	}
 
 	for _, tool := range allTools {
 		set.registerLoadedTool(tool)
 	}
-	for _, resource := range set.resources {
+	for _, resource := range set.resources.byID {
 		if len(resource.toolNames) == 0 {
 			continue
 		}
@@ -67,7 +91,6 @@ func newConversationToolSet(allTools []mcp.MCPTool, cfg mcp.MCPConfig) *conversa
 		resource.info.ToolCount = len(resource.toolNames)
 		resource.info.ToolCountKnown = true
 	}
-	set.ensureDiscoveryVisibility()
 	return set
 }
 
@@ -78,23 +101,23 @@ func (s *conversationToolSet) registerLoadedTool(tool mcp.MCPTool) {
 	if tool.FullName == "" || isBuiltinToolDiscoveryTool(tool.FullName) {
 		return
 	}
-	if _, exists := s.allByName[tool.FullName]; exists {
+	if !s.loaded.Add(tool) {
 		return
 	}
 
 	resourceID := tool.Server
 	exposure := mcp.ToolExposureDirect
-	if isBuiltinChatDockTool(tool.FullName) {
+	if tool.Server == builtinToolServerDiscovery {
 		resourceID = builtinToolResourceID
-		if s.resources[resourceID] == nil {
-			s.resources[resourceID] = newBuiltinToolResource(s.mcpConfig.BuiltinTools.ToolExposure)
-			s.resourceOrder = append([]string{resourceID}, s.resourceOrder...)
+		if s.resources.byID[resourceID] == nil {
+			s.resources.byID[resourceID] = newBuiltinToolResource(s.mcpConfig.BuiltinTools.ToolExposure)
+			s.resources.order = append([]string{resourceID}, s.resources.order...)
 		}
 		exposure = s.mcpConfig.BuiltinTools.ExposureForTool(tool.Name, tool.FullName)
 	} else if server, configured := s.mcpConfig.Servers[resourceID]; configured {
 		exposure = server.ExposureForTool(tool.Name, tool.FullName)
-	} else if s.resources[resourceID] == nil {
-		s.resources[resourceID] = &conversationToolResource{info: toolResource{
+	} else if s.resources.byID[resourceID] == nil {
+		s.resources.byID[resourceID] = &conversationToolResource{info: toolResource{
 			ID:          resourceID,
 			Title:       resourceID,
 			Description: fmt.Sprintf("工具资源 %s。", resourceID),
@@ -103,47 +126,30 @@ func (s *conversationToolSet) registerLoadedTool(tool mcp.MCPTool) {
 			Status:      "ready",
 			Loaded:      true,
 		}}
-		s.resourceOrder = append(s.resourceOrder, resourceID)
+		s.resources.order = append(s.resources.order, resourceID)
 	}
 
-	s.allByName[tool.FullName] = tool
-	resource := s.resources[resourceID]
+	resource := s.resources.byID[resourceID]
 	if resource != nil {
 		resource.toolNames = append(resource.toolNames, tool.FullName)
 	}
 	if exposure == mcp.ToolExposureDirect {
-		s.addVisible(tool)
+		s.exposure.Add(tool)
 		return
 	}
-	s.addOnDemand(tool)
-}
-
-func (s *conversationToolSet) addVisible(tool mcp.MCPTool) {
-	if tool.FullName == "" || s.visibleNames[tool.FullName] {
-		return
-	}
-	s.visible = append(s.visible, tool)
-	s.visibleNames[tool.FullName] = true
-}
-
-func (s *conversationToolSet) addOnDemand(tool mcp.MCPTool) {
-	if _, exists := s.onDemand.byName[tool.FullName]; exists {
-		return
-	}
-	s.onDemand.tools = append(s.onDemand.tools, tool)
-	s.onDemand.byName[tool.FullName] = tool
+	s.onDemand.Add(tool)
 }
 
 func (s *conversationToolSet) expose(tools []mcp.MCPTool) []string {
 	loaded := make([]string, 0, len(tools))
 	for _, tool := range tools {
-		if s.visibleNames[tool.FullName] {
+		if s.exposure.Has(tool.FullName) {
 			continue
 		}
-		s.addVisible(tool)
-		loaded = append(loaded, tool.FullName)
+		if s.exposure.Add(tool) {
+			loaded = append(loaded, tool.FullName)
+		}
 	}
-	s.ensureDiscoveryVisibility()
 	return loaded
 }
 
@@ -151,7 +157,7 @@ func (s *conversationToolSet) hasDiscovery() bool {
 	if len(s.onDemand.tools) > 0 {
 		return true
 	}
-	for _, resource := range s.resources {
+	for _, resource := range s.resources.byID {
 		if resource.info.Status != "disabled" && !resource.info.Loaded {
 			return true
 		}
@@ -159,16 +165,8 @@ func (s *conversationToolSet) hasDiscovery() bool {
 	return false
 }
 
-func (s *conversationToolSet) ensureDiscoveryVisibility() {
-	if s.hasDiscovery() {
-		s.visibleNames[builtinToolSearchTools] = true
-		return
-	}
-	delete(s.visibleNames, builtinToolSearchTools)
-}
-
 func (s *conversationToolSet) tools() []mcp.MCPTool {
-	tools := append([]mcp.MCPTool(nil), s.visible...)
+	tools := s.exposure.Tools()
 	if s.hasDiscovery() {
 		tools = append(tools, builtinToolSearchTool(s.resourceIndex()))
 	}
@@ -176,41 +174,17 @@ func (s *conversationToolSet) tools() []mcp.MCPTool {
 }
 
 func (s *conversationToolSet) visibleTool(name string) (mcp.MCPTool, bool) {
-	if !s.visibleNames[name] || name == builtinToolSearchTools {
+	name = strings.TrimSpace(name)
+	if name == builtinToolSearchTools {
+		if !s.hasDiscovery() {
+			return mcp.MCPTool{}, false
+		}
+		return builtinToolSearchTool(s.resourceIndex()), true
+	}
+	if !s.exposure.Has(name) {
 		return mcp.MCPTool{}, false
 	}
-	tool, ok := s.allByName[name]
-	return tool, ok
-}
-
-func (s *conversationToolSet) loadedResourceCount() int {
-	count := 0
-	for _, resource := range s.resources {
-		if resource.info.Loaded {
-			count++
-		}
-	}
-	return count
-}
-
-func (s *conversationToolSet) onDemandResourceCount() int {
-	count := 0
-	for _, resource := range s.resources {
-		if resource.info.Status != "disabled" && resource.info.Exposure == mcp.ToolExposureOnDemand {
-			count++
-		}
-	}
-	return count
-}
-
-func (s *conversationToolSet) resourceErrorCount() int {
-	count := 0
-	for _, resource := range s.resources {
-		if resource.info.Status == "error" {
-			count++
-		}
-	}
-	return count
+	return s.loaded.Get(name)
 }
 
 func (a *Server) loadConversationTools(ctx context.Context, emit func(string, any) error) (*conversationToolSet, mcp.MCPConfig, error) {
@@ -227,13 +201,13 @@ func (a *Server) loadConversationTools(ctx context.Context, emit func(string, an
 
 	set := newConversationToolSet(builtinChatDockTools(), mcpConfig)
 	if a.mcpClient != nil {
-		set.loadResourceTools = func(loadCtx context.Context, resourceID string) ([]mcp.MCPTool, error) {
+		set.resources.loader = func(loadCtx context.Context, resourceID string) ([]mcp.MCPTool, error) {
 			return a.mcpClient.ListServerTools(loadCtx, mcpConfig, resourceID)
 		}
 		discoveredInstructions, discoveryErrors := a.mcpClient.ServerInstructions(ctx, mcpConfig)
 		set.serverInstructions = discoveredInstructions
 		for serverName, discoveryErr := range discoveryErrors {
-			if resource := set.resources[serverName]; resource != nil {
+			if resource := set.resources.byID[serverName]; resource != nil {
 				resource.info.Status = "error"
 				resource.info.LastError = compactResourceText(discoveryErr.Error())
 			}
@@ -251,7 +225,7 @@ func (a *Server) loadConversationTools(ctx context.Context, emit func(string, an
 		}
 	}
 	// direct 资源和含 direct 单工具覆盖的资源仍需预加载；纯 on_demand 资源保持懒加载。
-	for _, resourceID := range set.resourceOrder {
+	for _, resourceID := range set.resources.order {
 		server, configured := mcpConfig.Servers[resourceID]
 		if !configured || !mcpServerNeedsInitialLoad(server) {
 			continue
@@ -266,13 +240,8 @@ func (a *Server) loadConversationTools(ctx context.Context, emit func(string, an
 }
 
 func (a *Server) callConversationTool(ctx context.Context, sessionID string, mcpConfig mcp.MCPConfig, name string, args map[string]any, emit func(string, any) error) (any, error) {
-	switch {
-	case isBuiltinScheduledTaskTool(name):
-		return a.callBuiltinScheduledTaskTool(ctx, name, args)
-	case isBuiltinImageTool(name):
-		return a.callBuiltinImageTool(ctx, name, args)
-	case isBuiltinModelProviderTool(name):
-		return a.callBuiltinModelProviderTool(ctx, name, args)
+	if registration, ok := builtinChatDockToolRegistration(name); ok {
+		return registration.Handler(a, ctx, args)
 	}
 	if a.mcpClient == nil {
 		return nil, fmt.Errorf("MCP tool client is unavailable: %s", name)
@@ -291,15 +260,15 @@ func (a *Server) callConversationTool(ctx context.Context, sessionID string, mcp
 }
 
 func (a *Server) callVisibleConversationTool(ctx context.Context, toolSet *conversationToolSet, runRealTool func(string, map[string]any) (any, error), name string, args map[string]any) (any, error) {
-	if name == builtinToolSearchTools {
-		return a.discoverConversationTools(ctx, toolSet, args)
-	}
 	tool, ok := toolSet.visibleTool(name)
 	if !ok {
 		return nil, fmt.Errorf("tool is not exposed in this conversation: %s", name)
 	}
 	if err := toolschema.ValidateArguments(tool.InputSchema, args); err != nil {
 		return nil, err
+	}
+	if isBuiltinToolDiscoveryTool(tool.FullName) {
+		return a.discoverConversationTools(ctx, toolSet, args)
 	}
 	return runRealTool(name, args)
 }
@@ -339,7 +308,7 @@ func (a *Server) discoverConversationTools(ctx context.Context, toolSet *convers
 		if len(resourceIDs) == 0 {
 			unloaded := make([]string, 0, 1)
 			for _, id := range toolSet.enabledResourceIDs() {
-				resource := toolSet.resources[id]
+				resource := toolSet.resources.byID[id]
 				if resource != nil && !resource.info.Loaded {
 					unloaded = append(unloaded, id)
 				}

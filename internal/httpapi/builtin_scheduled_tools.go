@@ -18,7 +18,7 @@ const (
 	builtinToolServerScheduledTasks = "chatdock"
 )
 
-func builtinScheduledTaskTools() []mcp.MCPTool {
+func builtinScheduledTaskToolRegistrations() []builtinToolRegistration {
 	requestProps := map[string]any{
 		"title":            map[string]any{"type": "string", "description": "任务标题，必须简短明确"},
 		"prompt":           map[string]any{"type": "string", "description": "任务触发时发给模型的用户提示词"},
@@ -30,40 +30,56 @@ func builtinScheduledTaskTools() []mcp.MCPTool {
 		"interval_minutes": map[string]any{"type": "integer", "description": "interval 使用，间隔分钟，1 到 525600"},
 		"context_mode":     map[string]any{"type": "string", "enum": []string{"stateless", "last_result", "session"}, "description": "上下文模式：stateless=每次独立执行，last_result=带上次结果，session=连续会话"},
 	}
-	return []mcp.MCPTool{
+	return []builtinToolRegistration{
 		{
-			Server:      builtinToolServerScheduledTasks,
-			Name:        "scheduled_tasks_list",
-			FullName:    builtinToolListScheduledTasks,
-			Title:       "查询定时任务",
-			Description: "查询全局定时任务。可传 id 精确查询，或传 query 按标题/提示词模糊过滤。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string"}, "query": map[string]any{"type": "string"}}},
+			Tool: mcp.MCPTool{
+				Server:      builtinToolServerScheduledTasks,
+				Name:        "scheduled_tasks_list",
+				FullName:    builtinToolListScheduledTasks,
+				Title:       "查询定时任务",
+				Description: "查询全局定时任务。可传 id 精确查询，或传 query 按标题/提示词模糊过滤。",
+				InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string"}, "query": map[string]any{"type": "string"}}},
+			},
+			Handler: (*Server).callBuiltinListScheduledTasks,
 		},
 		{
-			Server:      builtinToolServerScheduledTasks,
-			Name:        "scheduled_task_create",
-			FullName:    builtinToolCreateScheduledTask,
-			Title:       "创建定时任务",
-			Description: "创建全局定时任务。创建前应确认标题、任务提示词和触发规则。",
-			InputSchema: map[string]any{"type": "object", "properties": requestProps, "required": []string{"title", "prompt", "schedule_type"}},
+			Tool: mcp.MCPTool{
+				Server:      builtinToolServerScheduledTasks,
+				Name:        "scheduled_task_create",
+				FullName:    builtinToolCreateScheduledTask,
+				Title:       "创建定时任务",
+				Description: "创建全局定时任务。创建前应确认标题、任务提示词和触发规则。",
+				InputSchema: map[string]any{"type": "object", "properties": requestProps, "required": []string{"title", "prompt", "schedule_type"}},
+			},
+			Handler: (*Server).callBuiltinCreateScheduledTask,
 		},
 		{
-			Server:      builtinToolServerScheduledTasks,
-			Name:        "scheduled_task_update",
-			FullName:    builtinToolUpdateScheduledTask,
-			Title:       "修改定时任务",
-			Description: "按 id 修改全局定时任务，enabled 字段用于启用或停用；未传字段会保留原值。",
-			InputSchema: map[string]any{"type": "object", "properties": mergeSchemaProps(map[string]any{"id": map[string]any{"type": "string", "description": "要修改的任务 id"}}, requestProps), "required": []string{"id"}},
+			Tool: mcp.MCPTool{
+				Server:      builtinToolServerScheduledTasks,
+				Name:        "scheduled_task_update",
+				FullName:    builtinToolUpdateScheduledTask,
+				Title:       "修改定时任务",
+				Description: "按 id 修改全局定时任务，enabled 字段用于启用或停用；未传字段会保留原值。",
+				InputSchema: map[string]any{"type": "object", "properties": mergeSchemaProps(map[string]any{"id": map[string]any{"type": "string", "description": "要修改的任务 id"}}, requestProps), "required": []string{"id"}},
+			},
+			Handler: (*Server).callBuiltinUpdateScheduledTask,
 		},
 		{
-			Server:      builtinToolServerScheduledTasks,
-			Name:        "scheduled_task_delete",
-			FullName:    builtinToolDeleteScheduledTask,
-			Title:       "删除定时任务",
-			Description: "按 id 删除全局定时任务。删除前应确保用户明确要求删除。",
-			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "要删除的任务 id"}}, "required": []string{"id"}},
+			Tool: mcp.MCPTool{
+				Server:      builtinToolServerScheduledTasks,
+				Name:        "scheduled_task_delete",
+				FullName:    builtinToolDeleteScheduledTask,
+				Title:       "删除定时任务",
+				Description: "按 id 删除全局定时任务。删除前应确保用户明确要求删除。",
+				InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string", "description": "要删除的任务 id"}}, "required": []string{"id"}},
+			},
+			Handler: (*Server).callBuiltinDeleteScheduledTask,
 		},
 	}
+}
+
+func builtinScheduledTaskTools() []mcp.MCPTool {
+	return builtinToolsFromRegistrations(builtinScheduledTaskToolRegistrations())
 }
 
 func mergeSchemaProps(base map[string]any, extra map[string]any) map[string]any {
@@ -77,49 +93,40 @@ func mergeSchemaProps(base map[string]any, extra map[string]any) map[string]any 
 	return out
 }
 
-func isBuiltinScheduledTaskTool(name string) bool {
-	switch name {
-	case builtinToolListScheduledTasks, builtinToolCreateScheduledTask, builtinToolUpdateScheduledTask, builtinToolDeleteScheduledTask:
-		return true
-	default:
-		return false
-	}
+func (a *Server) callBuiltinListScheduledTasks(_ context.Context, args map[string]any) (any, error) {
+	return a.builtinListScheduledTasks(args)
 }
 
-func (a *Server) callBuiltinScheduledTaskTool(ctx context.Context, name string, args map[string]any) (any, error) {
-	// 内置工具操作全局定时任务；项目不提供自动化覆盖配置。
-	switch name {
-	case builtinToolListScheduledTasks:
-		return a.builtinListScheduledTasks(args)
-	case builtinToolCreateScheduledTask:
-		input, err := scheduledTaskRequestFromArgs(args, nil)
-		if err != nil {
-			return nil, err
-		}
-		return a.store.CreateScheduledTask(input)
-	case builtinToolUpdateScheduledTask:
-		id, err := requiredStringArg(args, "id")
-		if err != nil {
-			return nil, err
-		}
-		previous, err := a.findScheduledTask(id)
-		if err != nil {
-			return nil, err
-		}
-		input, err := scheduledTaskRequestFromArgs(args, &previous)
-		if err != nil {
-			return nil, err
-		}
-		return a.store.UpdateScheduledTask(id, input)
-	case builtinToolDeleteScheduledTask:
-		id, err := requiredStringArg(args, "id")
-		if err != nil {
-			return nil, err
-		}
-		return a.store.DeleteScheduledTask(id)
-	default:
-		return nil, fmt.Errorf("unknown builtin tool: %s", name)
+func (a *Server) callBuiltinCreateScheduledTask(_ context.Context, args map[string]any) (any, error) {
+	input, err := scheduledTaskRequestFromArgs(args, nil)
+	if err != nil {
+		return nil, err
 	}
+	return a.store.CreateScheduledTask(input)
+}
+
+func (a *Server) callBuiltinUpdateScheduledTask(_ context.Context, args map[string]any) (any, error) {
+	id, err := requiredStringArg(args, "id")
+	if err != nil {
+		return nil, err
+	}
+	previous, err := a.findScheduledTask(id)
+	if err != nil {
+		return nil, err
+	}
+	input, err := scheduledTaskRequestFromArgs(args, &previous)
+	if err != nil {
+		return nil, err
+	}
+	return a.store.UpdateScheduledTask(id, input)
+}
+
+func (a *Server) callBuiltinDeleteScheduledTask(_ context.Context, args map[string]any) (any, error) {
+	id, err := requiredStringArg(args, "id")
+	if err != nil {
+		return nil, err
+	}
+	return a.store.DeleteScheduledTask(id)
 }
 
 func (a *Server) builtinListScheduledTasks(args map[string]any) (model.ScheduledTaskResponse, error) {

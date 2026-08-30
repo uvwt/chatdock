@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"sort"
 	"strings"
 
 	"chatdock/internal/mcp"
@@ -58,74 +57,31 @@ type toolCatalog struct {
 func newToolCatalog(tools []mcp.MCPTool) toolCatalog {
 	catalog := toolCatalog{tools: make([]mcp.MCPTool, 0, len(tools)), byName: map[string]mcp.MCPTool{}}
 	for _, tool := range tools {
-		name := strings.TrimSpace(tool.FullName)
-		if name == "" {
-			name = mcp.ToolFullName(tool.Server, tool.Name)
-			tool.FullName = name
-		}
-		if name == "" || isBuiltinToolDiscoveryTool(name) {
-			continue
-		}
-		catalog.tools = append(catalog.tools, tool)
-		catalog.byName[name] = tool
+		catalog.Add(tool)
 	}
 	return catalog
+}
+
+func (c *toolCatalog) Add(tool mcp.MCPTool) bool {
+	name := strings.TrimSpace(tool.FullName)
+	if name == "" {
+		name = mcp.ToolFullName(tool.Server, tool.Name)
+		tool.FullName = name
+	}
+	if name == "" || isBuiltinToolDiscoveryTool(name) {
+		return false
+	}
+	if _, exists := c.byName[name]; exists {
+		return false
+	}
+	c.tools = append(c.tools, tool)
+	c.byName[name] = tool
+	return true
 }
 
 func (c toolCatalog) Get(name string) (mcp.MCPTool, bool) {
 	tool, ok := c.byName[strings.TrimSpace(name)]
 	return tool, ok
-}
-
-func (c toolCatalog) search(query string, limit int) []mcp.MCPTool {
-	query = strings.ToLower(strings.TrimSpace(query))
-	if query == "" {
-		if len(c.tools) <= limit {
-			return append([]mcp.MCPTool(nil), c.tools...)
-		}
-		return append([]mcp.MCPTool(nil), c.tools[:limit]...)
-	}
-	type scoredTool struct {
-		tool  mcp.MCPTool
-		score int
-	}
-	var scored []scoredTool
-	terms := strings.Fields(query)
-	if len(terms) == 0 {
-		terms = []string{query}
-	}
-	for _, tool := range c.tools {
-		text := strings.ToLower(strings.Join([]string{tool.FullName, tool.Server, tool.Name, tool.Title, tool.Description}, " "))
-		score := 0
-		for _, term := range terms {
-			if strings.Contains(strings.ToLower(tool.FullName), term) || strings.Contains(strings.ToLower(tool.Name), term) {
-				score += 5
-			}
-			if strings.Contains(strings.ToLower(tool.Title), term) {
-				score += 3
-			}
-			if strings.Contains(text, term) {
-				score++
-			}
-		}
-		if score > 0 {
-			scored = append(scored, scoredTool{tool: tool, score: score})
-		}
-	}
-	sort.SliceStable(scored, func(i, j int) bool {
-		if scored[i].score == scored[j].score {
-			return scored[i].tool.FullName < scored[j].tool.FullName
-		}
-		return scored[i].score > scored[j].score
-	})
-	if len(scored) > limit {
-		scored = scored[:limit]
-	}
-	out := make([]mcp.MCPTool, 0, len(scored))
-	for _, item := range scored {
-		out = append(out, item.tool)
-	}
-	return out
 }
 
 func intArgWithDefault(args map[string]any, key string, fallback, minValue, maxValue int) int {
