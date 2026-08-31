@@ -17,7 +17,7 @@ export function DialogBackdrop({ className, ...props }) {
 export function DialogViewport({ className, ...props }) {
   return (
     <DialogPrimitive.Viewport
-      className={cn('fixed inset-0 z-[1401] flex items-center justify-center p-[22px]', className)}
+      className={cn('fixed inset-[0] z-[1401] flex items-center justify-center p-[22px]', className)}
       {...props}
     />
   );
