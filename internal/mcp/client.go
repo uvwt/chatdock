@@ -383,7 +383,13 @@ func (c *MCPClient) ensureServerSession(ctx context.Context, serverName string, 
 		Name:    "chatdock",
 		Title:   "ChatDock",
 		Version: chatDockMCPVersion(),
-	}, &mcpsdk.ClientOptions{Capabilities: caps})
+	}, &mcpsdk.ClientOptions{
+		Capabilities: caps,
+		ToolListChangedHandler: func(context.Context, *mcpsdk.ToolListChangedRequest) {
+			// SDK 会失效自身的 tools cache；这里同步清掉 ChatDock 的规范化工具缓存。
+			c.invalidateToolsCache(cacheKey)
+		},
+	})
 	transport := &mcpsdk.StreamableClientTransport{
 		Endpoint:             strings.TrimSpace(server.URL),
 		HTTPClient:           serverHTTPClient(server),

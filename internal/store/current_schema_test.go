@@ -26,7 +26,7 @@ func TestFreshSchemaUsesGlobalSettingsAndProjects(t *testing.T) {
 			t.Fatalf("%s columns = %#v, pinned missing", table, columns)
 		}
 	}
-	for _, table := range []string{"global_settings", "projects", "sessions", "scheduled_tasks", "attachments", "tool_embeddings"} {
+	for _, table := range []string{"global_settings", "projects", "sessions", "session_tool_working_set", "scheduled_tasks", "attachments", "tool_embeddings"} {
 		exists, err := sqliteTableExists(store.db, table)
 		if err != nil {
 			t.Fatal(err)

@@ -170,6 +170,57 @@ func TestSDKClientListsAllPaginatedTools(t *testing.T) {
 	}
 }
 
+func TestToolListChangedInvalidatesChatDockToolsCache(t *testing.T) {
+	sdkServer := mcpsdk.NewServer(&mcpsdk.Implementation{Name: "changing-tools", Version: "1"}, nil)
+	addTool := func(name string) {
+		sdkServer.AddTool(&mcpsdk.Tool{Name: name, InputSchema: map[string]any{"type": "object"}}, func(context.Context, *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+			return &mcpsdk.CallToolResult{Content: []mcpsdk.Content{}}, nil
+		})
+	}
+	addTool("alpha")
+	server := httptest.NewServer(mcpsdk.NewStreamableHTTPHandler(func(*http.Request) *mcpsdk.Server { return sdkServer }, &mcpsdk.StreamableHTTPOptions{Stateless: true}))
+	defer server.Close()
+
+	client := NewMCPClient()
+	defer client.Close()
+	cfg := MCPConfig{Servers: map[string]MCPServerConfig{"demo": {URL: server.URL, CacheTTLMS: 60_000}}}
+	tools, err := client.ListServerTools(context.Background(), cfg, "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tools) != 1 || tools[0].Name != "alpha" {
+		t.Fatalf("initial tools = %#v", tools)
+	}
+	if _, ok := client.CachedServerTools(cfg, "demo"); !ok {
+		t.Fatal("expected ChatDock normalized tools cache after initial list")
+	}
+
+	addTool("beta")
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, ok := client.CachedServerTools(cfg, "demo"); !ok {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if _, ok := client.CachedServerTools(cfg, "demo"); ok {
+		t.Fatal("notifications/tools/list_changed did not invalidate ChatDock tools cache")
+	}
+
+	tools, err = client.ListServerTools(context.Background(), cfg, "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tools) != 2 {
+		t.Fatalf("tools after list_changed = %#v", tools)
+	}
+	names := []string{tools[0].Name, tools[1].Name}
+	sort.Strings(names)
+	if strings.Join(names, ",") != "alpha,beta" {
+		t.Fatalf("tools after list_changed = %#v", tools)
+	}
+}
+
 func TestMCPAppInvalidMIMEFallsBackToNormalToolResult(t *testing.T) {
 	const resourceURI = "ui://demo/not-an-app"
 	sdkServer := mcpsdk.NewServer(&mcpsdk.Implementation{Name: "bad-ui", Version: "1"}, nil)

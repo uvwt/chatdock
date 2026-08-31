@@ -11,12 +11,14 @@ import (
 )
 
 type conversationToolSet struct {
-	loaded             toolCatalog
-	onDemand           toolCatalog
-	exposure           conversationToolExposure
-	resources          conversationToolResources
-	mcpConfig          mcp.MCPConfig
-	serverInstructions []mcp.MCPServerInstruction
+	loaded              toolCatalog
+	onDemand            toolCatalog
+	exposure            conversationToolExposure
+	resources           conversationToolResources
+	mcpConfig           mcp.MCPConfig
+	serverInstructions  []mcp.MCPServerInstruction
+	workingSetSessionID string
+	workingSetTurn      int
 }
 
 type conversationToolExposure struct {
@@ -270,7 +272,11 @@ func (a *Server) callVisibleConversationTool(ctx context.Context, toolSet *conve
 	if isBuiltinToolDiscoveryTool(tool.FullName) {
 		return a.discoverConversationTools(ctx, toolSet, args)
 	}
-	return runRealTool(name, args)
+	result, err := runRealTool(name, args)
+	if err == nil {
+		a.rememberCalledConversationTool(toolSet.workingSetSessionID, toolSet.workingSetTurn, toolSet, tool)
+	}
+	return result, err
 }
 
 func (a *Server) discoverConversationTools(ctx context.Context, toolSet *conversationToolSet, args map[string]any) (map[string]any, error) {
@@ -347,6 +353,7 @@ func (a *Server) discoverConversationTools(ctx context.Context, toolSet *convers
 			return baseResult, nil
 		}
 		baseResult["loaded_tools"] = toolSet.expose(definitions)
+		a.rememberDiscoveredConversationTools(toolSet.workingSetSessionID, toolSet.workingSetTurn, toolSet, definitions)
 		baseResult["next"] = "该资源的真实工具已加入下一次模型请求；请直接调用目标工具。"
 		return baseResult, nil
 	}
@@ -358,6 +365,7 @@ func (a *Server) discoverConversationTools(ctx context.Context, toolSet *convers
 	}
 	result["mode"] = "search"
 	result["loaded_tools"] = toolSet.expose(matches)
+	a.rememberDiscoveredConversationTools(toolSet.workingSetSessionID, toolSet.workingSetTurn, toolSet, matches)
 	if len(matches) == 0 && len(resourceIDs) == 0 {
 		result["next"] = "未能仅根据目标确定资源；请从 resources 中选择一个资源后再次搜索，或对单个资源省略 query 进行全量加载。"
 	}
