@@ -11,6 +11,17 @@ import {
 } from './icons.js';
 import { ScheduleBuilder } from './scheduleBuilder.jsx';
 import { loadMarkdownRenderer, markdownRendererIfReady } from '../lib/markdownLoader.js';
+import { Button } from '../shared/ui/button.jsx';
+import { Tooltip } from '../shared/ui/tooltip.jsx';
+import {
+  Dialog,
+  DialogBackdrop,
+  DialogDescription,
+  DialogPopup,
+  DialogPortal,
+  DialogTitle,
+  DialogViewport,
+} from '../shared/ui/dialog.jsx';
 
 const MarkdownRenderer = lazy(loadMarkdownRenderer);
 
@@ -87,10 +98,11 @@ export function QuickPalette({ open, actions, onClose }) {
         onCloseRef.current();
       }
     };
-    document.addEventListener('keydown', handlePaletteKeyDown);
+    // 面板级键盘语义要先于内部 Tooltip / Menu 这类浮层处理 Escape，避免子浮层吞掉关闭快捷面板的按键。
+    document.addEventListener('keydown', handlePaletteKeyDown, true);
     return () => {
       cancelAnimationFrame(frame);
-      document.removeEventListener('keydown', handlePaletteKeyDown);
+      document.removeEventListener('keydown', handlePaletteKeyDown, true);
       if (!restoreFocusRef.current) return;
       const target = returnFocusRef.current;
       requestAnimationFrame(() => {
@@ -133,7 +145,9 @@ export function QuickPalette({ open, actions, onClose }) {
           <strong id="quickPaletteTitle">快捷操作</strong>
           <p id="quickPaletteDescription">当前会话与界面的常用入口</p>
         </div>
-        <button type="button" className="secondary small quick-palette-close icon-button" onClick={closePalette} aria-label="关闭快捷操作"><X size={17} aria-hidden="true" /></button>
+        <Tooltip content="关闭快捷操作">
+          <button type="button" className="secondary small quick-palette-close icon-button" onClick={closePalette} aria-label="关闭快捷操作"><X size={17} aria-hidden="true" /></button>
+        </Tooltip>
       </div>
       <div className="quick-palette-list">
         {groups.map((group, groupIndex) => <section className="quick-palette-group" key={group.label} aria-labelledby={'quickPaletteGroup' + groupIndex}>
@@ -238,23 +252,33 @@ export function DialogHost({ dialog, closeDialog }) {
     if (dialog.type === 'confirm') closeDialog(true);
     else closeDialog(values);
   }
-  return <div className="app-modal-backdrop show" onClick={e => { if (e.target === e.currentTarget) closeDialog(null); }}>
-    <div className={'app-modal-card ' + (dialog.variant || '')} role="dialog" aria-modal="true"><form className="app-modal-form" onSubmit={submit}>
-      <div className="app-modal-title">{dialog.title || '确认'}</div>
-      {dialog.message ? <div className="app-modal-message">{dialog.message}</div> : null}
-      {dialog.toolEventDetail ? <ToolEventDetail detail={dialog.toolEventDetail} /> : null}
-      <div className="app-modal-fields">{visibleFields.map(field => {
-        const value = values[field.name] ?? '';
-        const setValue = next => setValues(current => ({...current, [field.name]: next}));
-        const control = renderDialogField(field, value, setValue, values, setValues);
-        if (field.type === 'hidden') return control;
-        if (field.type === 'schedule_builder') return <div key={field.name} className="app-modal-field schedule-builder-field"><span>{field.label || field.name}</span>{control}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</div>;
-        if (field.type === 'readonly_text') return <section key={field.name} className="app-modal-field readonly-text-field"><span>{field.label || field.name}</span>{control}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</section>;
-        return <label key={field.name} className={'app-modal-field ' + (field.type === 'provider_keys' ? 'provider-keys-field' : '')}><span>{field.label || field.name}</span>{control}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</label>;
-      })}</div>
-      <div className="app-modal-actions">{dialog.hideCancel ? null : <button type="button" className="secondary app-modal-cancel" onClick={() => closeDialog(null)}>{dialog.cancelText || '取消'}</button>}<button type="submit" className={dialog.danger ? 'danger' : ''}>{dialog.confirmText || '确定'}</button></div>
-    </form></div>
-  </div>;
+  return <Dialog open onOpenChange={open => { if (!open) closeDialog(null); }}>
+    <DialogPortal>
+      <DialogBackdrop className="app-modal-backdrop show" />
+      <DialogViewport>
+        <DialogPopup className={'app-modal-card ' + (dialog.variant || '')}>
+          <form className="app-modal-form" onSubmit={submit}>
+            <DialogTitle className="app-modal-title">{dialog.title || '确认'}</DialogTitle>
+            {dialog.message ? <DialogDescription className="app-modal-message m-0">{dialog.message}</DialogDescription> : null}
+            {dialog.toolEventDetail ? <ToolEventDetail detail={dialog.toolEventDetail} /> : null}
+            <div className="app-modal-fields">{visibleFields.map(field => {
+              const value = values[field.name] ?? '';
+              const setValue = next => setValues(current => ({...current, [field.name]: next}));
+              const control = renderDialogField(field, value, setValue, values, setValues);
+              if (field.type === 'hidden') return control;
+              if (field.type === 'schedule_builder') return <div key={field.name} className="app-modal-field schedule-builder-field"><span>{field.label || field.name}</span>{control}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</div>;
+              if (field.type === 'readonly_text') return <section key={field.name} className="app-modal-field readonly-text-field"><span>{field.label || field.name}</span>{control}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</section>;
+              return <label key={field.name} className={'app-modal-field ' + (field.type === 'provider_keys' ? 'provider-keys-field' : '')}><span>{field.label || field.name}</span>{control}{field.hint ? <div className="app-modal-field-hint">{field.hint}</div> : null}</label>;
+            })}</div>
+            <div className="app-modal-actions">
+              {dialog.hideCancel ? null : <Button type="button" variant="secondary" className="app-modal-cancel" onClick={() => closeDialog(null)}>{dialog.cancelText || '取消'}</Button>}
+              <Button type="submit" variant={dialog.danger ? 'destructive' : 'default'}>{dialog.confirmText || '确定'}</Button>
+            </div>
+          </form>
+        </DialogPopup>
+      </DialogViewport>
+    </DialogPortal>
+  </Dialog>;
 }
 
 

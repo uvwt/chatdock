@@ -16,12 +16,23 @@ import { formatMessageTimeDivider, shouldShowMessageTimeDivider } from '../lib/m
 import { Markdown } from './base.jsx';
 import { MCPAppFrame } from './mcpApp.jsx';
 import { mcpAppArgumentsFromEvent, mcpAppResultFromEvent } from '../lib/mcpApps.js';
+import { Tooltip } from '../shared/ui/tooltip.jsx';
 
 function MessageActions({ text, onCopy, onBranch, onEdit, user = false }) {
+  const copyLabel = user ? '复制当前消息' : '复制当前回复';
+  const editLabel = '编辑当前消息';
+  const branchLabel = '在新聊天中创建分支对话';
+
   return <div className={'msg-actions ' + (user ? 'user-message-actions' : '')}>
-    <button type="button" className="secondary small msg-action-copy" onClick={() => onCopy(text)} aria-label={user ? '复制当前消息' : '复制当前回复'} title={user ? '复制当前消息' : '复制当前回复'}><Copy className="msg-action-icon" size={16} aria-hidden="true" /></button>
-    {onEdit ? <button type="button" className="secondary small msg-action-edit" onClick={onEdit} aria-label="编辑当前消息" title="编辑当前消息"><Pencil className="msg-action-icon" size={16} aria-hidden="true" /></button> : null}
-    {onBranch ? <button type="button" className="secondary small msg-action-branch" onClick={onBranch} aria-label="在新聊天中创建分支对话" title="在新聊天中创建分支对话"><GitBranch className="msg-action-icon" size={16} aria-hidden="true" /></button> : null}
+    <Tooltip content={copyLabel}>
+      <button type="button" className="secondary small msg-action-copy" onClick={() => onCopy(text)} aria-label={copyLabel}><Copy className="msg-action-icon" size={16} aria-hidden="true" /></button>
+    </Tooltip>
+    {onEdit ? <Tooltip content={editLabel}>
+      <button type="button" className="secondary small msg-action-edit" onClick={onEdit} aria-label={editLabel}><Pencil className="msg-action-icon" size={16} aria-hidden="true" /></button>
+    </Tooltip> : null}
+    {onBranch ? <Tooltip content={branchLabel}>
+      <button type="button" className="secondary small msg-action-branch" onClick={onBranch} aria-label={branchLabel}><GitBranch className="msg-action-icon" size={16} aria-hidden="true" /></button>
+    </Tooltip> : null}
     {!user ? <button type="button" className="secondary small msg-action-more" aria-label="更多操作" title="更多操作"><MoreHorizontal className="msg-action-icon" size={16} aria-hidden="true" /></button> : null}
   </div>;
 }

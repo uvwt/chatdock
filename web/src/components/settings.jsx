@@ -18,6 +18,15 @@ import { mcpAuthDraft, mcpAuthPayload } from '../lib/mcpAuthDraft.js';
 import { unsavedSettingsPrompt, validateMCPConfigRaw } from '../lib/settingsDraft.js';
 import { ProjectsPage, ScheduledTasksPage } from './managementPages.jsx';
 import { ProviderEditor, SettingsEditorPage } from './settingsEditors.jsx';
+import {
+  Dialog,
+  DialogBackdrop,
+  DialogPopup,
+  DialogPortal,
+  DialogTitle,
+  DialogViewport,
+} from '../shared/ui/dialog.jsx';
+import { Tooltip } from '../shared/ui/tooltip.jsx';
 
 const settingsModuleMeta = {
   model: {label: '模型', desc: '选择默认模型并管理模型供应商。', icon: Bot},
@@ -39,16 +48,6 @@ function useMountedRef() {
     return () => { mountedRef.current = false; };
   }, []);
   return mountedRef;
-}
-
-function modalFocusableElements(modal) {
-  if (!modal) return [];
-  const selector = 'button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])';
-  return Array.from(modal.querySelectorAll(selector)).filter(element => {
-    if (element.disabled || element.getAttribute('aria-disabled') === 'true') return false;
-    if (element.tabIndex < 0) return false;
-    return !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
-  });
 }
 
 function usePendingActions() {
@@ -76,50 +75,6 @@ function usePendingActions() {
 
   const isPending = useCallback(key => !!pendingRef.current[key], []);
   return {pending, isPending, runPending};
-}
-
-function useSettingsModalInteraction(open, modalRef, onClose, closeDisabled = false) {
-  useEffect(() => {
-    if (!open) return undefined;
-    const frame = window.requestAnimationFrame(() => {
-      const modal = modalRef.current;
-      const firstFocusable = modalFocusableElements(modal)[0];
-      (firstFocusable || modal)?.focus?.();
-    });
-    function closeOnEscape(event) {
-      if (event.key === 'Tab') {
-        const modal = modalRef.current;
-        const focusable = modalFocusableElements(modal);
-        if (!focusable.length) {
-          event.preventDefault();
-          modal?.focus?.();
-          return;
-        }
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        const active = document.activeElement;
-        if (event.shiftKey && (!modal?.contains(active) || active === first)) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && active === last) {
-          event.preventDefault();
-          first.focus();
-        }
-        return;
-      }
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation?.();
-        if (!closeDisabled) onClose();
-      }
-    }
-    window.addEventListener('keydown', closeOnEscape, true);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener('keydown', closeOnEscape, true);
-    };
-  }, [closeDisabled, modalRef, onClose, open]);
 }
 
 export function SettingsPanel(props) {
@@ -202,7 +157,9 @@ export function SettingsPanel(props) {
   return <section className="settings">
     <header className="settings-header">
       <div className="settings-header-main">
-        <button className="secondary small settings-back-button icon-button" onClick={() => closeSettings()} aria-label="返回聊天" title="返回聊天"><ArrowLeft className="settings-header-icon settings-back-icon" size={17} aria-hidden="true" /></button>
+        <Tooltip content="返回聊天">
+          <button className="secondary small settings-back-button icon-button" onClick={() => closeSettings()} aria-label="返回聊天"><ArrowLeft className="settings-header-icon settings-back-icon" size={17} aria-hidden="true" /></button>
+        </Tooltip>
         <div>
           <div className="settings-title-row"><h2>配置中心</h2></div>
           <p>统一管理模型、供应商、工具、项目、定时任务与系统。</p>
@@ -381,7 +338,7 @@ function ProvidersModule({ providers, saveModelProvider, deleteModelProvider, te
   const [editingProvider, setEditingProvider] = useState(undefined);
   const [candidatePicker, setCandidatePicker] = useState(null);
   const pendingActions = usePendingActions();
-  const candidateModalRef = useRef(null);
+  const candidateSearchRef = useRef(null);
   const candidateReturnFocusRef = useRef(null);
   const candidateSaving = !!pendingActions.pending.candidateSave;
   const discoveringModels = !!pendingActions.pending.discoverModels;
@@ -389,9 +346,7 @@ function ProvidersModule({ providers, saveModelProvider, deleteModelProvider, te
 
   const closeCandidatePicker = useCallback(() => {
     setCandidatePicker(null);
-    restoreFocusTo(candidateReturnFocusRef.current);
   }, []);
-  useSettingsModalInteraction(!!candidatePicker, candidateModalRef, closeCandidatePicker, candidateSaving);
 
   async function discoverModels(provider, trigger) {
     candidateReturnFocusRef.current = trigger || document.activeElement;
@@ -433,24 +388,29 @@ function ProvidersModule({ providers, saveModelProvider, deleteModelProvider, te
       const testingThisProvider = !!pendingActions.pending['providerTest:' + provider.id];
       return <TextCard key={provider.id} title={provider.name || provider.id} hint={provider.base_url || '-'} badge={provider.enabled ? (provider.type || 'openai') : '停用'}><div className="product-meta">默认：{provider.default_model || '-'} · 模型 {provider.models?.length || 0} · Key {provider.api_keys?.length || (provider.has_api_key ? 1 : 0)}</div><div className="product-actions"><button className="secondary small" onClick={() => setEditingProvider(provider)}>编辑</button><button className="secondary small" onClick={event => discoverModels(provider, event.currentTarget)} disabled={loadingModels || discoveringModels}>{loadingModels || discoveringModels ? '读取中…' : '发现模型'}</button><button className="secondary small" onClick={() => testSavedProvider(provider)} disabled={providerTestPending} aria-busy={testingThisProvider}>{testingThisProvider ? '测试中…' : '测试'}</button><button className="danger small" onClick={() => deleteModelProvider(provider)}>删除</button></div></TextCard>;
     }) : <div className="empty compact">还没有模型供应商。</div>}</div>
-    {candidatePicker ? <div className="app-modal-backdrop show" onClick={event => { if (event.target === event.currentTarget && !candidateSaving) closeCandidatePicker(); }}>
-      <div ref={candidateModalRef} className="app-modal-card candidate-model-modal" role="dialog" aria-modal="true" aria-labelledby="candidateModelTitle" tabIndex="-1">
-        <div className="app-modal-form">
-          <div id="candidateModelTitle" className="app-modal-title">发现模型 · {candidatePicker.provider.name || candidatePicker.provider.id}</div>
-          <div className="candidate-model-modal-body">
-            <p>选择要加入该供应商的模型，最后统一保存。</p>
-            <div className="candidate-model-filter"><input aria-label="搜索候选模型" autoComplete="off" placeholder="搜索模型名称" value={candidatePicker.query || ''} onChange={event => setCandidatePicker(current => current ? {...current, query: event.target.value} : current)} /><span role="status" aria-live="polite">显示 {visibleCandidateModels.length} / {candidatePicker.models.length} 个{candidatePicker.selected.length ? ` · 已选 ${candidatePicker.selected.length} 个` : ''}</span></div>
-            <div className="model-options candidate-model-options">{visibleCandidateModels.map(name => {
-              const existing = existingModels.includes(name);
-              const selected = candidatePicker.selected.includes(name);
-              return <button key={name} type="button" className={'model-option candidate ' + (existing ? 'added ' : '') + (selected ? 'active' : '')} onClick={() => toggleCandidate(name)} disabled={existing}>{existing ? '已存在 · ' : selected ? '已选择 · ' : ''}{name}</button>;
-            })}</div>
-            {!visibleCandidateModels.length ? <div className="empty compact">没有匹配的模型。</div> : null}
-          </div>
-          <div className="app-modal-actions"><button type="button" className="secondary" onClick={closeCandidatePicker} disabled={candidateSaving}>取消</button><button type="button" onClick={saveCandidates} disabled={candidateSaving || !candidatePicker.selected.length} aria-busy={candidateSaving}>{candidateSaving ? '保存中…' : '保存所选模型'}{candidatePicker.selected.length ? `（${candidatePicker.selected.length}）` : ''}</button></div>
-        </div>
-      </div>
-    </div> : null}
+    {candidatePicker ? <Dialog open onOpenChange={open => { if (!open && !candidateSaving) closeCandidatePicker(); }}>
+      <DialogPortal>
+        <DialogBackdrop className="app-modal-backdrop show" />
+        <DialogViewport>
+          <DialogPopup className="app-modal-card candidate-model-modal" initialFocus={candidateSearchRef} finalFocus={candidateReturnFocusRef}>
+            <div className="app-modal-form">
+              <DialogTitle className="app-modal-title">发现模型 · {candidatePicker.provider.name || candidatePicker.provider.id}</DialogTitle>
+              <div className="candidate-model-modal-body">
+                <p>选择要加入该供应商的模型，最后统一保存。</p>
+                <div className="candidate-model-filter"><input ref={candidateSearchRef} aria-label="搜索候选模型" autoComplete="off" placeholder="搜索模型名称" value={candidatePicker.query || ''} onChange={event => setCandidatePicker(current => current ? {...current, query: event.target.value} : current)} /><span role="status" aria-live="polite">显示 {visibleCandidateModels.length} / {candidatePicker.models.length} 个{candidatePicker.selected.length ? ` · 已选 ${candidatePicker.selected.length} 个` : ''}</span></div>
+                <div className="model-options candidate-model-options">{visibleCandidateModels.map(name => {
+                  const existing = existingModels.includes(name);
+                  const selected = candidatePicker.selected.includes(name);
+                  return <button key={name} type="button" className={'model-option candidate ' + (existing ? 'added ' : '') + (selected ? 'active' : '')} onClick={() => toggleCandidate(name)} disabled={existing}>{existing ? '已存在 · ' : selected ? '已选择 · ' : ''}{name}</button>;
+                })}</div>
+                {!visibleCandidateModels.length ? <div className="empty compact">没有匹配的模型。</div> : null}
+              </div>
+              <div className="app-modal-actions"><button type="button" className="secondary" onClick={closeCandidatePicker} disabled={candidateSaving}>取消</button><button type="button" onClick={saveCandidates} disabled={candidateSaving || !candidatePicker.selected.length} aria-busy={candidateSaving}>{candidateSaving ? '保存中…' : '保存所选模型'}{candidatePicker.selected.length ? `（${candidatePicker.selected.length}）` : ''}</button></div>
+            </div>
+          </DialogPopup>
+        </DialogViewport>
+      </DialogPortal>
+    </Dialog> : null}
   </section>;
 }
 

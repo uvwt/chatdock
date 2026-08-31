@@ -1,4 +1,4 @@
-/* 会话操作入口仅负责触发 Portal 菜单；菜单本体不挂在列表 DOM 内。 */
+/* 会话操作菜单由 Base UI Portal/Positioner 承担浮层定位；列表只保留触发器的视觉规则。 */
 #app.app #sessions .session {
   position: relative !important;
   padding-right: 42px !important;
@@ -57,8 +57,6 @@
 }
 
 .session-row-menu-portal {
-  position: fixed;
-  z-index: 3000;
   width: 146px;
   padding: 6px;
   display: grid;
@@ -87,7 +85,8 @@
   text-align: left;
 }
 
-.session-row-menu-portal button:hover:not(:disabled) {
+.session-row-menu-portal button:hover:not(:disabled),
+.session-row-menu-portal button[data-highlighted]:not(:disabled) {
   background: var(--gpt-sidebar-hover);
 }
 
@@ -95,7 +94,8 @@
   color: #ef4444;
 }
 
-.session-row-menu-portal button.danger:hover:not(:disabled) {
+.session-row-menu-portal button.danger:hover:not(:disabled),
+.session-row-menu-portal button.danger[data-highlighted]:not(:disabled) {
   background: rgba(239, 68, 68, .1);
   color: #f87171;
 }

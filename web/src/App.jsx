@@ -4,6 +4,7 @@ import { EmptyState, MemoizedMessageView } from './components/chat.jsx';
 import { ComposerBar, Sidebar, Topbar } from './components/appChrome.jsx';
 import { CurrentSessionTask, TaskPanel } from './components/taskPanel.jsx';
 import { DialogHost, LoginPage, Markdown, PageLoadingState, QuickPalette } from './components/base.jsx';
+import { Tooltip } from './shared/ui/tooltip.jsx';
 import { agentTaskDataEnabled, diagnosticsText, filenameFromResponse, logoutAndReload, normalizeSettingsModule, sessionIDFromPath, sessionPath, setSettingsDocumentScroll, settingsModuleFromPath } from './lib/appUtils.js';
 import { attachmentLooksLikeImage, chatErrorDetails, finalAssistantMessageFromSession, readableChatError, streamStatusText } from './lib/chatPresentation.js';
 import { buildToolEventDetail } from './lib/toolEventDetails.js';
@@ -92,17 +93,6 @@ export default function App() {
 
   useEffect(() => { pausedRef.current = streamPaused; }, [streamPaused]);
   useEffect(() => { currentRef.current = current; }, [current]);
-  useEffect(() => {
-    if (!sessionMenuID) return;
-    const close = () => setSessionMenuID('');
-    const onKey = (event) => { if (event.key === 'Escape') close(); };
-    window.addEventListener('click', close);
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('click', close);
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [sessionMenuID]);
 
   const detachActiveStream = useCallback(() => {
     resetStreamText();
@@ -1252,7 +1242,9 @@ export default function App() {
           taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
         />
         <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onPointerDown={handleMessagesPointerDown} onPointerUp={handleMessagesPointerEnd} onPointerCancel={handleMessagesPointerEnd} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} previousMessage={messages[i - 1]} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} onResolveToolEvent={resolveToolEventDetail} onMCPAppToolCall={callMCPAppTool} />) : <EmptyState />}</div>
-        {showJumpToLatest ? <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息" title="跳到最新模型消息"><ArrowDown className="jump-latest-icon" size={17} aria-hidden="true" /></button> : null}
+        {showJumpToLatest ? <Tooltip content="跳到最新模型消息">
+          <button type="button" className="jump-latest" onClick={scrollToLatestModelMessage} aria-label="跳到最新模型消息"><ArrowDown className="jump-latest-icon" size={17} aria-hidden="true" /></button>
+        </Tooltip> : null}
         <CurrentSessionTask
           error={currentSessionTask.error} loading={currentSessionTask.loading} onRefresh={currentSessionTask.refresh}
           task={currentSessionTask.task} taskID={currentSessionTask.taskID}

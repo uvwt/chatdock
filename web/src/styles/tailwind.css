@@ -1,0 +1,19 @@
+@import 'tailwindcss/utilities.css' layer(utilities) source(none);
+@source '../shared';
+@source '../components/base.jsx';
+
+@theme inline {
+  --color-background: var(--gpt-bg);
+  --color-foreground: var(--gpt-text);
+  --color-muted: var(--gpt-surface-2);
+  --color-muted-foreground: var(--gpt-muted);
+  --color-popover: var(--gpt-surface);
+  --color-popover-foreground: var(--gpt-text);
+  --color-border: var(--gpt-border);
+  --color-primary: var(--gpt-accent);
+  --color-primary-foreground: var(--gpt-accent-contrast);
+  --color-destructive: var(--gpt-danger);
+  --radius-sm: var(--ui-radius-small);
+  --radius-md: var(--ui-radius-control);
+  --radius-lg: var(--ui-radius-panel);
+}
