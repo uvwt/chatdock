@@ -107,7 +107,7 @@
   }
 
   .manage-card > footer button,
-  .manage-more-menu summary {
+  .manage-more-menu-trigger {
     min-height: var(--ui-control-compact);
     border-radius: var(--ui-radius-small);
   }
@@ -241,12 +241,12 @@
 }
 
 .settings-page .manage-page.embedded .manage-card > footer button,
-.settings-page .manage-page.embedded .manage-more-menu summary {
+.manage-more-menu-trigger.embedded {
   min-height: 34px;
   border-radius: 9px;
 }
 
-.settings-page .manage-page.embedded .manage-more-menu > div {
+.manage-more-menu-portal.embedded {
   min-width: 168px;
   padding: 5px;
   overflow: hidden;
@@ -258,7 +258,7 @@
   backdrop-filter: blur(18px) saturate(140%);
 }
 
-.settings-page .manage-page.embedded .manage-more-menu > div button {
+.manage-more-menu-portal.embedded button {
   width: 100%;
   min-height: 38px;
   justify-content: flex-start;
@@ -273,12 +273,13 @@
   text-align: left;
 }
 
-.settings-page .manage-page.embedded .manage-more-menu > div button:hover,
-.settings-page .manage-page.embedded .manage-more-menu > div button:focus-visible {
+.manage-more-menu-portal.embedded button:hover,
+.manage-more-menu-portal.embedded button:focus-visible,
+.manage-more-menu-portal.embedded button[data-highlighted] {
   background: var(--gpt-sidebar-hover) !important;
 }
 
-.settings-page .manage-page.embedded .manage-more-menu > div button.danger {
+.manage-more-menu-portal.embedded button.danger {
   min-height: 42px;
   margin-top: 4px;
   padding-top: 4px;
@@ -286,8 +287,9 @@
   color: var(--gpt-danger) !important;
 }
 
-.settings-page .manage-page.embedded .manage-more-menu > div button.danger:hover,
-.settings-page .manage-page.embedded .manage-more-menu > div button.danger:focus-visible {
+.manage-more-menu-portal.embedded button.danger:hover,
+.manage-more-menu-portal.embedded button.danger:focus-visible,
+.manage-more-menu-portal.embedded button.danger[data-highlighted] {
   background: color-mix(in srgb, var(--gpt-danger) 8%, transparent) !important;
 }
 
@@ -460,29 +462,27 @@
     font-size: 11px;
   }
 
-  .settings-page .manage-page.embedded .manage-more-menu summary {
+  .manage-more-menu-trigger.embedded {
     width: 34px;
     height: 34px;
     min-height: 34px;
     border-radius: 10px;
   }
 
-  .settings-page .manage-page.embedded .manage-more-menu > div {
-    top: calc(100% + 7px);
-    right: -2px;
+  .manage-more-menu-portal.embedded {
     min-width: 164px;
     padding: 5px;
     border-radius: 14px;
   }
 
-  .settings-page .manage-page.embedded .manage-more-menu > div button {
+  .manage-more-menu-portal.embedded button {
     min-height: 37px;
     padding: 0 10px;
     border-radius: 9px !important;
     font-size: 12px;
   }
 
-  .settings-page .manage-page.embedded .manage-more-menu > div button.danger {
+  .manage-more-menu-portal.embedded button.danger {
     min-height: 41px;
   }
 

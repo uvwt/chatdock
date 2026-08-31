@@ -1,5 +1,4 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
 import {
   ArrowDown,
   ArrowUp,
@@ -21,6 +20,8 @@ import {
 import { AttachmentList } from './chat.jsx';
 import { ComposerModelPicker } from './modelPicker.jsx';
 import { TaskPanelToggle } from './taskPanel.jsx';
+import { Menu as UiMenu, MenuItem, MenuPopup, MenuPortal, MenuPositioner, MenuTrigger } from '../shared/ui/menu.jsx';
+import { Tooltip } from '../shared/ui/tooltip.jsx';
 import { fetchSessions } from '../lib/sessionApi.js';
 import { fetchScheduledTaskRuns } from '../lib/settingsApi.js';
 import { scheduledTaskSessionRows, sessionRowID, unpinnedSessionRows } from '../lib/sessionPresentation.js';
@@ -42,7 +43,9 @@ export function Topbar({ currentTitle, newSession, openSettings, selectedProject
       <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)}><MoreHorizontal {...iconProps} /><span className="action-label">快捷</span></button>
       <button className="secondary config-toggle" onClick={() => openSettings()}><Settings2 {...iconProps} /><span className="action-label">配置</span></button>
       <TaskPanelToggle available={taskPanelAvailable} open={taskPanelOpen} tasks={taskPanelTasks} onClick={toggleTaskPanel} />
-      <button className="secondary session-actions-toggle mobile-new-toggle icon-button" onClick={newSession} aria-label="新会话"><MessageSquarePlus {...iconProps} /></button>
+      <Tooltip content="新会话">
+        <button className="secondary session-actions-toggle mobile-new-toggle icon-button" onClick={newSession} aria-label="新会话"><MessageSquarePlus {...iconProps} /></button>
+      </Tooltip>
       <button className="theme-toggle" onClick={() => setThemeState(darkMode ? 'day' : 'night')} aria-label={darkMode ? '切换到浅色模式' : '切换到深色模式'}>
         <ThemeIcon {...iconProps} />
         <span className="action-label">{darkMode ? '浅色' : '深色'}</span>
@@ -74,7 +77,43 @@ export function ComposerBar({ busy, createPersistedSession, current, downloadAtt
   </div>;
 }
 
-function SidebarTreeNode({ api, current, item, kind, openSession, openSessionMenu, pinnedSessions, startProjectConversation }) {
+function SessionActionMenu({ activeMenuKey, busy, current, deleteSessionByID, iconSize = 16, menuKey, onDelete, pinSessionByID, renameSessionByID, session, sessionMenuID, setActiveMenuKey, setSessionMenuID, triggerClassName, triggerLabel }) {
+  const open = sessionMenuID === session.id && activeMenuKey === menuKey;
+  const deletingCurrentStream = !!(busy && session.id === current);
+
+  const closeMenu = () => {
+    setActiveMenuKey('');
+    setSessionMenuID('');
+  };
+  const runAction = action => {
+    closeMenu();
+    action();
+  };
+
+  return <UiMenu modal={false} open={open} onOpenChange={nextOpen => {
+    if (nextOpen) {
+      setActiveMenuKey(menuKey);
+      setSessionMenuID(session.id);
+      return;
+    }
+    if (open) closeMenu();
+  }}>
+    <MenuTrigger className={triggerClassName} onClick={event => event.stopPropagation()} aria-label={triggerLabel || (session.title || '会话') + ' 操作'}>
+      <MoreHorizontal size={iconSize} aria-hidden="true" />
+    </MenuTrigger>
+    <MenuPortal>
+      <MenuPositioner className="z-[3000]" side="bottom" align="end" sideOffset={6} collisionPadding={8} positionMethod="fixed">
+        <MenuPopup className="session-row-menu-portal">
+          <MenuItem onClick={() => runAction(() => pinSessionByID(session.id, !!session.pinned))}>{session.pinned ? '取消置顶' : '置顶'}</MenuItem>
+          <MenuItem danger onClick={() => runAction(() => deleteSessionByID(session.id, session.title).then(() => onDelete?.()))} disabled={deletingCurrentStream} title={deletingCurrentStream ? '生成结束或中断后才能删除当前会话' : undefined}>删除</MenuItem>
+          <MenuItem onClick={() => runAction(() => renameSessionByID(session.id, session.title))}>重命名标题</MenuItem>
+        </MenuPopup>
+      </MenuPositioner>
+    </MenuPortal>
+  </UiMenu>;
+}
+
+function SidebarTreeNode({ api, current, item, kind, openSession, pinnedSessions, renderSessionMenu, startProjectConversation }) {
   const [rows, setRows] = React.useState();
   const Icon = kind === 'project' ? Folder : ListTodo;
   const visibleRows = Array.isArray(rows) ? unpinnedSessionRows(rows, pinnedSessions) : rows;
@@ -85,7 +124,13 @@ function SidebarTreeNode({ api, current, item, kind, openSession, openSessionMen
     const summary = { id, title, pinned: !!row.pinned };
     return <div key={id} className="sidebar-tree-session-row">
       <button className={'sidebar-tree-session ' + (current === id ? 'active' : '')} onClick={async () => { if (await openSession(id) === false) removeRow(id); }}>{title}</button>
-      <button className="sidebar-tree-session-menu icon-button" onClick={event => openSessionMenu(event, summary, () => removeRow(id))} aria-label="操作"><MoreHorizontal size={15} aria-hidden="true" /></button>
+      {renderSessionMenu(summary, {
+        iconSize: 15,
+        menuKey: `tree:${kind}:${item.id}:${id}`,
+        onDelete: () => removeRow(id),
+        triggerClassName: 'sidebar-tree-session-menu icon-button',
+        triggerLabel: '操作',
+      })}
     </div>;
   };
   const loadRows = async event => {
@@ -150,45 +195,19 @@ function SectionPlaceholder({ rows, label }) {
 }
 
 export function Sidebar({ api, busy, current, deleteSessionByID, filteredSessions, goHome, hasMoreSessions, loadingMoreSessions, sessionsLoaded = true, newSession, onLoadMoreSessions, openSession, openManagementPage, pinSessionByID, pinnedSessions = [], pinnedProjects = [], pinnedTasks = [], pinnedLoaded = true, projects, projectsLoaded = true, projectFilter, renameSessionByID, scheduledTasks, scheduledTasksLoaded = true, sessionMenuID, sessionSearch, sessionSearchBusy, setSessionMenuID, setSessionSearch, setSidebarCollapsed, setTaskSearch, sidebarCollapsed, startProjectConversation }) {
-  const [menuTarget, setMenuTarget] = React.useState(null);
+  const [activeMenuKey, setActiveMenuKey] = React.useState('');
   const sessionsRef = React.useRef(null);
   const loadMoreRef = React.useRef(null);
-  const menuSession = menuTarget?.id === sessionMenuID ? menuTarget : null;
   // 首屏用上一次记录的行数预留高度；本次数据到齐后再写回，供下次首屏使用。
   const cachedRowsRef = React.useRef(null);
   if (cachedRowsRef.current === null) cachedRowsRef.current = readSectionRows();
   const cachedRows = cachedRowsRef.current;
 
+  // sessionMenuID 仍由 App 持有，activeMenuKey 只区分同一会话在树节点和全部会话中的不同触发器。
+  // 外部路由或筛选切换清空 sessionMenuID 时，同步丢弃本地触发器标识，避免残留不可见状态。
   React.useEffect(() => {
-    if (!sessionMenuID) return undefined;
-    const closeMenu = event => {
-      if (event?.target?.closest?.('.session-menu-trigger, .sidebar-tree-session-menu, .session-row-menu-portal')) return;
-      setSessionMenuID('');
-      setMenuTarget(null);
-    };
-    window.addEventListener('resize', closeMenu);
-    document.addEventListener('scroll', closeMenu, true);
-    document.addEventListener('pointerdown', closeMenu, true);
-    return () => {
-      window.removeEventListener('resize', closeMenu);
-      document.removeEventListener('scroll', closeMenu, true);
-      document.removeEventListener('pointerdown', closeMenu, true);
-    };
-  }, [sessionMenuID, setSessionMenuID]);
-
-  const toggleSessionMenu = (event, session, onDelete) => {
-    event.stopPropagation();
-    if (sessionMenuID === session.id) {
-      setSessionMenuID('');
-      setMenuTarget(null);
-      return;
-    }
-    const rect = event.currentTarget.getBoundingClientRect();
-    const left = Math.min(window.innerWidth - 154, Math.max(8, rect.right - 146));
-    const top = Math.min(window.innerHeight - 154, Math.max(8, rect.bottom + 6));
-    setMenuTarget({ ...session, onDelete, left, top });
-    setSessionMenuID(session.id);
-  };
+    if (!sessionMenuID && activeMenuKey) setActiveMenuKey('');
+  }, [activeMenuKey, sessionMenuID]);
 
   React.useEffect(() => {
     if (sessionsRef.current) sessionsRef.current.scrollTop = 0;
@@ -212,19 +231,23 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
     if (list.scrollHeight - list.scrollTop - list.clientHeight <= 120) onLoadMoreSessions();
   };
 
-  const closeSessionMenu = () => {
-    setSessionMenuID('');
-    setMenuTarget(null);
-  };
-  const deletingCurrentStream = !!(busy && menuSession?.id === current);
-  const menu = menuSession ? createPortal(
-    <div className="session-row-menu-portal" role="menu" style={{ left: menuSession.left, top: menuSession.top }} onClick={event => event.stopPropagation()}>
-      <button type="button" role="menuitem" onClick={() => { closeSessionMenu(); pinSessionByID(menuSession.id, !!menuSession.pinned); }}>{menuSession.pinned ? '取消置顶' : '置顶'}</button>
-      <button type="button" role="menuitem" className="danger" onClick={() => { closeSessionMenu(); deleteSessionByID(menuSession.id, menuSession.title).then(() => menuSession.onDelete?.()); }} disabled={deletingCurrentStream} title={deletingCurrentStream ? '生成结束或中断后才能删除当前会话' : undefined}>删除</button>
-      <button type="button" role="menuitem" onClick={() => { closeSessionMenu(); renameSessionByID(menuSession.id, menuSession.title); }}>重命名标题</button>
-    </div>,
-    document.body,
-  ) : null;
+  const renderSessionMenu = (session, { iconSize = 16, menuKey, onDelete, triggerClassName = 'session-menu-trigger icon-button', triggerLabel } = {}) => <SessionActionMenu
+    activeMenuKey={activeMenuKey}
+    busy={busy}
+    current={current}
+    deleteSessionByID={deleteSessionByID}
+    iconSize={iconSize}
+    menuKey={menuKey || `session:${session.id}`}
+    onDelete={onDelete}
+    pinSessionByID={pinSessionByID}
+    renameSessionByID={renameSessionByID}
+    session={session}
+    sessionMenuID={sessionMenuID}
+    setActiveMenuKey={setActiveMenuKey}
+    setSessionMenuID={setSessionMenuID}
+    triggerClassName={triggerClassName}
+    triggerLabel={triggerLabel}
+  />;
 
   const searchingSessions = !!sessionSearch.trim();
   const pinnedSessionRows = searchingSessions ? [] : pinnedSessions;
@@ -240,7 +263,7 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
   const pendingSessionRows = searchingSessions ? sessionSearchBusy : !sessionsLoaded;
   const pinnedProjectIDs = new Set(pinnedProjects.map(item => item.id));
   const pinnedTaskIDs = new Set(pinnedTasks.map(item => item.id));
-  const renderTreeNode = (kind, item) => <SidebarTreeNode key={kind + item.id} api={api} current={current} item={item} kind={kind} openSession={openSession} openSessionMenu={toggleSessionMenu} pinnedSessions={pinnedSessions} startProjectConversation={startProjectConversation} />;
+  const renderTreeNode = (kind, item) => <SidebarTreeNode key={kind + item.id} api={api} current={current} item={item} kind={kind} openSession={openSession} pinnedSessions={pinnedSessions} renderSessionMenu={renderSessionMenu} startProjectConversation={startProjectConversation} />;
   const managementProjects = (projects || []).filter(item => !item.pinned && !pinnedProjectIDs.has(item.id));
   const managementTasks = (scheduledTasks || []).filter(item => !item.pinned && !pinnedTaskIDs.has(item.id));
   const sessionRows = filteredSessions;
@@ -260,13 +283,14 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
   }, [pinnedLoaded, projectsLoaded, scheduledTasksLoaded, sessionsLoaded, sessionSearch, pinnedRowCount, projectRowCount, taskRowCount, filteredSessions.length]);
   const renderSession = session => {
     const isActive = current === session.id;
-    const menuOpen = sessionMenuID === session.id;
+    const menuKey = `session:${session.id}`;
+    const menuOpen = sessionMenuID === session.id && activeMenuKey === menuKey;
     return <div key={session.id} data-session-id={session.id} className={'session ' + (isActive ? 'active ' : '') + (session.pinned ? 'pinned ' : '') + (menuOpen ? 'menu-open' : '')} onClick={() => openSession(session.id, session)}>
       <div className="session-main">
         {session.pinned ? <MessageSquare className="session-kind-icon" size={15} aria-hidden="true" /> : null}
         <div className="session-title">{session.title}</div>
       </div>
-      <button type="button" className="session-menu-trigger icon-button" onClick={event => toggleSessionMenu(event, session)} aria-label={(session.title || '会话') + ' 操作'} aria-expanded={menuOpen ? 'true' : 'false'}><MoreHorizontal size={16} aria-hidden="true" /></button>
+      {renderSessionMenu(session, { menuKey })}
     </div>;
   };
 
@@ -276,11 +300,15 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
         <a className="brand" href="/" aria-label="返回 ChatDock 首页" onClick={event => { event.preventDefault(); goHome(); }}>
           <div className="brand-copy"><span className="brand-text">ChatDock</span><div className="sub">Local AI</div></div>
         </a>
-        <button id="sidebarToggle" className="sidebar-toggle icon-button" onClick={() => setSidebarCollapsed(current => !current)} aria-label={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'} title={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}>{sidebarCollapsed ? <PanelLeftOpen {...iconProps} /> : <PanelLeftClose {...iconProps} />}</button>
+        <Tooltip content={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}>
+          <button id="sidebarToggle" className="sidebar-toggle icon-button" onClick={() => setSidebarCollapsed(current => !current)} aria-label={sidebarCollapsed ? '展开侧栏' : '折叠侧栏'}>{sidebarCollapsed ? <PanelLeftOpen {...iconProps} /> : <PanelLeftClose {...iconProps} />}</button>
+        </Tooltip>
       </div>
       <div className="session-search-row">
         <label className="session-search-box"><Search size={15} aria-hidden="true" /><input className="session-search" placeholder="搜索聊天记录" value={sessionSearch} onChange={event => setSessionSearch(event.target.value)} /></label>
-        <button className="new icon-button" onClick={newSession} aria-label="新会话"><MessageSquarePlus {...iconProps} /></button>
+        <Tooltip content="新会话">
+          <button className="new icon-button" onClick={newSession} aria-label="新会话"><MessageSquarePlus {...iconProps} /></button>
+        </Tooltip>
       </div>
       <div id="sessions" ref={sessionsRef} onScroll={handleSessionScroll}>
         {showPinnedSection ? <>
@@ -308,6 +336,5 @@ export function Sidebar({ api, busy, current, deleteSessionByID, filteredSession
         {loadingMoreSessions ? <div className="session-search-meta" role="status">正在加载更多…</div> : null}
       </div>
     </aside>
-    {menu}
   </>;
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MoreHorizontal, Plus, RefreshCw } from './icons.js';
+import { Menu, MenuItem, MenuPopup, MenuPortal, MenuPositioner, MenuTrigger } from '../shared/ui/menu.jsx';
 import { fmtTime, runStatusClass, runStatusLabel, scheduleSummary, taskStatusClass, taskStatusLabel } from '../lib/appUtils.js';
 import { fetchScheduledTaskRuns } from '../lib/settingsApi.js';
 import { scheduledTaskSessionRows } from '../lib/sessionPresentation.js';
@@ -20,9 +21,18 @@ function SummaryCard({ label, value, onClick }) {
   return onClick ? <button type="button" className="manage-summary-card actionable" onClick={onClick}>{content}</button> : <div className="manage-summary-card">{content}</div>;
 }
 
-function closeDetailsAndRun(event, action) {
-  event.currentTarget.closest('details')?.removeAttribute('open');
-  action();
+function ManageMoreMenu({ children, embedded = false, label }) {
+  const modifier = embedded ? ' embedded' : '';
+  return <Menu modal={false}>
+    <MenuTrigger className={'manage-more-menu-trigger' + modifier} aria-label={label} title="更多操作">
+      <MoreHorizontal size={17} aria-hidden="true" />
+    </MenuTrigger>
+    <MenuPortal>
+      <MenuPositioner side="bottom" align="end" sideOffset={6} collisionPadding={8} positionMethod="fixed">
+        <MenuPopup className={'manage-more-menu-portal' + modifier}>{children}</MenuPopup>
+      </MenuPositioner>
+    </MenuPortal>
+  </Menu>;
 }
 
 async function togglePinned(api, type, item, apply, showToast) {
@@ -70,11 +80,11 @@ export function ProjectsPage({ api, deleteProject, saveProject, embedded = false
         </div>
         <div className="manage-card-grid">
           {projects.length ? projects.map(project => <article key={project.id} className={'manage-card project-manage-card ' + (project.pinned ? 'pinned' : '')}>
-            <header><div><span>项目</span><h2>{project.name}</h2></div><div className="project-card-actions"><em>{projectSessionCounts?.byProject?.[project.id] || 0} 会话</em><details className="manage-more-menu"><summary aria-label="更多项目操作" title="更多操作"><MoreHorizontal size={17} aria-hidden="true" /></summary><div>
-              <button type="button" className="secondary" onClick={event => closeDetailsAndRun(event, () => pinProject(project))}>{project.pinned ? '取消置顶' : '置顶项目'}</button>
-              <button type="button" className="secondary" onClick={event => closeDetailsAndRun(event, () => openProjectEditor(project))}>编辑项目</button>
-              <button type="button" className="danger" onClick={event => closeDetailsAndRun(event, () => deleteProject(project))}>删除项目</button>
-            </div></details></div></header>
+            <header><div><span>项目</span><h2>{project.name}</h2></div><div className="project-card-actions"><em>{projectSessionCounts?.byProject?.[project.id] || 0} 会话</em><ManageMoreMenu embedded={embedded} label="更多项目操作">
+              <MenuItem className="secondary" onClick={() => pinProject(project)}>{project.pinned ? '取消置顶' : '置顶项目'}</MenuItem>
+              <MenuItem className="secondary" onClick={() => openProjectEditor(project)}>编辑项目</MenuItem>
+              <MenuItem danger onClick={() => deleteProject(project)}>删除项目</MenuItem>
+            </ManageMoreMenu></div></header>
             <p>{project.prompt || '未设置项目提示词'}</p>
             <div className="manage-card-meta">ID：{project.id}</div>
             <footer>
@@ -92,7 +102,7 @@ function scheduledTaskContextLabel(mode) {
   return ({stateless: '每次独立执行', last_result: '带上次结果', session: '连续会话'})[mode] || '每次独立执行';
 }
 
-function ScheduledTaskCard({ task, deleteScheduledTask, onEdit, openScheduledTaskSession, openTaskSessions, pinScheduledTask, runPending, runScheduledTaskNow, togglePending, toggleScheduledTask }) {
+function ScheduledTaskCard({ task, deleteScheduledTask, embedded = false, onEdit, openScheduledTaskSession, openTaskSessions, pinScheduledTask, runPending, runScheduledTaskNow, togglePending, toggleScheduledTask }) {
   const prompt = (task.prompt || '').trim().slice(0, 180) || '无提示内容';
   const runDisabled = task.running || runPending;
   return <article className={'manage-card scheduled-task-manage-card ' + (task.pinned ? 'pinned' : '')}>
@@ -100,12 +110,12 @@ function ScheduledTaskCard({ task, deleteScheduledTask, onEdit, openScheduledTas
       <div><span>定时任务</span><h2>{task.title || '未命名任务'}</h2></div>
       <div className="scheduled-task-card-actions">
         <em className={'badge ' + taskStatusClass(task)}>{taskStatusLabel(task)}</em>
-        <details className="manage-more-menu"><summary aria-label="更多任务操作" title="更多操作"><MoreHorizontal size={17} aria-hidden="true" /></summary><div>
-          <button type="button" className="secondary" onClick={event => closeDetailsAndRun(event, () => pinScheduledTask(task))}>{task.pinned ? '取消置顶' : '置顶任务'}</button>
-          {task.session_id ? <button type="button" className="secondary" onClick={event => closeDetailsAndRun(event, () => openScheduledTaskSession(task.session_id))}>打开最近会话</button> : null}
-          <button type="button" className="secondary" onClick={event => closeDetailsAndRun(event, () => onEdit(task))}>编辑任务</button>
-          <button type="button" className="danger" onClick={event => closeDetailsAndRun(event, () => deleteScheduledTask(task.id))}>删除任务</button>
-        </div></details>
+        <ManageMoreMenu embedded={embedded} label="更多任务操作">
+          <MenuItem className="secondary" onClick={() => pinScheduledTask(task)}>{task.pinned ? '取消置顶' : '置顶任务'}</MenuItem>
+          {task.session_id ? <MenuItem className="secondary" onClick={() => openScheduledTaskSession(task.session_id)}>打开最近会话</MenuItem> : null}
+          <MenuItem className="secondary" onClick={() => onEdit(task)}>编辑任务</MenuItem>
+          <MenuItem danger onClick={() => deleteScheduledTask(task.id)}>删除任务</MenuItem>
+        </ManageMoreMenu>
       </div>
     </header>
     <p>{prompt}</p>
@@ -195,7 +205,7 @@ export function ScheduledTasksPage({ api, deleteScheduledTask, saveScheduledTask
   const running = scheduledTasks.filter(task => task.running).length;
   const failed = scheduledTasks.filter(task => task.last_status === 'failed').length;
   const taskCards = <div className="manage-card-grid scheduled-task-grid">
-    {filteredTasks.length ? filteredTasks.map(task => <ScheduledTaskCard key={task.id} task={task} deleteScheduledTask={deleteScheduledTask} onEdit={setEditingTask} openScheduledTaskSession={openScheduledTaskSession} openTaskSessions={loadTaskSessions} pinScheduledTask={pinScheduledTask} runPending={!!pendingActions['run:' + task.id]} runScheduledTaskNow={runTaskNow} togglePending={!!pendingActions['toggle:' + task.id]} toggleScheduledTask={toggleTask} />) : <div className="manage-empty"><b>{taskSearch.trim() ? '没有匹配任务' : '还没有定时任务'}</b><span>{taskSearch.trim() ? '换个关键词再试。' : '创建任务后可按一次、间隔或日历计划自动运行。'}</span></div>}
+    {filteredTasks.length ? filteredTasks.map(task => <ScheduledTaskCard key={task.id} task={task} deleteScheduledTask={deleteScheduledTask} embedded={embedded} onEdit={setEditingTask} openScheduledTaskSession={openScheduledTaskSession} openTaskSessions={loadTaskSessions} pinScheduledTask={pinScheduledTask} runPending={!!pendingActions['run:' + task.id]} runScheduledTaskNow={runTaskNow} togglePending={!!pendingActions['toggle:' + task.id]} toggleScheduledTask={toggleTask} />) : <div className="manage-empty"><b>{taskSearch.trim() ? '没有匹配任务' : '还没有定时任务'}</b><span>{taskSearch.trim() ? '换个关键词再试。' : '创建任务后可按一次、间隔或日历计划自动运行。'}</span></div>}
   </div>;
   if (sessionTask) return <ScheduledSessionList task={sessionTask} rows={sessionRuns} onBack={() => { requestRef.current++; setSessionTask(null); }} onOpen={openScheduledTaskSession} />;
   if (editingTask !== undefined) return <ScheduledTaskEditor task={editingTask} onBack={() => setEditingTask(undefined)} onSave={saveScheduledTask} onDelete={async id => { await deleteScheduledTask(id); setEditingTask(undefined); }} onRun={runScheduledTaskNow} onViewRuns={task => { setEditingTask(undefined); loadTaskSessions(task); }} />;

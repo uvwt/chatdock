@@ -4,6 +4,7 @@ import { ProviderKeysEditor } from './base.jsx';
 import { ScheduleBuilder } from './scheduleBuilder.jsx';
 import { cronScheduleFormValue, defaultRunAtValue, fmtTime } from '../lib/appUtils.js';
 import { providerKeyRows, uniqueModelNames } from '../lib/modelProviderForm.js';
+import { Tooltip } from '../shared/ui/tooltip.jsx';
 
 export function SettingsEditorPage({ title, description, onBack, children, actions, eyebrow = '配置' }) {
   useEffect(() => {
@@ -19,7 +20,9 @@ export function SettingsEditorPage({ title, description, onBack, children, actio
   }, [onBack]);
   return <section className="settings-editor-page">
     <header className="settings-editor-header">
-      <button type="button" className="secondary icon-button settings-editor-back" onClick={onBack} aria-label="返回列表" title="返回列表"><ArrowLeft size={17} aria-hidden="true" /></button>
+      <Tooltip content="返回列表">
+        <button type="button" className="secondary icon-button settings-editor-back" onClick={onBack} aria-label="返回列表"><ArrowLeft size={17} aria-hidden="true" /></button>
+      </Tooltip>
       <div className="settings-editor-heading"><span>{eyebrow}</span><h2>{title}</h2>{description ? <p>{description}</p> : null}</div>
     </header>
     <div className="settings-editor-body">{children}</div>

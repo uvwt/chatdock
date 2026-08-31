@@ -7,6 +7,7 @@ import {
   RefreshCw,
   X,
 } from './icons.js';
+import { Tooltip } from '../shared/ui/tooltip.jsx';
 import { activeAgentTaskCount, agentTaskProgress, agentTaskStatusMeta, agentTaskStepMeta } from '../lib/agentTasks.js';
 
 export function TaskPanelToggle({ available, open, tasks, onClick }) {
@@ -67,7 +68,9 @@ export function TaskPanel({ available, deletingTaskID, detailError, detailLoadin
       </div>
       <div className="agent-task-panel-actions">
         <button type="button" className="secondary agent-task-refresh icon-button" onClick={() => onRefresh({ initial: true })} disabled={!available || loading} aria-label="刷新任务" title="刷新任务"><RefreshCw size={16} aria-hidden="true" /></button>
-        <button type="button" className="secondary agent-task-close icon-button" onClick={onClose} aria-label="关闭任务面板" title="关闭任务面板"><X size={16} aria-hidden="true" /></button>
+        <Tooltip content="关闭任务面板">
+          <button type="button" className="secondary agent-task-close icon-button" onClick={onClose} aria-label="关闭任务面板"><X size={16} aria-hidden="true" /></button>
+        </Tooltip>
       </div>
     </header>
 

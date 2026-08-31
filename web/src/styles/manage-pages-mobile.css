@@ -207,19 +207,19 @@
     font-size: 12px;
   }
 
-  .manage-more-menu summary {
+  .manage-more-menu-trigger {
     width: 38px;
     height: 38px;
     border-radius: 12px;
   }
 
-  .manage-more-menu > div {
+  .manage-more-menu-portal {
     min-width: 172px;
     padding: 7px;
     border-radius: 14px;
   }
 
-  .manage-more-menu > div button {
+  .manage-more-menu-portal button {
     min-height: 42px;
     border-radius: 10px;
     font-size: 13px;
