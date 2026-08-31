@@ -374,18 +374,18 @@
   background: #f8fafc;
 }
 
-.settings-page .candidate-model-options {
+.candidate-model-modal .candidate-model-options {
   max-height: 260px;
   overflow: auto;
   padding-right: 3px;
 }
 
-.settings-page .model-option.candidate {
+.candidate-model-modal .model-option.candidate {
   border-style: dashed !important;
   background: #ffffff !important;
 }
 
-.settings-page .model-option.candidate.added {
+.candidate-model-modal .model-option.candidate.added {
   border-style: solid !important;
   border-color: #bbf7d0 !important;
   background: #ecfdf5 !important;
@@ -431,7 +431,7 @@
     width: 100% !important;
   }
 
-  .settings-page .candidate-model-options {
+  .candidate-model-modal .candidate-model-options {
     max-height: 220px;
   }
 
