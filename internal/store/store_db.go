@@ -49,6 +49,8 @@ func (s *Store) initSQLite() error {
 		`CREATE TABLE IF NOT EXISTS session_message_parts (session_id TEXT NOT NULL, message_index INTEGER NOT NULL, part_index INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT NOT NULL DEFAULT '', call_key TEXT NOT NULL DEFAULT '', event_id TEXT NOT NULL DEFAULT '', PRIMARY KEY(session_id, message_index, part_index), FOREIGN KEY(session_id, message_index) REFERENCES session_messages(session_id, message_index) ON DELETE CASCADE)`,
 		`CREATE TABLE IF NOT EXISTS session_message_events (session_id TEXT NOT NULL, message_index INTEGER NOT NULL, event_index INTEGER NOT NULL, id TEXT NOT NULL, kind TEXT NOT NULL, phase TEXT NOT NULL DEFAULT '', call_key TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '', meta TEXT NOT NULL DEFAULT '', PRIMARY KEY(session_id, message_index, event_index), FOREIGN KEY(session_id, message_index) REFERENCES session_messages(session_id, message_index) ON DELETE CASCADE)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_session_message_events_id ON session_message_events(session_id, id)`,
+		`CREATE TABLE IF NOT EXISTS session_tool_working_set (session_id TEXT NOT NULL, tool_name TEXT NOT NULL, resource_id TEXT NOT NULL, last_discovered_turn INTEGER NOT NULL DEFAULT 0, last_called_turn INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(session_id, tool_name), FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE)`,
+		`CREATE INDEX IF NOT EXISTS idx_session_tool_working_set_session ON session_tool_working_set(session_id, last_called_turn DESC, last_discovered_turn DESC)`,
 		`CREATE TABLE IF NOT EXISTS session_message_event_details (session_id TEXT NOT NULL, event_id TEXT NOT NULL, details_json TEXT NOT NULL, details_bytes INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL, PRIMARY KEY(session_id, event_id), FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE)`,
 		`CREATE INDEX IF NOT EXISTS idx_session_event_details_bytes ON session_message_event_details(details_bytes DESC)`,
 		`CREATE TABLE IF NOT EXISTS mcp_runs (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL, summary TEXT NOT NULL, error TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT NOT NULL, duration_ms INTEGER NOT NULL DEFAULT 0, event_count INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`,
@@ -169,7 +171,7 @@ func rejectLegacyWorkspaceSchema(db *sql.DB) error {
 			return fmt.Errorf("legacy workspace schema detected: table %s exists; run the external one-time migration before starting ChatDock", table)
 		}
 	}
-	for _, table := range []string{"sessions", "session_messages", "session_message_parts", "session_message_events", "session_message_event_details", "mcp_runs", "mcp_confirmations", "chat_jobs", "scheduled_tasks", "scheduled_task_runs", "attachments", "tool_embeddings"} {
+	for _, table := range []string{"sessions", "session_messages", "session_message_parts", "session_message_events", "session_message_event_details", "session_tool_working_set", "mcp_runs", "mcp_confirmations", "chat_jobs", "scheduled_tasks", "scheduled_task_runs", "attachments", "tool_embeddings"} {
 		exists, err := sqliteTableExists(db, table)
 		if err != nil || !exists {
 			if err != nil {

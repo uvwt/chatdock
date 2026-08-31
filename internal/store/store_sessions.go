@@ -212,7 +212,22 @@ func (s *Store) EditUserMessageAndTruncate(id string, messageID string, messageI
 	if index == 0 {
 		session.Title = makeTitle(content)
 	}
-	if err := s.saveSessionLocked(session); err != nil {
+	if err := prepareSessionForPersistence(session); err != nil {
+		return nil, err
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := persistSessionTx(tx, session); err != nil {
+		return nil, err
+	}
+	// 编辑历史会改变后续语义，旧 working set 不能在新分支时间线里重新“复活”。
+	if err := clearSessionToolWorkingSetWith(tx, session.ID); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 	return cloneSession(session), nil

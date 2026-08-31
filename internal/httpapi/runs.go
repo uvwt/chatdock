@@ -17,6 +17,7 @@ type activeToolRun struct {
 }
 
 func (a *Server) completeWithRecordedTools(ctx context.Context, jobID string, sessionID string, cfg model.ModelConfig, fallbackCfg *model.ModelConfig, history []model.Message, emit func(string, any) error) (string, model.ModelConfig, error) {
+	toolTurn := conversationUserTurn(history)
 	toolMessageIndexes := llm.HistoricalToolMessageIndexes(history)
 	if err := a.store.HydrateMessageEventDetails(sessionID, history, toolMessageIndexes); err != nil {
 		return "", cfg, err
@@ -30,19 +31,23 @@ func (a *Server) completeWithRecordedTools(ctx context.Context, jobID string, se
 	if err != nil {
 		return "", cfg, err
 	}
+	toolSet.workingSetSessionID = sessionID
+	toolSet.workingSetTurn = toolTurn
+	restoredWorkingSetTools := a.restoreConversationToolWorkingSet(ctx, sessionID, toolTurn, toolSet)
 	visibleTools := toolSet.tools()
 
 	if emit != nil {
 		if err := emit("tool_setup_ready", map[string]any{
-			"mode":                     "resource_dynamic",
-			"tool_count":               len(toolSet.loaded.tools),
-			"exposed_tool_count":       len(visibleTools),
-			"builtin_tool_count":       len(builtinChatDockTools()),
-			"on_demand_tool_count":     len(toolSet.onDemand.tools),
-			"resource_count":           len(toolSet.resources.byID),
-			"loaded_resource_count":    toolSet.resources.loadedCount(),
-			"on_demand_resource_count": toolSet.resources.onDemandCount(),
-			"resource_error_count":     toolSet.resources.errorCount(),
+			"mode":                       "resource_dynamic",
+			"tool_count":                 len(toolSet.loaded.tools),
+			"exposed_tool_count":         len(visibleTools),
+			"builtin_tool_count":         len(builtinChatDockTools()),
+			"on_demand_tool_count":       len(toolSet.onDemand.tools),
+			"resource_count":             len(toolSet.resources.byID),
+			"loaded_resource_count":      toolSet.resources.loadedCount(),
+			"on_demand_resource_count":   toolSet.resources.onDemandCount(),
+			"resource_error_count":       toolSet.resources.errorCount(),
+			"restored_working_set_tools": restoredWorkingSetTools,
 		}); err != nil {
 			return "", cfg, err
 		}

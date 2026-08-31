@@ -54,6 +54,12 @@ func (c *MCPClient) storeCachedTools(key string, tools []MCPTool) {
 	c.toolsCache[key] = cachedMCPTools{createdAt: time.Now(), tools: cloneTools(tools)}
 }
 
+func (c *MCPClient) invalidateToolsCache(key string) {
+	c.mu.Lock()
+	delete(c.toolsCache, key)
+	c.mu.Unlock()
+}
+
 func (s MCPServerConfig) cacheTTL() time.Duration {
 	if s.CacheTTLMS < 0 {
 		return 0
