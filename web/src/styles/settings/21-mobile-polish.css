@@ -7,8 +7,10 @@
   .settings-page .settings-header {
     min-height: 52px !important;
     padding: 8px 10px !important;
+    background: var(--mobile-panel) !important;
     box-shadow: none !important;
-    backdrop-filter: blur(20px) saturate(1.2) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 
   .settings-page .settings-header-main {
