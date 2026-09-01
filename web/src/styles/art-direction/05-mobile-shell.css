@@ -79,6 +79,11 @@
     opacity: 0 !important;
   }
 
+  /* 桌面端的全屏噪点纹理不进入手机壳层，避免 iOS 合成后给聊天与配置页叠出灰雾。 */
+  #app.app::after {
+    display: none !important;
+  }
+
   #app.app aside {
     border-right: 0 !important;
     background: var(--mobile-panel) !important;
