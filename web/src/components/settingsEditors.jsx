@@ -4,6 +4,7 @@ import { ProviderKeysEditor } from './base.jsx';
 import { ScheduleBuilder } from './scheduleBuilder.jsx';
 import { cronScheduleFormValue, defaultRunAtValue, fmtTime } from '../lib/appUtils.js';
 import { providerKeyRows, uniqueModelNames } from '../lib/modelProviderForm.js';
+import { Button } from '../shared/ui/button.jsx';
 import { Tooltip } from '../shared/ui/tooltip.jsx';
 
 export function SettingsEditorPage({ title, description, onBack, children, actions, eyebrow = '配置' }) {
@@ -21,7 +22,7 @@ export function SettingsEditorPage({ title, description, onBack, children, actio
   return <section className="settings-editor-page">
     <header className="settings-editor-header">
       <Tooltip content="返回列表">
-        <button type="button" className="secondary icon-button settings-editor-back" onClick={onBack} aria-label="返回列表"><ArrowLeft size={17} aria-hidden="true" /></button>
+        <Button type="button" variant="secondary" size="icon" className="settings-editor-back" onClick={onBack} aria-label="返回列表"><ArrowLeft size={17} aria-hidden="true" /></Button>
       </Tooltip>
       <div className="settings-editor-heading"><span>{eyebrow}</span><h2>{title}</h2>{description ? <p>{description}</p> : null}</div>
     </header>
@@ -81,7 +82,7 @@ export function ProviderEditor({ provider, onBack, onDelete, onSave, onTest }) {
     title={isNew ? '新增供应商' : '编辑 ' + (provider.name || provider.id)}
     description="管理连接地址、模型列表和 Key。保存后立即生效。"
     onBack={onBack}
-    actions={<><div className="settings-editor-secondary-actions">{isNew ? null : <><button type="button" className="danger" onClick={() => onDelete(provider)} disabled={saving}>删除供应商</button><button type="button" className="secondary" onClick={() => onTest(provider)} disabled={saving}>测试已保存配置</button></>}</div><div className="settings-editor-primary-actions"><button type="button" className="secondary" onClick={onBack} disabled={saving}>取消</button><button type="submit" form="providerEditorForm" disabled={saving}>{saving ? '保存中…' : isNew ? '新增供应商' : '保存修改'}</button></div></>}
+    actions={<><div className="settings-editor-secondary-actions">{isNew ? null : <><Button type="button" variant="destructive" onClick={() => onDelete(provider)} disabled={saving}>删除供应商</Button><Button type="button" variant="secondary" onClick={() => onTest(provider)} disabled={saving}>测试已保存配置</Button></>}</div><div className="settings-editor-primary-actions"><Button type="button" variant="secondary" onClick={onBack} disabled={saving}>取消</Button><Button type="submit" form="providerEditorForm" disabled={saving}>{saving ? '保存中…' : isNew ? '新增供应商' : '保存修改'}</Button></div></>}
   >
     <form id="providerEditorForm" className="settings-editor-form" onSubmit={submit}>
       <section className="settings-editor-section">

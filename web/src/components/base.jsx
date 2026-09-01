@@ -353,9 +353,9 @@ export function ProviderKeysEditor({ value, setValue, values, setValues }) {
       <input value={row.name || ''} placeholder={index === 0 ? '主 key' : '备用 key'} onChange={e => updateRow(index, {name: e.target.value})} />
       <input type="text" className="provider-key-secret" value={row.api_key || ''} placeholder="粘贴 Key；已保存 Key 只隐藏中间" onChange={e => updateRow(index, {api_key: e.target.value})} />
       <label className="provider-key-enabled"><input type="checkbox" checked={row.enabled !== false} onChange={e => updateRow(index, {enabled: e.target.checked})} /><span>{row.enabled === false ? '停用' : '启用'}</span></label>
-      <button type="button" className="secondary small" onClick={() => removeRow(index)} disabled={rows.length <= 1}>删除</button>
+      <Button type="button" variant="secondary" size="sm" onClick={() => removeRow(index)} disabled={rows.length <= 1}>删除</Button>
     </div>)}</div>
-    <button type="button" className="secondary small provider-key-add" onClick={addRow}>+ 添加备用 Key</button>
+    <Button type="button" variant="secondary" size="sm" className="provider-key-add" onClick={addRow}>+ 添加备用 Key</Button>
   </div>;
 }
 
