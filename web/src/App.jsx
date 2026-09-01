@@ -119,6 +119,8 @@ export default function App() {
   }, [busy, current, detachActiveStream]);
 
   useEffect(() => {
+    document.documentElement.classList.toggle('theme-light', theme === 'day');
+    document.documentElement.classList.toggle('theme-night', theme !== 'day');
     document.body.classList.toggle('theme-light', theme === 'day');
     document.body.classList.toggle('theme-night', theme !== 'day');
     const themeColorMeta = document.querySelector('meta[name="theme-color"]');
