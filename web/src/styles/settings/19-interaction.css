@@ -36,17 +36,17 @@
   transform: rotate(225deg);
 }
 
-.settings-page .candidate-model-filter {
+.candidate-model-modal .candidate-model-filter {
   display: grid;
   gap: 6px;
   margin-bottom: 12px;
 }
 
-.settings-page .candidate-model-filter input {
+.candidate-model-modal .candidate-model-filter input {
   width: 100%;
 }
 
-.settings-page .candidate-model-filter span {
+.candidate-model-modal .candidate-model-filter span {
   color: var(--gpt-muted);
   font-size: 12px;
 }
