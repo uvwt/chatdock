@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"chatdock/internal/llm"
@@ -16,11 +17,11 @@ type activeToolRun struct {
 	StartedAt map[string]time.Time
 }
 
-func (a *Server) completeWithRecordedTools(ctx context.Context, jobID string, sessionID string, cfg model.ModelConfig, fallbackCfg *model.ModelConfig, history []model.Message, emit func(string, any) error) (string, model.ModelConfig, error) {
+func (a *Server) completeWithRecordedTools(ctx context.Context, jobID string, sessionID string, cfg model.ModelConfig, fallbackCfg *model.ModelConfig, history []model.Message, emit func(string, any) error) (string, model.ModelConfig, *model.Usage, error) {
 	toolTurn := conversationUserTurn(history)
 	toolMessageIndexes := llm.HistoricalToolMessageIndexes(history)
 	if err := a.store.HydrateMessageEventDetails(sessionID, history, toolMessageIndexes); err != nil {
-		return "", cfg, err
+		return "", cfg, nil, err
 	}
 	history = a.prepareVisionAttachmentURLs(history)
 	if a.agentDock != nil {
@@ -29,27 +30,25 @@ func (a *Server) completeWithRecordedTools(ctx context.Context, jobID string, se
 
 	toolSet, mcpConfig, err := a.loadConversationTools(ctx, emit)
 	if err != nil {
-		return "", cfg, err
+		return "", cfg, nil, err
 	}
 	toolSet.workingSetSessionID = sessionID
 	toolSet.workingSetTurn = toolTurn
-	restoredWorkingSetTools := a.restoreConversationToolWorkingSet(ctx, sessionID, toolTurn, toolSet)
 	visibleTools := toolSet.tools()
 
 	if emit != nil {
 		if err := emit("tool_setup_ready", map[string]any{
-			"mode":                       "resource_dynamic",
-			"tool_count":                 len(toolSet.loaded.tools),
-			"exposed_tool_count":         len(visibleTools),
-			"builtin_tool_count":         len(builtinChatDockTools()),
-			"on_demand_tool_count":       len(toolSet.onDemand.tools),
-			"resource_count":             len(toolSet.resources.byID),
-			"loaded_resource_count":      toolSet.resources.loadedCount(),
-			"on_demand_resource_count":   toolSet.resources.onDemandCount(),
-			"resource_error_count":       toolSet.resources.errorCount(),
-			"restored_working_set_tools": restoredWorkingSetTools,
+			"mode":                     "fixed_proxy_resource_discovery",
+			"tool_count":               len(toolSet.loaded.tools),
+			"exposed_tool_count":       len(visibleTools),
+			"builtin_tool_count":       len(builtinChatDockTools()),
+			"on_demand_tool_count":     len(toolSet.onDemand.tools),
+			"resource_count":           len(toolSet.resources.byID),
+			"loaded_resource_count":    toolSet.resources.loadedCount(),
+			"on_demand_resource_count": toolSet.resources.onDemandCount(),
+			"resource_error_count":     toolSet.resources.errorCount(),
 		}); err != nil {
-			return "", cfg, err
+			return "", cfg, nil, err
 		}
 	}
 	recorder := &activeToolRun{LastArgs: map[string]any{}, StartedAt: map[string]time.Time{}}
@@ -62,14 +61,37 @@ func (a *Server) completeWithRecordedTools(ctx context.Context, jobID string, se
 	if emit == nil {
 		toolEmit = nil
 	}
+	var reportedUsage model.Usage
+	usageReported := false
 
 	answer, usedCfg, runErr := completeModelWithFallback(ctx, cfg, fallbackCfg, toolEmit, func(attemptCfg model.ModelConfig, attemptEmit func(string, any) error, markStarted func()) (string, error) {
+		var checkpoint *llm.ContextCheckpoint
+		if saved, ok, checkpointErr := a.store.GetContextCheckpoint(sessionID, attemptCfg.ProviderID, attemptCfg.Model); checkpointErr == nil && ok {
+			checkpoint = &llm.ContextCheckpoint{Summary: saved.Summary, CutoffMessageID: saved.CutoffMessageID}
+		} else if checkpointErr != nil {
+			logError("context_checkpoint_load_failed", checkpointErr, logFields{"session_id": sessionID, "provider_id": attemptCfg.ProviderID, "model": attemptCfg.Model})
+		}
 		return a.client.CompleteWithMCPToolsEvents(ctx, attemptCfg, history, visibleTools, func(name string, args map[string]any) (any, error) {
 			return a.callVisibleConversationTool(ctx, toolSet, runRealTool, name, args)
 		}, attemptEmit, llm.MCPToolLoopOptions{
-			RefreshTools:       toolSet.tools,
-			OnToolCall:         markStarted,
+			RefreshTools: toolSet.tools,
+			OnToolCall:   markStarted,
+			OnUsage: func(value model.Usage) {
+				reportedUsage.Add(value)
+				usageReported = true
+			},
 			ServerInstructions: toolSet.serverInstructions,
+			ContextCheckpoint:  checkpoint,
+			OnContextPrepared: func(prepared llm.ContextPreparation) error {
+				if !prepared.Compressed || strings.TrimSpace(prepared.Summary) == "" || strings.TrimSpace(prepared.CutoffMessageID) == "" {
+					return nil
+				}
+				summary := prepared.Summary
+				if checkpoint != nil && strings.TrimSpace(checkpoint.Summary) != "" {
+					summary = checkpoint.Summary + "\n\n" + summary
+				}
+				return a.store.SaveContextCheckpoint(storepkg.ContextCheckpoint{SessionID: sessionID, ProviderID: attemptCfg.ProviderID, Model: attemptCfg.Model, Summary: summary, CutoffMessageID: prepared.CutoffMessageID, CutoffMessageIndex: prepared.CutoffMessageIndex})
+			},
 			AfterToolRound: func() ([]map[string]any, error) {
 				return a.consumeChatJobGuidance(jobID, emit)
 			},
@@ -78,7 +100,10 @@ func (a *Server) completeWithRecordedTools(ctx context.Context, jobID string, se
 	if finishErr := a.finishRecordedToolRun(recorder, runErr, emit); finishErr != nil && runErr == nil {
 		runErr = finishErr
 	}
-	return answer, usedCfg, runErr
+	if !usageReported {
+		return answer, usedCfg, nil, runErr
+	}
+	return answer, usedCfg, &reportedUsage, runErr
 }
 
 func (a *Server) toolRunEmitter(sessionID string, recorder *activeToolRun, emit func(string, any) error) func(string, any) error {

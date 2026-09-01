@@ -58,6 +58,7 @@ func Public(record Record) Provider {
 		APIKeyMasked:  selectedMasked,
 		DefaultModel:  record.DefaultModel,
 		Models:        append([]string(nil), record.Models...),
+		ModelLimits:   cloneModelLimits(record.ModelLimits),
 		TimeoutMS:     record.TimeoutMS,
 		Enabled:       record.Enabled,
 		KeyStrategy:   record.KeyStrategy,
@@ -66,6 +67,17 @@ func Public(record Record) Provider {
 		CreatedAt:     record.CreatedAt,
 		UpdatedAt:     record.UpdatedAt,
 	}
+}
+
+func cloneModelLimits(value map[string]model.ModelLimit) map[string]model.ModelLimit {
+	if len(value) == 0 {
+		return nil
+	}
+	out := make(map[string]model.ModelLimit, len(value))
+	for name, limit := range value {
+		out[name] = limit
+	}
+	return out
 }
 
 func DisplayName(cfg model.ModelConfig) string {

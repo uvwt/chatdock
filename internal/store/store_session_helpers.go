@@ -43,8 +43,17 @@ func cloneMessages(messages []model.Message) []model.Message {
 			errorCopy := *messages[i].Error
 			out[i].Error = &errorCopy
 		}
+		out[i].Usage = cloneUsage(messages[i].Usage)
 	}
 	return out
+}
+
+func cloneUsage(usage *model.Usage) *model.Usage {
+	if usage == nil {
+		return nil
+	}
+	copy := *usage
+	return &copy
 }
 
 func cloneMessageParts(parts []model.MessagePart) []model.MessagePart {

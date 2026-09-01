@@ -16,12 +16,12 @@ import (
 func TestBuildProviderSystemPromptMatchesRealRequestComposition(t *testing.T) {
 	history := make([]model.Message, 0, 15)
 	for i := 1; i <= 14; i++ {
-		history = append(history, model.Message{Role: "user", Content: fmt.Sprintf("message-%02d", i)})
+		history = append(history, model.Message{Role: "user", Content: fmt.Sprintf("message-%02d %s", i, strings.Repeat("上下文 ", 500))})
 	}
 	history = append(history, model.Message{Role: "system", Content: "AgentDock Capability Context"})
 
 	prompt := BuildProviderSystemPrompt(
-		model.ModelConfig{SystemPrompt: "全局提示词\n\n项目提示词", ContextMode: model.ContextModeAuto},
+		model.ModelConfig{SystemPrompt: "全局提示词\n\n项目提示词", ContextWindowTokens: 8 * 1024, OutputReserveTokens: 1024},
 		history,
 		[]mcp.MCPTool{{Name: "read", FullName: "agentdock__read"}},
 	)
@@ -30,7 +30,7 @@ func TestBuildProviderSystemPromptMatchesRealRequestComposition(t *testing.T) {
 		"全局提示词",
 		"项目提示词",
 		"# 早期会话摘要",
-		"message-02",
+		"message-01",
 		"AgentDock Capability Context",
 		"ChatDock 工具资源已接入",
 	} {

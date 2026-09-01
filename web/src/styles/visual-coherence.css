@@ -173,6 +173,70 @@
   gap: var(--ui-space-1);
 }
 
+#app.app .topbar-insights {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ui-space-2);
+  min-width: 0;
+  margin-inline: auto;
+  color: var(--gpt-muted);
+  pointer-events: auto;
+}
+
+#app.app .topbar-insights details {
+  position: relative;
+}
+
+#app.app .topbar-insights summary,
+#app.app .message-usage summary {
+  cursor: pointer;
+  list-style: none;
+  white-space: nowrap;
+  color: var(--gpt-muted);
+  font-size: var(--ui-font-small);
+  font-weight: var(--ui-weight-semibold);
+}
+
+#app.app .topbar-insights summary::-webkit-details-marker,
+#app.app .message-usage summary::-webkit-details-marker {
+  display: none;
+}
+
+#app.app .topbar-insights summary:hover,
+#app.app .topbar-insights details[open] summary,
+#app.app .message-usage summary:hover,
+#app.app .message-usage[open] summary {
+  color: var(--gpt-text);
+}
+
+#app.app .usage-popover-detail {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  gap: 5px;
+  min-width: 220px;
+  padding: 11px 12px;
+  border: 1px solid var(--gpt-border-strong);
+  border-radius: var(--ui-radius-panel);
+  background: color-mix(in srgb, var(--gpt-surface) 97%, transparent);
+  color: var(--gpt-muted);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, .18);
+  font-size: var(--ui-font-small);
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+#app.app .usage-popover-detail b {
+  color: var(--gpt-text);
+}
+
+#app.app .usage-popover-detail small {
+  color: var(--gpt-muted-2);
+}
+
 #app.app .top-actions > button,
 #app.app .top-actions > .task-panel-toggle {
   min-height: 36px;
@@ -219,6 +283,10 @@
 
   #app.app .topbar .top-left {
     max-width: 172px;
+  }
+
+  #app.app .topbar .topbar-insights {
+    pointer-events: auto;
   }
 
   #app.app .topbar .top-actions {
@@ -383,6 +451,42 @@
 
   #app.app .top-actions {
     gap: 2px;
+  }
+
+  #app.app .topbar {
+    grid-template-columns: 54px minmax(0, 1fr) auto auto !important;
+    display: grid !important;
+  }
+
+  #app.app .topbar.project-context-active {
+    grid-template-columns: 54px minmax(0, 1fr) auto auto !important;
+  }
+
+  #app.app .topbar .topbar-insights {
+    grid-column: 3 !important;
+    justify-self: end;
+    gap: 4px;
+    margin: 0;
+    max-width: 132px;
+  }
+
+  #app.app .topbar .top-actions {
+    grid-column: 4 !important;
+  }
+
+  #app.app .topbar-insights summary {
+    max-width: 66px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 10px;
+  }
+
+  #app.app .topbar-insights .usage-popover-detail {
+    position: fixed;
+    top: 68px;
+    right: 10px;
+    max-width: calc(100vw - 20px);
+    overflow: auto;
   }
 
   #app.app .top-actions > button,

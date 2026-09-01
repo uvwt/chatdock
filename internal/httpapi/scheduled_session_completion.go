@@ -16,7 +16,7 @@ type scheduledSessionCompletionResult struct {
 func (a *Server) completeScheduledSessionWithRecordedEvents(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message) (scheduledSessionCompletionResult, error) {
 	recorder := chatoutput.NewRecorder(a.store, sessionID, "")
 	fallbackCfg := a.resolveFallbackModelConfig(ctx, sessionID, cfg)
-	finalAnswer, _, runErr := a.completeWithRecordedTools(ctx, "", sessionID, cfg, fallbackCfg, history, recorder.Emit)
+	finalAnswer, _, _, runErr := a.completeWithRecordedTools(ctx, "", sessionID, cfg, fallbackCfg, history, recorder.Emit)
 	recorder.UseFinalAnswer(finalAnswer)
 	recorder.EnsureFailureAnswer(runErr)
 	if runErr != nil {

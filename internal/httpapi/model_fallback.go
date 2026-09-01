@@ -48,8 +48,11 @@ func (t *modelAttemptTracker) forward(event string, value any) error {
 		t.started = true
 	}
 	if event == "delta" {
-		if delta, ok := value.(llm.StreamDelta); ok && !delta.Empty() {
-			t.started = true
+		if delta, ok := value.(llm.StreamDelta); ok {
+			// usage-only 结尾帧不代表已经向用户输出内容，不能阻断备用模型。
+			if delta.Content != "" || delta.ReasoningContent != "" {
+				t.started = true
+			}
 		}
 	}
 	if t.emit == nil {

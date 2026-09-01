@@ -12,6 +12,8 @@ type ContextMessage = chatContextMessage
 type chatContextMessage struct {
 	Role               string
 	Content            string
+	SourceMessageID    string
+	SourceMessageIndex int
 	ModelAttachments   []model.AttachmentRecord
 	Events             []model.MessageEvent
 	IncludeToolHistory bool
@@ -55,42 +57,26 @@ func BuildChatContextMessages(cfg model.ModelConfig, history []model.Message) []
 }
 
 func buildChatContextMessages(cfg model.ModelConfig, history []model.Message) []chatContextMessage {
-	cfg = model.NormalizeModelConfig(cfg)
-	recentCount, summarizeOld := contextPlan(cfg)
+	prepared, err := PrepareChatContext(cfg, history)
+	if err != nil {
+		// 旧的无 error API 仍供预览和兼容调用方使用；真正发送路径会调用
+		// checked 版本并把硬上限错误直接交给用户。
+		return nil
+	}
 	valid := validChatHistory(history)
-	historySystems, conversation := splitHistorySystemMessages(valid)
+	_, conversation := splitHistorySystemMessages(valid)
 	toolHistoryIndexes := historicalToolMessageIndexSet(conversation)
-	start := len(conversation) - recentCount
-	if start < 0 {
-		start = 0
-	}
+	return contextMessagesForPreparation(prepared, conversation, toolHistoryIndexes)
+}
 
-	messages := make([]chatContextMessage, 0, recentCount+len(historySystems)+2)
-	if systemPrompt := buildSystemPrompt(cfg); strings.TrimSpace(systemPrompt) != "" {
-		messages = append(messages, chatContextMessage{Role: "system", Content: systemPrompt})
-	}
-
-	// 自动上下文不是简单丢弃早期历史：超过最近窗口的内容会被提炼成
-	// 一条系统摘要，既节省 token，也避免模型完全忘记当前会话的来龙去脉。
-	if summarizeOld && start > 0 {
-		if summary := summarizeEarlierContext(conversation[:start]); summary != "" {
-			messages = append(messages, chatContextMessage{Role: "system", Content: summary})
+func contextMessagesForPreparation(prepared ContextPreparation, conversation []model.Message, toolHistoryIndexes map[int]bool) []chatContextMessage {
+	messages := make([]chatContextMessage, 0, len(prepared.Messages))
+	for _, item := range prepared.Messages {
+		contextMessage := chatContextMessage{Role: item.Role, Content: item.Content, SourceMessageID: item.SourceMessageID, SourceMessageIndex: item.SourceMessageIndex, ModelAttachments: item.ModelAttachments, Events: item.Events}
+		if item.SourceMessageIndex >= 0 && item.SourceMessageIndex < len(conversation) {
+			contextMessage.IncludeToolHistory = toolHistoryIndexes[item.SourceMessageIndex]
 		}
-	}
-
-	// ChatDock 运行时注入的 Capability Context 是 system 消息。
-	// 它必须稳定出现在用户消息之前，也不能被“最近 N 条消息”裁剪掉。
-	for _, item := range historySystems {
-		messages = append(messages, chatContextMessage{Role: item.Role, Content: item.Content, ModelAttachments: item.ModelAttachments})
-	}
-	for offset, item := range conversation[start:] {
-		messages = append(messages, chatContextMessage{
-			Role:               item.Role,
-			Content:            item.Content,
-			ModelAttachments:   item.ModelAttachments,
-			Events:             item.Events,
-			IncludeToolHistory: toolHistoryIndexes[start+offset],
-		})
+		messages = append(messages, contextMessage)
 	}
 	return messages
 }

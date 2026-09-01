@@ -46,6 +46,7 @@ export function providerPayloadForModelAppend(provider, modelName) {
     base_url: provider?.base_url || '',
     default_model: provider?.default_model || name,
     models,
+    model_limits: provider?.model_limits || undefined,
     enabled: provider?.enabled !== false,
     key_strategy: provider?.key_strategy || 'auto',
     selected_key_id: provider?.selected_key_id || '',
@@ -57,11 +58,16 @@ export function providerPayloadFromFormValues(values = {}) {
   const apiKeys = providerKeyInputsFromRows(values.api_keys, '');
   const defaultModel = String(values.default_model || '').trim();
   const selectedKeyID = String(values.selected_key_id || '').trim();
+  const modelLimits = Object.fromEntries(Object.entries(values.model_limits || {}).map(([name, limit]) => [name, {
+    context_window_tokens: Number(limit?.context_window_tokens || 0),
+    output_reserve_tokens: Number(limit?.output_reserve_tokens || 0),
+  }]).filter(([, limit]) => limit.context_window_tokens > 0 && limit.output_reserve_tokens > 0 && limit.output_reserve_tokens < limit.context_window_tokens));
   return {
     name: String(values.name || '').trim(),
     base_url: String(values.base_url || '').trim(),
     default_model: defaultModel,
     models: uniqueModelNames(values.models || defaultModel),
+    model_limits: Object.keys(modelLimits).length ? modelLimits : undefined,
     enabled: values.enabled !== 'false',
     key_strategy: values.key_strategy || 'auto',
     selected_key_id: selectedKeyID || (apiKeys?.[0]?.id || ''),

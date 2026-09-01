@@ -277,6 +277,10 @@ func (s *Store) modelProviderConfigLocked(id string) (model.ModelConfig, bool, e
 }
 
 func modelProviderConfigWith(reader sqlQueryer, id string) (model.ModelConfig, bool, error) {
+	return modelProviderConfigForModelWith(reader, id, "")
+}
+
+func modelProviderConfigForModelWith(reader sqlQueryer, id string, modelName string) (model.ModelConfig, bool, error) {
 	id = modelprovider.NormalizeID(id)
 	if id == "" {
 		return model.ModelConfig{}, false, nil
@@ -293,12 +297,20 @@ func modelProviderConfigWith(reader sqlQueryer, id string) (model.ModelConfig, b
 		if err != nil {
 			return model.ModelConfig{}, true, err
 		}
+		modelName = strings.TrimSpace(modelName)
+		if modelName == "" {
+			modelName = record.DefaultModel
+		}
+		limit, configured := modelprovider.LimitForModel(record, modelName)
 		return model.NormalizeModelConfig(model.ModelConfig{
-			ProviderID: record.ID,
-			BaseURL:    record.BaseURL,
-			APIKey:     apiKey,
-			Model:      record.DefaultModel,
-			Models:     append([]string(nil), record.Models...),
+			ProviderID:             record.ID,
+			BaseURL:                record.BaseURL,
+			APIKey:                 apiKey,
+			Model:                  modelName,
+			Models:                 append([]string(nil), record.Models...),
+			ContextWindowTokens:    limit.ContextWindowTokens,
+			OutputReserveTokens:    limit.OutputReserveTokens,
+			ContextLimitsEstimated: !configured,
 		}), true, nil
 	}
 	return model.ModelConfig{}, false, nil

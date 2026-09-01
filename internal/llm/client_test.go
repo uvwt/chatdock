@@ -125,14 +125,14 @@ func TestEncodeModelToolCallsNormalizesInvalidArgumentsForHistory(t *testing.T) 
 	}
 }
 
-func TestBuildChatMessagesCustomModeLimitsContext(t *testing.T) {
+func TestBuildChatMessagesIgnoresLegacyMessageCountContextMode(t *testing.T) {
 	cfg := model.ModelConfig{SystemPrompt: "sys", ContextMode: model.ContextModeCustom, MaxContextMessages: 2}
 	history := []model.Message{{Role: "user", Content: "a"}, {Role: "assistant", Content: "b"}, {Role: "tool", Content: "ignored"}, {Role: "user", Content: "c"}}
 	got := BuildChatMessages(cfg, history)
-	if len(got) != 3 {
-		t.Fatalf("expected system plus last two valid messages, got %#v", got)
+	if len(got) != 4 {
+		t.Fatalf("expected system plus all valid messages, got %#v", got)
 	}
-	if got[0]["role"] != "system" || got[1]["content"] != "b" || got[2]["content"] != "c" {
+	if got[0]["role"] != "system" || got[1]["content"] != "a" || got[2]["content"] != "b" || got[3]["content"] != "c" {
 		t.Fatalf("unexpected messages: %#v", got)
 	}
 }
@@ -163,28 +163,28 @@ func TestBuildChatMessagesHoistsRuntimeSystemContext(t *testing.T) {
 		{Role: "user", Content: "latest user"},
 	}
 	got := BuildChatMessages(cfg, history)
-	if len(got) != 2 {
-		t.Fatalf("expected merged system and latest user, got %#v", got)
+	if len(got) != 4 {
+		t.Fatalf("expected merged system and all token-budgeted history, got %#v", got)
 	}
-	if got[0]["role"] != "system" || !strings.Contains(got[0]["content"], "base system") || !strings.Contains(got[0]["content"], "AgentDock Capability Context") || got[1]["content"] != "latest user" {
+	if got[0]["role"] != "system" || !strings.Contains(got[0]["content"], "base system") || !strings.Contains(got[0]["content"], "AgentDock Capability Context") || got[3]["content"] != "latest user" {
 		t.Fatalf("runtime system context was not preserved before user message: %#v", got)
 	}
 }
 
 func TestBuildChatMessagesAutoSummarizesEarlierContext(t *testing.T) {
-	cfg := model.ModelConfig{SystemPrompt: "sys", ContextMode: model.ContextModeAuto}
+	cfg := model.ModelConfig{SystemPrompt: "sys", ContextWindowTokens: 8 * 1024, OutputReserveTokens: 1024}
 	history := make([]model.Message, 0, 14)
 	for i := 1; i <= 14; i++ {
-		history = append(history, model.Message{Role: "user", Content: fmt.Sprintf("message-%02d", i)})
+		history = append(history, model.Message{Role: "user", Content: fmt.Sprintf("message-%02d %s", i, strings.Repeat("上下文 ", 500))})
 	}
 	got := BuildChatMessages(cfg, history)
-	if len(got) != 13 {
-		t.Fatalf("expected merged system and 12 recent messages, got %#v", got)
+	if len(got) != 3 {
+		t.Fatalf("expected merged system, summary, and recent turn, got %#v", got)
 	}
-	if got[0]["role"] != "system" || !strings.Contains(got[0]["content"], "sys") || !strings.Contains(got[0]["content"], "早期会话摘要") || !strings.Contains(got[0]["content"], "message-02") {
+	if got[0]["role"] != "system" || !strings.Contains(got[0]["content"], "sys") || !strings.Contains(got[0]["content"], "早期会话摘要") || !strings.Contains(got[0]["content"], "message-01") {
 		t.Fatalf("expected merged system with earlier context summary, got %#v", got[0])
 	}
-	if got[1]["content"] != "message-03" || got[len(got)-1]["content"] != "message-14" {
+	if !strings.HasPrefix(got[1]["content"], "message-13") || !strings.HasPrefix(got[len(got)-1]["content"], "message-14") {
 		t.Fatalf("recent messages were not preserved: %#v", got)
 	}
 }

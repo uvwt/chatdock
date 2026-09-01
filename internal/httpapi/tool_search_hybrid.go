@@ -50,7 +50,7 @@ func searchToolCatalogWithMatches(ctx context.Context, app *Server, catalog tool
 		items = append(items, item)
 		tools = append(tools, match.tool)
 	}
-	return map[string]any{"query": query, "count": len(items), "tools": items, "search_mode": app.toolSearchMode(), "next": "这些真实工具会在下一轮直接加入 tools；请直接调用目标工具。"}, tools
+	return map[string]any{"query": query, "count": len(items), "tools": items, "search_mode": app.toolSearchMode(), "next": "这些真实工具的 schema 已放在对话尾部；请使用 chatdock_tool_call 调用目标工具。"}, tools
 }
 
 func hybridToolMatches(ctx context.Context, app *Server, catalog toolCatalog, query string, limit int) []hybridToolMatch {

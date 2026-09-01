@@ -17,7 +17,7 @@ const (
 func appendMCPContext(messages []map[string]any, tools []mcp.MCPTool, instructions []mcp.MCPServerInstruction) []map[string]any {
 	systemBlocks := make([]string, 0, 2)
 	if len(tools) > 0 {
-		systemBlocks = append(systemBlocks, "ChatDock 工具资源已接入。直接工具可以立即调用。若存在 chatdock_tools_search，说明还有按需资源或工具：可按目标搜索；任务明确集中在一个资源时，可只指定该资源并省略 query，一次加载该资源全部工具。加载后的真实工具会在下一次模型请求中直接出现，请按其 schema 直接调用，不要猜测尚未暴露的参数，也不要声称没有工具权限。")
+		systemBlocks = append(systemBlocks, "ChatDock 工具资源已接入。直接工具可以立即调用。若存在 chatdock_tools_search，说明还有按需资源或工具：可按目标搜索；任务明确集中在一个资源时，可只指定该资源并省略 query，一次加载该资源全部工具。搜索结果会把真实 schema 放在对话尾部，并通过 chatdock_tool_call 调用；不要猜测尚未搜索到的参数，也不要声称没有工具权限。")
 	}
 	if guidance := buildMCPServerInstructions(instructions); guidance != "" {
 		systemBlocks = append(systemBlocks, guidance)
@@ -40,6 +40,17 @@ func appendMCPContext(messages []map[string]any, tools []mcp.MCPTool, instructio
 		out = append(out, hint)
 	}
 	return mergeLeadingSystemMessagesAny(out)
+}
+
+// EstimateMCPContextTokens returns the fixed system text added by the MCP
+// bridge, excluding the model's own system prompt and tool schemas.
+func EstimateMCPContextTokens(tools []mcp.MCPTool, instructions []mcp.MCPServerInstruction) int {
+	messages := appendMCPContext(nil, tools, instructions)
+	total := 0
+	for _, message := range messages {
+		total += EstimateAnyTokens(message) + 4
+	}
+	return total
 }
 
 func buildMCPServerInstructions(instructions []mcp.MCPServerInstruction) string {

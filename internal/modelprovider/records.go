@@ -24,7 +24,7 @@ func CreateRecord(records []Record, input Input, now time.Time) ([]Record, Recor
 	}
 	record := Record{
 		ID: id, Name: strings.TrimSpace(input.Name), Type: strings.TrimSpace(input.Type), BaseURL: strings.TrimSpace(input.BaseURL),
-		DefaultModel: strings.TrimSpace(input.DefaultModel), Models: NormalizeModelNames(input.Models, input.DefaultModel),
+		DefaultModel: strings.TrimSpace(input.DefaultModel), Models: NormalizeModelNames(input.Models, input.DefaultModel), ModelLimits: normalizeModelLimits(input.ModelLimits),
 		TimeoutMS: input.TimeoutMS, Enabled: enabled, CreatedAt: now, UpdatedAt: now,
 	}
 	record.KeyStrategy = input.KeyStrategy
@@ -52,6 +52,7 @@ func UpdateRecord(records []Record, id string, input Input, now time.Time) ([]Re
 		record.BaseURL = strings.TrimSpace(input.BaseURL)
 		record.DefaultModel = strings.TrimSpace(input.DefaultModel)
 		record.Models = NormalizeModelNames(input.Models, input.DefaultModel)
+		record.ModelLimits = normalizeModelLimits(input.ModelLimits)
 		record.TimeoutMS = input.TimeoutMS
 		if input.Enabled != nil {
 			record.Enabled = *input.Enabled

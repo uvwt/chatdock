@@ -198,6 +198,23 @@ function ErrorNotice({ error }) {
   </div>;
 }
 
+function MessageUsage({ usage, missing = false }) {
+  if (!usage && !missing) return null;
+  if (!usage) return <details className="message-usage message-usage-missing">
+    <summary title="供应商未返回用量">用量 未提供</summary>
+    <div className="message-usage-detail" role="status">供应商未提供 usage，未使用估算值。</div>
+  </details>;
+  const hit = Number(usage.cache_hit_tokens || 0);
+  const miss = Number(usage.cache_miss_tokens || 0);
+  const cacheTotal = hit + miss;
+  const cacheRate = cacheTotal ? Math.round(hit / cacheTotal * 100) : 0;
+  const total = Number(usage.total_tokens || 0).toLocaleString('zh-CN');
+  return <details className="message-usage">
+    <summary title={`总 Token：${total}${cacheTotal ? ` · 缓存命中率 ${cacheRate}%` : ' · 缓存未提供'}`}>用量 {total}</summary>
+    <div className="message-usage-detail" role="status"><span>输入 {Number(usage.input_tokens || 0).toLocaleString('zh-CN')} · 输出 {Number(usage.output_tokens || 0).toLocaleString('zh-CN')}</span><span>缓存命中 {hit.toLocaleString('zh-CN')} · 未命中 {miss.toLocaleString('zh-CN')}{cacheTotal ? ` · 命中率 ${cacheRate}%` : ''}</span>{usage.reasoning_tokens ? <span>推理 {Number(usage.reasoning_tokens).toLocaleString('zh-CN')}</span> : null}</div>
+  </details>;
+}
+
 function AssistantContent({ message, streaming = false, hideThinking = false, onResolveConfirmation, onInspectToolEvent, onMCPAppToolCall, onResolveToolEvent }) {
   const { blocks } = assistantMessageBlocks(message, {streaming, hideThinking});
   const lastBlock = blocks[blocks.length - 1];
@@ -226,6 +243,7 @@ function AssistantContent({ message, streaming = false, hideThinking = false, on
       <span className="assistant-waiting-dot" aria-hidden="true" />
     </div> : null}
     <ErrorNotice error={message.error} />
+    {!streaming ? <MessageUsage usage={message.usage} missing /> : null}
   </>;
 }
 

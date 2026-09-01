@@ -12,7 +12,7 @@ import { loadMarkdownRenderer } from './lib/markdownLoader.js';
 import { deleteAgentTask as deleteAgentTaskRequest } from './lib/agentTaskApi.js';
 import { createJsonApi } from './lib/http.js';
 import { cancelChatJob, fetchChatJobs, guideChatJob, resolveMCPConfirmation, streamChat, streamChatJobEvents } from './lib/chatApi.js';
-import { branchSession, callMCPAppTool as requestMCPAppTool, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchSession, fetchSessionMarkdown, fetchProviderSystemPrompt, pinSession, renameSession, resolveSessionToolEvent, updateSessionModel } from './lib/sessionApi.js';
+import { branchSession, callMCPAppTool as requestMCPAppTool, cloneSession, createSessionRecord, deleteSession, editSessionMessage, fetchContextPreview, fetchSession, fetchSessionMarkdown, fetchProviderSystemPrompt, pinSession, renameSession, resolveSessionToolEvent, updateSessionModel } from './lib/sessionApi.js';
 import { useAttachments } from './hooks/useAttachments.js';
 import { useAgentTasks } from './hooks/useAgentTasks.js';
 import { useCurrentSessionTask } from './hooks/useCurrentSessionTask.js';
@@ -28,6 +28,24 @@ import { buildQuickActions } from './lib/quickActions.js';
 import { visibleSessionRows } from './lib/sessionPresentation.js';
 import { unsavedSettingsPrompt } from './lib/settingsDraft.js';
 const SettingsPanel = lazy(() => import('./components/settings.jsx').then(module => ({default: module.SettingsPanel})));
+
+function currentSessionUsageSummary(messages = []) {
+  const summary = {input_tokens: 0, output_tokens: 0, reasoning_tokens: 0, cache_hit_tokens: 0, cache_miss_tokens: 0, total_tokens: 0, reply_count: 0, missing_count: 0, status: '供应商未提供'};
+  (Array.isArray(messages) ? messages : []).filter(message => message?.role === 'assistant').forEach(message => {
+    const usage = message.usage;
+    if (!usage) { summary.missing_count += 1; return; }
+    summary.reply_count += 1;
+    ['input_tokens', 'output_tokens', 'reasoning_tokens', 'cache_hit_tokens', 'cache_miss_tokens', 'total_tokens'].forEach(key => { summary[key] += Number(usage[key] || 0); });
+  });
+  if (!summary.reply_count && !summary.missing_count) return null;
+  if (summary.reply_count) {
+    summary.status = '对话模型已上报用量';
+    const totalCache = summary.cache_hit_tokens + summary.cache_miss_tokens;
+    if (totalCache) summary.cache_hit_rate = summary.cache_hit_tokens / totalCache;
+  }
+  return summary;
+}
+
 export default function App() {
   useVisualViewportLayout();
   const [authPage, setAuthPage] = useState(null);
@@ -59,6 +77,7 @@ export default function App() {
   const [streamStats, setStreamStats] = useState({ state: 'idle', started_at: 0, chars: 0, events: 0, tools: 0, error: '' });
   const [activeJobID, setActiveJobID] = useState('');
   const [taskSearch, setTaskSearch] = useState('');
+  const [contextPreview, setContextPreview] = useState(null);
 
   const {
     messagesRef,
@@ -93,6 +112,20 @@ export default function App() {
 
   useEffect(() => { pausedRef.current = streamPaused; }, [streamPaused]);
   useEffect(() => { currentRef.current = current; }, [current]);
+
+  useEffect(() => {
+    if (!current) {
+      setContextPreview(null);
+      return undefined;
+    }
+    let active = true;
+    fetchContextPreview(api, current).then(preview => {
+      if (active) setContextPreview(preview);
+    }).catch(() => {
+      if (active) setContextPreview(null);
+    });
+    return () => { active = false; };
+  }, [api, busy, current]);
 
   const detachActiveStream = useCallback(() => {
     resetStreamText();
@@ -749,6 +782,7 @@ export default function App() {
         reasoning: finalAssistant?.reasoning || m.reasoning || '',
         parts: finalAssistant?.parts || m.parts,
         events: finalAssistant?.events || m.events,
+        usage: finalAssistant?.usage || m.usage,
         error: finalAssistant?.error || m.error,
         created_at: finalAssistant?.created_at || m.created_at,
       };
@@ -1210,6 +1244,7 @@ export default function App() {
       systemStatus={systemStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools}
       testModelProvider={testModelProvider} addCandidateModelsToProvider={addCandidateModelsToProvider} loadingModels={loadingModels}
       logout={logout}
+      newSessionWithConfig={newSession}
       projects={projects} projectSessionCounts={projectSessionCounts} saveProject={saveProject} deleteProject={deleteProject}
       openProjectSessions={openProjectSessions} loadProjects={loadProjects} startProjectConversation={startProjectConversation} showToast={showToast}
       onPinnedProjectChange={upsertPinnedProject} onPinnedTaskChange={upsertPinnedTask}
@@ -1240,6 +1275,7 @@ export default function App() {
           setQuickPaletteOpen={setQuickPaletteOpen} setSidebarCollapsed={setSidebarCollapsed} setThemeState={setThemeState}
           sidebarCollapsed={sidebarCollapsed} taskPanelAvailable={taskDataEnabled} taskPanelOpen={taskPanelOpen}
           taskPanelTasks={agentTasks.tasks} theme={theme} toggleTaskPanel={toggleTaskPanel}
+          usageSummary={currentSessionUsageSummary(messages)} contextPreview={contextPreview}
         />
         <div className="messages" ref={messagesRef} onScroll={handleMessagesScroll} onWheel={handleMessagesWheel} onPointerDown={handleMessagesPointerDown} onPointerUp={handleMessagesPointerEnd} onPointerCancel={handleMessagesPointerEnd} onTouchStart={handleMessagesTouchStart} onTouchMove={handleMessagesTouchMove} onTouchEnd={handleMessagesTouchEnd} onTouchCancel={handleMessagesTouchEnd}>{messages.length ? messages.map((m, i) => <MemoizedMessageView key={i} message={m} previousMessage={messages[i - 1]} messageIndex={i} onCopy={copyText} onBranch={!busy && current ? branchCurrent : null} onEditUserMessage={editUserMessage} onDownloadAttachment={downloadAttachment} hideThinking={!!config.hide_thinking} onResolveConfirmation={resolveToolConfirmation} onInspectToolEvent={inspectToolEvent} onResolveToolEvent={resolveToolEventDetail} onMCPAppToolCall={callMCPAppTool} />) : <EmptyState />}</div>
         {showJumpToLatest ? <Tooltip content="跳到最新模型消息">

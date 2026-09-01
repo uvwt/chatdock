@@ -38,7 +38,10 @@ func TestResolveAttachmentStoragePathSupportsCurrentRelativeAndRelocatedUploads(
 	if err := os.MkdirAll(filepath.Join("data", "uploads", "default"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	wantDefault := filepath.Join(parent, "data", "uploads", "default", "file.txt")
+	wantDefault, err := filepath.Abs(filepath.Join("data", "uploads", "default", "file.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got, err := resolveAttachmentStoragePath("data", filepath.Join("data", "uploads", "default", "file.txt")); err != nil || got != wantDefault {
 		t.Fatalf("default relative data path = %q, %v", got, err)
 	}

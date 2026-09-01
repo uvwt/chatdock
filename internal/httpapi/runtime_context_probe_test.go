@@ -27,8 +27,8 @@ func TestRuntimeContextProbeMessagesContainCapabilityContext(t *testing.T) {
 		{Role: "user", Content: "latest"},
 	})
 	messages := llm.BuildChatMessagesAny(model.ModelConfig{ContextMode: model.ContextModeCustom, MaxContextMessages: 1}, history)
-	if len(messages) != 2 {
-		t.Fatalf("expected merged runtime system and latest user, got %#v", messages)
+	if len(messages) != 4 {
+		t.Fatalf("expected merged runtime system and token-budgeted history, got %#v", messages)
 	}
 	if messages[0]["role"] != "system" || !strings.Contains(toString(messages[0]["content"]), "AgentDock Context") {
 		t.Fatalf("runtime system context should be first, got %#v", messages)

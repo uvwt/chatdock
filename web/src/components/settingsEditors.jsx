@@ -53,6 +53,10 @@ export function ProviderEditor({ provider, onBack, onDelete, onSave, onTest }) {
       key_strategy: provider?.key_strategy || 'auto',
       api_keys: keys,
       models: uniqueModelNames([...(provider?.models || []), provider?.default_model].filter(Boolean)).join('\n'),
+      model_limits: Object.fromEntries(Object.entries(provider?.model_limits || {}).map(([name, limit]) => [name, {
+        context_window_tokens: Number(limit?.context_window_tokens || 0) || '',
+        output_reserve_tokens: Number(limit?.output_reserve_tokens || 0) || '',
+      }])),
       enabled: provider && provider.enabled === false ? 'false' : 'true',
     };
   }, [provider]);
@@ -61,6 +65,8 @@ export function ProviderEditor({ provider, onBack, onDelete, onSave, onTest }) {
   const {saving, run} = useSaving();
   const isNew = !provider?.id;
   const update = (key, value) => setValues(current => ({...current, [key]: value}));
+  const models = uniqueModelNames(values.models);
+  const updateModelLimit = (name, key, value) => setValues(current => ({...current, model_limits: {...(current.model_limits || {}), [name]: {...(current.model_limits?.[name] || {}), [key]: value}}}));
   const submit = async event => {
     event.preventDefault();
     setError('');
@@ -98,6 +104,16 @@ export function ProviderEditor({ provider, onBack, onDelete, onSave, onTest }) {
         <label>默认模型<input value={values.default_model} onChange={event => update('default_model', event.target.value)} placeholder="例如：gpt-5 / deepseek-v4" required /></label>
         <label>可用模型（每行一个）<textarea rows="7" value={values.models} onChange={event => update('models', event.target.value)} /></label>
       </section>
+      <details className="settings-editor-section settings-editor-advanced" open>
+        <summary className="settings-editor-section-head"><div><b>高级上下文限制</b><p>按模型填写最大上下文和本次回复预留。留空使用 32K / 4K 估算值。</p></div><span className="settings-editor-summary-mark">⌄</span></summary>
+        <div className="model-limit-list">
+          {models.map(name => {
+            const limit = values.model_limits?.[name] || {};
+            return <div className="model-limit-row" key={name}><div><b>{name}</b><small>不参与生成参数，只用于上下文预算。</small></div><label>最大上下文<input type="number" min="2048" step="1024" value={limit.context_window_tokens || ''} onChange={event => updateModelLimit(name, 'context_window_tokens', event.target.value)} placeholder="32768" /></label><label>输出预留<input type="number" min="512" step="512" value={limit.output_reserve_tokens || ''} onChange={event => updateModelLimit(name, 'output_reserve_tokens', event.target.value)} placeholder="4096" /></label></div>;
+          })}
+          {!models.length ? <div className="hint">先填写可用模型，再为模型设置上下文限制。</div> : null}
+        </div>
+      </details>
       <section className="settings-editor-section">
         <div className="settings-editor-section-head"><div><b>API Key</b><p>当前 Key 用单选按钮切换，已保存 Key 会以掩码显示。</p></div></div>
         <ProviderKeysEditor value={values.api_keys} setValue={value => update('api_keys', value)} values={values} setValues={setValues} />

@@ -33,6 +33,10 @@ export function fetchProviderSystemPrompt(api, id) {
   return api('/api/sessions/' + encodeURIComponent(id) + '/provider-system-prompt');
 }
 
+export function fetchContextPreview(api, id) {
+  return api('/api/sessions/' + encodeURIComponent(id) + '/context-preview');
+}
+
 export function createSessionRecord(api, { projectID = '' } = {}) {
   const body = projectID ? JSON.stringify({project_id: projectID}) : '{}';
   return api('/api/sessions', {method:'POST', body});

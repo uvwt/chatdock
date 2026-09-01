@@ -28,13 +28,17 @@ type ModelToolCallFunc struct {
 type ModelChatResponse struct {
 	Content   string
 	ToolCalls []ModelToolCall
+	Usage     *model.Usage
 }
 
 type MCPToolLoopOptions struct {
 	RefreshTools       func() []mcp.MCPTool
 	AfterToolRound     func() ([]map[string]any, error)
 	OnToolCall         func()
+	OnUsage            func(model.Usage)
 	ServerInstructions []mcp.MCPServerInstruction
+	ContextCheckpoint  *ContextCheckpoint
+	OnContextPrepared  func(ContextPreparation) error
 }
 
 const finalToolResponseInstruction = "请根据已经完成的工具调用结果给出明确、完整的最终答复。如果工具调用失败，请说明失败原因和下一步。不要继续调用工具，也不要返回空内容。"
@@ -48,7 +52,33 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 	if len(options) > 0 {
 		loopOptions = options[0]
 	}
-	messages := appendMCPContext(BuildChatMessagesAny(cfg, history), tools, loopOptions.ServerInstructions)
+	emitModelEvent := func(event string, value any) error {
+		if event == "usage" && loopOptions.OnUsage != nil {
+			switch usage := value.(type) {
+			case model.Usage:
+				loopOptions.OnUsage(usage)
+			case *model.Usage:
+				if usage != nil {
+					loopOptions.OnUsage(*usage)
+				}
+			}
+		}
+		if emit == nil {
+			return nil
+		}
+		return emit(event, value)
+	}
+	prepared, err := PrepareChatContextWithCheckpoint(cfg, history, loopOptions.ContextCheckpoint)
+	if err != nil {
+		return "", err
+	}
+	if loopOptions.OnContextPrepared != nil {
+		if err := loopOptions.OnContextPrepared(prepared); err != nil {
+			return "", err
+		}
+	}
+	messages := buildAnyMessagesFromPreparation(prepared, historyAfterCheckpoint(history, loopOptions.ContextCheckpoint))
+	messages = appendMCPContext(messages, tools, loopOptions.ServerInstructions)
 	currentTools := func() []map[string]any {
 		if loopOptions.RefreshTools != nil {
 			return MCPToolsToOpenAITools(loopOptions.RefreshTools())
@@ -57,13 +87,35 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 	}
 	openAITools := currentTools()
 	if len(openAITools) == 0 || call == nil {
+		fitted, _, fitErr := FitRawMessagesForContext(cfg, messages, nil)
+		if fitErr != nil {
+			return "", fitErr
+		}
+		messages = fitted
 		if emit != nil {
-			response, err := c.streamChatWithRawMessages(ctx, cfg, messages, nil, emit)
+			response, err := c.streamChatWithRawMessages(ctx, cfg, messages, nil, emitModelEvent)
+			if err != nil && IsContextTooLargeModelError(err) && strings.TrimSpace(response.Content) == "" {
+				if fitted, _, aggressiveErr := FitRawMessagesForContextAggressive(cfg, messages, nil); aggressiveErr == nil {
+					response, err = c.streamChatWithRawMessages(ctx, cfg, fitted, nil, emitModelEvent)
+				} else {
+					err = aggressiveErr
+				}
+			}
 			return strings.TrimSpace(response.Content), err
 		}
 		response, err := c.completeChatWithRawMessages(ctx, cfg, messages, nil)
+		if err != nil && IsContextTooLargeModelError(err) && strings.TrimSpace(response.Content) == "" {
+			if fitted, _, aggressiveErr := FitRawMessagesForContextAggressive(cfg, messages, nil); aggressiveErr == nil {
+				response, err = c.completeChatWithRawMessages(ctx, cfg, fitted, nil)
+			} else {
+				err = aggressiveErr
+			}
+		}
 		if err != nil {
 			return "", err
+		}
+		if response.Usage != nil && loopOptions.OnUsage != nil {
+			loopOptions.OnUsage(*response.Usage)
 		}
 		answer := strings.TrimSpace(response.Content)
 		if cfg.HideThinking {
@@ -83,8 +135,23 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 	var visibleAnswer strings.Builder
 	toolRounds := 0
 	finalResponseRequested := false
+	emergencyCompressionUsed := false
 	for {
-		resp, err := c.streamChatWithRawMessages(ctx, cfg, messages, openAITools, emit)
+		fitted, _, fitErr := FitRawMessagesForContext(cfg, messages, openAITools)
+		if fitErr != nil {
+			return "", fitErr
+		}
+		messages = fitted
+		resp, err := c.streamChatWithRawMessages(ctx, cfg, messages, openAITools, emitModelEvent)
+		if err != nil && IsContextTooLargeModelError(err) && !emergencyCompressionUsed && visibleAnswer.Len() == 0 && strings.TrimSpace(resp.Content) == "" && toolRounds == 0 {
+			emergencyCompressionUsed = true
+			if fitted, _, aggressiveErr := FitRawMessagesForContextAggressive(cfg, messages, openAITools); aggressiveErr == nil {
+				messages = fitted
+				resp, err = c.streamChatWithRawMessages(ctx, cfg, messages, openAITools, emitModelEvent)
+			} else {
+				err = aggressiveErr
+			}
+		}
 		if err != nil {
 			return "", err
 		}
@@ -123,7 +190,7 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 		}
 		toolRounds++
 		messages = append(messages, assistantToolCallMessage(resp))
-		toolMessages, modelMessages, err := executeModelToolCalls(resp.ToolCalls, call, emit)
+		toolMessages, modelMessages, err := executeModelToolCalls(resp.ToolCalls, call, emitModelEvent)
 		if err != nil {
 			return strings.TrimSpace(visibleAnswer.String()), err
 		}
@@ -149,14 +216,32 @@ func (c *ChatClient) completeWithMCPToolsBlocking(ctx context.Context, cfg model
 	currentToolMessagesStart := len(messages)
 	toolRounds := 0
 	finalResponseRequested := false
+	emergencyCompressionUsed := false
 	for {
 		openAITools := currentTools()
 		if finalResponseRequested {
 			openAITools = nil
 		}
+		fitted, _, fitErr := FitRawMessagesForContext(cfg, messages, openAITools)
+		if fitErr != nil {
+			return "", fitErr
+		}
+		messages = fitted
 		resp, err := c.completeChatWithRawMessages(ctx, cfg, messages, openAITools)
+		if err != nil && IsContextTooLargeModelError(err) && !emergencyCompressionUsed && strings.TrimSpace(resp.Content) == "" && toolRounds == 0 {
+			emergencyCompressionUsed = true
+			if fitted, _, aggressiveErr := FitRawMessagesForContextAggressive(cfg, messages, openAITools); aggressiveErr == nil {
+				messages = fitted
+				resp, err = c.completeChatWithRawMessages(ctx, cfg, messages, openAITools)
+			} else {
+				err = aggressiveErr
+			}
+		}
 		if err != nil {
 			return "", err
+		}
+		if resp.Usage != nil && options.OnUsage != nil {
+			options.OnUsage(*resp.Usage)
 		}
 		if len(resp.ToolCalls) == 0 {
 			answer := strings.TrimSpace(resp.Content)
@@ -403,35 +488,16 @@ func BuildProviderSystemPrompt(cfg model.ModelConfig, history []model.Message, t
 func (c *ChatClient) streamChatWithRawMessages(ctx context.Context, cfg model.ModelConfig, messages []map[string]any, tools []map[string]any, emit func(string, any) error) (ModelChatResponse, error) {
 	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/chat/completions"
 	body := map[string]any{"model": cfg.Model, "messages": messages, "temperature": cfg.Temperature, "stream": true}
+	body["stream_options"] = map[string]any{"include_usage": true}
 	if len(tools) > 0 {
 		body["tools"] = tools
 		body["tool_choice"] = "auto"
 	}
-	raw, err := json.Marshal(body)
-	if err != nil {
-		return ModelChatResponse{}, err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(raw))
-	if err != nil {
-		return ModelChatResponse{}, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "text/event-stream")
-	if apiKey := strings.TrimSpace(cfg.APIKey); apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-	}
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.openModelStream(ctx, cfg, endpoint, body)
 	if err != nil {
 		return ModelChatResponse{}, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		respBody, err := readModelResponseBody(resp, modelResponseBodyLimit(resp, 4<<20))
-		if err != nil {
-			return ModelChatResponse{}, err
-		}
-		return ModelChatResponse{}, modelAPIError("model api failed", resp, respBody)
-	}
 	return readModelToolStream(resp.Body, cfg, emit)
 }
 
@@ -439,6 +505,7 @@ func readModelToolStream(body io.Reader, cfg model.ModelConfig, emit func(string
 	var full strings.Builder
 	filter := NewThinkingFilter(cfg.HideThinking)
 	calls := newStreamingToolCallAccumulator()
+	var reportedUsage *model.Usage
 	scanner := bufio.NewScanner(body)
 	scanner.Buffer(make([]byte, 0, 64*1024), 10*1024*1024)
 	for scanner.Scan() {
@@ -454,13 +521,22 @@ func readModelToolStream(body io.Reader, cfg model.ModelConfig, emit func(string
 		if err != nil {
 			return ModelChatResponse{Content: full.String(), ToolCalls: calls.List()}, err
 		}
+		if delta.Usage != nil {
+			if reportedUsage == nil {
+				reportedUsage = &model.Usage{Source: delta.Usage.Source}
+			}
+			reportedUsage.Add(*delta.Usage)
+			if err := emit("usage", delta.Usage); err != nil {
+				return ModelChatResponse{Content: full.String(), ToolCalls: calls.List(), Usage: reportedUsage}, err
+			}
+		}
 		if delta.Empty() {
 			continue
 		}
 		calls.Apply(delta.ToolCalls)
 		if delta.ReasoningContent != "" {
 			if err := emit("delta", StreamDelta{ReasoningContent: delta.ReasoningContent}); err != nil {
-				return ModelChatResponse{Content: full.String(), ToolCalls: calls.List()}, err
+				return ModelChatResponse{Content: full.String(), ToolCalls: calls.List(), Usage: reportedUsage}, err
 			}
 		}
 		visible := filter.Push(delta.Content)
@@ -469,30 +545,31 @@ func readModelToolStream(body io.Reader, cfg model.ModelConfig, emit func(string
 		}
 		full.WriteString(visible)
 		if err := emit("delta", StreamDelta{Content: visible}); err != nil {
-			return ModelChatResponse{Content: full.String(), ToolCalls: calls.List()}, err
+			return ModelChatResponse{Content: full.String(), ToolCalls: calls.List(), Usage: reportedUsage}, err
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return ModelChatResponse{Content: full.String(), ToolCalls: calls.List()}, err
+		return ModelChatResponse{Content: full.String(), ToolCalls: calls.List(), Usage: reportedUsage}, err
 	}
 	visible := filter.Flush()
 	if visible != "" {
 		full.WriteString(visible)
 		if err := emit("delta", StreamDelta{Content: visible}); err != nil {
-			return ModelChatResponse{Content: full.String(), ToolCalls: calls.List()}, err
+			return ModelChatResponse{Content: full.String(), ToolCalls: calls.List(), Usage: reportedUsage}, err
 		}
 	}
-	return ModelChatResponse{Content: strings.TrimSpace(full.String()), ToolCalls: calls.List()}, nil
+	return ModelChatResponse{Content: strings.TrimSpace(full.String()), ToolCalls: calls.List(), Usage: reportedUsage}, nil
 }
 
 type toolStreamDelta struct {
 	Content          string
 	ReasoningContent string
 	ToolCalls        []streamingToolCallDelta
+	Usage            *model.Usage
 }
 
 func (d toolStreamDelta) Empty() bool {
-	return d.Content == "" && d.ReasoningContent == "" && len(d.ToolCalls) == 0
+	return d.Content == "" && d.ReasoningContent == "" && len(d.ToolCalls) == 0 && (d.Usage == nil || d.Usage.Empty())
 }
 
 type streamingToolCallDelta struct {
@@ -507,6 +584,7 @@ type streamingToolCallDelta struct {
 
 type toolStreamChunk struct {
 	Error   json.RawMessage `json:"error"`
+	Usage   json.RawMessage `json:"usage"`
 	Choices []struct {
 		Delta struct {
 			Content          string                   `json:"content"`
@@ -524,11 +602,12 @@ func parseToolStreamDelta(data string) (toolStreamDelta, error) {
 	if len(chunk.Error) > 0 && string(chunk.Error) != "null" {
 		return toolStreamDelta{}, modelStreamError("model tool stream failed", chunk.Error)
 	}
+	usage := normalizeUsage(chunk.Usage)
 	if len(chunk.Choices) == 0 {
-		return toolStreamDelta{}, nil
+		return toolStreamDelta{Usage: usage}, nil
 	}
 	delta := chunk.Choices[0].Delta
-	return toolStreamDelta{Content: delta.Content, ReasoningContent: delta.ReasoningContent, ToolCalls: delta.ToolCalls}, nil
+	return toolStreamDelta{Content: delta.Content, ReasoningContent: delta.ReasoningContent, ToolCalls: delta.ToolCalls, Usage: usage}, nil
 }
 
 type streamingToolCallAccumulator struct {
@@ -619,7 +698,8 @@ func (c *ChatClient) completeChatWithRawMessages(ctx context.Context, cfg model.
 	choice, _ := choices[0].(map[string]any)
 	message, _ := choice["message"].(map[string]any)
 	content, _ := message["content"].(string)
-	return ModelChatResponse{Content: content, ToolCalls: decodeModelToolCalls(message["tool_calls"])}, nil
+	usageRaw, _ := json.Marshal(output["usage"])
+	return ModelChatResponse{Content: content, ToolCalls: decodeModelToolCalls(message["tool_calls"]), Usage: normalizeUsage(usageRaw)}, nil
 }
 
 func encodeModelToolCalls(calls []ModelToolCall) []map[string]any {
@@ -678,9 +758,31 @@ func MCPToolsToOpenAITools(tools []mcp.MCPTool) []map[string]any {
 }
 
 func BuildChatMessagesAny(cfg model.ModelConfig, history []model.Message) []map[string]any {
-	prepared := buildChatContextMessages(cfg, history)
-	messages := make([]map[string]any, 0, len(prepared)*2)
-	for index, item := range prepared {
+	messages, _, err := BuildChatMessagesAnyChecked(cfg, history)
+	if err != nil {
+		return nil
+	}
+	return messages
+}
+
+func BuildChatMessagesAnyChecked(cfg model.ModelConfig, history []model.Message) ([]map[string]any, ContextBudget, error) {
+	return BuildChatMessagesAnyCheckedWithCheckpoint(cfg, history, nil)
+}
+
+func BuildChatMessagesAnyCheckedWithCheckpoint(cfg model.ModelConfig, history []model.Message, checkpoint *ContextCheckpoint) ([]map[string]any, ContextBudget, error) {
+	prepared, err := PrepareChatContextWithCheckpoint(cfg, history, checkpoint)
+	if err != nil {
+		return nil, prepared.Budget, err
+	}
+	return buildAnyMessagesFromPreparation(prepared, historyAfterCheckpoint(history, checkpoint)), prepared.Budget, nil
+}
+
+func buildAnyMessagesFromPreparation(prepared ContextPreparation, history []model.Message) []map[string]any {
+	valid := validChatHistory(history)
+	_, conversation := splitHistorySystemMessages(valid)
+	contextMessages := contextMessagesForPreparation(prepared, conversation, historicalToolMessageIndexSet(conversation))
+	messages := make([]map[string]any, 0, len(prepared.Messages)*2)
+	for index, item := range contextMessages {
 		if item.IncludeToolHistory {
 			if historical := historicalAssistantMessages(item, index); len(historical) > 0 {
 				messages = append(messages, historical...)

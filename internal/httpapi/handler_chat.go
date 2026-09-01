@@ -33,14 +33,14 @@ func (a *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	answer, usedCfg, err := a.completeWithOptionalTools(r.Context(), input.SessionID, cfg, history)
+	answer, usedCfg, usage, err := a.completeWithOptionalTools(r.Context(), input.SessionID, cfg, history)
 	if err != nil {
 		a.persistSessionChatError("", input.SessionID, requestIDFromRequest(r), err)
 		writeError(w, http.StatusBadGateway, err)
 		return
 	}
 
-	session, err := a.store.AppendAssistantMessage(input.SessionID, answer)
+	session, err := a.store.AppendAssistantMessageWithReasoningAndUsage(input.SessionID, answer, "", usage)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -86,7 +86,7 @@ func (a *Server) handleChatStream(w http.ResponseWriter, r *http.Request) {
 	streamChatJobEvents(r, w, flusher, a, job.ID, 0)
 }
 
-func (a *Server) completeWithOptionalTools(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message) (string, model.ModelConfig, error) {
+func (a *Server) completeWithOptionalTools(ctx context.Context, sessionID string, cfg model.ModelConfig, history []model.Message) (string, model.ModelConfig, *model.Usage, error) {
 	fallbackCfg := a.resolveFallbackModelConfig(ctx, sessionID, cfg)
 	return a.completeWithRecordedTools(ctx, "", sessionID, cfg, fallbackCfg, history, nil)
 }

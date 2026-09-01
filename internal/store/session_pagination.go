@@ -137,6 +137,15 @@ WHERE 1 = 1
 	if err := rows.Err(); err != nil {
 		return nil, "", false, err
 	}
+	if err := rows.Close(); err != nil {
+		return nil, "", false, err
+	}
+	for i := range pageRows {
+		pageRows[i].Summary.UsageSummary, err = usageSummaryForSession(s.db, pageRows[i].Summary.ID)
+		if err != nil {
+			return nil, "", false, err
+		}
+	}
 
 	hasMore := len(pageRows) > limit
 	if hasMore {

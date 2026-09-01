@@ -14,47 +14,113 @@ import (
 )
 
 func (c *ChatClient) Stream(ctx context.Context, cfg model.ModelConfig, history []model.Message, onDelta func(StreamDelta) error) (string, error) {
-	return c.StreamRawMessages(ctx, cfg, BuildChatMessagesAny(cfg, history), onDelta)
+	messages, _, err := BuildChatMessagesAnyChecked(cfg, history)
+	if err != nil {
+		return "", err
+	}
+	return c.StreamRawMessages(ctx, cfg, messages, onDelta)
 }
 
 func (c *ChatClient) StreamRawMessages(ctx context.Context, cfg model.ModelConfig, messages []map[string]any, onDelta func(StreamDelta) error) (string, error) {
+	fitted, _, err := FitRawMessagesForContext(cfg, messages, nil)
+	if err != nil {
+		return "", err
+	}
 	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/chat/completions"
 	body := map[string]any{
 		"model":       cfg.Model,
-		"messages":    messages,
+		"messages":    fitted,
 		"temperature": cfg.Temperature,
 		"stream":      true,
+		"stream_options": map[string]any{
+			"include_usage": true,
+		},
 	}
-	raw, err := json.Marshal(body)
+	resp, err := c.openModelStream(ctx, cfg, endpoint, body)
 	if err != nil {
-		return "", err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(raw))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "text/event-stream")
-	if apiKey := strings.TrimSpace(cfg.APIKey); apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		respBody, err := readModelResponseBody(resp, modelResponseBodyLimit(resp, 4<<20))
+		if !IsContextTooLargeModelError(err) {
+			return "", err
+		}
+		aggressive, _, aggressiveErr := FitRawMessagesForContextAggressive(cfg, fitted, nil)
+		if aggressiveErr != nil {
+			return "", aggressiveErr
+		}
+		body["messages"] = aggressive
+		resp, err = c.openModelStream(ctx, cfg, endpoint, body)
 		if err != nil {
 			return "", err
 		}
-		return "", modelAPIError("model api failed", resp, respBody)
 	}
+	defer resp.Body.Close()
 
-	return readModelStream(resp.Body, cfg, onDelta)
+	answer, err := readModelStream(resp.Body, cfg, onDelta)
+	if err != nil && IsContextTooLargeModelError(err) && strings.TrimSpace(answer) == "" {
+		aggressive, _, aggressiveErr := FitRawMessagesForContextAggressive(cfg, fitted, nil)
+		if aggressiveErr != nil {
+			return "", aggressiveErr
+		}
+		body["messages"] = aggressive
+		resp, err = c.openModelStream(ctx, cfg, endpoint, body)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+		return readModelStream(resp.Body, cfg, onDelta)
+	}
+	return answer, err
+}
+
+func (c *ChatClient) openModelStream(ctx context.Context, cfg model.ModelConfig, endpoint string, body map[string]any) (*http.Response, error) {
+	for attempt := 0; attempt < 2; attempt++ {
+		requestBody := cloneMap(body)
+		if attempt > 0 {
+			delete(requestBody, "stream_options")
+		}
+		raw, err := json.Marshal(requestBody)
+		if err != nil {
+			return nil, err
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(raw))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "text/event-stream")
+		if apiKey := strings.TrimSpace(cfg.APIKey); apiKey != "" {
+			req.Header.Set("Authorization", "Bearer "+apiKey)
+		}
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return resp, nil
+		}
+		respBody, readErr := readModelResponseBody(resp, modelResponseBodyLimit(resp, 4<<20))
+		_ = resp.Body.Close()
+		if readErr != nil {
+			return nil, readErr
+		}
+		if attempt == 0 && streamOptionsUnsupported(respBody) {
+			continue
+		}
+		return nil, modelAPIError("model api failed", resp, respBody)
+	}
+	return nil, fmt.Errorf("model stream request failed")
+}
+
+func cloneMap(input map[string]any) map[string]any {
+	output := make(map[string]any, len(input))
+	for key, value := range input {
+		output[key] = value
+	}
+	return output
+}
+
+func streamOptionsUnsupported(body []byte) bool {
+	text := strings.ToLower(string(body))
+	return strings.Contains(text, "stream_options") || strings.Contains(text, "stream options") ||
+		(strings.Contains(text, "include_usage") && (strings.Contains(text, "unknown") || strings.Contains(text, "unsupported") || strings.Contains(text, "invalid")))
 }
 
 func readModelStream(body io.Reader, cfg model.ModelConfig, onDelta func(StreamDelta) error) (string, error) {
@@ -79,6 +145,11 @@ func readModelStream(body io.Reader, cfg model.ModelConfig, onDelta func(StreamD
 		delta, err := parseStreamDelta(data)
 		if err != nil {
 			return full.String(), err
+		}
+		if delta.Usage != nil {
+			if err := onDelta(StreamDelta{Usage: delta.Usage}); err != nil {
+				return full.String(), err
+			}
 		}
 		if delta.Empty() {
 			continue
@@ -114,16 +185,18 @@ func readModelStream(body io.Reader, cfg model.ModelConfig, onDelta func(StreamD
 }
 
 type StreamDelta struct {
-	Content          string `json:"content,omitempty"`
-	ReasoningContent string `json:"reasoning_content,omitempty"`
+	Content          string       `json:"content,omitempty"`
+	ReasoningContent string       `json:"reasoning_content,omitempty"`
+	Usage            *model.Usage `json:"usage,omitempty"`
 }
 
 func (d StreamDelta) Empty() bool {
-	return d.Content == "" && d.ReasoningContent == ""
+	return d.Content == "" && d.ReasoningContent == "" && (d.Usage == nil || d.Usage.Empty())
 }
 
 type streamChunk struct {
 	Error   json.RawMessage `json:"error"`
+	Usage   json.RawMessage `json:"usage"`
 	Choices []struct {
 		Delta StreamDelta `json:"delta"`
 	} `json:"choices"`
@@ -137,10 +210,13 @@ func parseStreamDelta(data string) (StreamDelta, error) {
 	if len(chunk.Error) > 0 && string(chunk.Error) != "null" {
 		return StreamDelta{}, modelStreamError("model stream failed", chunk.Error)
 	}
+	usage := normalizeUsage(chunk.Usage)
 	if len(chunk.Choices) == 0 {
-		return StreamDelta{}, nil
+		return StreamDelta{Usage: usage}, nil
 	}
-	return chunk.Choices[0].Delta, nil
+	delta := chunk.Choices[0].Delta
+	delta.Usage = usage
+	return delta, nil
 }
 
 // ContextMessage 是模型上下文预览和请求构建共用的内部消息形态。

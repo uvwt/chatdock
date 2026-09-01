@@ -16,7 +16,7 @@ func TestFreshSchemaUsesGlobalSettingsAndProjects(t *testing.T) {
 	defer store.Close()
 
 	columns := tableColumnNames(t, store.db, "sessions")
-	wantColumns := []string{"id", "project_id", "title", "pinned", "provider_id", "model", "created_at", "updated_at"}
+	wantColumns := []string{"id", "project_id", "title", "pinned", "provider_id", "model", "system_prompt_snapshot", "project_prompt_snapshot", "system_prompt_frozen", "project_prompt_frozen", "created_at", "updated_at"}
 	if !reflect.DeepEqual(columns, wantColumns) {
 		t.Fatalf("sessions columns = %#v, want %#v", columns, wantColumns)
 	}
@@ -26,7 +26,7 @@ func TestFreshSchemaUsesGlobalSettingsAndProjects(t *testing.T) {
 			t.Fatalf("%s columns = %#v, pinned missing", table, columns)
 		}
 	}
-	for _, table := range []string{"global_settings", "projects", "sessions", "session_tool_working_set", "scheduled_tasks", "attachments", "tool_embeddings"} {
+	for _, table := range []string{"global_settings", "projects", "sessions", "session_tool_working_set", "session_context_checkpoints", "scheduled_tasks", "attachments", "tool_embeddings"} {
 		exists, err := sqliteTableExists(store.db, table)
 		if err != nil {
 			t.Fatal(err)
@@ -92,6 +92,42 @@ func TestNewStoreAddsPinnedColumnsToCurrentSchema(t *testing.T) {
 		if pinned != 0 {
 			t.Fatalf("%s existing row pinned = %d, want 0", table, pinned)
 		}
+	}
+}
+
+func TestNewStoreUpgradesSessionPromptSnapshotsWithoutDroppingHistory(t *testing.T) {
+	dataDir := t.TempDir()
+	db, err := sql.Open("sqlite3", filepath.Join(dataDir, "chatdock.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	statements := []string{
+		`CREATE TABLE projects (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, prompt TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE sessions (id TEXT PRIMARY KEY, project_id TEXT NULL, title TEXT NOT NULL DEFAULT '', pinned INTEGER NOT NULL DEFAULT 0, provider_id TEXT NOT NULL DEFAULT '', model TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`INSERT INTO projects(id, name, prompt, created_at, updated_at) VALUES('project-1', '旧项目', '旧项目提示词', '2026-07-24T00:00:00Z', '2026-07-24T00:00:00Z')`,
+		`INSERT INTO sessions(id, project_id, title, pinned, provider_id, model, created_at, updated_at) VALUES('session-1', 'project-1', '旧会话', 0, 'provider_default', 'gpt-4o-mini', '2026-07-24T00:00:00Z', '2026-07-24T00:00:00Z')`,
+	}
+	for _, statement := range statements {
+		if _, err := db.Exec(statement); err != nil {
+			_ = db.Close()
+			t.Fatal(err)
+		}
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	store, err := NewStore(dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	session, ok, err := store.GetSession("session-1")
+	if err != nil || !ok {
+		t.Fatalf("upgraded session: ok=%v err=%v", ok, err)
+	}
+	if !session.SystemPromptFrozen || !session.ProjectPromptFrozen || session.ProjectPromptSnapshot != "旧项目提示词" {
+		t.Fatalf("upgraded snapshots = %#v", session)
 	}
 }
 

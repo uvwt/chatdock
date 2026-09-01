@@ -148,7 +148,7 @@ func TestOnDemandResourceDefersToolsListUntilSelected(t *testing.T) {
 	}
 }
 
-func TestResourceIndexIsIncludedInDiscoveryTool(t *testing.T) {
+func TestDiscoveryToolUsesFixedTopLevelSchema(t *testing.T) {
 	cfg := mcp.MCPConfig{Servers: map[string]mcp.MCPServerConfig{
 		"DockMini": {URL: "http://example.invalid", Description: "Mac mini 本机开发、文件、命令和 Git 能力", ToolExposure: mcp.ToolExposureOnDemand},
 	}}
@@ -163,8 +163,8 @@ func TestResourceIndexIsIncludedInDiscoveryTool(t *testing.T) {
 	if discovery.FullName == "" {
 		t.Fatal("on-demand resource should expose the discovery entrypoint")
 	}
-	if !strings.Contains(discovery.Description, "DockMini") || !strings.Contains(discovery.Description, "Mac mini 本机开发") {
-		t.Fatalf("resource index should be present in discovery metadata, got %q", discovery.Description)
+	if strings.Contains(discovery.Description, "DockMini") || strings.Contains(discovery.Description, "Mac mini 本机开发") {
+		t.Fatalf("resource index must not be embedded in the fixed discovery description, got %q", discovery.Description)
 	}
 	properties, _ := discovery.InputSchema["properties"].(map[string]any)
 	if _, ok := properties["resources"]; !ok {

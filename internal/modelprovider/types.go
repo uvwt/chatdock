@@ -26,21 +26,22 @@ type APIKey struct {
 }
 
 type Provider struct {
-	ID            string    `json:"id"`
-	Name          string    `json:"name"`
-	Type          string    `json:"type"`
-	BaseURL       string    `json:"base_url"`
-	HasAPIKey     bool      `json:"has_api_key"`
-	APIKeyMasked  string    `json:"api_key_masked,omitempty"`
-	DefaultModel  string    `json:"default_model"`
-	Models        []string  `json:"models,omitempty"`
-	TimeoutMS     int       `json:"timeout_ms"`
-	Enabled       bool      `json:"enabled"`
-	KeyStrategy   string    `json:"key_strategy"`
-	SelectedKeyID string    `json:"selected_key_id,omitempty"`
-	APIKeys       []APIKey  `json:"api_keys,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            string                      `json:"id"`
+	Name          string                      `json:"name"`
+	Type          string                      `json:"type"`
+	BaseURL       string                      `json:"base_url"`
+	HasAPIKey     bool                        `json:"has_api_key"`
+	APIKeyMasked  string                      `json:"api_key_masked,omitempty"`
+	DefaultModel  string                      `json:"default_model"`
+	Models        []string                    `json:"models,omitempty"`
+	ModelLimits   map[string]model.ModelLimit `json:"model_limits,omitempty"`
+	TimeoutMS     int                         `json:"timeout_ms"`
+	Enabled       bool                        `json:"enabled"`
+	KeyStrategy   string                      `json:"key_strategy"`
+	SelectedKeyID string                      `json:"selected_key_id,omitempty"`
+	APIKeys       []APIKey                    `json:"api_keys,omitempty"`
+	CreatedAt     time.Time                   `json:"created_at"`
+	UpdatedAt     time.Time                   `json:"updated_at"`
 }
 
 type APIKeyInput struct {
@@ -52,17 +53,18 @@ type APIKeyInput struct {
 }
 
 type Input struct {
-	ID            string        `json:"id,omitempty"`
-	Name          string        `json:"name"`
-	Type          string        `json:"type,omitempty"`
-	BaseURL       string        `json:"base_url"`
-	DefaultModel  string        `json:"default_model"`
-	Models        []string      `json:"models,omitempty"`
-	TimeoutMS     int           `json:"timeout_ms,omitempty"`
-	Enabled       *bool         `json:"enabled,omitempty"`
-	KeyStrategy   string        `json:"key_strategy,omitempty"`
-	SelectedKeyID string        `json:"selected_key_id,omitempty"`
-	APIKeys       []APIKeyInput `json:"api_keys,omitempty"`
+	ID            string                      `json:"id,omitempty"`
+	Name          string                      `json:"name"`
+	Type          string                      `json:"type,omitempty"`
+	BaseURL       string                      `json:"base_url"`
+	DefaultModel  string                      `json:"default_model"`
+	Models        []string                    `json:"models,omitempty"`
+	ModelLimits   map[string]model.ModelLimit `json:"model_limits,omitempty"`
+	TimeoutMS     int                         `json:"timeout_ms,omitempty"`
+	Enabled       *bool                       `json:"enabled,omitempty"`
+	KeyStrategy   string                      `json:"key_strategy,omitempty"`
+	SelectedKeyID string                      `json:"selected_key_id,omitempty"`
+	APIKeys       []APIKeyInput               `json:"api_keys,omitempty"`
 }
 
 type KeyConfig struct {
@@ -85,18 +87,19 @@ type APIKeyRecord struct {
 }
 
 type Record struct {
-	ID            string         `json:"id"`
-	Name          string         `json:"name"`
-	Type          string         `json:"type"`
-	BaseURL       string         `json:"base_url"`
-	LegacyAPIKey  string         `json:"api_key,omitempty"`
-	DefaultModel  string         `json:"default_model"`
-	Models        []string       `json:"models,omitempty"`
-	TimeoutMS     int            `json:"timeout_ms"`
-	Enabled       bool           `json:"enabled"`
-	KeyStrategy   string         `json:"key_strategy,omitempty"`
-	SelectedKeyID string         `json:"selected_key_id,omitempty"`
-	APIKeys       []APIKeyRecord `json:"api_keys,omitempty"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
+	ID            string                      `json:"id"`
+	Name          string                      `json:"name"`
+	Type          string                      `json:"type"`
+	BaseURL       string                      `json:"base_url"`
+	LegacyAPIKey  string                      `json:"api_key,omitempty"`
+	DefaultModel  string                      `json:"default_model"`
+	Models        []string                    `json:"models,omitempty"`
+	ModelLimits   map[string]model.ModelLimit `json:"model_limits,omitempty"`
+	TimeoutMS     int                         `json:"timeout_ms"`
+	Enabled       bool                        `json:"enabled"`
+	KeyStrategy   string                      `json:"key_strategy,omitempty"`
+	SelectedKeyID string                      `json:"selected_key_id,omitempty"`
+	APIKeys       []APIKeyRecord              `json:"api_keys,omitempty"`
+	CreatedAt     time.Time                   `json:"created_at"`
+	UpdatedAt     time.Time                   `json:"updated_at"`
 }

@@ -22,6 +22,7 @@ func (s *Store) saveSessionLocked(session *model.Session) error {
 	if err := prepareSessionForPersistence(session); err != nil {
 		return err
 	}
+	session.UsageSummary = buildUsageSummary(session.Messages)
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err

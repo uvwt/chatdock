@@ -24,7 +24,26 @@ func NewChatClient() *ChatClient {
 }
 
 func (c *ChatClient) Complete(ctx context.Context, cfg model.ModelConfig, history []model.Message) (string, error) {
-	messages := BuildChatMessagesAny(cfg, history)
+	messages, _, err := BuildChatMessagesAnyChecked(cfg, history)
+	if err != nil {
+		return "", err
+	}
+	messages, _, err = FitRawMessagesForContext(cfg, messages, nil)
+	if err != nil {
+		return "", err
+	}
+	content, err := c.completeRawMessages(ctx, cfg, messages)
+	if err != nil && IsContextTooLargeModelError(err) && strings.TrimSpace(content) == "" {
+		if fitted, _, aggressiveErr := FitRawMessagesForContextAggressive(cfg, messages, nil); aggressiveErr == nil {
+			content, err = c.completeRawMessages(ctx, cfg, fitted)
+		} else {
+			err = aggressiveErr
+		}
+	}
+	return content, err
+}
+
+func (c *ChatClient) completeRawMessages(ctx context.Context, cfg model.ModelConfig, messages []map[string]any) (string, error) {
 	endpoint := strings.TrimRight(cfg.BaseURL, "/") + "/chat/completions"
 
 	body := map[string]any{

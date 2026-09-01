@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// SQLite 初始化只创建当前版本的完整 schema；旧数据库必须先通过外部一次性迁移工具转换。
+// SQLite 初始化创建当前 schema，并在启动时对旧数据库做无损增量升级。
 
 type sqlWriter interface {
 	Exec(string, ...any) (sql.Result, error)
@@ -40,10 +40,10 @@ func (s *Store) initSQLite() error {
 	stmts := []string{
 		`CREATE TABLE IF NOT EXISTS global_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, prompt TEXT NOT NULL DEFAULT '', pinned INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, project_id TEXT NULL, title TEXT NOT NULL DEFAULT '', pinned INTEGER NOT NULL DEFAULT 0, provider_id TEXT NOT NULL DEFAULT '', model TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL, FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE SET NULL)`,
+		`CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, project_id TEXT NULL, title TEXT NOT NULL DEFAULT '', pinned INTEGER NOT NULL DEFAULT 0, provider_id TEXT NOT NULL DEFAULT '', model TEXT NOT NULL DEFAULT '', system_prompt_snapshot TEXT NOT NULL DEFAULT '', project_prompt_snapshot TEXT NOT NULL DEFAULT '', system_prompt_frozen INTEGER NOT NULL DEFAULT 0, project_prompt_frozen INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE SET NULL)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_updated ON sessions(updated_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_project_updated ON sessions(project_id, updated_at DESC)`,
-		`CREATE TABLE IF NOT EXISTS session_messages (session_id TEXT NOT NULL, message_index INTEGER NOT NULL, id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, reasoning TEXT NOT NULL DEFAULT '', error_json TEXT NOT NULL DEFAULT '', attachments_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL, PRIMARY KEY(session_id, message_index), FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE)`,
+		`CREATE TABLE IF NOT EXISTS session_messages (session_id TEXT NOT NULL, message_index INTEGER NOT NULL, id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, reasoning TEXT NOT NULL DEFAULT '', error_json TEXT NOT NULL DEFAULT '', usage_json TEXT NOT NULL DEFAULT '', attachments_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL, PRIMARY KEY(session_id, message_index), FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_session_messages_id ON session_messages(session_id, id)`,
 		`CREATE INDEX IF NOT EXISTS idx_session_messages_session ON session_messages(session_id, message_index)`,
 		`CREATE TABLE IF NOT EXISTS session_message_parts (session_id TEXT NOT NULL, message_index INTEGER NOT NULL, part_index INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT NOT NULL DEFAULT '', call_key TEXT NOT NULL DEFAULT '', event_id TEXT NOT NULL DEFAULT '', PRIMARY KEY(session_id, message_index, part_index), FOREIGN KEY(session_id, message_index) REFERENCES session_messages(session_id, message_index) ON DELETE CASCADE)`,
@@ -51,6 +51,8 @@ func (s *Store) initSQLite() error {
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_session_message_events_id ON session_message_events(session_id, id)`,
 		`CREATE TABLE IF NOT EXISTS session_tool_working_set (session_id TEXT NOT NULL, tool_name TEXT NOT NULL, resource_id TEXT NOT NULL, last_discovered_turn INTEGER NOT NULL DEFAULT 0, last_called_turn INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(session_id, tool_name), FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE)`,
 		`CREATE INDEX IF NOT EXISTS idx_session_tool_working_set_session ON session_tool_working_set(session_id, last_called_turn DESC, last_discovered_turn DESC)`,
+		`CREATE TABLE IF NOT EXISTS session_context_checkpoints (session_id TEXT NOT NULL, provider_id TEXT NOT NULL, model TEXT NOT NULL, summary TEXT NOT NULL DEFAULT '', cutoff_message_id TEXT NOT NULL DEFAULT '', cutoff_message_index INTEGER NOT NULL DEFAULT -1, updated_at TEXT NOT NULL, PRIMARY KEY(session_id, provider_id, model), FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE)`,
+		`CREATE INDEX IF NOT EXISTS idx_session_context_checkpoints_session ON session_context_checkpoints(session_id, updated_at DESC)`,
 		`CREATE TABLE IF NOT EXISTS session_message_event_details (session_id TEXT NOT NULL, event_id TEXT NOT NULL, details_json TEXT NOT NULL, details_bytes INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL, PRIMARY KEY(session_id, event_id), FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE)`,
 		`CREATE INDEX IF NOT EXISTS idx_session_event_details_bytes ON session_message_event_details(details_bytes DESC)`,
 		`CREATE TABLE IF NOT EXISTS mcp_runs (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL, summary TEXT NOT NULL, error TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT NOT NULL, duration_ms INTEGER NOT NULL DEFAULT 0, event_count INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL)`,
@@ -87,8 +89,38 @@ func (s *Store) initSQLite() error {
 	if err := ensurePinnedEntityColumns(s.db); err != nil {
 		return err
 	}
+	if err := ensureContextSchemaColumns(s.db); err != nil {
+		return err
+	}
 	if err := backfillMCPAppEventMeta(s.db); err != nil {
 		return err
+	}
+	return nil
+}
+
+func ensureContextSchemaColumns(db *sql.DB) error {
+	// 这些字段是无损增量迁移：旧会话、消息和工具记录全部保留，空值由启动升级流程回填。
+	for _, item := range []struct {
+		table  string
+		column string
+		ddl    string
+	}{
+		{table: "sessions", column: "system_prompt_snapshot", ddl: `ALTER TABLE sessions ADD COLUMN system_prompt_snapshot TEXT NOT NULL DEFAULT ''`},
+		{table: "sessions", column: "project_prompt_snapshot", ddl: `ALTER TABLE sessions ADD COLUMN project_prompt_snapshot TEXT NOT NULL DEFAULT ''`},
+		{table: "sessions", column: "system_prompt_frozen", ddl: `ALTER TABLE sessions ADD COLUMN system_prompt_frozen INTEGER NOT NULL DEFAULT 0`},
+		{table: "sessions", column: "project_prompt_frozen", ddl: `ALTER TABLE sessions ADD COLUMN project_prompt_frozen INTEGER NOT NULL DEFAULT 0`},
+		{table: "session_messages", column: "usage_json", ddl: `ALTER TABLE session_messages ADD COLUMN usage_json TEXT NOT NULL DEFAULT ''`},
+	} {
+		exists, err := sqliteColumnExists(db, item.table, item.column)
+		if err != nil {
+			return err
+		}
+		if exists {
+			continue
+		}
+		if _, err := db.Exec(item.ddl); err != nil {
+			return fmt.Errorf("add %s.%s: %w", item.table, item.column, err)
+		}
 	}
 	return nil
 }
