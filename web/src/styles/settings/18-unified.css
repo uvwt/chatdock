@@ -588,7 +588,7 @@ body .settings-page .backup-health.ok b {
   padding: 16px 18px !important;
 }
 
-.candidate-model-modal-body > p {
+.candidate-model-description {
   margin: 0 0 14px !important;
   color: var(--gpt-muted) !important;
   font-size: 13px !important;

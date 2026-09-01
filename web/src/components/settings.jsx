@@ -18,9 +18,11 @@ import { mcpAuthDraft, mcpAuthPayload } from '../lib/mcpAuthDraft.js';
 import { unsavedSettingsPrompt, validateMCPConfigRaw } from '../lib/settingsDraft.js';
 import { ProjectsPage, ScheduledTasksPage } from './managementPages.jsx';
 import { ProviderEditor, SettingsEditorPage } from './settingsEditors.jsx';
+import { Button } from '../shared/ui/button.jsx';
 import {
   Dialog,
   DialogBackdrop,
+  DialogDescription,
   DialogPopup,
   DialogPortal,
   DialogTitle,
@@ -158,14 +160,14 @@ export function SettingsPanel(props) {
     <header className="settings-header">
       <div className="settings-header-main">
         <Tooltip content="返回聊天">
-          <button className="secondary small settings-back-button icon-button" onClick={() => closeSettings()} aria-label="返回聊天"><ArrowLeft className="settings-header-icon settings-back-icon" size={17} aria-hidden="true" /></button>
+          <Button variant="secondary" size="icon" className="settings-back-button" onClick={() => closeSettings()} aria-label="返回聊天"><ArrowLeft className="settings-header-icon settings-back-icon" size={17} aria-hidden="true" /></Button>
         </Tooltip>
         <div>
           <div className="settings-title-row"><h2>配置中心</h2></div>
           <p>统一管理模型、供应商、工具、项目、定时任务与系统。</p>
         </div>
       </div>
-      <div className="settings-header-actions"><button className={'secondary small settings-refresh-button' + (refreshing ? ' refreshing' : '')} onClick={refreshSettings} disabled={refreshing} aria-busy={refreshing} aria-label={refreshing ? '正在刷新配置' : '刷新配置'} title="刷新配置"><RefreshCw className="settings-header-icon settings-refresh-icon" size={16} aria-hidden="true" /><span className="settings-refresh-text">{refreshing ? '刷新中…' : '刷新'}</span></button></div>
+      <div className="settings-header-actions"><Button variant="secondary" size="sm" className={'settings-refresh-button' + (refreshing ? ' refreshing' : '')} onClick={refreshSettings} disabled={refreshing} aria-busy={refreshing} aria-label={refreshing ? '正在刷新配置' : '刷新配置'} title="刷新配置"><RefreshCw className="settings-header-icon settings-refresh-icon" size={16} aria-hidden="true" /><span className="settings-refresh-text">{refreshing ? '刷新中…' : '刷新'}</span></Button></div>
     </header>
     <div className="settings-sidebar">
       <select className="settings-mobile-module-select" value={activeModule} onChange={e => switchSettingsModule(e.target.value)} aria-label="选择配置模块">
@@ -251,7 +253,7 @@ function SettingsSaveState({ dirty, state = {}, onSave }) {
   }[status];
   return <div className={'settings-save-state ' + status} role={status === 'error' ? 'alert' : 'status'}>
     <div className="settings-save-state-copy"><span className="settings-save-state-icon" aria-hidden="true">{status === 'saved' ? <Check size={15} /> : status === 'error' ? <CircleX size={15} /> : null}</span><div><b>{content[0]}</b><span>{content[1]}</span></div></div>
-    {dirty ? <button type="button" onClick={onSave} disabled={status === 'saving'}>{status === 'saving' ? '保存中…' : '保存更改'}</button> : null}
+    {dirty ? <Button type="button" onClick={onSave} disabled={status === 'saving'}>{status === 'saving' ? '保存中…' : '保存更改'}</Button> : null}
   </div>;
 }
 
@@ -300,7 +302,7 @@ function ModelModule({ config, setConfig, projectPromptPreview, testModelProvide
   };
   return <>
     <section className="settings-section model-routing-section">
-      <div className="settings-section-head"><div><b>模型路由</b><p>默认模型和备用模型属于同一条调用链。</p></div><button className="secondary small" onClick={testDefaultModel} disabled={testingModel || !activeProvider} aria-busy={testingModel}>{testingModel ? '测试中…' : '测试连接'}</button></div>
+      <div className="settings-section-head"><div><b>模型路由</b><p>默认模型和备用模型属于同一条调用链。</p></div><Button variant="secondary" size="sm" onClick={testDefaultModel} disabled={testingModel || !activeProvider} aria-busy={testingModel}>{testingModel ? '测试中…' : '测试连接'}</Button></div>
       <div className="settings-editor-grid model-route-grid">
         <label>默认供应商<select value={activeProvider?.id || ''} onChange={event => chooseProvider(event.target.value)}>{providers.length ? providers.map(provider => <option key={provider.id} value={provider.id}>{provider.name || provider.id}</option>) : <option value="">未配置供应商</option>}</select></label>
         <label>默认模型<select value={config.model || ''} onChange={event => chooseModel(event.target.value)} disabled={!activeProvider}><option value="">{activeProvider ? '选择模型' : '先选择供应商'}</option>{selectedProviderModels.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
@@ -383,10 +385,10 @@ function ProvidersModule({ providers, saveModelProvider, deleteModelProvider, te
   const candidateQuery = String(candidatePicker?.query || '').trim().toLowerCase();
   const visibleCandidateModels = candidatePicker?.models.filter(name => !candidateQuery || String(name).toLowerCase().includes(candidateQuery)) || [];
   return <section className="settings-section provider-management-section">
-    <div className="settings-section-head"><div><b>模型供应商</b><p>独立资源进入二级编辑页；发现模型保留临时选择弹窗。</p></div><button className="secondary small" onClick={() => setEditingProvider(null)}>新增供应商</button></div>
+    <div className="settings-section-head"><div><b>模型供应商</b><p>独立资源进入二级编辑页；发现模型保留临时选择弹窗。</p></div><Button variant="secondary" size="sm" onClick={() => setEditingProvider(null)}>新增供应商</Button></div>
     <div className="provider-grid provider-page-grid">{providers.length ? providers.map(provider => {
       const testingThisProvider = !!pendingActions.pending['providerTest:' + provider.id];
-      return <TextCard key={provider.id} title={provider.name || provider.id} hint={provider.base_url || '-'} badge={provider.enabled ? (provider.type || 'openai') : '停用'}><div className="product-meta">默认：{provider.default_model || '-'} · 模型 {provider.models?.length || 0} · Key {provider.api_keys?.length || (provider.has_api_key ? 1 : 0)}</div><div className="product-actions"><button className="secondary small" onClick={() => setEditingProvider(provider)}>编辑</button><button className="secondary small" onClick={event => discoverModels(provider, event.currentTarget)} disabled={loadingModels || discoveringModels}>{loadingModels || discoveringModels ? '读取中…' : '发现模型'}</button><button className="secondary small" onClick={() => testSavedProvider(provider)} disabled={providerTestPending} aria-busy={testingThisProvider}>{testingThisProvider ? '测试中…' : '测试'}</button><button className="danger small" onClick={() => deleteModelProvider(provider)}>删除</button></div></TextCard>;
+      return <TextCard key={provider.id} title={provider.name || provider.id} hint={provider.base_url || '-'} badge={provider.enabled ? (provider.type || 'openai') : '停用'}><div className="product-meta">默认：{provider.default_model || '-'} · 模型 {provider.models?.length || 0} · Key {provider.api_keys?.length || (provider.has_api_key ? 1 : 0)}</div><div className="product-actions"><Button variant="secondary" size="sm" onClick={() => setEditingProvider(provider)}>编辑</Button><Button variant="secondary" size="sm" onClick={event => discoverModels(provider, event.currentTarget)} disabled={loadingModels || discoveringModels}>{loadingModels || discoveringModels ? '读取中…' : '发现模型'}</Button><Button variant="secondary" size="sm" onClick={() => testSavedProvider(provider)} disabled={providerTestPending} aria-busy={testingThisProvider}>{testingThisProvider ? '测试中…' : '测试'}</Button><Button variant="destructive" size="sm" onClick={() => deleteModelProvider(provider)}>删除</Button></div></TextCard>;
     }) : <div className="empty compact">还没有模型供应商。</div>}</div>
     {candidatePicker ? <Dialog open onOpenChange={open => { if (!open && !candidateSaving) closeCandidatePicker(); }}>
       <DialogPortal>
@@ -396,7 +398,7 @@ function ProvidersModule({ providers, saveModelProvider, deleteModelProvider, te
             <div className="app-modal-form">
               <DialogTitle className="app-modal-title">发现模型 · {candidatePicker.provider.name || candidatePicker.provider.id}</DialogTitle>
               <div className="candidate-model-modal-body">
-                <p>选择要加入该供应商的模型，最后统一保存。</p>
+                <DialogDescription className="candidate-model-description">选择要加入该供应商的模型，最后统一保存。</DialogDescription>
                 <div className="candidate-model-filter"><input ref={candidateSearchRef} aria-label="搜索候选模型" autoComplete="off" placeholder="搜索模型名称" value={candidatePicker.query || ''} onChange={event => setCandidatePicker(current => current ? {...current, query: event.target.value} : current)} /><span role="status" aria-live="polite">显示 {visibleCandidateModels.length} / {candidatePicker.models.length} 个{candidatePicker.selected.length ? ` · 已选 ${candidatePicker.selected.length} 个` : ''}</span></div>
                 <div className="model-options candidate-model-options">{visibleCandidateModels.map(name => {
                   const existing = existingModels.includes(name);
@@ -405,7 +407,7 @@ function ProvidersModule({ providers, saveModelProvider, deleteModelProvider, te
                 })}</div>
                 {!visibleCandidateModels.length ? <div className="empty compact">没有匹配的模型。</div> : null}
               </div>
-              <div className="app-modal-actions"><button type="button" className="secondary" onClick={closeCandidatePicker} disabled={candidateSaving}>取消</button><button type="button" onClick={saveCandidates} disabled={candidateSaving || !candidatePicker.selected.length} aria-busy={candidateSaving}>{candidateSaving ? '保存中…' : '保存所选模型'}{candidatePicker.selected.length ? `（${candidatePicker.selected.length}）` : ''}</button></div>
+              <div className="app-modal-actions"><Button type="button" variant="secondary" onClick={closeCandidatePicker} disabled={candidateSaving}>取消</Button><Button type="button" onClick={saveCandidates} disabled={candidateSaving || !candidatePicker.selected.length} aria-busy={candidateSaving}>{candidateSaving ? '保存中…' : '保存所选模型'}{candidatePicker.selected.length ? `（${candidatePicker.selected.length}）` : ''}</Button></div>
             </div>
           </DialogPopup>
         </DialogViewport>
