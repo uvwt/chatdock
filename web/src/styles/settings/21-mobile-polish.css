@@ -2,11 +2,12 @@
 @media (max-width: 720px) {
   .settings-page {
     --settings-mobile-gutter: 12px;
+    --settings-mobile-safe-top: env(safe-area-inset-top, 0px);
   }
 
   .settings-page .settings-header {
-    min-height: 52px !important;
-    padding: 8px 10px !important;
+    min-height: calc(52px + var(--settings-mobile-safe-top)) !important;
+    padding: calc(8px + var(--settings-mobile-safe-top)) 10px 8px !important;
     background: transparent !important;
     box-shadow: none !important;
     -webkit-backdrop-filter: none !important;
@@ -32,7 +33,7 @@
   }
 
   .settings-page .settings-sidebar {
-    top: 52px !important;
+    top: calc(52px + var(--settings-mobile-safe-top)) !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
@@ -206,8 +207,8 @@
     z-index: 40 !important;
     grid-template-columns: auto minmax(0, 1fr) !important;
     gap: 10px !important;
-    min-height: 64px !important;
-    padding: 10px var(--settings-mobile-gutter) 9px !important;
+    min-height: calc(64px + var(--settings-mobile-safe-top)) !important;
+    padding: calc(10px + var(--settings-mobile-safe-top)) var(--settings-mobile-gutter) 9px !important;
     border-bottom: 1px solid var(--gpt-border) !important;
     background: transparent !important;
     -webkit-backdrop-filter: none !important;
