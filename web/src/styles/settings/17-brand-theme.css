@@ -43,8 +43,8 @@
   }
 
   .settings-page .settings-header {
-    min-height: 72px !important;
-    padding: 0 22px !important;
+    min-height: calc(72px + env(safe-area-inset-top, 0px)) !important;
+    padding: env(safe-area-inset-top, 0px) 22px 0 !important;
     border-bottom: 1px solid var(--gpt-border) !important;
     background: var(--gpt-main) !important;
     backdrop-filter: none;

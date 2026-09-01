@@ -43,8 +43,9 @@
     position: sticky !important;
     top: 0 !important;
     z-index: 40 !important;
-    min-height: 58px !important;
-    padding: 9px 12px !important;
+    /* Header 本身接管状态栏区域，下面的内容继续按完整 Header 高度自然排版。 */
+    min-height: calc(58px + env(safe-area-inset-top, 0px)) !important;
+    padding: calc(9px + env(safe-area-inset-top, 0px)) 12px 9px !important;
     border-bottom: 1px solid var(--mobile-border) !important;
     background: var(--mobile-panel-translucent) !important;
     box-shadow: 0 4px 14px rgba(0, 0, 0, .06) !important;
@@ -105,7 +106,7 @@
 
   .settings-page .settings-sidebar {
     position: sticky;
-    top: 58px;
+    top: calc(58px + env(safe-area-inset-top, 0px));
     z-index: 30;
     display: block;
     overflow: hidden;

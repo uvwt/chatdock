@@ -49,6 +49,21 @@ for (const legacyName of ['final-layout', 'visual-polish', 'override']) {
   if (settingsEntry.includes(legacyName)) failures.push(`settings.css must use semantic module names, not ${legacyName}`);
 }
 
+// iOS 独立网页只有同时启用 cover viewport 和透明状态栏，页面背景才能延伸到系统状态栏后方。
+const htmlEntry = read('web/index.html');
+if (!/viewport-fit=cover/.test(htmlEntry)
+  || !/<meta\s+name="apple-mobile-web-app-capable"\s+content="yes"/.test(htmlEntry)
+  || !/<meta\s+name="apple-mobile-web-app-status-bar-style"\s+content="black-translucent"/.test(htmlEntry)) {
+  failures.push('iOS standalone mode must keep the edge-to-edge status bar metadata');
+}
+const mobileShell = read('web/src/styles/art-direction/05-mobile-shell.css');
+const mobileStatusBarScrimRule = mobileShell.match(/#app\.app\s+main::after\s*\{([^}]*)\}/)?.[1] || '';
+if (!/height:\s*calc\(env\(safe-area-inset-top/.test(mobileStatusBarScrimRule)
+  || !/pointer-events:\s*none/.test(mobileStatusBarScrimRule)
+  || !/linear-gradient/.test(mobileStatusBarScrimRule)) {
+  failures.push('mobile status bar must use a non-blocking translucent safe-area scrim');
+}
+
 // 移动端聊天页会锁住 body；配置页必须解除锁并使用浏览器原生文档滚动。
 // 禁止配置页再次变成固定高度的嵌套滚动容器，iOS Safari 对这类结构容易吞掉触摸滚动。
 const settingsLayout = read('web/src/styles/settings/15-layout-system.css');
@@ -93,6 +108,30 @@ if (!/height:\s*auto\s*!important/.test(mobileActiveModuleRule)
   failures.push('mobile active settings module must not clip long content');
 }
 
+const mobileSettingsHeaderRule = mobileSettingsLayout.match(/\.settings-page\s+\.settings-header\s*\{([^}]*)\}/)?.[1] || '';
+const mobileSettingsSidebarRule = mobileSettingsLayout.match(/\.settings-page\s+\.settings-sidebar\s*\{([^}]*)\}/)?.[1] || '';
+if (!/min-height:\s*calc\(58px\s*\+\s*env\(safe-area-inset-top/.test(mobileSettingsHeaderRule)
+  || !/padding:\s*calc\(9px\s*\+\s*env\(safe-area-inset-top/.test(mobileSettingsHeaderRule)
+  || !/top:\s*calc\(58px\s*\+\s*env\(safe-area-inset-top/.test(mobileSettingsSidebarRule)) {
+  failures.push('mobile settings header and navigation must include the safe-area inset');
+}
+
+const settingsBrandTheme = read('web/src/styles/settings/17-brand-theme.css');
+const desktopSettingsHeaderRule = settingsBrandTheme.match(/@media\s*\(min-width:\s*901px\)[\s\S]*?\.settings-page\s+\.settings-header\s*\{([^}]*)\}/)?.[1] || '';
+if (!/min-height:\s*calc\(72px\s*\+\s*env\(safe-area-inset-top/.test(desktopSettingsHeaderRule)
+  || !/padding:\s*env\(safe-area-inset-top/.test(desktopSettingsHeaderRule)) {
+  failures.push('edge-to-edge settings header must include the safe-area inset on wide standalone layouts');
+}
+
+const compactSettingsPolish = read('web/src/styles/settings/21-mobile-polish.css');
+const compactSettingsHeaderRule = compactSettingsPolish.match(/\.settings-page\s+\.settings-header\s*\{([^}]*)\}/)?.[1] || '';
+const compactSettingsSidebarRule = compactSettingsPolish.match(/\.settings-page\s+\.settings-sidebar\s*\{([^}]*)\}/)?.[1] || '';
+if (!/min-height:\s*calc\(52px\s*\+\s*env\(safe-area-inset-top/.test(compactSettingsHeaderRule)
+  || !/padding:\s*calc\(8px\s*\+\s*env\(safe-area-inset-top/.test(compactSettingsHeaderRule)
+  || !/top:\s*calc\(52px\s*\+\s*env\(safe-area-inset-top/.test(compactSettingsSidebarRule)) {
+  failures.push('compact settings header and navigation must preserve the safe-area inset');
+}
+
 // 会话列表只允许纵向滚动。连续 URL、Token 或 API Key 必须在消息自身换行，
 // 不能把整张消息画布撑成横向滚动容器，否则 iOS 会出现整页偏移和左侧裁切。
 const conversationCanvas = read('web/src/styles/art-direction/02-canvas.css');
@@ -105,7 +144,6 @@ if (!/min-width:\s*0/.test(messagesRule)
 
 // 悬浮输入框不能通过消息区底部 padding 预留空间，否则 iPhone 安全区会留下白底；
 // 但末尾必须有按真实遮挡高度计算的可滚动留白，保证最后正文能完全越过悬浮控件。
-const mobileShell = read('web/src/styles/art-direction/05-mobile-shell.css');
 const floatingMessagesRule = mobileShell.match(/html:not\(\.chatdock-keyboard-open\) #app\.app:not\(\.chat-empty\) \.messages\s*\{([^}]*)\}/)?.[1] || '';
 const floatingMessagesEndRule = mobileShell.match(/html:not\(\.chatdock-keyboard-open\) #app\.app:not\(\.chat-empty\) \.messages::after\s*\{([^}]*)\}/)?.[1] || '';
 if (!/padding-bottom:\s*0\s*!important/.test(floatingMessagesRule)
