@@ -97,20 +97,6 @@ export default function App() {
   useEffect(() => { pausedRef.current = streamPaused; }, [streamPaused]);
   useEffect(() => { currentRef.current = current; }, [current]);
 
-  useEffect(() => {
-    if (!current) {
-      setContextPreview(null);
-      return undefined;
-    }
-    let active = true;
-    fetchContextPreview(api, current).then(preview => {
-      if (active) setContextPreview(preview);
-    }).catch(() => {
-      if (active) setContextPreview(null);
-    });
-    return () => { active = false; };
-  }, [api, busy, current]);
-
   const detachActiveStream = useCallback(() => {
     resetStreamText();
     // 切换会话只断开当前页面的 SSE 监听，不取消后端 ChatJob；
@@ -208,6 +194,20 @@ export default function App() {
 
   const api = useMemo(() => createJsonApi({ authHeaders, onUnauthorized: setAuthPage }), [authHeaders]);
   const callMCPAppTool = useCallback(input => requestMCPAppTool(api, current, input), [api, current]);
+  useEffect(() => {
+    if (!current) {
+      setContextPreview(null);
+      return undefined;
+    }
+    let active = true;
+    fetchContextPreview(api, current).then(preview => {
+      if (active) setContextPreview(preview);
+    }).catch(() => {
+      if (active) setContextPreview(null);
+    });
+    return () => { active = false; };
+  }, [api, busy, current]);
+
   const {
     sessions,
     sessionsLoaded,
