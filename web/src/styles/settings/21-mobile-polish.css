@@ -7,7 +7,7 @@
   .settings-page .settings-header {
     min-height: 52px !important;
     padding: 8px 10px !important;
-    background: var(--mobile-panel) !important;
+    background: transparent !important;
     box-shadow: none !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
@@ -33,7 +33,8 @@
 
   .settings-page .settings-sidebar {
     top: 52px !important;
-    backdrop-filter: blur(20px) saturate(1.2) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 
   .settings-page .module-tabs {
@@ -208,8 +209,9 @@
     min-height: 64px !important;
     padding: 10px var(--settings-mobile-gutter) 9px !important;
     border-bottom: 1px solid var(--gpt-border) !important;
-    background: color-mix(in srgb, var(--gpt-main) 94%, transparent) !important;
-    backdrop-filter: blur(20px) saturate(1.2) !important;
+    background: transparent !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 
   .settings-page .settings-editor-back {

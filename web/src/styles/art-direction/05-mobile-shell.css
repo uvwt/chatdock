@@ -169,13 +169,13 @@
     width: 46px !important;
     height: 46px !important;
     min-height: 46px !important;
-    border: 1px solid var(--mobile-border) !important;
+    border: 0 !important;
     border-radius: 15px !important;
-    background: color-mix(in srgb, var(--mobile-panel) 62%, transparent) !important;
+    background: transparent !important;
     color: var(--mobile-text-strong) !important;
-    box-shadow: var(--mobile-shadow-raised) !important;
-    -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
-    backdrop-filter: blur(18px) saturate(145%) !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
     pointer-events: auto !important;
   }
 
@@ -184,12 +184,12 @@
     align-items: center !important;
     gap: 4px !important;
     padding: 4px 6px !important;
-    border: 1px solid var(--mobile-border) !important;
+    border: 0 !important;
     border-radius: 16px !important;
-    background: color-mix(in srgb, var(--mobile-panel) 62%, transparent) !important;
-    box-shadow: var(--mobile-shadow-raised) !important;
-    -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
-    backdrop-filter: blur(18px) saturate(145%) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
     pointer-events: auto !important;
   }
 

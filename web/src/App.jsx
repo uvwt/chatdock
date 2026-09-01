@@ -121,6 +121,10 @@ export default function App() {
   useEffect(() => {
     document.body.classList.toggle('theme-light', theme === 'day');
     document.body.classList.toggle('theme-night', theme !== 'day');
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeColorMeta) {
+      themeColorMeta.setAttribute('content', theme === 'day' ? '#ffffff' : '#17171d');
+    }
     localStorage.setItem('chatdock.theme.v2', theme);
   }, [theme]);
 

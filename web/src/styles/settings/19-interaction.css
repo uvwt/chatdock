@@ -58,8 +58,9 @@
     min-width: 0 !important;
     overflow: hidden !important;
     border-bottom: 1px solid var(--gpt-border) !important;
-    background: color-mix(in srgb, var(--gpt-main) 96%, transparent) !important;
-    backdrop-filter: blur(14px) !important;
+    background: transparent !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 
   .settings-page .module-tabs {
