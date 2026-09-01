@@ -9,8 +9,9 @@
     gap: 10px;
     min-height: calc(68px + env(safe-area-inset-top));
     padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
-    background: color-mix(in srgb, var(--gpt-main) 96%, transparent);
-    backdrop-filter: blur(18px);
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 
   .manage-page-back,
