@@ -112,11 +112,11 @@ func (s *Store) prepareChatRequest(input model.ChatRequest, requestID string, cr
 	if err != nil {
 		return ChatJob{}, nil, model.ModelConfig{}, nil, err
 	}
-	if prompt, ok, err := s.projectPromptForSessionLocked(prepared.session.ProjectID); err != nil {
+	snapshotChanged := !prepared.session.SystemPromptFrozen || (prepared.session.ProjectID != "" && !prepared.session.ProjectPromptFrozen)
+	if err := s.freezeSessionPromptsLocked(prepared.session); err != nil {
 		return ChatJob{}, nil, model.ModelConfig{}, nil, err
-	} else if ok {
-		cfg.SystemPrompt = BuildFinalSystemPrompt(cfg.SystemPrompt, prompt)
 	}
+	cfg.SystemPrompt = BuildFinalSystemPrompt(prepared.session.SystemPromptSnapshot, prepared.session.ProjectPromptSnapshot)
 	modelChanged := prepared.session.ProviderID != cfg.ProviderID || prepared.session.Model != cfg.Model
 	prepared.session.ProviderID = cfg.ProviderID
 	prepared.session.Model = cfg.Model
@@ -126,7 +126,7 @@ func (s *Store) prepareChatRequest(input model.ChatRequest, requestID string, cr
 		return ChatJob{}, nil, model.ModelConfig{}, nil, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if prepared.changed || modelChanged {
+	if prepared.changed || modelChanged || snapshotChanged {
 		if err := bindAttachmentsTx(tx, prepared.session.ID, prepared.messageID, prepared.attachmentIDs); err != nil {
 			return ChatJob{}, nil, model.ModelConfig{}, nil, err
 		}
@@ -148,14 +148,22 @@ func (s *Store) prepareChatRequest(input model.ChatRequest, requestID string, cr
 }
 
 func (s *Store) AppendAssistantMessage(sessionID string, content string) (*model.Session, error) {
-	return s.AppendAssistantMessageWithReasoning(sessionID, content, "")
+	return s.AppendAssistantMessageWithReasoningAndUsage(sessionID, content, "", nil)
 }
 
 func (s *Store) AppendAssistantMessageWithReasoning(sessionID string, content string, reasoning string) (*model.Session, error) {
-	return s.AppendAssistantMessageWithParts(sessionID, content, reasoning, nil, nil)
+	return s.AppendAssistantMessageWithReasoningAndUsage(sessionID, content, reasoning, nil)
 }
 
 func (s *Store) AppendAssistantMessageWithParts(sessionID string, content string, reasoning string, parts []model.MessagePart, events []model.MessageEvent) (*model.Session, error) {
+	return s.AppendAssistantMessageWithPartsAndUsage(sessionID, content, reasoning, parts, events, nil)
+}
+
+func (s *Store) AppendAssistantMessageWithReasoningAndUsage(sessionID string, content string, reasoning string, usage *model.Usage) (*model.Session, error) {
+	return s.AppendAssistantMessageWithPartsAndUsage(sessionID, content, reasoning, nil, nil, usage)
+}
+
+func (s *Store) AppendAssistantMessageWithPartsAndUsage(sessionID string, content string, reasoning string, parts []model.MessagePart, events []model.MessageEvent, usage *model.Usage) (*model.Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	session, ok, err := s.sessionLocked(sessionID)
@@ -166,7 +174,7 @@ func (s *Store) AppendAssistantMessageWithParts(sessionID string, content string
 		return nil, model.ErrSessionNotFound
 	}
 	now := time.Now()
-	session.Messages = append(session.Messages, model.Message{ID: model.NewID(), Role: "assistant", Content: content, Reasoning: strings.TrimSpace(reasoning), Parts: cloneMessageParts(parts), Events: cloneMessageEvents(events), CreatedAt: now})
+	session.Messages = append(session.Messages, model.Message{ID: model.NewID(), Role: "assistant", Content: content, Reasoning: strings.TrimSpace(reasoning), Parts: cloneMessageParts(parts), Events: cloneMessageEvents(events), Usage: cloneUsage(usage), CreatedAt: now})
 	session.UpdatedAt = now
 	if err := s.saveSessionLocked(session); err != nil {
 		return nil, err
@@ -175,6 +183,10 @@ func (s *Store) AppendAssistantMessageWithParts(sessionID string, content string
 }
 
 func (s *Store) UpsertAssistantMessageCheckpoint(sessionID string, messageID string, content string, reasoning string, parts []model.MessagePart, events []model.MessageEvent, messageError *model.MessageError) (*model.Session, string, error) {
+	return s.UpsertAssistantMessageCheckpointWithUsage(sessionID, messageID, content, reasoning, parts, events, messageError, nil)
+}
+
+func (s *Store) UpsertAssistantMessageCheckpointWithUsage(sessionID string, messageID string, content string, reasoning string, parts []model.MessagePart, events []model.MessageEvent, messageError *model.MessageError, usage *model.Usage) (*model.Session, string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	session, ok, err := s.sessionLocked(sessionID)
@@ -207,6 +219,9 @@ func (s *Store) UpsertAssistantMessageCheckpoint(sessionID string, messageID str
 	message.Reasoning = strings.TrimSpace(reasoning)
 	message.Parts = cloneMessageParts(parts)
 	message.Events = cloneMessageEvents(events)
+	if usage != nil {
+		message.Usage = cloneUsage(usage)
+	}
 	message.Error = nil
 	if messageError != nil {
 		errorCopy := *messageError

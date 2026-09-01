@@ -104,6 +104,8 @@ export function useSettingsActions({
       max_context_messages: Number(config.max_context_messages || 12),
       temperature: Number(config.temperature || 0.7),
       hide_thinking: !!config.hide_thinking,
+      context_window_tokens: Number(config.context_window_tokens || 32768),
+      output_reserve_tokens: Number(config.output_reserve_tokens || 4096),
       embedding_base_url: config.embedding_base_url,
       embedding_api_key: config.embedding_api_key,
       embedding_model: config.embedding_model || 'BAAI/bge-m3',

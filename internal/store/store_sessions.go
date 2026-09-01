@@ -52,6 +52,9 @@ func (s *Store) CreateSession(projectID string) (*model.Session, error) {
 	session := &model.Session{ID: model.NewID(), ProjectID: strings.TrimSpace(projectID), Title: "新会话", CreatedAt: now, UpdatedAt: now, Messages: []model.Message{}}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := s.freezeSessionPromptsLocked(session); err != nil {
+		return nil, err
+	}
 	if session.ProjectID != "" {
 		exists, err := projectExistsWith(s.db, session.ProjectID)
 		if err != nil {
@@ -139,6 +142,9 @@ func (s *Store) CloneSession(id string) (*model.Session, error) {
 	if err := s.saveSessionLocked(copySession); err != nil {
 		return nil, err
 	}
+	if err := s.copySessionContextCheckpointsLocked(source.ID, copySession.ID); err != nil {
+		return nil, err
+	}
 	return cloneSession(copySession), nil
 }
 
@@ -167,6 +173,7 @@ func (s *Store) BranchSession(id string, messageIndex *int) (*model.Session, err
 	branch.CreatedAt = now
 	branch.UpdatedAt = now
 	branch.Messages = cloneMessages(source.Messages[:cut])
+	branch.UsageSummary = buildUsageSummary(branch.Messages)
 	if err := s.saveSessionLocked(branch); err != nil {
 		return nil, err
 	}
@@ -225,6 +232,9 @@ func (s *Store) EditUserMessageAndTruncate(id string, messageID string, messageI
 	}
 	// 编辑历史会改变后续语义，旧 working set 不能在新分支时间线里重新“复活”。
 	if err := clearSessionToolWorkingSetWith(tx, session.ID); err != nil {
+		return nil, err
+	}
+	if err := deleteSessionContextCheckpointsWith(tx, session.ID); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {

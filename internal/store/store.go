@@ -53,6 +53,9 @@ func NewStore(dataDir string) (*Store, error) {
 	if err := store.EnsureGlobalModelProviders(); err != nil {
 		return nil, closeStoreAfterInitError(db, "ensure global model providers", err)
 	}
+	if err := store.upgradeSessionPromptSnapshots(); err != nil {
+		return nil, closeStoreAfterInitError(db, "upgrade session prompt snapshots", err)
+	}
 	if err := store.recoverInterruptedWork(); err != nil {
 		return nil, closeStoreAfterInitError(db, "recover interrupted work", err)
 	}

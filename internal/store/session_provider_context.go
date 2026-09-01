@@ -19,6 +19,9 @@ func (s *Store) SessionProviderContext(sessionID string) (model.ModelConfig, []m
 	if !ok {
 		return model.ModelConfig{}, nil, model.ErrSessionNotFound
 	}
+	if err := s.freezeSessionPromptsLocked(session); err != nil {
+		return model.ModelConfig{}, nil, err
+	}
 
 	cfg, err := s.modelConfigLocked()
 	if err != nil {
@@ -28,11 +31,7 @@ func (s *Store) SessionProviderContext(sessionID string) (model.ModelConfig, []m
 	if err != nil {
 		return model.ModelConfig{}, nil, err
 	}
-	if projectPrompt, found, err := s.projectPromptForSessionLocked(session.ProjectID); err != nil {
-		return model.ModelConfig{}, nil, err
-	} else if found {
-		cfg.SystemPrompt = BuildFinalSystemPrompt(cfg.SystemPrompt, projectPrompt)
-	}
+	cfg.SystemPrompt = BuildFinalSystemPrompt(session.SystemPromptSnapshot, session.ProjectPromptSnapshot)
 
 	return cfg, cloneMessages(session.Messages), nil
 }

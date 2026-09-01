@@ -24,11 +24,76 @@ func loadSessionsFromTablesLocked(db *sql.DB) (map[string]*model.Session, error)
 	if err := loadSessionPartsFromTables(db, sessions); err != nil {
 		return nil, err
 	}
+	for _, session := range sessions {
+		session.UsageSummary = buildUsageSummary(session.Messages)
+	}
 	return sessions, nil
 }
 
+func buildUsageSummary(messages []model.Message) *model.UsageSummary {
+	summary := &model.UsageSummary{Status: "供应商未提供"}
+	for _, message := range messages {
+		if message.Role != "assistant" {
+			continue
+		}
+		if message.Usage == nil {
+			summary.MissingCount++
+			continue
+		}
+		summary.ReplyCount++
+		summary.InputTokens += message.Usage.InputTokens
+		summary.OutputTokens += message.Usage.OutputTokens
+		summary.ReasoningTokens += message.Usage.ReasoningTokens
+		summary.CacheHitTokens += message.Usage.CacheHitTokens
+		summary.CacheMissTokens += message.Usage.CacheMissTokens
+		summary.TotalTokens += message.Usage.TotalTokens
+	}
+	if summary.ReplyCount > 0 {
+		if summary.TotalTokens == 0 {
+			summary.TotalTokens = summary.InputTokens + summary.OutputTokens + summary.ReasoningTokens
+		}
+		summary.Status = "对话模型已上报用量"
+		cacheTotal := summary.CacheHitTokens + summary.CacheMissTokens
+		if cacheTotal > 0 {
+			summary.CacheHitRate = float64(summary.CacheHitTokens) / float64(cacheTotal)
+		}
+	}
+	if summary.ReplyCount == 0 && summary.MissingCount == 0 {
+		return nil
+	}
+	return summary
+}
+
+func usageSummaryForSession(reader sqlQueryer, sessionID string) (*model.UsageSummary, error) {
+	rows, err := reader.Query(`SELECT role, usage_json FROM session_messages WHERE session_id = ?`, strings.TrimSpace(sessionID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	messages := make([]model.Message, 0)
+	for rows.Next() {
+		var role, usageRaw string
+		if err := rows.Scan(&role, &usageRaw); err != nil {
+			return nil, err
+		}
+		message := model.Message{Role: role}
+		if strings.TrimSpace(usageRaw) != "" && strings.TrimSpace(usageRaw) != "null" {
+			var usage model.Usage
+			if err := json.Unmarshal([]byte(usageRaw), &usage); err != nil {
+				return nil, err
+			}
+			message.Usage = &usage
+		}
+		messages = append(messages, message)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return buildUsageSummary(messages), nil
+}
+
 func loadSessionHeadersFromTables(db *sql.DB) (map[string]*model.Session, error) {
-	rows, err := db.Query(`SELECT id, project_id, title, pinned, provider_id, model, created_at, updated_at FROM sessions ORDER BY updated_at DESC`)
+	rows, err := db.Query(`SELECT id, project_id, title, pinned, provider_id, model, system_prompt_snapshot, project_prompt_snapshot, system_prompt_frozen, project_prompt_frozen, created_at, updated_at FROM sessions ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -38,14 +103,17 @@ func loadSessionHeadersFromTables(db *sql.DB) (map[string]*model.Session, error)
 		var session model.Session
 		var pinned int
 		var projectID sql.NullString
+		var systemFrozen, projectFrozen int
 		var createdAt, updatedAt string
-		if err := rows.Scan(&session.ID, &projectID, &session.Title, &pinned, &session.ProviderID, &session.Model, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&session.ID, &projectID, &session.Title, &pinned, &session.ProviderID, &session.Model, &session.SystemPromptSnapshot, &session.ProjectPromptSnapshot, &systemFrozen, &projectFrozen, &createdAt, &updatedAt); err != nil {
 			return nil, err
 		}
 		if projectID.Valid {
 			session.ProjectID = projectID.String
 		}
 		session.Pinned = pinned != 0
+		session.SystemPromptFrozen = systemFrozen != 0
+		session.ProjectPromptFrozen = projectFrozen != 0
 		session.CreatedAt = parseDBTimeZero(createdAt)
 		session.UpdatedAt = parseDBTimeZero(updatedAt)
 		session.Messages = []model.Message{}
@@ -55,16 +123,16 @@ func loadSessionHeadersFromTables(db *sql.DB) (map[string]*model.Session, error)
 }
 
 func loadSessionMessagesFromTables(db *sql.DB, sessions map[string]*model.Session) error {
-	rows, err := db.Query(`SELECT session_id, message_index, id, role, content, reasoning, error_json, attachments_json, created_at FROM session_messages ORDER BY session_id, message_index`)
+	rows, err := db.Query(`SELECT session_id, message_index, id, role, content, reasoning, error_json, usage_json, attachments_json, created_at FROM session_messages ORDER BY session_id, message_index`)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var sessionID, errorRaw, attachmentsRaw, createdAt string
+		var sessionID, errorRaw, usageRaw, attachmentsRaw, createdAt string
 		var index int
 		var msg model.Message
-		if err := rows.Scan(&sessionID, &index, &msg.ID, &msg.Role, &msg.Content, &msg.Reasoning, &errorRaw, &attachmentsRaw, &createdAt); err != nil {
+		if err := rows.Scan(&sessionID, &index, &msg.ID, &msg.Role, &msg.Content, &msg.Reasoning, &errorRaw, &usageRaw, &attachmentsRaw, &createdAt); err != nil {
 			return err
 		}
 		if index < 0 {
@@ -81,6 +149,13 @@ func loadSessionMessagesFromTables(db *sql.DB, sessions map[string]*model.Sessio
 				return fmt.Errorf("decode session %s message %d error: %w", sessionID, index, err)
 			}
 			msg.Error = &messageError
+		}
+		if strings.TrimSpace(usageRaw) != "" && strings.TrimSpace(usageRaw) != "null" {
+			var usage model.Usage
+			if err := json.Unmarshal([]byte(usageRaw), &usage); err != nil {
+				return fmt.Errorf("decode session %s message %d usage: %w", sessionID, index, err)
+			}
+			msg.Usage = &usage
 		}
 		if strings.TrimSpace(attachmentsRaw) != "" {
 			if err := json.Unmarshal([]byte(attachmentsRaw), &msg.Attachments); err != nil {
@@ -193,8 +268,8 @@ func upsertSessionTablesTx(tx sqlWriter, session *model.Session) error {
 	if session.ProjectID != "" {
 		projectID = session.ProjectID
 	}
-	if _, err := tx.Exec(`INSERT INTO sessions(id, project_id, title, pinned, provider_id, model, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id) DO UPDATE SET project_id = excluded.project_id, title = excluded.title, pinned = excluded.pinned, provider_id = excluded.provider_id, model = excluded.model, created_at = excluded.created_at, updated_at = excluded.updated_at`, session.ID, projectID, session.Title, boolInt(session.Pinned), session.ProviderID, session.Model, formatScheduleDBTime(session.CreatedAt), formatScheduleDBTime(session.UpdatedAt)); err != nil {
+	if _, err := tx.Exec(`INSERT INTO sessions(id, project_id, title, pinned, provider_id, model, system_prompt_snapshot, project_prompt_snapshot, system_prompt_frozen, project_prompt_frozen, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET project_id = excluded.project_id, title = excluded.title, pinned = excluded.pinned, provider_id = excluded.provider_id, model = excluded.model, system_prompt_snapshot = excluded.system_prompt_snapshot, project_prompt_snapshot = excluded.project_prompt_snapshot, system_prompt_frozen = excluded.system_prompt_frozen, project_prompt_frozen = excluded.project_prompt_frozen, created_at = excluded.created_at, updated_at = excluded.updated_at`, session.ID, projectID, session.Title, boolInt(session.Pinned), session.ProviderID, session.Model, session.SystemPromptSnapshot, session.ProjectPromptSnapshot, boolInt(session.SystemPromptFrozen), boolInt(session.ProjectPromptFrozen), formatScheduleDBTime(session.CreatedAt), formatScheduleDBTime(session.UpdatedAt)); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM session_messages WHERE session_id = ?`, session.ID); err != nil {
@@ -241,7 +316,15 @@ func upsertSessionMessageTx(tx sqlWriter, session *model.Session, messageIndex i
 		}
 		errorRaw = string(encodedError)
 	}
-	if _, err := tx.Exec(`INSERT INTO session_messages(session_id, message_index, id, role, content, reasoning, error_json, attachments_json, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`, session.ID, messageIndex, msg.ID, msg.Role, msg.Content, msg.Reasoning, errorRaw, string(attachmentsRaw), formatScheduleDBTime(msg.CreatedAt)); err != nil {
+	usageRaw := ""
+	if msg.Usage != nil {
+		encodedUsage, err := json.Marshal(msg.Usage)
+		if err != nil {
+			return fmt.Errorf("encode session %s message %d usage: %w", session.ID, messageIndex, err)
+		}
+		usageRaw = string(encodedUsage)
+	}
+	if _, err := tx.Exec(`INSERT INTO session_messages(session_id, message_index, id, role, content, reasoning, error_json, usage_json, attachments_json, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, session.ID, messageIndex, msg.ID, msg.Role, msg.Content, msg.Reasoning, errorRaw, usageRaw, string(attachmentsRaw), formatScheduleDBTime(msg.CreatedAt)); err != nil {
 		return err
 	}
 	eventIDs, err := upsertSessionMessageEventsTx(tx, session.ID, messageIndex, msg)

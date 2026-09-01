@@ -13,6 +13,7 @@ import (
 type conversationToolSet struct {
 	loaded              toolCatalog
 	onDemand            toolCatalog
+	discovered          conversationToolExposure
 	exposure            conversationToolExposure
 	resources           conversationToolResources
 	mcpConfig           mcp.MCPConfig
@@ -52,11 +53,12 @@ func (e conversationToolExposure) Tools() []mcp.MCPTool {
 
 func newConversationToolSet(allTools []mcp.MCPTool, cfg mcp.MCPConfig) *conversationToolSet {
 	set := &conversationToolSet{
-		loaded:    newToolCatalog(nil),
-		onDemand:  newToolCatalog(nil),
-		exposure:  newConversationToolExposure(len(allTools)),
-		resources: newConversationToolResources(len(cfg.Servers) + 1),
-		mcpConfig: cfg,
+		loaded:     newToolCatalog(nil),
+		onDemand:   newToolCatalog(nil),
+		discovered: newConversationToolExposure(len(allTools)),
+		exposure:   newConversationToolExposure(len(allTools)),
+		resources:  newConversationToolResources(len(cfg.Servers) + 1),
+		mcpConfig:  cfg,
 	}
 
 	hasBuiltinTools := false
@@ -145,10 +147,10 @@ func (s *conversationToolSet) registerLoadedTool(tool mcp.MCPTool) {
 func (s *conversationToolSet) expose(tools []mcp.MCPTool) []string {
 	loaded := make([]string, 0, len(tools))
 	for _, tool := range tools {
-		if s.exposure.Has(tool.FullName) {
+		if s.exposure.Has(tool.FullName) || s.discovered.Has(tool.FullName) {
 			continue
 		}
-		if s.exposure.Add(tool) {
+		if s.discovered.Add(tool) {
 			loaded = append(loaded, tool.FullName)
 		}
 	}
@@ -171,6 +173,7 @@ func (s *conversationToolSet) tools() []mcp.MCPTool {
 	tools := s.exposure.Tools()
 	if s.hasDiscovery() {
 		tools = append(tools, builtinToolSearchTool(s.resourceIndex()))
+		tools = append(tools, builtinToolCallTool())
 	}
 	return tools
 }
@@ -183,7 +186,13 @@ func (s *conversationToolSet) visibleTool(name string) (mcp.MCPTool, bool) {
 		}
 		return builtinToolSearchTool(s.resourceIndex()), true
 	}
-	if !s.exposure.Has(name) {
+	if name == builtinToolCall {
+		if !s.hasDiscovery() {
+			return mcp.MCPTool{}, false
+		}
+		return builtinToolCallTool(), true
+	}
+	if !s.exposure.Has(name) && !s.discovered.Has(name) {
 		return mcp.MCPTool{}, false
 	}
 	return s.loaded.Get(name)
@@ -270,9 +279,35 @@ func (a *Server) callVisibleConversationTool(ctx context.Context, toolSet *conve
 		return nil, err
 	}
 	if isBuiltinToolDiscoveryTool(tool.FullName) {
+		if tool.FullName == builtinToolCall {
+			return a.callDiscoveredConversationTool(toolSet, runRealTool, args)
+		}
 		return a.discoverConversationTools(ctx, toolSet, args)
 	}
 	result, err := runRealTool(name, args)
+	if err == nil {
+		a.rememberCalledConversationTool(toolSet.workingSetSessionID, toolSet.workingSetTurn, toolSet, tool)
+	}
+	return result, err
+}
+
+func (a *Server) callDiscoveredConversationTool(toolSet *conversationToolSet, runRealTool func(string, map[string]any) (any, error), args map[string]any) (any, error) {
+	name := strings.TrimSpace(stringArg(args, "tool"))
+	arguments, ok := args["arguments"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("arguments.arguments must be object")
+	}
+	tool, ok := toolSet.loaded.Get(name)
+	if ok && !toolSet.discovered.Has(name) && !toolSet.exposure.Has(name) {
+		ok = false
+	}
+	if !ok {
+		return nil, fmt.Errorf("tool is not loaded in this conversation: %s", name)
+	}
+	if err := toolschema.ValidateArguments(tool.InputSchema, arguments); err != nil {
+		return nil, err
+	}
+	result, err := runRealTool(name, arguments)
 	if err == nil {
 		a.rememberCalledConversationTool(toolSet.workingSetSessionID, toolSet.workingSetTurn, toolSet, tool)
 	}
@@ -353,8 +388,9 @@ func (a *Server) discoverConversationTools(ctx context.Context, toolSet *convers
 			return baseResult, nil
 		}
 		baseResult["loaded_tools"] = toolSet.expose(definitions)
+		baseResult["tool_schemas"] = toolSchemasForConversation(definitions)
 		a.rememberDiscoveredConversationTools(toolSet.workingSetSessionID, toolSet.workingSetTurn, toolSet, definitions)
-		baseResult["next"] = "该资源的真实工具已加入下一次模型请求；请直接调用目标工具。"
+		baseResult["next"] = "该资源的真实 schema 已放入本轮对话尾部；请使用 chatdock_tool_call 调用目标工具。"
 		return baseResult, nil
 	}
 
@@ -365,11 +401,28 @@ func (a *Server) discoverConversationTools(ctx context.Context, toolSet *convers
 	}
 	result["mode"] = "search"
 	result["loaded_tools"] = toolSet.expose(matches)
+	result["tool_schemas"] = toolSchemasForConversation(matches)
 	a.rememberDiscoveredConversationTools(toolSet.workingSetSessionID, toolSet.workingSetTurn, toolSet, matches)
 	if len(matches) == 0 && len(resourceIDs) == 0 {
 		result["next"] = "未能仅根据目标确定资源；请从 resources 中选择一个资源后再次搜索，或对单个资源省略 query 进行全量加载。"
 	}
 	return result, nil
+}
+
+func toolSchemasForConversation(tools []mcp.MCPTool) []map[string]any {
+	result := make([]map[string]any, 0, len(tools))
+	for _, tool := range tools {
+		name := tool.FullName
+		if strings.TrimSpace(name) == "" {
+			name = mcp.ToolFullName(tool.Server, tool.Name)
+		}
+		result = append(result, map[string]any{
+			"name":        name,
+			"description": firstNonEmpty(tool.Description, tool.Title),
+			"parameters":  tool.InputSchema,
+		})
+	}
+	return result
 }
 
 func (a *Server) consumeChatJobGuidance(jobID string, emit func(string, any) error) ([]map[string]any, error) {

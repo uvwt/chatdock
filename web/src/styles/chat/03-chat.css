@@ -468,6 +468,48 @@
   color: var(--gpt-text);
 }
 
+.message-usage {
+  position: relative;
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--gpt-muted-2);
+  font-size: 11px;
+}
+
+.message-usage-detail {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: grid;
+  gap: 4px;
+  min-width: 220px;
+  padding: 9px 11px;
+  border: 1px solid var(--gpt-border-strong);
+  border-radius: 10px;
+  background: var(--gpt-surface);
+  color: var(--gpt-muted);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .16);
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.message-usage-detail span {
+  display: block;
+}
+
+@media (max-width: 720px) {
+  .message-usage-detail {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: 72px;
+    top: auto;
+    min-width: 0;
+    white-space: normal;
+  }
+}
+
 .chat-error-icon {
   margin-top: 1px;
   color: var(--gpt-danger);

@@ -84,7 +84,7 @@ export function SettingsPanel(props) {
     activeModule, api, closeSettings, config, configDirty, mcpConfigDirty, dataStatus, saveModelProvider, deleteModelProvider, testSavedModelProvider, fetchSavedProviderModels,
     loadDataStatus, loadMCPStatus, loadSystemStatus, logout, builtinTools, mcpConfig, mcpStatus, onCopy, providers, projectPromptPreview, refreshProductState, refreshVisibleSettings,
     saveConfig, saveMCPConfig, setConfig, setupStatus, showDialog, showProjectPromptPreview, switchSettingsModule, systemStatus,
-    testMCP, fetchMCPServerTools, testModelProvider, addCandidateModelsToProvider, loadingModels,
+    testMCP, fetchMCPServerTools, testModelProvider, addCandidateModelsToProvider, loadingModels, newSessionWithConfig,
     projects, projectSessionCounts, saveProject, deleteProject, openProjectSessions, loadProjects, onPinnedProjectChange, startProjectConversation, showToast,
     scheduledTasks, taskSearch, setTaskSearch, saveScheduledTask, deleteScheduledTask, setScheduledTasks, toggleScheduledTask, runScheduledTaskNow, openScheduledTaskSession, loadScheduledTasks, onPinnedTaskChange,
   } = props;
@@ -108,8 +108,10 @@ export function SettingsPanel(props) {
         setSaveState({scope: 'config', status: 'saved', message: ''});
         saveTimerRef.current = window.setTimeout(() => setSaveState({scope: '', status: 'idle', message: ''}), 2200);
       }
+      return true;
     } catch (error) {
       if (mountedRef.current) setSaveState({scope: 'config', status: 'error', message: error?.message || '保存失败，请稍后重试。'});
+      return false;
     } finally {
       saveInFlightRef.current = false;
     }
@@ -138,6 +140,10 @@ export function SettingsPanel(props) {
   }, [activeModule]);
 
   const configSaveState = saveState.scope === 'config' ? saveState : {scope: 'config', status: 'idle', message: ''};
+  const applyConfigToNewSession = async () => {
+    if (configDirty && !(await saveModelConfig())) return;
+    await newSessionWithConfig?.();
+  };
   const moduleIsDirty = (name) => name === 'model' ? !!configDirty : name === 'tools' ? !!mcpConfigDirty : false;
   const handleModuleTabsKeyDown = (event) => {
     const direction = {ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1}[event.key];
@@ -184,7 +190,7 @@ export function SettingsPanel(props) {
     </div>
     <main className="settings-content">
       <ModuleView name="model" activeModule={activeModule} dirty={configDirty} saveState={configSaveState} onSave={saveModelConfig}>
-        <ModelModule config={config} setConfig={setConfig} projectPromptPreview={projectPromptPreview} testModelProvider={testModelProvider} providers={providers} />
+        <ModelModule config={config} setConfig={setConfig} projectPromptPreview={projectPromptPreview} testModelProvider={testModelProvider} providers={providers} onNewSessionWithConfig={applyConfigToNewSession} />
         <ProvidersModule providers={providers} saveModelProvider={saveModelProvider} deleteModelProvider={deleteModelProvider} testSavedModelProvider={testSavedModelProvider} fetchSavedProviderModels={fetchSavedProviderModels} addCandidateModelsToProvider={addCandidateModelsToProvider} loadingModels={loadingModels} />
       </ModuleView>
       <ModuleView name="tools" activeModule={activeModule}><ToolsModule builtinTools={builtinTools} mcpStatus={mcpStatus} mcpConfig={mcpConfig} saveMCPConfig={saveMCPConfig} loadMCPStatus={loadMCPStatus} testMCP={testMCP} fetchMCPServerTools={fetchMCPServerTools} showDialog={showDialog} /></ModuleView>
@@ -272,7 +278,7 @@ function modelListText(config) {
   return normalizeModelNames(models).join('\n');
 }
 
-function ModelModule({ config, setConfig, projectPromptPreview, testModelProvider, providers }) {
+function ModelModule({ config, setConfig, projectPromptPreview, testModelProvider, providers, onNewSessionWithConfig }) {
   const pendingActions = usePendingActions();
   const update = (key, value) => setConfig(current => ({...current, [key]: value}));
   const providerModels = provider => normalizeModelNames([...(provider?.models || []), provider?.default_model].filter(Boolean));
@@ -283,9 +289,15 @@ function ModelModule({ config, setConfig, projectPromptPreview, testModelProvide
     const provider = providers.find(item => item.id === id) || providers[0] || null;
     const models = providerModels(provider);
     const model = models.includes(current.model) ? current.model : (provider?.default_model || models[0] || current.model || '');
-    return {...current, provider_id: provider?.id || '', base_url: provider?.base_url || '', has_api_key: !!provider?.has_api_key, model, models};
+    const limit = provider?.model_limits?.[model];
+    return {...current, provider_id: provider?.id || '', base_url: provider?.base_url || '', has_api_key: !!provider?.has_api_key, model, models,
+      context_window_tokens: Number(limit?.context_window_tokens || 32768), output_reserve_tokens: Number(limit?.output_reserve_tokens || 4096), context_limits_estimated: !limit};
   });
-  const chooseModel = name => setConfig(current => ({...current, model: name, models: normalizeModelNames([...(current.models || []), name])}));
+  const chooseModel = name => setConfig(current => {
+    const limit = activeProvider?.model_limits?.[name];
+    return {...current, model: name, models: normalizeModelNames([...(current.models || []), name]),
+      context_window_tokens: Number(limit?.context_window_tokens || 32768), output_reserve_tokens: Number(limit?.output_reserve_tokens || 4096), context_limits_estimated: !limit};
+  });
   const chooseFallbackProvider = id => setConfig(current => {
     const provider = providers.find(item => item.id === id) || null;
     if (!provider) return {...current, fallback_provider_id: '', fallback_model: ''};
@@ -294,7 +306,10 @@ function ModelModule({ config, setConfig, projectPromptPreview, testModelProvide
   });
   const selectedProviderModels = normalizeModelNames([...providerModels(activeProvider), config.model].filter(Boolean));
   const fallbackModels = normalizeModelNames([...providerModels(fallbackProvider), config.fallback_model].filter(Boolean));
-  const contextMode = config.context_mode || 'auto';
+  const contextWindow = Number(config.context_window_tokens || 32768);
+  const outputReserve = Number(config.output_reserve_tokens || 4096);
+  const safetyMargin = Math.max(2048, Math.floor(contextWindow * 0.1));
+  const availableInput = Math.max(1, contextWindow - outputReserve - safetyMargin);
   const testingModel = !!pendingActions.pending.testModel;
   const testDefaultModel = async () => {
     if (!testModelProvider) return;
@@ -315,12 +330,10 @@ function ModelModule({ config, setConfig, projectPromptPreview, testModelProvide
       {!selectedProviderModels.length ? <div className="hint">当前供应商没有可用模型，请在下方编辑供应商。</div> : null}
     </section>
     <section className="settings-section model-response-section">
-      <div className="settings-section-head"><div><b>回复设置</b><p>高频参数直接展示，不再嵌套展开。</p></div></div>
-      <div className="settings-editor-grid">
-        <label>上下文<select value={contextMode} onChange={event => update('context_mode', event.target.value)}><option value="auto">自动</option><option value="compact">精简</option><option value="expanded">更多历史</option><option value="custom">自定义</option></select></label>
-        <label>Temperature<input type="number" step="0.1" min="0" max="2" value={config.temperature} onChange={event => update('temperature', event.target.value)} /></label>
-      </div>
-      {contextMode === 'custom' ? <label>最近消息数<input type="number" min="1" max="200" value={config.max_context_messages} onChange={event => update('max_context_messages', event.target.value)} /></label> : null}
+      <div className="settings-section-head"><div><b>回复设置</b><p>上下文按 Token 预算自适应；消息数量不再决定压缩时机。</p></div></div>
+      <div className="context-budget-card"><div><b>{contextWindow.toLocaleString('zh-CN')} Token 最大上下文</b><span>{config.context_limits_estimated !== false ? '当前为估算值' : '已按供应商模型配置'}</span></div><dl><div><dt>可用输入</dt><dd>{availableInput.toLocaleString('zh-CN')}</dd></div><div><dt>安全余量</dt><dd>{safetyMargin.toLocaleString('zh-CN')}</dd></div><div><dt>压缩策略</dt><dd>30% → 15%</dd></div></dl></div>
+      <details className="settings-advanced"><summary>高级设置</summary><div className="settings-editor-grid"><label>回答随机性<input aria-label="回答随机性" type="number" step="0.1" min="0" max="2" value={config.temperature} onChange={event => update('temperature', event.target.value)} /></label><div className="settings-advanced-note"><b>输出预留</b><span>{outputReserve.toLocaleString('zh-CN')} Token，仅用于预算，不会强制发送生成参数。</span></div></div></details>
+      {onNewSessionWithConfig ? <Button type="button" variant="secondary" onClick={async () => { await onNewSessionWithConfig(); }}>新建会话并应用当前设置</Button> : null}
       <label>全局系统提示词<textarea className="system-prompt-editor" rows="9" value={config.system_prompt} onChange={event => update('system_prompt', event.target.value)} /></label>
       <label className="settings-editor-check"><input type="checkbox" checked={!!config.hide_thinking} onChange={event => update('hide_thinking', event.target.checked)} /><span><b>隐藏模型思考内容</b><small>只影响界面显示，不改变模型推理能力。</small></span></label>
       {projectPromptPreview ? <pre className="settings-editor-preview">{projectPromptPreview}</pre> : null}

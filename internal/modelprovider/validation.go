@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"chatdock/internal/model"
 )
 
 func NormalizeRecord(record Record) Record {
@@ -18,6 +20,7 @@ func NormalizeRecord(record Record) Record {
 	record.LegacyAPIKey = ""
 	record.DefaultModel = strings.TrimSpace(record.DefaultModel)
 	record.Models = NormalizeModelNames(record.Models, record.DefaultModel)
+	record.ModelLimits = normalizeModelLimits(record.ModelLimits)
 	record.KeyStrategy = normalizeProviderKeyStrategy(record.KeyStrategy)
 	record.SelectedKeyID = NormalizeKeyID(record.SelectedKeyID)
 	if len(record.APIKeys) == 0 && legacyAPIKey != "" {
@@ -51,6 +54,36 @@ func NormalizeRecord(record Record) Record {
 		record.UpdatedAt = record.CreatedAt
 	}
 	return record
+}
+
+func normalizeModelLimits(limits map[string]model.ModelLimit) map[string]model.ModelLimit {
+	if len(limits) == 0 {
+		return nil
+	}
+	out := make(map[string]model.ModelLimit, len(limits))
+	for name, limit := range limits {
+		name = strings.TrimSpace(name)
+		if name == "" || limit.ContextWindowTokens <= 0 || limit.OutputReserveTokens <= 0 {
+			continue
+		}
+		if limit.OutputReserveTokens >= limit.ContextWindowTokens {
+			continue
+		}
+		out[name] = limit
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func LimitForModel(record Record, modelName string) (model.ModelLimit, bool) {
+	modelName = strings.TrimSpace(modelName)
+	if modelName == "" {
+		modelName = record.DefaultModel
+	}
+	limit, ok := record.ModelLimits[modelName]
+	return limit, ok
 }
 
 func validateRecord(record Record) error {

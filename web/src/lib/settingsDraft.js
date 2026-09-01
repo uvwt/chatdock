@@ -15,6 +15,8 @@ export function globalConfigDraftSignature(config = {}) {
     max_context_messages: finiteNumber(config.max_context_messages, 12),
     temperature: finiteNumber(config.temperature, 0.7),
     hide_thinking: !!config.hide_thinking,
+    context_window_tokens: finiteNumber(config.context_window_tokens, 32768),
+    output_reserve_tokens: finiteNumber(config.output_reserve_tokens, 4096),
     embedding_base_url: String(config.embedding_base_url || ''),
     embedding_api_key: String(config.embedding_api_key || ''),
     embedding_model: String(config.embedding_model || 'BAAI/bge-m3'),

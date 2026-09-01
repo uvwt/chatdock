@@ -21,6 +21,7 @@ type Recorder struct {
 	checkpointMessageID string
 	assistantSaved      bool
 	messageError        *model.MessageError
+	usage               *model.Usage
 	lastCheckpoint      time.Time
 	lastCheckpointChars int
 	pendingDelta        llm.StreamDelta
@@ -41,6 +42,24 @@ func NewRecorder(store *store.Store, sessionID string, jobID string) *Recorder {
 
 func (r *Recorder) Emit(event string, value any) error {
 	r.timeline.Record(event, value)
+	if event == "usage" {
+		switch usage := value.(type) {
+		case model.Usage:
+			r.AddUsage(usage)
+		case *model.Usage:
+			if usage != nil {
+				r.AddUsage(*usage)
+			}
+		}
+		if r.jobID != "" {
+			if err := r.FlushDeltaEvent(true); err != nil {
+				return err
+			}
+			_, err := r.store.AddChatJobEvent(r.jobID, event, value)
+			return err
+		}
+		return r.SaveCheckpoint(false)
+	}
 	if event == "delta" {
 		if delta, ok := value.(llm.StreamDelta); ok {
 			r.appendDelta(delta)
@@ -114,7 +133,7 @@ func (r *Recorder) SaveCheckpoint(force bool) error {
 	if strings.TrimSpace(currentAnswer) == "" && strings.TrimSpace(currentReasoning) == "" && r.timeline.Empty() && r.messageError == nil {
 		return nil
 	}
-	_, messageID, err := r.store.UpsertAssistantMessageCheckpoint(r.sessionID, r.checkpointMessageID, currentAnswer, currentReasoning, r.timeline.Parts(), r.timeline.Events(), r.messageError)
+	_, messageID, err := r.store.UpsertAssistantMessageCheckpointWithUsage(r.sessionID, r.checkpointMessageID, currentAnswer, currentReasoning, r.timeline.Parts(), r.timeline.Events(), r.messageError, r.usage)
 	if err != nil {
 		return err
 	}
@@ -123,6 +142,16 @@ func (r *Recorder) SaveCheckpoint(force bool) error {
 	r.lastCheckpoint = time.Now()
 	r.lastCheckpointChars = len(currentAnswer)
 	return nil
+}
+
+func (r *Recorder) AddUsage(usage model.Usage) {
+	if usage.Empty() {
+		return
+	}
+	if r.usage == nil {
+		r.usage = &model.Usage{Source: usage.Source}
+	}
+	r.usage.Add(usage)
 }
 
 func (r *Recorder) SetError(messageError model.MessageError) {

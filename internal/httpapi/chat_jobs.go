@@ -86,7 +86,7 @@ func (a *Server) runChatJob(ctx context.Context, jobID string, sessionID string,
 	defer a.clearChatJobGuidance(jobID)
 
 	recorder := chatoutput.NewRecorder(a.store, sessionID, jobID)
-	finalAnswer, usedCfg, runErr := a.completeWithRecordedTools(ctx, jobID, sessionID, cfg, fallbackCfg, history, recorder.Emit)
+	finalAnswer, usedCfg, _, runErr := a.completeWithRecordedTools(ctx, jobID, sessionID, cfg, fallbackCfg, history, recorder.Emit)
 	if err := recorder.FlushDeltaEvent(true); err != nil && runErr == nil {
 		runErr = err
 	}

@@ -8,6 +8,7 @@ import (
 
 const (
 	builtinToolSearchTools     = "chatdock_tools_search"
+	builtinToolCall            = "chatdock_tool_call"
 	builtinToolServerDiscovery = "chatdock"
 )
 
@@ -19,10 +20,7 @@ func builtinToolSearchTool(resources []toolResource) mcp.MCPTool {
 		}
 		resourceIDs = append(resourceIDs, resource.ID)
 	}
-	description := "按用户目标查找并加载 ChatDock 内置工具或 MCP 工具。可以用 query 搜索；任务明确集中在一个资源时，可只传 resources 且不传 query，一次加载该资源全部真实工具。命中的真实工具会在下一次模型请求中直接出现，不通过代理工具执行。"
-	if index := resourceIndexText(resources); index != "" {
-		description += "\n\n当前资源索引：\n" + index
-	}
+	description := "按用户目标查找并加载 ChatDock 内置工具或 MCP 工具。可以用 query 搜索；任务明确集中在一个资源时，可只传 resources 且不传 query。真实 schema 会随结果放在对话尾部，并通过 chatdock_tool_call 调用，不会动态改变顶层 tools。"
 	resourceItems := map[string]any{"type": "string", "description": "资源 ID"}
 	if len(resourceIDs) > 0 {
 		resourceItems["enum"] = resourceIDs
@@ -45,8 +43,27 @@ func builtinToolSearchTool(resources []toolResource) mcp.MCPTool {
 	}
 }
 
+func builtinToolCallTool() mcp.MCPTool {
+	return mcp.MCPTool{
+		Server:      builtinToolServerDiscovery,
+		Name:        "tool_call",
+		FullName:    builtinToolCall,
+		Title:       "调用已加载工具",
+		Description: "调用 chatdock_tools_search 返回的已加载工具。真实工具 schema 会留在对话尾部，不会动态加入顶层 tools。",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"tool":      map[string]any{"type": "string", "description": "已加载工具的完整名称"},
+				"arguments": map[string]any{"type": "object", "description": "按搜索结果中真实 schema 传入的工具参数"},
+			},
+			"required":             []any{"tool", "arguments"},
+			"additionalProperties": false,
+		},
+	}
+}
+
 func isBuiltinToolDiscoveryTool(name string) bool {
-	return name == builtinToolSearchTools
+	return name == builtinToolSearchTools || name == builtinToolCall
 }
 
 type toolCatalog struct {

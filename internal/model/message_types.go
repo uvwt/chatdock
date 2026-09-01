@@ -8,6 +8,7 @@ type Message struct {
 	Content          string             `json:"content"`
 	Reasoning        string             `json:"reasoning,omitempty"`
 	Error            *MessageError      `json:"error,omitempty"`
+	Usage            *Usage             `json:"usage,omitempty"`
 	Parts            []MessagePart      `json:"parts,omitempty"`
 	Events           []MessageEvent     `json:"events,omitempty"`
 	Attachments      []Attachment       `json:"attachments,omitempty"`
@@ -69,29 +70,35 @@ type AttachmentRecord struct {
 }
 
 type Session struct {
-	ID         string    `json:"id"`
-	ProjectID  string    `json:"project_id,omitempty"`
-	Title      string    `json:"title"`
-	Pinned     bool      `json:"pinned"`
-	ProviderID string    `json:"provider_id,omitempty"`
-	Model      string    `json:"model,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
-	Messages   []Message `json:"messages"`
+	ID                    string        `json:"id"`
+	ProjectID             string        `json:"project_id,omitempty"`
+	Title                 string        `json:"title"`
+	Pinned                bool          `json:"pinned"`
+	ProviderID            string        `json:"provider_id,omitempty"`
+	Model                 string        `json:"model,omitempty"`
+	CreatedAt             time.Time     `json:"created_at"`
+	UpdatedAt             time.Time     `json:"updated_at"`
+	SystemPromptSnapshot  string        `json:"system_prompt_snapshot,omitempty"`
+	ProjectPromptSnapshot string        `json:"project_prompt_snapshot,omitempty"`
+	SystemPromptFrozen    bool          `json:"-"`
+	ProjectPromptFrozen   bool          `json:"-"`
+	UsageSummary          *UsageSummary `json:"usage_summary,omitempty"`
+	Messages              []Message     `json:"messages"`
 }
 
 type SessionSummary struct {
-	ID         string    `json:"id"`
-	ProjectID  string    `json:"project_id,omitempty"`
-	Title      string    `json:"title"`
-	Pinned     bool      `json:"pinned"`
-	ProviderID string    `json:"provider_id,omitempty"`
-	Model      string    `json:"model,omitempty"`
-	Preview    string    `json:"preview,omitempty"`
-	LastRole   string    `json:"last_role,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
-	Count      int       `json:"count"`
+	ID           string        `json:"id"`
+	ProjectID    string        `json:"project_id,omitempty"`
+	Title        string        `json:"title"`
+	Pinned       bool          `json:"pinned"`
+	ProviderID   string        `json:"provider_id,omitempty"`
+	Model        string        `json:"model,omitempty"`
+	Preview      string        `json:"preview,omitempty"`
+	LastRole     string        `json:"last_role,omitempty"`
+	CreatedAt    time.Time     `json:"created_at"`
+	UpdatedAt    time.Time     `json:"updated_at"`
+	Count        int           `json:"count"`
+	UsageSummary *UsageSummary `json:"usage_summary,omitempty"`
 }
 
 type RenameSessionRequest struct {

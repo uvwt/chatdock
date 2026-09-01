@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"chatdock/internal/model"
 )
 
 func TestNormalizeRecordMigratesLegacyAPIKey(t *testing.T) {
@@ -90,5 +92,39 @@ func TestPublicProjectionMasksSecrets(t *testing.T) {
 	}
 	if len(public.APIKeys) != 1 || !public.APIKeys[0].HasAPIKey || public.APIKeys[0].APIKeyMasked == "" {
 		t.Fatalf("public keys = %#v", public.APIKeys)
+	}
+}
+
+func TestModelLimitsAreNormalizedAndExposedPerModel(t *testing.T) {
+	enabled := true
+	_, record, err := CreateRecord(nil, Input{
+		ID:           "limits",
+		Name:         "Limits",
+		BaseURL:      "https://example.test/v1",
+		DefaultModel: "model-a",
+		Models:       []string{"model-a", "model-b"},
+		ModelLimits: map[string]model.ModelLimit{
+			" model-a ": {ContextWindowTokens: 8192, OutputReserveTokens: 1024},
+			"model-b":   {ContextWindowTokens: 4096, OutputReserveTokens: 4096},
+			"invalid":   {ContextWindowTokens: 0, OutputReserveTokens: 512},
+		},
+		Enabled: &enabled,
+	}, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(record.ModelLimits) != 1 || record.ModelLimits["model-a"].ContextWindowTokens != 8192 {
+		t.Fatalf("normalized model limits = %#v", record.ModelLimits)
+	}
+	if limit, ok := LimitForModel(record, "model-a"); !ok || limit.OutputReserveTokens != 1024 {
+		t.Fatalf("model-a limit = %#v, ok=%v", limit, ok)
+	}
+	if _, ok := LimitForModel(record, "model-b"); ok {
+		t.Fatal("invalid model-b limit should not be exposed")
+	}
+	public := Public(record)
+	public.ModelLimits["model-a"] = model.ModelLimit{ContextWindowTokens: 1, OutputReserveTokens: 1}
+	if record.ModelLimits["model-a"].ContextWindowTokens != 8192 {
+		t.Fatal("public model limits leaked mutable map")
 	}
 }

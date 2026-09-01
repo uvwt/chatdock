@@ -37,7 +37,7 @@ func (s *Store) resolveChatModelConfigLocked(base model.ModelConfig, providerID 
 		providerID = next.ProviderID
 	}
 	if providerID != "" {
-		providerCfg, ok, err := s.modelProviderConfigLocked(providerID)
+		providerCfg, ok, err := modelProviderConfigForModelWith(s.db, providerID, selectedModel)
 		if err != nil {
 			return model.ModelConfig{}, err
 		}
@@ -49,6 +49,9 @@ func (s *Store) resolveChatModelConfigLocked(base model.ModelConfig, providerID 
 		next.BaseURL = providerCfg.BaseURL
 		next.APIKey = providerCfg.APIKey
 		next.Models = append([]string(nil), providerCfg.Models...)
+		next.ContextWindowTokens = providerCfg.ContextWindowTokens
+		next.OutputReserveTokens = providerCfg.OutputReserveTokens
+		next.ContextLimitsEstimated = providerCfg.ContextLimitsEstimated
 		if selectedModel == "" {
 			selectedModel = providerCfg.Model
 		}
@@ -78,7 +81,7 @@ func (s *Store) ResolveFallbackModelConfig(base model.ModelConfig) (*model.Model
 	if providerID == "" {
 		return nil, fmt.Errorf("fallback model provider is required")
 	}
-	providerCfg, ok, err := s.modelProviderConfigLocked(providerID)
+	providerCfg, ok, err := modelProviderConfigForModelWith(s.db, providerID, modelName)
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +101,9 @@ func (s *Store) ResolveFallbackModelConfig(base model.ModelConfig) (*model.Model
 	fallback.APIKey = providerCfg.APIKey
 	fallback.Model = modelName
 	fallback.Models = append([]string(nil), providerCfg.Models...)
+	fallback.ContextWindowTokens = providerCfg.ContextWindowTokens
+	fallback.OutputReserveTokens = providerCfg.OutputReserveTokens
+	fallback.ContextLimitsEstimated = providerCfg.ContextLimitsEstimated
 	fallback.FallbackProviderID = ""
 	fallback.FallbackModel = ""
 	fallback = model.NormalizeModelConfig(fallback)
@@ -109,7 +115,7 @@ func (s *Store) ResolveFallbackModelConfig(base model.ModelConfig) (*model.Model
 
 func applyProviderToConfigWith(reader sqlQueryer, cfg model.ModelConfig) (model.ModelConfig, error) {
 	cfg = model.NormalizeModelConfig(cfg)
-	providerCfg, ok, err := modelProviderConfigWith(reader, cfg.ProviderID)
+	providerCfg, ok, err := modelProviderConfigForModelWith(reader, cfg.ProviderID, cfg.Model)
 	if err != nil {
 		return model.ModelConfig{}, err
 	}
@@ -120,6 +126,9 @@ func applyProviderToConfigWith(reader sqlQueryer, cfg model.ModelConfig) (model.
 	cfg.BaseURL = providerCfg.BaseURL
 	cfg.APIKey = providerCfg.APIKey
 	cfg.Models = append([]string(nil), providerCfg.Models...)
+	cfg.ContextWindowTokens = providerCfg.ContextWindowTokens
+	cfg.OutputReserveTokens = providerCfg.OutputReserveTokens
+	cfg.ContextLimitsEstimated = providerCfg.ContextLimitsEstimated
 	if cfg.Model == "" {
 		cfg.Model = providerCfg.Model
 	}

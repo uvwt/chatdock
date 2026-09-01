@@ -3,25 +3,30 @@ package model
 import "strings"
 
 const (
-	ContextModeAuto         = "auto"
-	ContextModeCompact      = "compact"
-	ContextModeExpanded     = "expanded"
-	ContextModeCustom       = "custom"
-	MaxContextMessagesLimit = 200
+	ContextModeAuto            = "auto"
+	ContextModeCompact         = "compact"
+	ContextModeExpanded        = "expanded"
+	ContextModeCustom          = "custom"
+	MaxContextMessagesLimit    = 200
+	DefaultContextWindowTokens = 32 * 1024
+	DefaultOutputReserveTokens = 4 * 1024
 )
 
 func DefaultModelConfig() ModelConfig {
 	return ModelConfig{
-		ProviderID:         "provider_default",
-		BaseURL:            "https://api.openai.com/v1",
-		Model:              "gpt-4o-mini",
-		Models:             []string{"gpt-4o-mini"},
-		SystemPrompt:       "你是 ChatDock，一个简洁、直接、节省 token 的私人 AI 助手。默认用中文回答。",
-		ContextMode:        ContextModeAuto,
-		MaxContextMessages: 12,
-		Temperature:        0.7,
-		HideThinking:       false,
-		EmbeddingModel:     "BAAI/bge-m3",
+		ProviderID:             "provider_default",
+		BaseURL:                "https://api.openai.com/v1",
+		Model:                  "gpt-4o-mini",
+		Models:                 []string{"gpt-4o-mini"},
+		SystemPrompt:           "你是 ChatDock，一个简洁、直接、节省 token 的私人 AI 助手。默认用中文回答。",
+		ContextMode:            ContextModeAuto,
+		MaxContextMessages:     12,
+		Temperature:            0.7,
+		HideThinking:           false,
+		ContextWindowTokens:    DefaultContextWindowTokens,
+		OutputReserveTokens:    DefaultOutputReserveTokens,
+		ContextLimitsEstimated: true,
+		EmbeddingModel:         "BAAI/bge-m3",
 	}
 }
 
@@ -46,6 +51,20 @@ func NormalizeModelConfig(cfg ModelConfig) ModelConfig {
 	if cfg.Model == "" {
 		cfg.Model = "gpt-4o-mini"
 	}
+	if cfg.ContextWindowTokens <= 0 {
+		cfg.ContextWindowTokens = DefaultContextWindowTokens
+		cfg.ContextLimitsEstimated = true
+	}
+	if cfg.OutputReserveTokens <= 0 {
+		cfg.OutputReserveTokens = DefaultOutputReserveTokens
+		cfg.ContextLimitsEstimated = true
+	}
+	if cfg.OutputReserveTokens >= cfg.ContextWindowTokens {
+		cfg.OutputReserveTokens = cfg.ContextWindowTokens / 8
+		if cfg.OutputReserveTokens <= 0 {
+			cfg.OutputReserveTokens = DefaultOutputReserveTokens
+		}
+	}
 	if cfg.EmbeddingModel == "" {
 		cfg.EmbeddingModel = "BAAI/bge-m3"
 	}
@@ -68,21 +87,24 @@ func NormalizeModelConfig(cfg ModelConfig) ModelConfig {
 
 func ToPublicModelConfig(cfg ModelConfig) PublicModelConfig {
 	return PublicModelConfig{
-		ProviderID:         cfg.ProviderID,
-		BaseURL:            cfg.BaseURL,
-		HasAPIKey:          strings.TrimSpace(cfg.APIKey) != "",
-		Model:              cfg.Model,
-		Models:             append([]string(nil), cfg.Models...),
-		FallbackProviderID: cfg.FallbackProviderID,
-		FallbackModel:      cfg.FallbackModel,
-		SystemPrompt:       cfg.SystemPrompt,
-		ContextMode:        cfg.ContextMode,
-		MaxContextMessages: cfg.MaxContextMessages,
-		Temperature:        cfg.Temperature,
-		HideThinking:       cfg.HideThinking,
-		EmbeddingBaseURL:   cfg.EmbeddingBaseURL,
-		HasEmbeddingAPIKey: strings.TrimSpace(cfg.EmbeddingAPIKey) != "",
-		EmbeddingModel:     cfg.EmbeddingModel,
+		ProviderID:             cfg.ProviderID,
+		BaseURL:                cfg.BaseURL,
+		HasAPIKey:              strings.TrimSpace(cfg.APIKey) != "",
+		Model:                  cfg.Model,
+		Models:                 append([]string(nil), cfg.Models...),
+		FallbackProviderID:     cfg.FallbackProviderID,
+		FallbackModel:          cfg.FallbackModel,
+		SystemPrompt:           cfg.SystemPrompt,
+		ContextMode:            cfg.ContextMode,
+		MaxContextMessages:     cfg.MaxContextMessages,
+		Temperature:            cfg.Temperature,
+		HideThinking:           cfg.HideThinking,
+		ContextWindowTokens:    cfg.ContextWindowTokens,
+		OutputReserveTokens:    cfg.OutputReserveTokens,
+		ContextLimitsEstimated: cfg.ContextLimitsEstimated,
+		EmbeddingBaseURL:       cfg.EmbeddingBaseURL,
+		HasEmbeddingAPIKey:     strings.TrimSpace(cfg.EmbeddingAPIKey) != "",
+		EmbeddingModel:         cfg.EmbeddingModel,
 	}
 }
 

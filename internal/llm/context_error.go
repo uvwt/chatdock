@@ -8,6 +8,7 @@ import (
 var contextTooLargeFragments = []string{
 	"context_too_large",
 	"context_length_exceeded",
+	"context length exceeded",
 	"maximum context length",
 	"exceeds the context window",
 	"prompt is too long",

@@ -22,8 +22,8 @@ func TestSearchToolCatalogReturnsOnlyMatchingTools(t *testing.T) {
 	if items[0]["name"] != "calendar__events_list" || len(matches) != 1 || matches[0].FullName != "calendar__events_list" {
 		t.Fatalf("expected calendar tool to match, got items=%#v matches=%#v", items, matches)
 	}
-	if !strings.Contains(result["next"].(string), "直接调用") {
-		t.Fatalf("expected direct-call guidance, got %#v", result["next"])
+	if !strings.Contains(result["next"].(string), "chatdock_tool_call") || !strings.Contains(result["next"].(string), "对话尾部") {
+		t.Fatalf("expected fixed-proxy guidance, got %#v", result["next"])
 	}
 }
 

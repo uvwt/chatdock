@@ -28,7 +28,31 @@ import { scheduledTaskSessionRows, sessionRowID, unpinnedSessionRows } from '../
 
 const iconProps = { size: 17, 'aria-hidden': true };
 
-export function Topbar({ currentTitle, newSession, openSettings, selectedProject, setQuickPaletteOpen, setSidebarCollapsed, setThemeState, sidebarCollapsed, taskPanelAvailable, taskPanelOpen, taskPanelTasks, theme, toggleTaskPanel }) {
+function formatTokens(value) {
+  const number = Number(value || 0);
+  return number.toLocaleString('zh-CN');
+}
+
+function UsagePopover({ usage, label = '用量' }) {
+  if (!usage) return null;
+  const cacheTotal = Number(usage.cache_hit_tokens || 0) + Number(usage.cache_miss_tokens || 0);
+  const cacheRate = cacheTotal ? Math.round(Number(usage.cache_hit_tokens || 0) / cacheTotal * 100) : 0;
+  const cacheHint = cacheTotal ? ` · 缓存命中率 ${cacheRate}%` : ' · 缓存未提供';
+  return <details className="usage-popover">
+    <summary title={`${label}：${formatTokens(usage.total_tokens)} Token${cacheHint}`}>{formatTokens(usage.total_tokens)} Token</summary>
+      <div className="usage-popover-detail" role="status"><b>{label}</b><span>输入 {formatTokens(usage.input_tokens)} · 输出 {formatTokens(usage.output_tokens)}</span><span>命中 {formatTokens(usage.cache_hit_tokens)} · 未命中 {formatTokens(usage.cache_miss_tokens)}{cacheTotal ? ` · 命中率 ${cacheRate}%` : ''}</span>{usage.reasoning_tokens ? <span>推理 {formatTokens(usage.reasoning_tokens)}</span> : null}{usage.missing_count ? <small>未提供用量 {formatTokens(usage.missing_count)} 条</small> : null}{usage.status ? <small>{usage.status}</small> : null}</div>
+  </details>;
+}
+
+function ContextPopover({ preview }) {
+  if (!preview) return null;
+  return <details className="context-popover">
+    <summary title="上下文预算预览">上下文 {formatTokens(preview.estimated_tokens)} / {formatTokens(preview.available_input_tokens)}</summary>
+    <div className="usage-popover-detail" role="status"><b>{preview.model || '当前模型'}</b><span>最大上下文 {formatTokens(preview.max_context_tokens)} · 输出预留 {formatTokens(preview.output_reserve_tokens)}</span><span>固定提示词 {formatTokens(Math.max(0, Number(preview.fixed_overhead_tokens || 0) - Number(preview.tool_overhead_tokens || 0)))} · 工具开销 {formatTokens(preview.tool_overhead_tokens)}</span><span>当前历史 {formatTokens(preview.history_tokens)} Token</span><span>压缩线 {formatTokens(preview.compression_trigger_tokens)} · 目标 {formatTokens(preview.compression_target_tokens)}</span><small>安全余量 {formatTokens(preview.safety_margin_tokens)} · {preview.next_compression ? '下一次请求会整理历史' : '下一次请求暂不整理'}{preview.limits_estimated ? ' · 上限为估算值' : ''}</small></div>
+  </details>;
+}
+
+export function Topbar({ currentTitle, newSession, openSettings, selectedProject, setQuickPaletteOpen, setSidebarCollapsed, setThemeState, sidebarCollapsed, taskPanelAvailable, taskPanelOpen, taskPanelTasks, theme, toggleTaskPanel, usageSummary, contextPreview }) {
   const darkMode = theme !== 'day';
   const ThemeIcon = darkMode ? Sun : Moon;
   return <div className={'topbar' + (selectedProject ? ' project-context-active' : '')}>
@@ -39,6 +63,7 @@ export function Topbar({ currentTitle, newSession, openSettings, selectedProject
         <b id="title">{currentTitle}</b>
       </div>
     </div>
+    <div className="topbar-insights"><UsagePopover usage={usageSummary} label="会话累计用量" /><ContextPopover preview={contextPreview} /></div>
     <div className="top-actions">
       <button className="secondary quick-palette-toggle" onClick={() => setQuickPaletteOpen(true)}><MoreHorizontal {...iconProps} /><span className="action-label">快捷</span></button>
       <button className="secondary config-toggle" onClick={() => openSettings()}><Settings2 {...iconProps} /><span className="action-label">配置</span></button>
