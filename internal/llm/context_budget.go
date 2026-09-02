@@ -106,9 +106,11 @@ func EstimateToolsTokens(tools []map[string]any) int {
 }
 
 func EstimateContextMessageTokens(message ContextMessage) int {
-	// Events 是 UI 审计数据，不会原样发送给供应商；历史工具结果会在构造
-	// map 消息后由 FitRawMessagesForContext 按最终 JSON 再估算。
-	return EstimateTokens(message.Role) + EstimateTokens(message.Content) + 4
+	tokens := EstimateTokens(message.Role) + EstimateTokens(message.Content) + 4
+	if message.IncludeToolHistory {
+		tokens += EstimateTokens(completedToolTrace(message.Events))
+	}
+	return tokens
 }
 
 // PrepareChatContext 用 Token 水位决定是否压缩。消息数量只作为数据，不参与任何触发判断。
@@ -137,9 +139,10 @@ func prepareChatContext(cfg model.ModelConfig, history []model.Message) (Context
 	for _, item := range base {
 		budget.FixedOverheadTokens += EstimateContextMessageTokens(item)
 	}
+	toolHistoryIndexes := historicalToolMessageIndexSet(conversation)
 	conversationTokens := make([]int, len(conversation))
 	for index, item := range conversation {
-		conversationTokens[index] = EstimateContextMessageTokens(ContextMessage{Role: item.Role, Content: item.Content, SourceMessageID: item.ID, SourceMessageIndex: index, ModelAttachments: item.ModelAttachments, Events: item.Events})
+		conversationTokens[index] = EstimateContextMessageTokens(ContextMessage{Role: item.Role, Content: item.Content, SourceMessageID: item.ID, SourceMessageIndex: index, ModelAttachments: item.ModelAttachments, Events: item.Events, IncludeToolHistory: toolHistoryIndexes[index]})
 		budget.HistoryTokens += conversationTokens[index]
 	}
 	start := recentConversationStart(conversation)
@@ -153,7 +156,7 @@ func prepareChatContext(cfg model.ModelConfig, history []model.Message) (Context
 		return ContextPreparation{Budget: budget, CutoffMessageIndex: -1}, contextBudgetError("固定提示词和最近一轮消息已超过可用上下文")
 	}
 	if !budget.NextCompression || start == 0 {
-		return ContextPreparation{Messages: append(base, conversationMessages(conversation, 0)...), Budget: budget, CutoffMessageIndex: -1}, nil
+		return ContextPreparation{Messages: append(base, conversationMessages(conversation, 0, toolHistoryIndexes)...), Budget: budget, CutoffMessageIndex: -1}, nil
 	}
 
 	maxSummary := int(float64(budget.CompressionTargetTokens) * contextSummaryRatio)
@@ -166,7 +169,7 @@ func prepareChatContext(cfg model.ModelConfig, history []model.Message) (Context
 	if summary != "" {
 		messages = append(messages, ContextMessage{Role: "system", Content: summary})
 	}
-	messages = append(messages, conversationMessages(conversation[start:], start)...)
+	messages = append(messages, conversationMessages(conversation[start:], start, toolHistoryIndexes)...)
 	budget.HistoryTokens = sumContextMessageTokens(messages[len(base):])
 	budget.TotalTokens = budget.FixedOverheadTokens + budget.HistoryTokens
 	if budget.TotalTokens > budget.AvailableInputTokens {
@@ -230,10 +233,11 @@ func recentConversationStart(conversation []model.Message) int {
 	return start
 }
 
-func conversationMessages(history []model.Message, sourceOffset int) []ContextMessage {
+func conversationMessages(history []model.Message, sourceOffset int, toolHistoryIndexes map[int]bool) []ContextMessage {
 	out := make([]ContextMessage, 0, len(history))
 	for index, item := range history {
-		out = append(out, ContextMessage{Role: item.Role, Content: item.Content, SourceMessageID: item.ID, SourceMessageIndex: sourceOffset + index, ModelAttachments: item.ModelAttachments, Events: item.Events})
+		sourceIndex := sourceOffset + index
+		out = append(out, ContextMessage{Role: item.Role, Content: item.Content, SourceMessageID: item.ID, SourceMessageIndex: sourceIndex, ModelAttachments: item.ModelAttachments, Events: item.Events, IncludeToolHistory: toolHistoryIndexes[sourceIndex]})
 	}
 	return out
 }
@@ -326,26 +330,24 @@ func fitRawMessagesForContext(cfg model.ModelConfig, messages []map[string]any, 
 	budget.TotalTokens = budget.FixedOverheadTokens + budget.HistoryTokens
 	budget.NextCompression = budget.CompressibleHistoryTokens >= budget.CompressionTriggerTokens || budget.TotalTokens > budget.AvailableInputTokens
 	if budget.FixedOverheadTokens+sumInts(messageTokens[start:]) > budget.AvailableInputTokens {
-		if start == 0 {
-			// 当前工具链仍需保留 assistant.tool_calls 与每个 tool_call_id 的配对，
-			// 但可以从最早的工具结果开始折叠，避免单个超大结果阻塞整轮请求。
-			nonToolTokens := 0
-			for _, message := range messages[staticCount:] {
-				if strings.TrimSpace(fmt.Sprint(message["role"])) == "tool" {
-					continue
-				}
-				nonToolTokens += EstimateAnyTokens(message) + 4
+		// 当前 Active Turn 仍需保留 assistant.tool_calls 与每个 tool_call_id 的配对；
+		// 这里只从最早的已配对 tool.content 开始折叠，不改 tool_calls 的 ID、名称或 arguments。
+		nonToolTokens := 0
+		for _, message := range nonSystem[start:] {
+			if strings.TrimSpace(fmt.Sprint(message["role"])) == "tool" {
+				continue
 			}
-			maxToolTokens := budget.AvailableInputTokens - budget.FixedOverheadTokens - nonToolTokens
-			if maxToolTokens > 0 {
-				rebalanceToolMessagesToTokens(messages, staticCount, maxToolTokens)
-				messageTokens = make([]int, len(nonSystem))
-				for index, message := range nonSystem {
-					messageTokens[index] = EstimateAnyTokens(message) + 4
-				}
-				budget.HistoryTokens = sumInts(messageTokens)
-				budget.TotalTokens = budget.FixedOverheadTokens + budget.HistoryTokens
+			nonToolTokens += EstimateAnyTokens(message) + 4
+		}
+		maxToolTokens := budget.AvailableInputTokens - budget.FixedOverheadTokens - nonToolTokens
+		if maxToolTokens > 0 {
+			rebalanceToolMessagesToTokens(messages, staticCount+start, maxToolTokens)
+			messageTokens = make([]int, len(nonSystem))
+			for index, message := range nonSystem {
+				messageTokens[index] = EstimateAnyTokens(message) + 4
 			}
+			budget.HistoryTokens = sumInts(messageTokens)
+			budget.TotalTokens = budget.FixedOverheadTokens + budget.HistoryTokens
 		}
 	}
 	if budget.FixedOverheadTokens+sumInts(messageTokens[start:]) > budget.AvailableInputTokens {
@@ -413,24 +415,14 @@ func rebalanceToolMessagesToTokens(messages []map[string]any, startIndex int, ma
 }
 
 func rawRecentStart(messages []map[string]any) int {
-	lastUser := -1
 	for index := len(messages) - 1; index >= 0; index-- {
 		if strings.TrimSpace(fmt.Sprint(messages[index]["role"])) == "user" {
-			lastUser = index
-			break
+			// Raw 阶段只把当前用户输入及其后的 Active Turn 视为不可压缩尾部。
+			// 上一轮已经完成的工具轨迹可以安全进入历史摘要，不能再锁死整个请求。
+			return index
 		}
 	}
-	if lastUser < 0 {
-		return len(messages)
-	}
-	start := lastUser
-	for index := lastUser - 1; index >= 0; index-- {
-		if strings.TrimSpace(fmt.Sprint(messages[index]["role"])) == "user" {
-			start = index
-			break
-		}
-	}
-	return start
+	return len(messages)
 }
 
 func summarizeRawHistoryWithinBudget(history []map[string]any, maxTokens int) string {
