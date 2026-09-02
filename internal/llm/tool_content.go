@@ -7,21 +7,32 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"chatdock/internal/mcp"
 )
 
 const (
-	currentToolResultMaxBytes       = 24 << 10
-	currentToolAggregateMaxBytes    = 96 << 10
-	historicalToolAggregateMaxBytes = 48 << 10
-	toolValueMaxStringBytes         = 4 << 10
-	toolValueMaxCollectionItems     = 32
-	toolValueMaxMapKeyBytes         = 256
-	toolValueMaxDepth               = 24
+	currentToolResultMaxBytes    = 24 << 10
+	currentToolAggregateMaxBytes = 96 << 10
+	toolValueMaxStringBytes      = 4 << 10
+	toolValueMaxCollectionItems  = 32
+	toolValueMaxMapKeyBytes      = 256
+	toolValueMaxDepth            = 24
 )
 
 var timeValueType = reflect.TypeOf(time.Time{})
+
+func utf8Prefix(value string, maxBytes int) string {
+	if len(value) <= maxBytes {
+		return value
+	}
+	end := maxBytes
+	for end > 0 && !utf8.ValidString(value[:end]) {
+		end--
+	}
+	return value[:end]
+}
 
 func modelToolContent(payload map[string]any, maxBytes int, markerLabel string) string {
 	if maxBytes <= 0 {

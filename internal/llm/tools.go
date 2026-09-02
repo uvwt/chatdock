@@ -77,7 +77,7 @@ func (c *ChatClient) CompleteWithMCPToolsEvents(ctx context.Context, cfg model.M
 			return "", err
 		}
 	}
-	messages := buildAnyMessagesFromPreparation(prepared, historyAfterCheckpoint(history, loopOptions.ContextCheckpoint))
+	messages := buildAnyMessagesFromPreparation(prepared)
 	messages = appendMCPContext(messages, tools, loopOptions.ServerInstructions)
 	currentTools := func() []map[string]any {
 		if loopOptions.RefreshTools != nil {
@@ -774,17 +774,15 @@ func BuildChatMessagesAnyCheckedWithCheckpoint(cfg model.ModelConfig, history []
 	if err != nil {
 		return nil, prepared.Budget, err
 	}
-	return buildAnyMessagesFromPreparation(prepared, historyAfterCheckpoint(history, checkpoint)), prepared.Budget, nil
+	return buildAnyMessagesFromPreparation(prepared), prepared.Budget, nil
 }
 
-func buildAnyMessagesFromPreparation(prepared ContextPreparation, history []model.Message) []map[string]any {
-	valid := validChatHistory(history)
-	_, conversation := splitHistorySystemMessages(valid)
-	contextMessages := contextMessagesForPreparation(prepared, conversation, historicalToolMessageIndexSet(conversation))
+func buildAnyMessagesFromPreparation(prepared ContextPreparation) []map[string]any {
+	contextMessages := contextMessagesForPreparation(prepared)
 	messages := make([]map[string]any, 0, len(prepared.Messages)*2)
-	for index, item := range contextMessages {
+	for _, item := range contextMessages {
 		if item.IncludeToolHistory {
-			if historical := historicalAssistantMessages(item, index); len(historical) > 0 {
+			if historical := historicalAssistantMessages(item); len(historical) > 0 {
 				messages = append(messages, historical...)
 				continue
 			}
@@ -796,7 +794,6 @@ func buildAnyMessagesFromPreparation(prepared ContextPreparation, history []mode
 			messages = append(messages, map[string]any{"role": "user", "content": imageContent})
 		}
 	}
-	rebalanceToolContent(messages, 0, historicalToolAggregateMaxBytes)
 	return mergeLeadingSystemMessagesAny(messages)
 }
 

@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"unicode/utf8"
 
 	"chatdock/internal/model"
 )
 
-func TestBuildChatMessagesAnyRestoresOnlyTwoRecentToolMessages(t *testing.T) {
+func TestBuildChatMessagesAnyCompletedTurnOutputsAssistantTraceOnly(t *testing.T) {
 	history := []model.Message{
 		{ID: "user-1", Role: "user", Content: "第一轮"},
 		historicalToolTestMessage("assistant-1", "oldest_tool", "先查旧数据。", "旧数据完成。"),
@@ -22,38 +21,48 @@ func TestBuildChatMessagesAnyRestoresOnlyTwoRecentToolMessages(t *testing.T) {
 	}
 
 	messages := BuildChatMessagesAny(model.ModelConfig{ContextMode: model.ContextModeCustom, MaxContextMessages: 20}, history)
-	toolMessages := messagesWithRole(messages, "tool")
-	if len(toolMessages) != 2 {
-		t.Fatalf("restored tool message count = %d, want 2: %#v", len(toolMessages), messages)
-	}
-	if toolMessages[0]["name"] != "middle_tool" || toolMessages[1]["name"] != "newest_tool" {
-		t.Fatalf("restored tools = %v, %v", toolMessages[0]["name"], toolMessages[1]["name"])
-	}
 
-	for _, toolMessage := range toolMessages {
-		content, _ := toolMessage["content"].(string)
-		if strings.Contains(content, "_chatdock_model_content") {
-			t.Fatalf("internal model field leaked into history: %s", content)
+	toolMessages := messagesWithRole(messages, "tool")
+	if len(toolMessages) != 0 {
+		t.Fatalf("expected 0 tool role messages, got %d: %#v", len(toolMessages), toolMessages)
+	}
+	for _, msg := range messages {
+		if _, hasCalls := msg["tool_calls"]; hasCalls {
+			t.Fatalf("completed turn should not output tool_calls: %#v", msg)
 		}
 	}
+
+	assistantMessages := messagesWithRole(messages, "assistant")
+	if len(assistantMessages) != 3 {
+		t.Fatalf("expected 3 assistant messages, got %d: %#v", len(assistantMessages), assistantMessages)
+	}
+
+	// 历史超过 limit(2) 的最老助手消息只保留普通文本
+	oldestContent, _ := assistantMessages[0]["content"].(string)
+	if strings.Contains(oldestContent, "<tool_execution_trace") {
+		t.Fatalf("oldest assistant message beyond limit should not contain trace: %s", oldestContent)
+	}
+	if !strings.Contains(oldestContent, "先查旧数据。") {
+		t.Fatalf("oldest assistant text lost: %s", oldestContent)
+	}
+
+	// 最近两轮 completed assistant 包含纯文本 trace
+	for _, assistant := range assistantMessages[1:] {
+		content, _ := assistant["content"].(string)
+		if !strings.Contains(content, "<tool_execution_trace") || !strings.Contains(content, "</tool_execution_trace>") {
+			t.Fatalf("recent assistant message missing tool_execution_trace: %s", content)
+		}
+		if strings.Contains(content, "_chatdock_model_content") {
+			t.Fatalf("internal model field leaked into trace: %s", content)
+		}
+	}
+
 	raw, err := json.Marshal(messages)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(string(raw), "不得回传的推理") {
 		t.Fatalf("reasoning leaked into model history: %s", raw)
-	}
-
-	for _, toolMessage := range toolMessages {
-		messageIndex := indexOfMessage(messages, toolMessage)
-		if messageIndex <= 0 {
-			t.Fatalf("tool message has no assistant tool call before it: %#v", messages)
-		}
-		assistant := messages[messageIndex-1]
-		calls, _ := assistant["tool_calls"].([]map[string]any)
-		if len(calls) != 1 || calls[0]["id"] != toolMessage["tool_call_id"] {
-			t.Fatalf("tool call pairing mismatch: assistant=%#v tool=%#v", assistant, toolMessage)
-		}
 	}
 }
 
@@ -70,80 +79,181 @@ func TestHistoricalToolMessageIndexesUsesAssistantTurns(t *testing.T) {
 	}
 }
 
-func TestHistoricalToolContentTruncatesAtUTF8Boundary(t *testing.T) {
-	content := historicalToolContent(map[string]any{"result": strings.Repeat("工具结果", 10000)})
-	if len(content) > historicalToolResultMaxBytes {
-		t.Fatalf("truncated content bytes = %d, max = %d", len(content), historicalToolResultMaxBytes)
-	}
-	if !utf8.ValidString(content) {
-		t.Fatal("truncated content is not valid UTF-8")
-	}
-	if !strings.Contains(content, "已截断") {
-		t.Fatalf("truncation marker missing: %q", content)
-	}
-	if !json.Valid([]byte(content)) {
-		t.Fatalf("historical tool content must remain valid JSON: %q", content)
-	}
-}
-
-func TestBuildChatMessagesAnyBoundsHistoricalToolAggregate(t *testing.T) {
-	assistant := model.Message{ID: "assistant-many-tools", Role: "assistant", Content: "历史工具链完成。"}
-	for index := 0; index < 20; index++ {
-		toolName := fmt.Sprintf("history_tool_%d", index)
-		assistant.Events = append(assistant.Events, model.MessageEvent{
-			ID:      fmt.Sprintf("event_%d", index),
-			Kind:    "tool",
-			Phase:   "done",
-			CallKey: toolName + "::{}",
-			Text:    "调用完成：" + toolName,
+func TestCompletedToolTraceDeterministicAndBounded(t *testing.T) {
+	events := []model.MessageEvent{
+		{
+			Kind:  "tool",
+			Phase: "done",
+			Text:  "调用完成：read_file",
 			Details: map[string]any{
 				"event":     "tool_call_result",
-				"tool":      toolName,
-				"arguments": map[string]any{},
+				"tool":      "read_file",
+				"arguments": map[string]any{"path": "/src/main.go", "offset": 100},
 				"data": map[string]any{
 					"ok":   true,
-					"tool": toolName,
+					"tool": "read_file",
 					"result": map[string]any{
-						"value": strings.Repeat(toolName, historicalToolResultMaxBytes),
+						"content": "package main\n\nfunc main() {}",
 					},
 				},
 			},
-		})
+		},
+		{
+			Kind:  "tool",
+			Phase: "error",
+			Text:  "调用失败：exec_cmd",
+			Details: map[string]any{
+				"event":     "tool_call_result",
+				"tool":      "exec_cmd",
+				"arguments": map[string]any{"cmd": "npm test", "workdir": "/app"},
+				"error":     "exit status 1: test failed",
+				"data": map[string]any{
+					"ok":    false,
+					"tool":  "exec_cmd",
+					"error": "exit status 1: test failed",
+				},
+			},
+		},
 	}
 
-	messages := BuildChatMessagesAny(model.ModelConfig{ContextMode: model.ContextModeCustom, MaxContextMessages: 20}, []model.Message{
-		assistant,
-		{Role: "user", Content: "继续"},
-	})
-	toolMessages := messagesWithRole(messages, "tool")
-	if len(toolMessages) != 20 {
-		t.Fatalf("historical tool messages = %d, want 20", len(toolMessages))
+	trace1 := completedToolTrace(events)
+	trace2 := completedToolTrace(events)
+
+	if trace1 != trace2 {
+		t.Fatalf("trace is not byte-level deterministic:\ntrace1:\n%s\ntrace2:\n%s", trace1, trace2)
 	}
-	total := 0
-	for _, message := range toolMessages {
-		content, _ := message["content"].(string)
-		total += len(content)
+	if tokens := EstimateTokens(trace1); tokens > completedToolTraceMaxTokens {
+		t.Fatalf("trace tokens = %d, max = %d", tokens, completedToolTraceMaxTokens)
 	}
-	if total > historicalToolAggregateMaxBytes {
-		t.Fatalf("historical tool content = %d bytes, max %d", total, historicalToolAggregateMaxBytes)
+	if !strings.Contains(trace1, "<tool_execution_trace total=2>") || !strings.Contains(trace1, "</tool_execution_trace>") {
+		t.Fatalf("trace format invalid: %s", trace1)
 	}
-	firstContent, _ := toolMessages[0]["content"].(string)
-	lastContent, _ := toolMessages[len(toolMessages)-1]["content"].(string)
-	if !strings.Contains(firstContent, "tool_context_budget") {
-		t.Fatalf("oldest historical tool result was not compacted: %q", firstContent)
-	}
-	if strings.Contains(lastContent, "tool_context_budget") {
-		t.Fatalf("newest historical tool result should be retained when budget allows: %q", lastContent)
+	if !strings.Contains(trace1, "[done] read_file") || !strings.Contains(trace1, "[error] exec_cmd") {
+		t.Fatalf("trace missing status or tool name: %s", trace1)
 	}
 }
 
-func TestHistoricalToolCallExcludesMCPAppPresentationPayload(t *testing.T) {
+func TestCompletedToolTraceKeepsSmallStructuredOutcomeAndDropsLargeOutput(t *testing.T) {
+	event := model.MessageEvent{
+		Kind: "tool", Phase: "done", Text: "调用完成：deploy",
+		Details: map[string]any{
+			"event":     "tool_call_result",
+			"tool":      "deploy",
+			"arguments": map[string]any{"path": "/srv/app"},
+			"data": map[string]any{
+				"tool": "deploy",
+				"result": map[string]any{
+					"id":        "release-42",
+					"status":    "healthy",
+					"exit_code": 0,
+					"stdout":    strings.Repeat("very long build output ", 200),
+				},
+			},
+		},
+	}
+	trace := completedToolTrace([]model.MessageEvent{event})
+	if !strings.Contains(trace, "release-42") || !strings.Contains(trace, "healthy") || !strings.Contains(trace, "exit_code") {
+		t.Fatalf("small structured outcome was lost: %s", trace)
+	}
+	if strings.Contains(trace, "very long build output") {
+		t.Fatalf("large stdout leaked into completed trace: %s", trace)
+	}
+}
+
+func TestCompletedToolTrace128EventsBoundsAndPreservesHeadTailAndErrors(t *testing.T) {
+	events := make([]model.MessageEvent, 128)
+	for i := 0; i < 128; i++ {
+		cmdName := fmt.Sprintf("echo step_%d", i)
+		if i == 50 {
+			events[i] = model.MessageEvent{
+				ID:      fmt.Sprintf("event-%d", i),
+				Kind:    "tool",
+				Phase:   "error",
+				CallKey: "chatdock_tool_call::{}",
+				Text:    "调用失败：NexusDock__exec_command",
+				Details: map[string]any{
+					"event": "tool_call_result",
+					"tool":  "chatdock_tool_call",
+					"arguments": map[string]any{
+						"tool": "NexusDock__exec_command",
+						"arguments": map[string]any{
+							"cmd":     "run_failing_command",
+							"workdir": "/workspace",
+						},
+					},
+					"error": "command failed: exit status 1",
+					"data": map[string]any{
+						"ok":    false,
+						"tool":  "NexusDock__exec_command",
+						"error": "command failed: exit status 1",
+					},
+				},
+			}
+			continue
+		}
+
+		events[i] = model.MessageEvent{
+			ID:      fmt.Sprintf("event-%d", i),
+			Kind:    "tool",
+			Phase:   "done",
+			CallKey: "chatdock_tool_call::{}",
+			Text:    "调用完成：NexusDock__exec_command",
+			Details: map[string]any{
+				"event": "tool_call_result",
+				"tool":  "chatdock_tool_call",
+				"arguments": map[string]any{
+					"tool": "NexusDock__exec_command",
+					"arguments": map[string]any{
+						"cmd":     cmdName,
+						"workdir": "/workspace/chatdock",
+					},
+				},
+				"data": map[string]any{
+					"ok":   true,
+					"tool": "NexusDock__exec_command",
+					"result": map[string]any{
+						"stdout": fmt.Sprintf("output of step %d\n", i),
+					},
+				},
+			},
+		}
+	}
+
+	trace := completedToolTrace(events)
+	if tokens := EstimateTokens(trace); tokens > completedToolTraceMaxTokens {
+		t.Fatalf("128 events trace tokens = %d, exceeds max %d", tokens, completedToolTraceMaxTokens)
+	}
+	if !strings.HasPrefix(trace, "<tool_execution_trace total=128>\n") {
+		t.Fatalf("trace missing correct prefix header: %s", trace)
+	}
+	if !strings.HasSuffix(trace, "</tool_execution_trace>") {
+		t.Fatalf("trace missing correct suffix footer: %s", trace)
+	}
+	if !strings.Contains(trace, "NexusDock__exec_command") {
+		t.Fatalf("nested tool name was not extracted: %s", trace)
+	}
+	if !strings.Contains(trace, "step_0") {
+		t.Fatalf("trace missing head events: %s", trace)
+	}
+	if !strings.Contains(trace, "step_127") {
+		t.Fatalf("trace missing tail events: %s", trace)
+	}
+	if !strings.Contains(trace, "[error] NexusDock__exec_command") || !strings.Contains(trace, "exit status 1") {
+		t.Fatalf("trace missing critical error event info: %s", trace)
+	}
+	if !strings.Contains(trace, "已折叠") {
+		t.Fatalf("trace missing folding marker: %s", trace)
+	}
+}
+
+func TestCompletedToolTraceExcludesMCPAppPresentationPayload(t *testing.T) {
 	html := strings.Repeat("<section>app</section>", 2000)
 	event := model.MessageEvent{
 		Kind: "tool", Phase: "done", Text: "调用完成：demo__inspect",
 		Details: map[string]any{
-			"event": "tool_call_result",
-			"tool":  "demo__inspect",
+			"event":     "tool_call_result",
+			"tool":      "demo__inspect",
+			"arguments": map[string]any{"id": "res-123"},
 			"data": map[string]any{
 				"ok":            true,
 				"tool":          "demo__inspect",
@@ -153,16 +263,16 @@ func TestHistoricalToolCallExcludesMCPAppPresentationPayload(t *testing.T) {
 			},
 		},
 	}
-	_, payload, ok := historicalToolCall(event, 1, 0)
+	entry, ok := completedToolTraceEntryForEvent(event)
 	if !ok {
-		t.Fatal("expected historical tool call")
+		t.Fatal("expected trace entry")
 	}
-	raw := historicalToolContent(payload)
-	if strings.Contains(raw, "<section>app</section>") || strings.Contains(raw, "mcp_app") || strings.Contains(raw, "presentation only") {
-		t.Fatalf("presentation payload leaked into model history: %s", raw)
+	line := formatCompletedToolTraceEntry(entry)
+	if strings.Contains(line, "<section>app</section>") || strings.Contains(line, "mcp_app") || strings.Contains(line, "presentation only") {
+		t.Fatalf("presentation payload leaked into trace entry: %s", line)
 	}
-	if !strings.Contains(raw, "kept") {
-		t.Fatalf("real tool result was lost: %s", raw)
+	if !strings.Contains(line, "demo__inspect") {
+		t.Fatalf("tool name was lost: %s", line)
 	}
 }
 
@@ -211,13 +321,4 @@ func messagesWithRole(messages []map[string]any, role string) []map[string]any {
 		}
 	}
 	return matched
-}
-
-func indexOfMessage(messages []map[string]any, target map[string]any) int {
-	for index, message := range messages {
-		if len(message) == len(target) && message["tool_call_id"] == target["tool_call_id"] && message["name"] == target["name"] {
-			return index
-		}
-	}
-	return -1
 }

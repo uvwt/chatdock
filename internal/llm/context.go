@@ -63,22 +63,11 @@ func buildChatContextMessages(cfg model.ModelConfig, history []model.Message) []
 		// checked 版本并把硬上限错误直接交给用户。
 		return nil
 	}
-	valid := validChatHistory(history)
-	_, conversation := splitHistorySystemMessages(valid)
-	toolHistoryIndexes := historicalToolMessageIndexSet(conversation)
-	return contextMessagesForPreparation(prepared, conversation, toolHistoryIndexes)
+	return contextMessagesForPreparation(prepared)
 }
 
-func contextMessagesForPreparation(prepared ContextPreparation, conversation []model.Message, toolHistoryIndexes map[int]bool) []chatContextMessage {
-	messages := make([]chatContextMessage, 0, len(prepared.Messages))
-	for _, item := range prepared.Messages {
-		contextMessage := chatContextMessage{Role: item.Role, Content: item.Content, SourceMessageID: item.SourceMessageID, SourceMessageIndex: item.SourceMessageIndex, ModelAttachments: item.ModelAttachments, Events: item.Events}
-		if item.SourceMessageIndex >= 0 && item.SourceMessageIndex < len(conversation) {
-			contextMessage.IncludeToolHistory = toolHistoryIndexes[item.SourceMessageIndex]
-		}
-		messages = append(messages, contextMessage)
-	}
-	return messages
+func contextMessagesForPreparation(prepared ContextPreparation) []chatContextMessage {
+	return append([]chatContextMessage(nil), prepared.Messages...)
 }
 
 func messageContentForModel(item chatContextMessage) any {

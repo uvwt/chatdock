@@ -54,7 +54,16 @@ func TestCompleteWithMCPToolsRetriesContextErrorWithAggressiveCompression(t *tes
 		t.Fatalf("unexpected first request messages: %#v", firstBody["messages"])
 	}
 	secondMessages, _ := secondBody["messages"].([]any)
-	if len(secondMessages) != 4 {
-		t.Fatalf("emergency retry did not compress the older turn: %#v", secondBody["messages"])
+	if len(secondMessages) >= len(firstMessages) {
+		t.Fatalf("emergency retry did not tighten context: first=%#v second=%#v", firstBody["messages"], secondBody["messages"])
+	}
+	if len(secondMessages) < 2 {
+		t.Fatalf("emergency retry lost required context: %#v", secondBody["messages"])
+	}
+	if content := fmt.Sprint(secondMessages[len(secondMessages)-1].(map[string]any)["content"]); content != "current question" {
+		t.Fatalf("emergency retry changed current question: %#v", secondBody["messages"])
+	}
+	if summary := fmt.Sprint(secondMessages[0].(map[string]any)["content"]); !strings.Contains(summary, "# 早期会话摘要") {
+		t.Fatalf("emergency retry summary missing: %#v", secondBody["messages"])
 	}
 }
