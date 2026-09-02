@@ -126,10 +126,15 @@ if (!/min-height:\s*calc\(72px\s*\+\s*env\(safe-area-inset-top/.test(desktopSett
 const compactSettingsPolish = read('web/src/styles/settings/21-mobile-polish.css');
 const compactSettingsHeaderRule = compactSettingsPolish.match(/\.settings-page\s+\.settings-header\s*\{([^}]*)\}/)?.[1] || '';
 const compactSettingsSidebarRule = compactSettingsPolish.match(/\.settings-page\s+\.settings-sidebar\s*\{([^}]*)\}/)?.[1] || '';
+const compactSettingsEditorHeaderRule = compactSettingsPolish.match(/\.settings-page\s+\.settings-editor-header\s*\{([^}]*)\}/)?.[1] || '';
 if (!/min-height:\s*calc\(52px\s*\+\s*env\(safe-area-inset-top/.test(compactSettingsHeaderRule)
   || !/padding:\s*calc\(8px\s*\+\s*env\(safe-area-inset-top/.test(compactSettingsHeaderRule)
   || !/top:\s*calc\(52px\s*\+\s*env\(safe-area-inset-top/.test(compactSettingsSidebarRule)) {
   failures.push('compact settings header and navigation must preserve the safe-area inset');
+}
+if (!/min-height:\s*calc\(64px\s*\+\s*env\(safe-area-inset-top/.test(compactSettingsEditorHeaderRule)
+  || !/padding:\s*calc\(10px\s*\+\s*env\(safe-area-inset-top/.test(compactSettingsEditorHeaderRule)) {
+  failures.push('compact settings editor header must preserve the safe-area inset');
 }
 
 // 会话列表只允许纵向滚动。连续 URL、Token 或 API Key 必须在消息自身换行，

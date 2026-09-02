@@ -203,8 +203,9 @@
     z-index: 40 !important;
     grid-template-columns: auto minmax(0, 1fr) !important;
     gap: 10px !important;
-    min-height: 64px !important;
-    padding: 10px var(--settings-mobile-gutter) 9px !important;
+    /* 二级页与一级页共享同一 safe-area：玻璃背景延伸进状态栏，控件仍落在安全区下方。 */
+    min-height: calc(64px + env(safe-area-inset-top, 0px)) !important;
+    padding: calc(10px + env(safe-area-inset-top, 0px)) var(--settings-mobile-gutter) 9px !important;
     border-bottom: 1px solid var(--gpt-border) !important;
     background: color-mix(in srgb, var(--gpt-main) 94%, transparent) !important;
     backdrop-filter: blur(20px) saturate(1.2) !important;
